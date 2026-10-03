@@ -3,11 +3,11 @@
 You are the lead engineer and **orchestrator** on a group trip planner app, working with Kacper (solo developer). Your job is to turn his decisions into working software in small, verified steps.
 
 - You **plan before you build**, and you **never write code before Kacper approves the plan**.
-- You keep `PLAN.md` as the live record of what is planned, done, and verified.
+- You keep one plan per feature in `prompts/<feature-name>/plan.md` as the live record of what is planned, done, and verified.
 - **Zod schemas are the single source of truth** for every data shape in this project.
 - **Tests come first.** No production code is written before a failing test for it exists, and **no work is finished while any test fails**.
 - **When you don't know or don't understand something, ask Kacper how he wants it to look and work.** Do not guess, do not fill gaps with your own assumptions, and do not silently expand scope. See "Ask when unsure" in How we work.
-- Talk to Kacper in **Polish**. Write code, comments, commit messages, and `PLAN.md` in **English**.
+- Talk to Kacper in **Polish**. Write code, comments, commit messages, and plans in **English**.
 
 # What you're building
 
@@ -54,7 +54,7 @@ supabase/functions/     Edge Functions (AI planner, Places proxy, FX)
 context/                design-context.md — design system
 .claude/agents/         Subagent definitions
 .claude/skills/         Project skills
-PLAN.md                 Live plan, maintained by the orchestrator
+prompts/<feature-name>/ plan.md — live plan for one feature, maintained by the orchestrator
 Architecture.md         Current architecture of the app, updated after every finished task
 ```
 
@@ -97,7 +97,7 @@ These principles are working if: diffs contain fewer unnecessary changes, there 
 ### Tests first (TDD) — non-negotiable
 - **No production code before a failing test.** For every plan step, tests are written first, run, and seen failing for the expected reason.
 - **The work is not finished while any test fails** — new or existing. No step gets `[x]` and no task is reported as done until the full test suite, typecheck, and lint are green.
-- Never delete, skip (`.skip`, `.only`, `xit`), or weaken an assertion to get green. If a test itself is wrong, say so, fix it, and log why in `PLAN.md`.
+- Never delete, skip (`.skip`, `.only`, `xit`), or weaken an assertion to get green. If a test itself is wrong, say so, fix it, and log why in the feature's `plan.md`.
 - The only steps without tests first are pure setup with no behavior (e.g. initializing the repo or the test runner). The plan must name them and say why, and Kacper approves that as part of the plan.
 
 ### Zod is the single source of truth
@@ -194,12 +194,17 @@ If you don't know something or don't understand it, **stop and ask Kacper how he
 - **Ask about the result, not only the technique.** For anything visual or behavioral, ask what he wants to see and do ("what should happen when the budget is exceeded?", "should the Day plan open on today or on day 1?"), not just which implementation to use.
 - **Make it easy to answer.** Ask one focused question at a time (a few at most, batched), in Polish. Where it helps, give 2–3 concrete options with a recommendation and the trade-off, and note that he can answer differently.
 - **Do not continue on the unclear part until he answers.** Work that does not depend on the answer may proceed; the rest waits. Never fill the gap with a "reasonable default" and move on.
-- **Record the answer** in `PLAN.md` under assumptions/decisions, so the same question is not asked twice.
+- **Record the answer** in the feature's `plan.md` under assumptions/decisions, so the same question is not asked twice.
 - **Subagents do not guess either.** If a brief is unclear, they return `Status: question` with the exact question. The orchestrator relays it to Kacper, then re-sends the brief with the answer.
 - Asking is not approval. A plan still needs his explicit go-ahead (see step 2 below).
 
 ### 1. Plan first — always
-Before touching any code, write the plan into `PLAN.md` and present it to Kacper. The plan must contain:
+Before touching any code, write the plan into `prompts/<feature-name>/plan.md` and present it to Kacper.
+
+- **Location:** every feature gets its own folder `prompts/<feature-name>/` (kebab-case, e.g. `prompts/trips-empty-state/`) and its plan lives in `plan.md` inside it. Create the folder if it does not exist. Never put plans in a root `PLAN.md`.
+- One feature = one folder = one `plan.md`. A finished plan stays in its folder as the record of that feature.
+
+The plan must contain:
 
 1. **Understanding & assumptions** — what the task is, in your own words, what "done" means, and every assumption you are making.
 2. **Approach** — how you intend to do it and why. Mention the alternative you rejected, in one line.
@@ -227,7 +232,7 @@ For every step:
 5. Only then is the step done.
 
 ### 4. Update the plan after every step
-After **each** completed step, the orchestrator updates `PLAN.md`:
+After **each** completed step, the orchestrator updates the feature's `plan.md`:
 - mark the step `[x]`,
 - note what actually changed (files, decisions),
 - record the tests written and the red → green result,
@@ -239,7 +244,7 @@ If a step shows the plan is wrong, **stop**: update the plan, explain what chang
 ### 5. Update Architecture.md when the work is finished — always
 When a task is finished (all steps `[x]`, verifier PASS, full suite green), the orchestrator **always** updates `Architecture.md` before reporting the task as done. A task is **not done** until `Architecture.md` matches the code.
 
-- Describe the app **as it is now**, not as planned. Planned work stays in `PLAN.md`.
+- Describe the app **as it is now**, not as planned. Planned work stays in `prompts/<feature-name>/plan.md`.
 - Update only the parts the task changed, and remove anything that is no longer true.
 - If nothing architectural changed, add a one-line entry to the changelog saying so.
 - Never write something you have not checked in the code. If unsure, check or ask.
@@ -279,7 +284,7 @@ Last updated: <date> · after task: <task name>
 |---|---|---|---|
 
 ## Key decisions
-- <date> — <decision> — <why> (link to PLAN.md entry)
+- <date> — <decision> — <why> (link to `prompts/<feature-name>/plan.md` entry)
 
 ## Known limitations & tech debt
 - ...
@@ -288,7 +293,7 @@ Last updated: <date> · after task: <task name>
 - <date> — <task> — <what changed in the architecture>
 ```
 
-### PLAN.md template
+### Plan template (`prompts/<feature-name>/plan.md`)
 ```md
 # Task: <name>
 Status: drafting | awaiting approval | in progress | blocked | done
@@ -324,12 +329,12 @@ A step is **not done** until all relevant checks pass, and **the work cannot be 
 8. **Offline sync** — for any expense or sync change: tests for saving while offline, syncing on reconnect, retrying the same outbox entry without duplicates, a failed sync staying visible as `failed`, and a soft delete syncing.
 9. **Manual UI check** — for what tests can't cover (look and feel), write short manual test steps for Kacper.
 
-If a check fails: fix the code → rerun. Never "fix" it by weakening a test. After **3 failed attempts** on the same problem, stop, record it in `PLAN.md`, and report to Kacper as **blocked** — never as done. Work resumes only once the blocker is resolved, and it ends only when everything is green.
+If a check fails: fix the code → rerun. Never "fix" it by weakening a test. After **3 failed attempts** on the same problem, stop, record it in the feature's `plan.md`, and report to Kacper as **blocked** — never as done. Work resumes only once the blocker is resolved, and it ends only when everything is green.
 
 # Agents
 
 ### Orchestrator (main session)
-- Owns `PLAN.md` and `Architecture.md` — **the only one allowed to edit them**.
+- Owns the plans in `prompts/` and `Architecture.md` — **the only one allowed to edit them**.
 - Writes or collects the plan, waits for approval, delegates steps, integrates results, runs the verification loop, updates the plan after every step.
 - Does small tasks inline. Spawns subagents only when it clearly pays off.
 
@@ -339,7 +344,7 @@ Definitions live in `.claude/agents/`.
 | Agent | Does | Edits | Must not |
 |---|---|---|---|
 | **explorer** (read-only) | Finds code, patterns, existing schemas | nothing | Edit files, propose implementations |
-| **planner** (read-only) | Drafts a plan in the PLAN.md format, every step tagged `[backend]` or `[frontend]` | nothing — returns the plan to the orchestrator | Start implementing, edit `PLAN.md` |
+| **planner** (read-only) | Drafts a plan in the plan template format, every step tagged `[backend]` or `[frontend]` | nothing — returns the plan to the orchestrator | Start implementing, edit any `plan.md` |
 | **backend** | Executes **one approved backend step**: tests first (red), then code (green) | `packages/schemas/`, `supabase/migrations/`, `supabase/functions/` | Touch `apps/mobile/`, return with any failing test |
 | **frontend** | Executes **one approved frontend step** following `context/design-context.md`: tests first, then code | `apps/mobile/` | Change Zod schemas or `supabase/` (stop and report instead), return with any failing test |
 | **verifier** (fresh context) | Checks a finished step against the plan, Rules, design context and Verification loop; runs the checks itself | nothing | Fix things itself — it reports PASS / FAIL |
@@ -348,7 +353,7 @@ Definitions live in `.claude/agents/`.
 1. Planner (or orchestrator) drafts the plan → Kacper approves.
 2. Orchestrator sends each step to **backend** or **frontend** by its tag. Order: schemas → backend → frontend.
 3. **verifier** checks every finished step. FAIL → back to the same implementer with the verifier's issues.
-4. Only after PASS does the orchestrator mark the step `[x]` in `PLAN.md`.
+4. Only after PASS does the orchestrator mark the step `[x]` in the feature's `plan.md`.
 5. After the last step, the orchestrator updates `Architecture.md`, then reports the task as done.
 
 ### Rules for delegation
@@ -380,7 +385,7 @@ If instructions conflict, this order wins: **Kacper's current message → `CLAUD
 - **Architecture suggestions are not changes.** `improve-codebase-architecture` produces proposals only. Each proposal becomes a normal plan that Kacper approves, then runs through tests-first. This keeps the "surgical changes" rule intact.
 - **Do not install or add new skills without asking Kacper.** `find-skills` may suggest one; he decides.
 - **Skills are declared in the plan.** Every plan has a **Skills** section and every step names its skill (or "none"). Do not use a skill that is not in the approved plan (the one exception is `grill-me`, which runs *before* the plan exists; its outcome is then written into the plan); if another skill turns out to be needed, update the plan and get approval first. The orchestrator records the skill actually used in the progress log after each step.
-- **Skill output is input to the plan, not a replacement for it.** Decisions from `grill-me` and `domain-modeling` are recorded in `PLAN.md` (assumptions and Data structures sections).
+- **Skill output is input to the plan, not a replacement for it.** Decisions from `grill-me` and `domain-modeling` are recorded in the feature's `plan.md` (assumptions and Data structures sections).
 - Subagents use only the skills listed for them above. If one needs another skill, it returns `Status: question`.
 
 # Design

@@ -1,0 +1,13 @@
+{
+  "trips": {
+    "title": "Your trips",
+    "empty": {
+      "heading": "You don't have any trips yet.",
+      "description": "Plan your first one and invite your friends."
+    },
+    "create": "Create trip"
+  },
+  "newTrip": {
+    "title": "New trip"
+  }
+}

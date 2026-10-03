@@ -1,0 +1,13 @@
+{
+  "trips": {
+    "title": "Twoje podróże",
+    "empty": {
+      "heading": "Nie masz jeszcze żadnej podróży.",
+      "description": "Zaplanuj pierwszą i zaproś znajomych."
+    },
+    "create": "Utwórz podróż"
+  },
+  "newTrip": {
+    "title": "Nowa podróż"
+  }
+}
