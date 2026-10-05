@@ -4,6 +4,7 @@ import * as SplashScreen from 'expo-splash-screen';
 import { Text } from 'react-native';
 
 import RootLayout from '@/app/_layout';
+import { useTrips } from '@/hooks/useTrips';
 
 jest.mock('expo-font', () => ({ ...jest.requireActual('expo-font'), useFonts: jest.fn() }));
 jest.mock('expo-splash-screen', () => ({
@@ -17,6 +18,7 @@ function renderApp() {
   return renderRouter({
     _layout: RootLayout,
     index: () => <Text>home screen</Text>,
+    'trips/new/index': () => null,
   });
 }
 
@@ -42,5 +44,15 @@ describe('RootLayout', () => {
     await renderApp();
     expect(screen.getByText('home screen')).toBeTruthy();
     expect(SplashScreen.hideAsync).toHaveBeenCalled();
+  });
+
+  it('gives screens the trips data layer (query client + trip repository)', async () => {
+    mockedUseFonts.mockReturnValue([true, null]);
+    function TripsProbe() {
+      const trips = useTrips();
+      return <Text>{trips.isSuccess ? `trips: ${trips.data.length}` : 'loading'}</Text>;
+    }
+    await renderRouter({ _layout: RootLayout, index: TripsProbe, 'trips/new/index': () => null });
+    expect(await screen.findByText('trips: 0')).toBeTruthy();
   });
 });

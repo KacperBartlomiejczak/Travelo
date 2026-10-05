@@ -11,6 +11,7 @@ import * as SplashScreen from "expo-splash-screen";
 import { useEffect } from "react";
 
 import "@/i18n";
+import { AppProviders } from "@/providers/AppProviders";
 
 SplashScreen.preventAutoHideAsync();
 
@@ -38,8 +39,11 @@ export default function RootLayout() {
   }
 
   return (
-    <Stack>
-      <Stack.Screen name="index" options={{ headerShown: false }} />
-    </Stack>
+    <AppProviders>
+      <Stack>
+        <Stack.Screen name="index" options={{ headerShown: false }} />
+        <Stack.Screen name="trips/new" options={{ headerShown: false }} />
+      </Stack>
+    </AppProviders>
   );
 }

@@ -31,6 +31,28 @@ describe('lightTheme', () => {
     expect(lightTheme.colors.action.onPrimary).toBe('#FFFFFF');
   });
 
+  it('has the segmented control radius (§10.14)', () => {
+    expect(lightTheme.radius.segmented).toBe(10);
+  });
+
+  it('has a link role for ghost buttons (D28: §10.1 brand.600)', () => {
+    expect(lightTheme.colors.action.link).toBe('#BD472A');
+  });
+
+  it('has an input border role (D26: §10.4 neutral.300)', () => {
+    expect(lightTheme.colors.input.border).toBe('#C5BBAA');
+  });
+
+  it('gives cards elevation level 1 (§6.1)', () => {
+    expect(lightTheme.elevation.card).toEqual({
+      shadowColor: '#17211B',
+      shadowOpacity: 0.08,
+      shadowRadius: 3,
+      shadowOffset: { width: 0, height: 1 },
+      elevation: 1,
+    });
+  });
+
   it('uses light semantic, budget and category colors', () => {
     expect(lightTheme.colors.status.error).toBe('#B13B32');
     expect(lightTheme.colors.budget.over).toBe('#B45F42');
@@ -52,6 +74,18 @@ describe('darkTheme', () => {
     expect(darkTheme.colors.action.primary).toBe('#F08A6C');
     expect(darkTheme.colors.action.primaryPressed).toBe('#F59A82');
     expect(darkTheme.colors.action.onPrimary).toBe('#17211B');
+  });
+
+  it('has a dark link role for ghost buttons (D28)', () => {
+    expect(darkTheme.colors.action.link).toBe('#F08A6C');
+  });
+
+  it('has a dark input border role (D26)', () => {
+    expect(darkTheme.colors.input.border).toBe('#4A564C');
+  });
+
+  it('uses surface contrast instead of shadows for cards in dark mode (§6.1)', () => {
+    expect(darkTheme.elevation.card).toEqual({});
   });
 
   it('uses dark semantic, budget and category colors', () => {

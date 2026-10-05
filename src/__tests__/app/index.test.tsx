@@ -1,10 +1,11 @@
 import { isHiddenFromAccessibility } from '@testing-library/react-native';
 import { useFonts } from 'expo-font';
-import { fireEvent, renderRouter, screen } from 'expo-router/testing-library';
+import { fireEvent, renderRouter, screen, waitFor } from 'expo-router/testing-library';
 
 import RootLayout from '@/app/_layout';
 import TripsScreen from '@/app/index';
-import NewTripScreen from '@/app/trips/new';
+import FlightsStep from '@/app/trips/new/index';
+import NewTripLayout from '@/app/trips/new/_layout';
 import i18n from '@/i18n';
 import { darkTheme, lightTheme } from '@/theme/theme';
 
@@ -23,12 +24,20 @@ jest.mock('react-native/Libraries/Utilities/useWindowDimensions', () => ({
 jest.mock('expo-font', () => ({ ...jest.requireActual('expo-font'), useFonts: jest.fn() }));
 jest.mocked(useFonts).mockReturnValue([true, null]);
 
+// Waits until the trips have loaded (the screen shows a loading state first); the promise still
+// carries getPathname from renderRouter.
 function renderTrips() {
-  return renderRouter({
+  const rendered = renderRouter({
     _layout: RootLayout,
     index: TripsScreen,
-    'trips/new': NewTripScreen,
+    'trips/new/_layout': NewTripLayout,
+    'trips/new/index': FlightsStep,
   });
+  const loaded = rendered.then(async (result) => {
+    await waitFor(() => expect(screen.queryByTestId('trips-loading')).toBeNull());
+    return result;
+  });
+  return Object.assign(loaded, { getPathname: () => rendered.getPathname() });
 }
 
 beforeEach(async () => {

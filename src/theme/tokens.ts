@@ -37,6 +37,8 @@ export const palette = {
     textSecondary: '#C9C2B6',
     textTertiary: '#9E978B',
     border: '#39443B',
+    // D26: input border, one step lighter than `border` so fields stand out on cards.
+    inputBorder: '#4A564C',
     divider: '#2A342D',
     brand: '#F08A6C',
     brandPressed: '#F59A82',
@@ -91,6 +93,7 @@ export const radius = {
   lg: 16,
   xl: 24,
   full: 999,
+  segmented: 10, // §10.14
 } as const;
 
 // §5.2 layout sizes, §7 icon sizes, §8 illustration canvas.
@@ -111,4 +114,15 @@ export const size = {
 // design-context §18: below this width the screen uses compact horizontal padding.
 export const breakpoints = {
   compact: 360,
+} as const;
+
+// §6.1 elevation; shadow color is neutral.900. Dark mode uses surface contrast instead.
+export const elevation = {
+  card: {
+    shadowColor: '#17211B',
+    shadowOpacity: 0.08,
+    shadowRadius: 3,
+    shadowOffset: { width: 0, height: 1 },
+    elevation: 1,
+  },
 } as const;
