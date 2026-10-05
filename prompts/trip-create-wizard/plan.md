@@ -56,6 +56,7 @@ Kacper's request (2026-10-04), in short:
 - **D38 (Kacper, 2026-10-04) — summary screen:** heading "Sprawdź podróż"; three cards, each with a ghost "Zmień" that returns to that step (draft kept): trip (city as Heading 3, dates + number of days, outbound/return segment lines "WAW 2 lis, 22:00 → DXB 3 lis, 06:30" with amber layover labels), travellers ("Podróżni · N osoby": "Ty", then each friend with interests or "bez zainteresowań"), budget (per person in Numeric L, then group total and ~per day). Save error: `CircleX` + "Nie udało się zapisać podróży. Spróbuj ponownie." above the button; "Utwórz podróż" shows loading while saving; after saving → "Twoje podróże" (D6) without the discard question.
 - **D39 (Kacper, 2026-10-04) — trips list:** "Twoje podróże" (Heading 1); "Najbliższa podróż" (Heading 3) with the soonest trip, then "Później" with the rest; card (wizard card style): city Heading 3, date range Body M, `Users` icon + "N osoby", "Budżet: 3000 THB / os."; "Utwórz podróż" stays pinned at the bottom. Loading: 2 static skeleton cards (`surface.secondary`). Error: `CircleX` + "Nie udało się wczytać podróży." + secondary "Spróbuj ponownie" (§12). Empty: unchanged. Cards not pressable yet (trip details are a separate task).
 - **D40 (Kacper, 2026-10-04) — summary budget line confirmed:** "Razem … · ~… dziennie na osobę".
+- **D41 (Kacper, 2026-10-05) — wording:** CLAUDE.md's product description says "friends" instead of "guests" (matches `GLOSSARY.md` and the schema).
 - **D16 (Q9–Q13) — accepted as proposed** with the plan approval (2026-10-04): max 19 companions; a friend may have 0 interests; add `expo-crypto` for UUIDs; download the 3 airport sources at dev time and bundle the generated JSON; trip card shows "N osoby" + `Users` icon instead of avatars.
 
 ### Assumptions (correct me if any is wrong)
@@ -341,7 +342,7 @@ Per step: tests written first and seen failing for the expected reason → minim
 - Device checks still needed for pickers (tests mock them): iOS wheel shown in UTC displays the airport wall clock as entered; Android date→time dialogs on a phone set to a US time zone; Polish Android in 12h vs 24h mode.
 - Web: the date input's error is not tied with `aria-describedby` (web is a preview target).
 - Airport search has no airport-size signal: `lon` lists Longview before Heathrow, `bar` lists BCN 7th. Raise with Kacper (option: add a `large` flag to the dataset and rank large airports first).
-- `GLOSSARY.md` says "friend" (avoid "guest" in UI copy); CLAUDE.md's data comment now says "friend", but its product description still says "guests" — Kacper to decide.
+- ~~CLAUDE.md said "guests" while `GLOSSARY.md` says "friend"~~ — resolved by D41.
 - `isTimeZone` accepts any zone `Intl` accepts (incl. wrong letter case); Hermes ICU data may differ from Node's.
 - `Intl` time-zone support on Hermes (for local time → offset): Hermes uses platform ICU; must be checked on a device in step 3's manual test. Fallback would be a date library (new dependency → ask).
 - `@expo/ui` date-time picker behaviour differs between iOS, Android and web; tests mock it, so device check is manual.

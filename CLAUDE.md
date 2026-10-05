@@ -11,11 +11,11 @@ You are the lead engineer and **orchestrator** on a group trip planner app, work
 
 # What you're building
 
-A mobile app for the person who organizes a trip for a group of friends. **Only the organizer needs the app.** Friends are added to a trip as guests (name + interests). Friends who do have an account can optionally be added by user ID to follow the plan read-only.
+A mobile app for the person who organizes a trip for a group of friends. **Only the organizer needs the app.** Friends are added to a trip by name and interests, without an account. Friends who do have an account can optionally be added by user ID to follow the plan read-only.
 
 ### Core features (MVP)
 1. **Trip setup** — destination, dates, base currency, daily budget.
-2. **Members** — guests (no account, just data) or linked users (added by ID). Each has interests, budget level, pace, dietary notes.
+2. **Members** — friends (no account, just data) or linked users (added by ID). Each has interests, budget level, pace, dietary notes.
 3. **Flights & layovers** — manual entry of flight segments; layovers are derived and long ones get planned too ("9h in Dubai — worth leaving the airport?").
 4. **AI day plans** — per-day schedule built from **real places** (attractions + where to eat), with estimated costs as ranges. Can split the group when interests diverge ("afternoon: Kasia + Ola → beach, rest → museum, dinner together").
 5. **Expenses during the trip** — adding one must take seconds. Multi-currency. **Works offline**: expenses are saved locally first and synced when the connection is back.
