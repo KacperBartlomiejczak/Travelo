@@ -1,5 +1,5 @@
 # Task: Create trip — multi-step form (flights → friends → budget → summary)
-Status: done (2026-10-04) — awaiting Kacper's manual device check
+Status: awaiting approval — follow-up steps 12–15 (PR #2 review fixes, see "Follow-up: PR #2 review fixes" at the end); steps 1–11 done (2026-10-04), manual device check pending
 
 ## Understanding & assumptions
 Kacper's request (2026-10-04), in short:
@@ -232,6 +232,10 @@ Location convention: next to the code in `__tests__/`; route tests in `src/__tes
 - [x] 9. [frontend] Screen 4 — summary + save → `/` — skill: frontend-design, ui-taste — tests first: Step 9 — verify: as above + screenshot.
 - [x] 10. [frontend] Trips screen: loading / empty / error / list with `TripCard`, soonest first — skill: frontend-design, ui-taste — tests first: Step 10 — verify: as above + screenshot + manual test steps for Kacper.
 - [x] 11. Docs: update CLAUDE.md "Data structures" (A4) and `Architecture.md` — no tests (docs only) — verify: every statement checked against the code.
+- [ ] 12. [backend] Reject impossible calendar dates in local date-times (Copilot review, thread 2) — skill: none — tests first: see follow-up section — verify: full suite + typecheck + lint, verifier PASS.
+- [ ] 13. [backend] Reject airport-local times that do not exist (DST gap) in `SegmentInputSchema` (Copilot review, thread 1) — skill: none — tests first: see follow-up section — verify: as above.
+- [ ] 14. [frontend] Error copy for the DST gap (pl/en) + no layover label for a non-existent time — skill: none — tests first: see follow-up section — verify: as above + manual step for Kacper.
+- [ ] 15. Docs: progress log, `Architecture.md` (changelog / known limitations) — no tests (docs only) — verify: every statement checked against the code.
 
 ## Manual test steps for Kacper (device; pl + en; light + dark)
 1. Empty → "Utwórz podróż" opens "Krok 1 z 3/4".
@@ -348,3 +352,89 @@ Per step: tests written first and seen failing for the expected reason → minim
 - `@expo/ui` date-time picker behaviour differs between iOS, Android and web; tests mock it, so device check is manual.
 - Agent definitions (`.claude/agents/Backend.md`, `Frontend.md`) assume `packages/schemas` / `apps/mobile`; briefs will name the real paths (A1).
 - Data is lost on app restart until Supabase (D1) — expected, not a bug.
+
+---
+
+# Follow-up: PR #2 review fixes (2026-10-05)
+Status: awaiting approval
+
+Source: two Copilot review threads on [PR #2](https://github.com/KacperBartlomiejczak/Travelo/pull/2) — `src/lib/time.ts` L30–34 ("Reject nonexistent DST-gap local times") and `src/schemas/create-trip-form.ts` L13–16 ("Reject impossible calendar dates before conversion").
+
+## Understanding & assumptions
+Both findings were reproduced against the PR head (Node + a temporary Jest test on the real schemas and repository, deleted afterwards):
+
+**Thread 1 — DST gap (real bug, worse than reported).** On the night clocks go forward, an hour of airport-local wall clock does not exist (Warsaw 2026-03-29 02:00–02:59, New York 2026-03-08 02:00–02:59). For `2026-03-29T02:30` in `Europe/Warsaw`:
+
+| Function | Result | Wall clock in Warsaw |
+|---|---|---|
+| `zonedLocalToDate` (wizard validation, layovers) | `2026-03-29T01:30Z` | 03:30 |
+| `localToIso` (what gets stored) | `2026-03-29T02:30:00+02:00` = `00:30Z` | 01:30 |
+
+The two functions disagree by one hour, so the wizard validates and shows one instant and the repository stores another:
+- LHR → WAW landing 02:30 on 2027-03-28, WAW → BKK 06:00: the wizard shows a 2 h 30 min layover; the stored segments imply 3 h 30 min. Saved without any error.
+- KRK 01:45 → WAW 02:30 the same night: the wizard accepts it, "Utwórz podróż" fails with the generic save error (`FlightSegmentSchema` sees arrival before departure).
+- New York: the same, shifted the other way (01:30 EST vs 03:30 EDT).
+- Reachable from the UI on every platform: the iOS wheel runs in UTC, Android picks date and time separately, web `datetime-local` has no zone.
+- The opposite case (an hour that occurs twice in autumn, e.g. Warsaw 2026-10-25 02:30) is consistent: both functions pick the winter-time occurrence. No change there.
+
+**Thread 2 — impossible calendar dates (real gap, consequence misreported).** `LOCAL_DATE_TIME_PATTERN` accepts `2026-02-31T10:00`; `zonedLocalToDate` turns it into 3 March, so the wizard's ordering checks and layovers use the wrong day. It is **not** persisted as Copilot says: `localToIso` keeps `02-31` in the string and `IsoDateTimeSchema` / `IsoDateSchema` (`z.iso.*`) reject it, so `create()` throws and nothing is stored — the user only sees the generic save error at the very end, every retry. Not reachable from today's UI (all three pickers return real dates), but the schema is a boundary (future "Wyślij bilet" AI parsing) and `common.test.ts` already intends to reject invalid dates (month 13, hour 25).
+
+**Done means:** an impossible calendar date or a non-existent airport-local time never passes `SegmentInputSchema` / `FlightsStepInputSchema` / `CreateTripInputSchema`; the user gets the error on the right field on the flights step (not a generic save error at the end); no layover is computed from such a time; full suite, typecheck and lint green.
+
+Assumptions (correct me if wrong):
+- **R1** — a non-existent time is **rejected with a field error** (option A, recommended), not silently shifted. See Q14.
+- **R2** — an impossible calendar date reuses the existing `validation.dateTimeRequired` ("Wybierz datę i godzinę"); no new copy, since the UI cannot produce it. See Q16.
+- **R3** — fixed in this PR (branch `feature/trip-create-wizard`), as steps 12–15 of this plan.
+- **R4** — the ambiguous autumn hour stays as is (winter-time occurrence), consistent in both functions.
+
+## Approach
+One idea covers both threads: a local wall clock is valid only if it **round-trips** — convert it to an instant in the airport's zone and back; if the result differs from the input (`02:30` → `03:30`, `02-31` → `03-03`), it does not exist.
+- Calendar dates need no zone, so they are checked at field level in `src/schemas/common.ts` (one `isLocalDateTime` helper: pattern + calendar check), used by `LocalDateTimeSchema`, the wizard's `localDateTime` and the guard in `src/lib/layovers.ts` — one definition instead of three uses of the bare regex.
+- The DST gap needs the zone, so it is checked in `SegmentInputSchema.superRefine` (where `departAt` + `departTz` are both known), via `isExistingLocalTime(local, timeZone)` in `src/lib/time.ts`. The ordering check (arrival after departure) is skipped for a segment with a non-existent time, so the user sees one clear error, not two.
+- Rejected: `z.iso.datetime({ local: true, precision: -1 })` instead of the regex — it validates the calendar (incl. leap years) but also accepts a trailing `Z` (`2026-11-02T10:15Z`), which `wallClockAsUtc` cannot parse. Rejected: auto-shifting gap times (option B) — silently changes what the user entered.
+
+## Data structures (Zod)
+No new entities or fields; only stricter validation. Sketch:
+```ts
+// src/schemas/common.ts
+export function isLocalDateTime(value: string): boolean; // LOCAL_DATE_TIME_PATTERN + real calendar date
+export const LocalDateTimeSchema = z.string().refine(isLocalDateTime);
+
+// src/schemas/create-trip-form.ts
+const localDateTime = z.string().refine(isLocalDateTime, { error: 'validation.dateTimeRequired' });
+// SegmentInputSchema.superRefine (only when fields parsed, as now):
+//   !isExistingLocalTime(departAt, departTz) → issue ['departAt'], 'validation.timeDoesNotExist'
+//   !isExistingLocalTime(arriveAt, arriveTz) → issue ['arriveAt'], 'validation.timeDoesNotExist'
+//   arrival-before-departure check only when both times exist
+
+// src/lib/time.ts
+export function isExistingLocalTime(local: string, timeZone: string): boolean; // round-trip check
+```
+
+## Tests (written first, seen failing)
+- **Step 12** — `src/schemas/__tests__/common.test.ts`: `LocalDateTimeSchema` rejects `2026-02-31T10:00`, `2026-04-31T10:00`, `2027-02-29T10:00`; accepts `2028-02-29T10:00` (leap year) and the existing valid case; existing rejections unchanged. `create-trip-form.test.ts`: a segment with `departAt: '2027-02-31T10:00'` fails with `validation.dateTimeRequired` on `['departAt']`. `src/lib/__tests__/layovers.test.ts`: `layoverMinutes` returns `null` when a time is `…-02-31…`. `src/data/__tests__/trip-repository.test.ts`: `create()` with a return arriving `2026-11-31T17:00` rejects and stores nothing.
+- **Step 13** — `src/lib/__tests__/time.test.ts`: `isExistingLocalTime` → `false` for Warsaw `2026-03-29T02:00` and `02:30`, New York `2026-03-08T02:30`; `true` for Warsaw `01:59` and `03:00` that night, the autumn duplicate `2026-10-25T02:30`, Madrid/Kolkata normal times. `create-trip-form.test.ts`: arrival WAW `2027-03-28T02:30` → `validation.timeDoesNotExist` on `['arriveAt']` and **no** `arrivalBeforeDeparture` issue (the KRK 01:45 case); departure in the gap → `['departAt']`; `FlightsStepInputSchema` with the LHR → WAW → BKK example fails at `['outbound', 0, 'arriveAt']` and adds no chain/return issues. `trip-repository.test.ts`: `create()` with that input rejects and stores nothing.
+- **Step 14** — `src/lib/__tests__/layovers.test.ts`: no layover for a gap arrival (`layoverMinutes` → `null`). `src/__tests__/app/trips/new/flights.test.tsx`: picking `2027-03-28T02:30` as WAW arrival and pressing "Dalej" shows the new message under "Przylot" and does not advance; `i18n.test.ts` key parity covers pl/en.
+
+## Files
+- Modify: `src/schemas/common.ts`, `src/schemas/create-trip-form.ts`, `src/lib/time.ts`, `src/lib/layovers.ts`, `src/i18n/locales/{pl,en}.json`.
+- Tests: `src/schemas/__tests__/{common,create-trip-form}.test.ts`, `src/lib/__tests__/{time,layovers}.test.ts`, `src/data/__tests__/trip-repository.test.ts`, `src/__tests__/app/trips/new/flights.test.tsx`.
+- Docs: this plan, `Architecture.md`.
+
+## Skills
+- none — no new entities (no domain-modeling), no new screen or visual change (only one error string under an existing field).
+
+## Steps
+See steps 12–15 in the main Steps list above. Order: 12 → 13 → 14 → 15; each goes to its implementer by tag, then verifier.
+
+## Verification
+As for steps 1–11: tests red for the expected reason → minimum code → `pnpm test` (full suite, also `TZ=Europe/Warsaw` and `TZ=America/Los_Angeles`, since the bug is zone-dependent) + `pnpm typecheck` + `pnpm lint` → verifier PASS → `[x]` + progress log. Manual step for Kacper after step 14: on a device, WAW arrival 28 Mar 2027 02:30 → error under "Przylot", "Dalej" does not advance; 03:30 → accepted with the right layover.
+
+## Risks & open questions
+- **Q14 — What should happen when someone picks a time that does not exist (e.g. 02:30 on the night clocks go forward)?**
+  - **A (recommended):** field error, e.g. pl "Tej godziny nie ma — tej nocy zegarki przestawiono o godzinę do przodu. Sprawdź bilet." / en "This time doesn't exist — clocks go forward that night. Check your ticket." Simple and honest; a real ticket never shows such a time, so it is always a mistake.
+  - **B:** shift it forward automatically (02:30 → 03:30) and show the corrected time in the field. Fewer taps, but silently changes the input and can hide a mistake (e.g. 01:30 was meant). Choosing B changes steps 13–14 (re-plan).
+- **Q15 — Copy** for the new message (`validation.timeDoesNotExist`) — the texts above, or with the airport's city ("Tej godziny nie ma w Warszawie…")? The city needs interpolation on the flights screen (small extra frontend work).
+- **Q16 — Impossible calendar date** reuses "Wybierz datę i godzinę" (R2) — OK?
+- Risk: `isExistingLocalTime` relies on `Intl` time-zone data, like the rest of `time.ts`; Hermes ICU must agree with Node (already on the device checklist).
+- Risk: the outer `FlightsStepInputSchema` refine is skipped when a nested segment has issues (`when` guard) — asserted by a step 13 test rather than assumed.
