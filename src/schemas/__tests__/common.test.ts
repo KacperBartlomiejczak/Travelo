@@ -58,6 +58,14 @@ describe('LocalDateTime', () => {
       expect(LocalDateTimeSchema.safeParse(value).success).toBe(false);
     },
   );
+
+  it.each(['2026-02-31T10:00', '2026-04-31T10:00', '2027-02-29T10:00'])('rejects the impossible calendar date %p', (value) => {
+    expect(LocalDateTimeSchema.safeParse(value).success).toBe(false);
+  });
+
+  it('accepts 29 February in a leap year', () => {
+    expect(LocalDateTimeSchema.safeParse('2028-02-29T10:00').success).toBe(true);
+  });
 });
 
 describe('Money', () => {

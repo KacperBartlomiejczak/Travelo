@@ -1,5 +1,5 @@
 # Task: Create trip — multi-step form (flights → friends → budget → summary)
-Status: awaiting approval — follow-up steps 12–15 (PR #2 review fixes, see "Follow-up: PR #2 review fixes" at the end); steps 1–11 done (2026-10-04), manual device check pending
+Status: in progress — follow-up steps 12–15 (PR #2 review fixes, see "Follow-up: PR #2 review fixes" at the end) approved by Kacper 2026-10-06; steps 1–11 done (2026-10-04), manual device check pending
 
 ## Understanding & assumptions
 Kacper's request (2026-10-04), in short:
@@ -232,7 +232,7 @@ Location convention: next to the code in `__tests__/`; route tests in `src/__tes
 - [x] 9. [frontend] Screen 4 — summary + save → `/` — skill: frontend-design, ui-taste — tests first: Step 9 — verify: as above + screenshot.
 - [x] 10. [frontend] Trips screen: loading / empty / error / list with `TripCard`, soonest first — skill: frontend-design, ui-taste — tests first: Step 10 — verify: as above + screenshot + manual test steps for Kacper.
 - [x] 11. Docs: update CLAUDE.md "Data structures" (A4) and `Architecture.md` — no tests (docs only) — verify: every statement checked against the code.
-- [ ] 12. [backend] Reject impossible calendar dates in local date-times (Copilot review, thread 2) — skill: none — tests first: see follow-up section — verify: full suite + typecheck + lint, verifier PASS.
+- [x] 12. [backend] Reject impossible calendar dates in local date-times (Copilot review, thread 2) — skill: none — tests first: see follow-up section — verify: full suite + typecheck + lint, verifier PASS.
 - [ ] 13. [backend] Reject airport-local times that do not exist (DST gap) in `SegmentInputSchema` (Copilot review, thread 1) — skill: none — tests first: see follow-up section — verify: as above.
 - [ ] 14. [frontend] Error copy for the DST gap (pl/en) + no layover label for a non-existent time — skill: none — tests first: see follow-up section — verify: as above + manual step for Kacper.
 - [ ] 15. Docs: progress log, `Architecture.md` (changelog / known limitations) — no tests (docs only) — verify: every statement checked against the code.
@@ -328,6 +328,10 @@ Per step: tests written first and seen failing for the expected reason → minim
   - First verifier run: FAIL — loading container was not an accessibility element on iOS (label/busy never read); the list test fixture gave every trip the same id (duplicate React keys). Fixes (tests first, red ✓): `accessible` loading container; unique fixture UUIDs; wizard route mapped in the list test (no "extraneous route" warning); load error announced; date range shows both years across New Year ("28 gru 2026 – 3 sty 2027"); skeleton reuses `Card` (same shadow/geometry); budget line read as "… na osobę" by screen readers (`trips.budgetA11y`).
   - Web-only caveat: TanStack's default `networkMode: 'online'` would pause the query (skeletons forever) if the browser reports offline; native is unaffected (no NetInfo wired to `onlineManager`).
 - **Step 11 — done (2026-10-04).** No tests (docs only). `CLAUDE.md` → Data structures: `Trip.budgetPerPerson` (replaces `dailyBudget`, daily budget derived), optional `TripMember.budgetLevel`/`pace`, `Airport`, note on `src/schemas/` and `XSchema` naming. `Architecture.md` rewritten for the current state (modules, data model, data flow, routes, components, tokens, testing, dependencies, external sources, key decisions, known limitations, changelog), checked against the file tree. Full suite 382/382, typecheck 0, lint clean. First verifier run: FAIL (CLAUDE.md data comment still said "guest" — now "friend", like the schema; airport size ~470 KB after the `large` flag; removed the stale iCloud line; root layout row updated) → fixed. Product wording "guests" in CLAUDE.md (What you're building, Core features) left for Kacper to decide.
+- **Step 12 — done (2026-10-06).** Tests first (red ✓, 6 failing: 3 impossible dates accepted by `LocalDateTimeSchema`; segment `2027-02-31` gave the wrong issue; `layoverMinutes` returned 90 for `2026-11-31`; repository rejected with the late `FlightSegmentSchema` error instead of the wizard issue) → `isLocalDateTime` (pattern + calendar check) in `src/schemas/common.ts`, used by `LocalDateTimeSchema`, the wizard's `localDateTime` and the guard in `src/lib/layovers.ts` → green ✓. Full suite 389/389 (also TZ=Europe/Warsaw and TZ=America/Los_Angeles), typecheck 0, lint clean. Verifier: PASS. Skill used: none.
+  - Test fix (test was wrong): the first layover case (`2026-02-31` departure) passed before the code — the rolled-over date was earlier than the arrival, so `null` for the wrong reason. Rewritten to arrival `2026-11-31T18:30` → departure `2026-12-01T20:00` (90 min without the fix) → red ✓.
+  - Repository test is stricter than planned: asserts the wizard issue at `['flights','return',0,'arriveAt']` / `validation.dateTimeRequired`, not just any rejection.
+  - Verifier note (no action): `Date.UTC` maps years 0–99 to 1900–1999, so `0000-02-29` is rejected; irrelevant for flights.
 
 ## Risks & open questions
 **Need Kacper's answer (can be answered together with approval):**
@@ -356,7 +360,9 @@ Per step: tests written first and seen failing for the expected reason → minim
 ---
 
 # Follow-up: PR #2 review fixes (2026-10-05)
-Status: awaiting approval
+Status: approved (Kacper, 2026-10-06) — in progress
+
+- **D42 (Kacper, 2026-10-06) — plan approved; Q14–Q16 accepted as proposed** (same as D16): Q14 → option A (field error, no auto-shift); Q15 → the texts as written, without the city; Q16 → an impossible calendar date reuses `validation.dateTimeRequired`.
 
 Source: two Copilot review threads on [PR #2](https://github.com/KacperBartlomiejczak/Travelo/pull/2) — `src/lib/time.ts` L30–34 ("Reject nonexistent DST-gap local times") and `src/schemas/create-trip-form.ts` L13–16 ("Reject impossible calendar dates before conversion").
 

@@ -26,6 +26,12 @@ describe('layoverMinutes', () => {
     expect(layoverMinutes(WAW_DXB, { ...DXB_BKK, departTz: '' })).toBeNull();
   });
 
+  it('returns null for an impossible calendar date', () => {
+    // 31 Nov does not exist; read as 1 Dec it would give a 90-minute layover.
+    const arrival = { ...WAW_DXB, arriveAt: '2026-11-31T18:30' };
+    expect(layoverMinutes(arrival, { ...DXB_BKK, departAt: '2026-12-01T20:00' })).toBeNull();
+  });
+
   it('returns null when the next segment leaves before the previous one lands', () => {
     expect(layoverMinutes(WAW_DXB, { ...DXB_BKK, departAt: '2026-11-02T18:00' })).toBeNull();
   });

@@ -2,7 +2,7 @@ import { z } from 'zod';
 
 import { todayIn, zonedLocalToDate } from '@/lib/time';
 
-import { IATA_CODE_PATTERN, isTimeZone, LOCAL_DATE_TIME_PATTERN, MoneySchema } from './common';
+import { IATA_CODE_PATTERN, isLocalDateTime, isTimeZone, MoneySchema } from './common';
 import { FLIGHT_NUMBER_MAX_LENGTH } from './flight';
 import { InterestTagSchema } from './interests';
 import { DISPLAY_NAME_MAX_LENGTH } from './member';
@@ -13,7 +13,7 @@ export const MAX_COMPANIONS = 19;
 
 const airportCode = z.string().regex(IATA_CODE_PATTERN, { error: 'validation.airportRequired' });
 const airportTimezone = z.string().refine(isTimeZone, { error: 'validation.airportRequired' });
-const localDateTime = z.string().regex(LOCAL_DATE_TIME_PATTERN, { error: 'validation.dateTimeRequired' });
+const localDateTime = z.string().refine(isLocalDateTime, { error: 'validation.dateTimeRequired' });
 
 // Cross-field checks run only once every field parsed, so they never see half-filled input.
 const onlyWhenFieldsValid = { when: (payload: { issues: readonly unknown[] }) => payload.issues.length === 0 };

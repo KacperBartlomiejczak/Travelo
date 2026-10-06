@@ -83,6 +83,11 @@ describe('SegmentInput', () => {
     expect(issues(result)).toEqual([{ path: ['toIata'], message: 'validation.sameAirport' }]);
   });
 
+  it('rejects an impossible calendar date as a missing date-time', () => {
+    const result = SegmentInputSchema.safeParse({ ...WAW_DXB, departAt: '2027-02-31T10:00', arriveAt: '2027-03-01T18:30' });
+    expect(issues(result)).toEqual([{ path: ['departAt'], message: 'validation.dateTimeRequired' }]);
+  });
+
   it('reports missing airports and times with i18n keys', () => {
     const result = SegmentInputSchema.safeParse({ ...WAW_DXB, fromIata: '', departAt: '' });
     expect(issues(result)).toEqual(

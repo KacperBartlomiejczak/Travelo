@@ -1,6 +1,6 @@
 import type { TFunction } from 'i18next';
 
-import { isTimeZone, LOCAL_DATE_TIME_PATTERN, type SegmentInput } from '@/schemas';
+import { isLocalDateTime, isTimeZone, type SegmentInput } from '@/schemas';
 
 import { zonedLocalToDate } from './time';
 
@@ -10,7 +10,7 @@ type Departure = Pick<SegmentInput, 'departAt' | 'departTz'>;
 const MINUTE_MS = 60_000;
 
 function instant(local: string, timeZone: string): number | null {
-  if (!LOCAL_DATE_TIME_PATTERN.test(local) || !isTimeZone(timeZone)) return null;
+  if (!isLocalDateTime(local) || !isTimeZone(timeZone)) return null;
   return zonedLocalToDate(local, timeZone).getTime();
 }
 
