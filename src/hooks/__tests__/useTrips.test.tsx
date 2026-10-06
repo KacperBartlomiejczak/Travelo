@@ -36,12 +36,13 @@ describe('useTrips', () => {
     await repository.create(createTripInputFixture());
     const { result } = await renderHook(() => useTrips(), { wrapper: setup(repository) });
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
-    expect(result.current.data?.map((trip) => trip.name)).toEqual(['Bangkok']);
+    expect(result.current.data?.map((trip) => trip.name)).toEqual(['Warsaw → Bangkok']);
   });
 
   it('exposes a repository error', async () => {
     const failing: TripRepository = {
       list: () => Promise.reject(new Error('offline')),
+      nearest: () => Promise.reject(new Error('offline')),
       create: () => Promise.reject(new Error('offline')),
     };
     const { result } = await renderHook(() => useTrips(), { wrapper: setup(failing) });
@@ -60,12 +61,16 @@ describe('useCreateTrip', () => {
       await result.current.create.mutateAsync(createTripInputFixture());
     });
 
-    await waitFor(() => expect(result.current.trips.data?.map((trip) => trip.name)).toEqual(['Bangkok']));
+    await waitFor(() => expect(result.current.trips.data?.map((trip) => trip.name)).toEqual(['Warsaw → Bangkok']));
   });
 
   it('reports a failed save', async () => {
     const repository = createInMemoryTripRepository({ now: () => NOW, newId });
-    const failing: TripRepository = { list: () => repository.list(), create: () => Promise.reject(new Error('down')) };
+    const failing: TripRepository = {
+      list: () => repository.list(),
+      nearest: () => repository.nearest(),
+      create: () => Promise.reject(new Error('down')),
+    };
     const { result } = await renderHook(() => useCreateTrip(), { wrapper: setup(failing) });
     await act(async () => {
       await result.current.mutateAsync(createTripInputFixture()).catch(() => {});

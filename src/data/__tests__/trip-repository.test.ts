@@ -1,5 +1,12 @@
 import { buildTrip, createInMemoryTripRepository, LOCAL_OWNER_ID } from '@/data/trip-repository';
-import { CreateTripInputSchema, FlightSegmentSchema, TripMemberSchema, TripSchema, TripSummarySchema } from '@/schemas';
+import {
+  CreateTripInputSchema,
+  FlightSegmentSchema,
+  TripMemberSchema,
+  TripOverviewSchema,
+  TripSchema,
+  TripSummarySchema,
+} from '@/schemas';
 import { createTripInputFixture } from '@/test/fixtures';
 
 const NOW = new Date('2026-10-04T12:00:00Z');
@@ -24,12 +31,12 @@ afterEach(() => {
 });
 
 describe('buildTrip', () => {
-  it('builds a trip named after the destination city, with dates and budget from the wizard', () => {
+  it('builds a trip with the organizer\'s name, dates and budget from the wizard', () => {
     const { trip } = build();
     expect(trip).toEqual({
       id: '00000000-0000-4000-8000-000000000001',
       ownerId: LOCAL_OWNER_ID,
-      name: 'Bangkok',
+      name: 'Warsaw → Bangkok',
       destination: 'BKK',
       startDate: '2026-11-03',
       endDate: '2026-11-15',
@@ -40,12 +47,19 @@ describe('buildTrip', () => {
     expect(TripSchema.safeParse(trip).success).toBe(true);
   });
 
-  it('falls back to the IATA code when the destination is not in the airport list', () => {
+  it('trims the name', () => {
     const { trip } = build((input) => {
-      input.flights.outbound[1].toIata = 'ZZZ';
-      input.flights.return[0].fromIata = 'ZZZ';
+      input.details.name = '  Tajlandia z ekipą  ';
     });
-    expect(trip.name).toBe('ZZZ');
+    expect(trip.name).toBe('Tajlandia z ekipą');
+  });
+
+  it('keeps the cover photo, and has no cover field without one', () => {
+    const withCover = build((input) => {
+      input.details.coverImageUri = 'file:///cache/cover.jpg';
+    });
+    expect(withCover.trip.coverImageUri).toBe('file:///cache/cover.jpg');
+    expect(build().trip).not.toHaveProperty('coverImageUri');
   });
 
   it('turns friends into members without an account', () => {
@@ -110,9 +124,49 @@ describe('in-memory trip repository', () => {
     sooner.flights.return = [
       { ...sooner.flights.return[0], fromIata: 'DXB', departTz: 'Asia/Dubai', departAt: '2026-10-25T09:00', arriveAt: '2026-10-25T13:00' },
     ];
+    sooner.details.name = 'Dubai';
     await repo.create(later);
     await repo.create(sooner);
-    expect((await repo.list()).map((trip) => trip.name)).toEqual(['Dubai', 'Bangkok']);
+    expect((await repo.list()).map((trip) => trip.name)).toEqual(['Dubai', 'Warsaw → Bangkok']);
+  });
+
+  describe('nearest trip', () => {
+    function soonerTrip(name: string) {
+      const input = createTripInputFixture();
+      input.flights.outbound = [{ ...input.flights.outbound[0], departAt: '2026-10-20T10:00', arriveAt: '2026-10-20T18:30' }];
+      input.flights.return = [
+        { ...input.flights.return[0], fromIata: 'DXB', departTz: 'Asia/Dubai', departAt: '2026-10-25T09:00', arriveAt: '2026-10-25T13:00' },
+      ];
+      input.flights.companionCount = 1;
+      input.friends.friends = [{ displayName: 'Ola', interests: [] }];
+      input.details.name = name;
+      return input;
+    }
+
+    it('is null when there are no trips', async () => {
+      await expect(repository().nearest()).resolves.toBeNull();
+    });
+
+    it('returns the soonest trip with its members and flight segments', async () => {
+      const repo = repository();
+      await repo.create(createTripInputFixture());
+      const sooner = await repo.create(soonerTrip('Dubai'));
+      const nearest = await repo.nearest();
+      expect(TripOverviewSchema.safeParse(nearest).success).toBe(true);
+      expect(nearest?.trip).toEqual({ ...sooner, travellerCount: 2 });
+      expect(nearest?.members.map((member) => member.displayName)).toEqual(['Ola']);
+      expect(nearest?.segments.map((s) => [s.direction, s.fromIata, s.toIata])).toEqual([
+        ['outbound', 'WAW', 'DXB'],
+        ['return', 'DXB', 'WAW'],
+      ]);
+    });
+
+    it('takes the first created trip when two start on the same day', async () => {
+      const repo = repository();
+      await repo.create(soonerTrip('First'));
+      await repo.create(soonerTrip('Second'));
+      expect((await repo.nearest())?.trip.name).toBe('First');
+    });
   });
 
   it('counts a solo trip as one traveller', async () => {

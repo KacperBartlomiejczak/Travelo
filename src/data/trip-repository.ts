@@ -1,7 +1,6 @@
 import { randomUUID } from 'expo-crypto';
 import type { z } from 'zod';
 
-import { destinationName } from '@/lib/airport-search';
 import { localToIso } from '@/lib/time';
 import { deriveTripDates } from '@/lib/trip-dates';
 import {
@@ -9,12 +8,14 @@ import {
   FlightSegmentSchema,
   TripMemberSchema,
   TripSchema,
+  TripOverviewSchema,
   TripSummarySchema,
   type CreateTripInput,
   type FlightSegment,
   type SegmentInput,
   type Trip,
   type TripMember,
+  type TripOverview,
   type TripSummary,
 } from '@/schemas';
 
@@ -27,6 +28,8 @@ export type CreatedTrip = { trip: Trip; members: TripMember[]; segments: FlightS
 export interface TripRepository {
   /** Trips soonest first. */
   list(): Promise<TripSummary[]>;
+  /** The soonest trip with its members and flights, or null when there are none. */
+  nearest(): Promise<TripOverview | null>;
   create(input: z.input<typeof CreateTripInputSchema>): Promise<Trip>;
 }
 
@@ -59,11 +62,13 @@ export function buildTrip(input: CreateTripInput, { now, newId }: Deps): Created
   const { outbound } = input.flights;
   const destination = outbound[outbound.length - 1].toIata;
   const { budgetPerPerson } = input.budget;
+  const { name, coverImageUri } = input.details;
 
   const trip = TripSchema.parse({
     id: tripId,
     ownerId: LOCAL_OWNER_ID,
-    name: destinationName(destination),
+    name,
+    ...(coverImageUri ? { coverImageUri } : {}),
     destination,
     ...deriveTripDates(input.flights),
     baseCurrency: budgetPerPerson.currency,
@@ -92,11 +97,16 @@ export function createInMemoryTripRepository(
   deps: { now: () => Date; newId: () => string } = { now: () => new Date(), newId: randomUUID },
 ): TripRepository {
   const stored: CreatedTrip[] = [];
+  const summary = ({ trip, members }: CreatedTrip) => TripSummarySchema.parse({ ...trip, travellerCount: members.length + 1 });
+  const soonestFirst = () =>
+    [...stored].sort((a, b) => a.trip.startDate.localeCompare(b.trip.startDate) || a.trip.createdAt.localeCompare(b.trip.createdAt));
   return {
     async list() {
-      return stored
-        .map(({ trip, members }) => TripSummarySchema.parse({ ...trip, travellerCount: members.length + 1 }))
-        .sort((a, b) => a.startDate.localeCompare(b.startDate) || a.createdAt.localeCompare(b.createdAt));
+      return soonestFirst().map(summary);
+    },
+    async nearest() {
+      const [first] = soonestFirst();
+      return first ? TripOverviewSchema.parse({ trip: summary(first), members: first.members, segments: first.segments }) : null;
     },
     async create(input) {
       const created = buildTrip(CreateTripInputSchema.parse(input), { now: deps.now(), newId: deps.newId });
