@@ -1,5 +1,5 @@
 # Task: Create trip — multi-step form (flights → friends → budget → summary)
-Status: in progress — follow-up steps 12–15 (PR #2 review fixes, see "Follow-up: PR #2 review fixes" at the end) approved by Kacper 2026-10-06; steps 1–11 done (2026-10-04), manual device check pending
+Status: done — steps 1–11 (2026-10-04) and follow-up steps 12–15 (PR #2 review fixes, 2026-10-06); manual device check pending
 
 ## Understanding & assumptions
 Kacper's request (2026-10-04), in short:
@@ -234,8 +234,8 @@ Location convention: next to the code in `__tests__/`; route tests in `src/__tes
 - [x] 11. Docs: update CLAUDE.md "Data structures" (A4) and `Architecture.md` — no tests (docs only) — verify: every statement checked against the code.
 - [x] 12. [backend] Reject impossible calendar dates in local date-times (Copilot review, thread 2) — skill: none — tests first: see follow-up section — verify: full suite + typecheck + lint, verifier PASS.
 - [x] 13. [backend] Reject airport-local times that do not exist (DST gap) in `SegmentInputSchema` (Copilot review, thread 1) — skill: none — tests first: see follow-up section — verify: as above.
-- [ ] 14. [frontend] Error copy for the DST gap (pl/en) + no layover label for a non-existent time — skill: none — tests first: see follow-up section — verify: as above + manual step for Kacper.
-- [ ] 15. Docs: progress log, `Architecture.md` (changelog / known limitations) — no tests (docs only) — verify: every statement checked against the code.
+- [x] 14. [frontend] Error copy for the DST gap (pl/en) + no layover label for a non-existent time — skill: none — tests first: see follow-up section — verify: as above + manual step for Kacper.
+- [x] 15. Docs: progress log, `Architecture.md` (changelog / known limitations) — no tests (docs only) — verify: every statement checked against the code.
 
 ## Manual test steps for Kacper (device; pl + en; light + dark)
 1. Empty → "Utwórz podróż" opens "Krok 1 z 3/4".
@@ -252,6 +252,8 @@ Location convention: next to the code in `__tests__/`; route tests in `src/__tes
 12. Largest Dynamic Type / font size: text wraps, nothing clipped; chips/buttons grow; the list scrolls; "Utwórz podróż" stays visible.
 13. VoiceOver / TalkBack: order title → section header → card → button; heading rotor jumps between sections and cities; step indicator read once; stepper adjustable; chips read as checkboxes; "Zmień: Bangkok" read in full; loading read as "Wczytywanie podróży".
 14. Light/dark: card shadows (light only) not clipped at the list edges; input borders; chips; selected currency segment (subtle in dark); amber layover label readable.
+15. DST gap (step 14): return BKK 27 Mar 2027 20:00 → WAW 28 Mar 2027 02:30, "Dalej" → "Tej godziny nie ma — tej nocy zegarki przestawiono o godzinę do przodu. Sprawdź bilet." under "Przylot", fully wrapped (also at large text), read by VoiceOver/TalkBack on "Przylot", no navigation; 03:30 → error gone, "Dalej" moves on. English phone: "This time doesn't exist — clocks go forward that night. Check your ticket." Same result with the phone in a US time zone (Hermes ICU vs Node).
+16. Layover with a DST-gap time: outbound LHR → WAW landing 28 Mar 2027 02:30 + WAW → BKK 06:00 → no layover label; landing 03:30 → "2 godz. 30 min przesiadki w WAW".
 
 ## Verification
 Per step: tests written first and seen failing for the expected reason → minimum code → `pnpm test` (full suite), `pnpm typecheck`, `pnpm lint` all green → `verifier` subagent PASS (with `ui-taste` review for screens) → step marked `[x]` with the progress log entry. Screens (5–10): walk-through in the Expo web preview with screenshots in light and dark, plus short manual test steps for Kacper on a device (date picker, keyboard, Dynamic Type). No schema parity / RLS checks: no migrations in this task.
@@ -337,6 +339,9 @@ Per step: tests written first and seen failing for the expected reason → minim
   - Extra test beyond the plan: departure 02:45 (gap) + arrival 03:15 → only the `departAt` issue; this is the case that proves the ordering check is skipped (the KRK 01:45 → 02:30 case covers it only trivially).
   - Process deviation: the step was committed (to satisfy the session's commit hook) while the verifier was still running; the reviewed diff and the commit are identical. Push to GitHub failed (403, no GitHub access for this session) — commits are local until access is restored.
   - Plan correction (R4 wording, no code change): an autumn duplicate hour resolves to the **earlier** occurrence for New York (01:30 EDT on 2026-11-01) and to winter time for Warsaw; `zonedLocalToDate` and `localToIso` agree in both cases, which is what matters.
+- **Step 14 — done (2026-10-06).** Tests first (red ✓, 2 failing: `layoverMinutes` returned 150 for a WAW 2027-03-28T02:30 arrival → 06:00; the flights screen showed the raw key `validation.timeDoesNotExist` under "Przylot") → pl/en copy for `validation.timeDoesNotExist` (Q14 texts, no city — D42) and the `layovers.ts` guard also requires `isExistingLocalTime` → green ✓. Full suite 404/404 (also TZ=Europe/Warsaw, America/Los_Angeles), typecheck 0, lint clean. Verifier: PASS. Skill used: none. Manual steps 15–16 added for Kacper.
+  - Committed while the verifier ran (commit hook), as in step 13; reviewed diff = commit. Push to GitHub worked again from this step on.
+- **Step 15 — done (2026-10-06).** No tests (docs only). `Architecture.md`: last-updated line, `LocalDateTimeSchema` / `SegmentInputSchema` / lib descriptions, a key decision (D42) and a changelog entry — each checked against the code. Full suite 404/404, typecheck 0, lint clean.
 
 ## Risks & open questions
 **Need Kacper's answer (can be answered together with approval):**
@@ -365,7 +370,7 @@ Per step: tests written first and seen failing for the expected reason → minim
 ---
 
 # Follow-up: PR #2 review fixes (2026-10-05)
-Status: approved (Kacper, 2026-10-06) — in progress
+Status: done (2026-10-06) — manual device check pending (manual steps 15–16)
 
 - **D42 (Kacper, 2026-10-06) — plan approved; Q14–Q16 accepted as proposed** (same as D16): Q14 → option A (field error, no auto-shift); Q15 → the texts as written, without the city; Q16 → an impossible calendar date reuses `validation.dateTimeRequired`.
 

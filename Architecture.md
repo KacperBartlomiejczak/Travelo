@@ -1,5 +1,5 @@
 # Architecture
-Last updated: 2026-10-04 · after task: trip-create-wizard (create a trip: flights → friends → budget → summary; trips list)
+Last updated: 2026-10-06 · after task: trip-create-wizard follow-up (PR #2 review fixes: impossible dates, DST gap)
 
 ## Overview
 Traveling is a mobile app for the person who organizes a trip for a group of friends: trip setup, members, flights and layovers, AI day plans built from real places, offline expenses, and a plan-vs-reality budget summary. The product scope and rules are defined in `CLAUDE.md`; the visual system ("Sunline") is defined in `context/design-context.md`.
@@ -66,7 +66,7 @@ Travelo/
 | Routes | `src/app/` | Root Stack layout, Trips screen, create-trip wizard screens | `expo-router`, features, components, hooks, theme, i18n |
 | Schemas | `src/schemas/` | Zod schemas and inferred types: common (money, codes, dates), interests, airport, flight segment, member, trip / trip summary, wizard inputs | `zod`, `lib/time` |
 | Data | `src/data/` | `AIRPORTS` (bundled list), `TripRepository` interface, `buildTrip`, in-memory repository | schemas, lib, `expo-crypto` |
-| Lib | `src/lib/` | Pure functions: airport-local time ↔ instants and pickers, date display formatters, layovers, trip dates/days, money parse/format (ISO 4217 digits), airport search, text folding | schemas, data (airports) |
+| Lib | `src/lib/` | Pure functions: airport-local time ↔ instants and pickers (`isExistingLocalTime`: round-trip check for DST gaps), date display formatters, layovers (none for an impossible or skipped time), trip dates/days, money parse/format (ISO 4217 digits), airport search, text folding | schemas, data (airports) |
 | Hooks | `src/hooks/` | `useTrips` (query `['trips']`), `useCreateTrip` (mutation, invalidates trips) | `@tanstack/react-query`, providers |
 | Providers | `src/providers/` | `AppProviders`: `QueryClientProvider` + trip repository context (`useTripRepository`) | data, `@tanstack/react-query` |
 | Create-trip feature | `src/features/trip-create/` | Draft type and helpers, step routing, draft context (dirty/complete), wizard frame, segment/friend cards, field errors, leave confirmation | schemas, lib, components |
@@ -76,13 +76,13 @@ Travelo/
 
 ## Data model
 Zod schemas in `src/schemas/` (constants `XSchema`, types `X = z.infer<typeof XSchema>`):
-- `common.ts` — `CurrencyCodeSchema`, `IataCodeSchema`, `IanaTimezoneSchema`, `IsoDateTimeSchema` (with offset), `IsoDateSchema`, `LocalDateTimeSchema` (airport-local wall clock from forms), `MoneySchema` (integer minor units + ISO 4217).
+- `common.ts` — `CurrencyCodeSchema`, `IataCodeSchema`, `IanaTimezoneSchema`, `IsoDateTimeSchema` (with offset), `IsoDateSchema`, `LocalDateTimeSchema` (airport-local wall clock from forms; must be a real calendar date — `isLocalDateTime`), `MoneySchema` (integer minor units + ISO 4217).
 - `interests.ts` — `InterestTagSchema` (17 tags), `InterestGroupSchema` (6 groups), `INTEREST_GROUPS`.
 - `airport.ts` — `AirportSchema` (iata, name, city, countryCode, IANA timezone, currency, large).
 - `flight.ts` — `FlightSegmentSchema` (arrival after departure as instants).
 - `member.ts` — `TripMemberSchema` (friends: `userId: null`, role `viewer`; `budgetLevel`/`pace` optional).
 - `trip.ts` — `TripSchema` (`budgetPerPerson`, end ≥ start, budget in base currency), `TripSummarySchema` (+ `travellerCount`).
-- `create-trip-form.ts` — wizard input: `SegmentInputSchema`, `FlightsStepInputSchema` (segment chain, return after outbound, first departure not before today at the departure airport, 0–19 companions), `FriendInputSchema`, `FriendsStepInputSchema`, `BudgetStepInputSchema`, `CreateTripInputSchema`. Messages are i18n keys (`validation.*`).
+- `create-trip-form.ts` — wizard input: `SegmentInputSchema` (each time must exist in its airport's zone — a time skipped when clocks go forward gives `validation.timeDoesNotExist`; arrival vs departure compared only when both exist), `FlightsStepInputSchema` (segment chain, return after outbound, first departure not before today at the departure airport, 0–19 companions), `FriendInputSchema`, `FriendsStepInputSchema`, `BudgetStepInputSchema`, `CreateTripInputSchema`. Messages are i18n keys (`validation.*`).
 
 No server tables and no SQLite tables exist yet. The airport list is a static bundled file, validated row by row in its test (not parsed at runtime).
 
@@ -180,6 +180,7 @@ No server tables and no SQLite tables exist yet. The airport list is a static bu
 - 2026-10-04 — Create-trip wizard as a nested stack under `/trips/new` with a draft context in its layout; trips behind a `TripRepository` interface, in memory for now — Supabase replaces only the implementation (`prompts/trip-create-wizard/plan.md` D1).
 - 2026-10-04 — Layovers are flight segments; durations are derived (D3). Trip dates come from flights (D4). Budget is one amount per person for the whole trip, without flights; daily budget is derived (D5, D33, D35).
 - 2026-10-04 — Times are stored as airport-local wall clock + IANA zone; no conversion through the device time zone anywhere (pickers shown in UTC on iOS) (step 6).
+- 2026-10-06 — An airport-local time that does not exist (DST gap) is rejected with a field error, never shifted; an impossible calendar date is rejected as a missing date-time (`prompts/trip-create-wizard/plan.md` D42, Q14–Q16).
 - 2026-10-04 — Money minor digits from a static ISO 4217 table, not `Intl` (step 3).
 - 2026-10-04 — Bundled airport list from public sources, generated by a dev script and validated in tests, not at runtime (D9, D17, D18, D20).
 - 2026-10-04 — New theme roles `input.border`, `action.link`, `radius.segmented`, `elevation.card` (D26, D28, step 8).
@@ -206,6 +207,7 @@ No server tables and no SQLite tables exist yet. The airport list is a static bu
 - Template images in `assets/images/` (React/Expo logos, `tabIcons/`, `tutorial-web.png`) are not referenced by any code.
 
 ## Changelog
+- 2026-10-06 — trip-create-wizard follow-up (PR #2 review) — `isLocalDateTime` in `src/schemas/common.ts` (calendar check, shared by `LocalDateTimeSchema`, the wizard and layovers); `isExistingLocalTime` in `src/lib/time.ts`; `SegmentInputSchema` rejects DST-gap times (`validation.timeDoesNotExist`, pl/en); `layoverMinutes` ignores impossible / skipped times. No new modules or dependencies.
 - 2026-10-04 — trip-create-wizard — added Zod schemas (`src/schemas/`), bundled airport list + generator script, pure logic in `src/lib/`, in-memory trip repository with TanStack Query hooks and `AppProviders`, the 4-step create-trip wizard (`src/app/trips/new/`, `src/features/trip-create/`), new shared components, Trips screen states and list, `GLOSSARY.md`; added `expo-crypto`; CLAUDE.md data structures updated (`budgetPerPerson`, optional `pace`/`budgetLevel`, `Airport`).
 - 2026-10-03 — Initial workspace audit and dependency setup — first version of this document; added runtime dependencies, ESLint, Jest and the `typecheck`/`test` scripts.
 - 2026-10-03 — trips-empty-state — switched to pnpm; added theme tokens + `useTheme`, i18n (pl/en), font loading in the root layout, `PrimaryButton`, `TripsEmptyIllustration`, the Trips empty screen at `/` and the placeholder `/trips/new`; first test suite (40 tests); route tests live in `src/__tests__/app/`.
