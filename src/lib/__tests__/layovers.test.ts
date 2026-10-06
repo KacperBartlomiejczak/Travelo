@@ -1,5 +1,5 @@
 import i18n from '@/i18n';
-import { formatDuration, getLayovers, layoverMinutes } from '@/lib/layovers';
+import { formatDuration, getLayovers, layoverMinutes, savedLayoverMinutes } from '@/lib/layovers';
 
 const WAW_DXB = { toIata: 'DXB', arriveAt: '2026-11-02T18:30', arriveTz: 'Asia/Dubai' };
 const DXB_BKK = { departAt: '2026-11-03T03:30', departTz: 'Asia/Dubai' };
@@ -70,5 +70,19 @@ describe('formatDuration', () => {
     expect(formatDuration(45, en)).toBe('45m');
     expect(formatDuration(540, en)).toBe('9h');
     expect(formatDuration(540, pl)).toBe('9 godz.');
+  });
+});
+
+describe('savedLayoverMinutes (stored instants)', () => {
+  it('counts the minutes between landing and the next take-off', () => {
+    expect(savedLayoverMinutes({ arriveAt: '2026-11-02T18:30:00+04:00' }, { departAt: '2026-11-03T03:30:00+04:00' })).toBe(540);
+  });
+
+  it('is right in the hour repeated when clocks go back (Warsaw 02:30 CEST → 02:45 CET)', () => {
+    expect(savedLayoverMinutes({ arriveAt: '2026-10-25T02:30:00+02:00' }, { departAt: '2026-10-25T02:45:00+01:00' })).toBe(75);
+  });
+
+  it('is null when the next segment leaves before landing', () => {
+    expect(savedLayoverMinutes({ arriveAt: '2026-11-02T18:30:00+04:00' }, { departAt: '2026-11-02T18:30:00+04:00' })).toBeNull();
   });
 });

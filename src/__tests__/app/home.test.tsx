@@ -6,13 +6,22 @@ import RootLayout from '@/app/_layout';
 import TripsScreen from '@/app/index';
 import i18n from '@/i18n';
 import type { TripOverview } from '@/schemas';
-import { darkTheme } from '@/theme/theme';
+import { darkTheme, lightTheme } from '@/theme/theme';
 
 jest.mock('expo-font', () => ({ ...jest.requireActual('expo-font'), useFonts: jest.fn() }));
 jest.mocked(useFonts).mockReturnValue([true, null]);
 
 // The light scheme proves the trip view is dark anyway (A4).
 jest.mock('react-native/Libraries/Utilities/useColorScheme', () => ({ __esModule: true, default: () => 'light' }));
+
+// The style the home screen last gave the status bar.
+let mockStatusBarStyle: string | undefined;
+jest.mock('expo-status-bar', () => ({
+  StatusBar: ({ style }: { style?: string }) => {
+    mockStatusBarStyle = style;
+    return null;
+  },
+}));
 
 // The screen reads the nearest trip through the repository; tests decide what `nearest` returns.
 let mockNearest: () => Promise<TripOverview | null> = () => Promise.resolve(null);
@@ -63,6 +72,7 @@ function renderHome() {
 
 beforeEach(async () => {
   mockNearest = () => Promise.resolve(null);
+  mockStatusBarStyle = undefined;
   await i18n.changeLanguage('pl');
 });
 
@@ -148,6 +158,42 @@ describe('Home screen — nearest trip (D4)', () => {
     await screen.findByTestId('home-screen');
     await fireEvent.press(screen.getByRole('button', { name: 'Utwórz podróż' }));
     expect(rendered.getPathname()).toBe('/trips/new');
+  });
+
+  it('uses a light status bar over the hero, and hands it back when another screen opens on top', async () => {
+    mockNearest = () => Promise.resolve(overview());
+    await renderHome();
+    await screen.findByTestId('home-screen');
+    expect(mockStatusBarStyle).toBe('light');
+    // The home screen stays mounted under the wizard; its status bar must not stay light there.
+    await fireEvent.press(screen.getByRole('button', { name: 'Utwórz podróż' }));
+    expect(mockStatusBarStyle).toBe('auto');
+  });
+
+  it('keeps the pinned button in the centred content column (tablets, §18)', async () => {
+    mockNearest = () => Promise.resolve(overview());
+    await renderHome();
+    expect(await screen.findByTestId('home-action')).toHaveStyle({ maxWidth: lightTheme.size.maxContentWidth, alignSelf: 'center' });
+  });
+
+  it('keeps the loading state\'s button in the centred content column too', async () => {
+    mockNearest = () => new Promise(() => {});
+    await renderHome();
+    expect(screen.getByTestId('home-action')).toHaveStyle({ maxWidth: lightTheme.size.maxContentWidth, alignSelf: 'center' });
+  });
+
+  it('measures a layover from the stored instants, also in the hour repeated when clocks go back', async () => {
+    // Lands in Warsaw at the first 02:30 (CEST), leaves at the second 02:45 (CET): 1 h 15 min, not 15 min.
+    const trip = overview();
+    trip.segments = [
+      segment('outbound', 0, ['LHR', '2026-10-24T23:00:00+01:00', 'Europe/London'], ['WAW', '2026-10-25T02:30:00+02:00', 'Europe/Warsaw']),
+      segment('outbound', 1, ['WAW', '2026-10-25T02:45:00+01:00', 'Europe/Warsaw'], ['BKK', '2026-10-25T20:00:00+07:00', 'Asia/Bangkok']),
+      segment('return', 0, ['BKK', '2026-11-15T09:00:00+07:00', 'Asia/Bangkok'], ['WAW', '2026-11-15T17:00:00+01:00', 'Europe/Warsaw']),
+    ];
+    mockNearest = () => Promise.resolve(trip);
+    await renderHome();
+    const flights = within(await screen.findByTestId('home-flights'));
+    expect(flights.getByText('1 godz. 15 min przesiadki w WAW')).toBeTruthy();
   });
 
   it('reads in English', async () => {

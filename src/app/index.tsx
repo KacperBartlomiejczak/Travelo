@@ -52,7 +52,11 @@ export default function TripsScreen() {
           <TripHeroSkeleton />
         </View>
         <View
+          testID="home-action"
           style={{
+            width: '100%',
+            maxWidth: theme.size.maxContentWidth,
+            alignSelf: 'center',
             paddingHorizontal: isCompact ? spacing[4] : spacing[5],
             paddingTop: spacing[3],
             paddingBottom: insets.bottom + spacing[4],

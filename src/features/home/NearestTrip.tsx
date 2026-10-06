@@ -1,3 +1,4 @@
+import { useIsFocused } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { Plus } from 'lucide-react-native';
 import { Fragment, type ReactNode } from 'react';
@@ -9,7 +10,7 @@ import { LayoverLabel } from '@/components/LayoverLabel';
 import { PrimaryButton } from '@/components/PrimaryButton';
 import { TripHero } from '@/components/TripHero';
 import { formatLocalShort } from '@/lib/date-time';
-import { layoverMinutes } from '@/lib/layovers';
+import { savedLayoverMinutes } from '@/lib/layovers';
 import { formatMoney } from '@/lib/money';
 import { isoToLocal } from '@/lib/time';
 import { perPersonPerDay, tripDayCount } from '@/lib/trip-days';
@@ -28,10 +29,12 @@ export function NearestTrip({ overview, onCreate }: Props) {
   const { spacing, colors } = theme;
   const side = width < theme.breakpoints.compact ? spacing[4] : spacing[5];
   const { trip, members, segments } = overview;
+  // The screen stays mounted under the wizard; only the focused screen may keep the bar light.
+  const focused = useIsFocused();
 
   return (
     <View testID="home-screen" style={{ flex: 1, backgroundColor: colors.hero.background }}>
-      <StatusBar style="light" />
+      <StatusBar style={focused ? 'light' : 'auto'} />
       <ScrollView contentContainerStyle={{ paddingBottom: spacing[6] }}>
         <TripHero trip={trip} />
         <View style={{ gap: spacing[4], paddingHorizontal: side, width: '100%', maxWidth: theme.size.maxContentWidth, alignSelf: 'center' }}>
@@ -48,7 +51,17 @@ export function NearestTrip({ overview, onCreate }: Props) {
           <Budget trip={trip} />
         </View>
       </ScrollView>
-      <View style={{ paddingHorizontal: side, paddingTop: spacing[3], paddingBottom: insets.bottom + spacing[4] }}>
+      <View
+        testID="home-action"
+        style={{
+          width: '100%',
+          maxWidth: theme.size.maxContentWidth,
+          alignSelf: 'center',
+          paddingHorizontal: side,
+          paddingTop: spacing[3],
+          paddingBottom: insets.bottom + spacing[4],
+        }}
+      >
         <PrimaryButton label={t('trips.create')} icon={Plus} onPress={onCreate} />
       </View>
     </View>
@@ -79,29 +92,24 @@ function Body({ children, tone = 'primary' }: { children: ReactNode; tone?: 'pri
 function Direction({ label, segments }: { label: string; segments: FlightSegment[] }) {
   const { t, i18n } = useTranslation();
   const theme = useTheme();
+  const sorted = [...segments].sort((a, b) => a.order - b.order);
   // Stored as instants; shown as on the ticket, in each airport's time.
-  const local = [...segments]
-    .sort((a, b) => a.order - b.order)
-    .map((segment) => ({
-      ...segment,
-      departAt: isoToLocal(segment.departAt, segment.departTz),
-      arriveAt: isoToLocal(segment.arriveAt, segment.arriveTz),
-    }));
+  const shown = (iso: string, timeZone: string) => formatLocalShort(isoToLocal(iso, timeZone), i18n.language);
   return (
     <View style={{ gap: theme.spacing[2] }}>
       <Text style={[theme.typography.bodyMMedium, { color: theme.colors.text.primary }]}>{label}</Text>
-      {local.map((segment, index) => {
-        const previous = local[index - 1];
-        const layover = previous ? layoverMinutes(previous, segment) : null;
+      {sorted.map((segment, index) => {
+        const previous = sorted[index - 1];
+        const layover = previous ? savedLayoverMinutes(previous, segment) : null;
         return (
           <Fragment key={segment.id}>
             {previous && layover !== null && <LayoverLabel minutes={layover} airportIata={previous.toIata} />}
             <Body>
               {t('newTrip.summary.segment', {
                 from: segment.fromIata,
-                departAt: formatLocalShort(segment.departAt, i18n.language),
+                departAt: shown(segment.departAt, segment.departTz),
                 to: segment.toIata,
-                arriveAt: formatLocalShort(segment.arriveAt, i18n.language),
+                arriveAt: shown(segment.arriveAt, segment.arriveTz),
               })}
             </Body>
           </Fragment>
