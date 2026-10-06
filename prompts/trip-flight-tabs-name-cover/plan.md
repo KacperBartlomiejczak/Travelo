@@ -1,5 +1,5 @@
 # Task: Flights step tabs, trip name, cover photo and the nearest-trip home screen
-Status: in progress (approved by Kacper 2026-10-06)
+Status: done (2026-10-06) — manual device check pending
 
 ## Understanding & assumptions
 Kacper's request (2026-10-06), in short:
@@ -119,8 +119,8 @@ CLAUDE.md "Data structures" → `Trip` gets `name` (organizer's, default from �
 - [x] 3. [frontend] Flights step "Lot tam" / "Powrót" switch (D5). — skill: ui-taste — tests first: step 3 — verify: full suite, typecheck, lint, manual.
 - [x] 4. [frontend] `expo-image-picker` (`npx expo install`) + `app.json`; draft `name` / `coverImageUri`; `CoverPicker`; "Nazwa i zdjęcie" card on the summary step. — skill: frontend-design, ui-taste — tests first: step 4 — verify: full suite, typecheck, lint, manual on device.
 - [x] 5. [frontend] Hero theme roles; `TripHero` (photo / plain ink, gradient, name, dates) + skeleton. — skill: frontend-design, ui-taste — tests first: step 5 — verify: full suite, typecheck, lint.
-- [ ] 6. [frontend] Home screen: `useNearestTrip`, `NearestTrip` (hero + Loty / Podróżni / Budżet), states, remove unused list code (A7), example photos in `assets/`, dev seeding in `AppProviders`. — skill: frontend-design, ui-taste — tests first: step 6 — verify: full suite, typecheck, lint, manual light/dark.
-- [ ] 7. Docs: `CLAUDE.md` Data structures, `GLOSSARY.md`, `Architecture.md`. — skill: none — no tests (docs only) — verify: every statement checked against the code; full suite green.
+- [x] 6. [frontend] Home screen: `useNearestTrip`, `NearestTrip` (hero + Loty / Podróżni / Budżet), states, remove unused list code (A7), example photos in `assets/`, dev seeding in `AppProviders`. — skill: frontend-design, ui-taste — tests first: step 6 — verify: full suite, typecheck, lint, manual light/dark.
+- [x] 7. Docs: `CLAUDE.md` Data structures, `GLOSSARY.md`, `Architecture.md`. — skill: none — no tests (docs only) — verify: every statement checked against the code; full suite green.
 
 ## Verification
 Per step: red seen for the expected reason → green → `pnpm test` (full), `pnpm typecheck`, `pnpm lint` → verifier PASS. No migrations / RLS / AI / sync in this task. Manual steps for Kacper (device): switching tabs; picking a photo on iOS and Android (crop, cancel); home screen hero with a bright and a dark photo and without a photo; scrolling; light and dark system mode; large Dynamic Type.
@@ -136,6 +136,8 @@ Per step: red seen for the expected reason → green → `pnpm test` (full), `pn
 - Photos (2026-10-06): Kacper sent Lisbon (25 de Abril bridge), Auckland (skyline) and Beijing (Forbidden City, .avif) — no Bangkok. Asked (Q11) how to map them to the example trips and whether all are Unsplash-licensed.
 - Step 6 photos (WIP, 2026-10-06) — tests written (red ✓: 3 failing — no covers, Bangkok instead of Beijing) · Beijing (PEK, via Dubai, CNY) replaces Bangkok; `exampleTrips(today, covers)`; `startingTrips(env, today, covers)` looks the photos up only when the examples are used; `assets/images/examples/lisbon.jpg` (1200×874, 156 KB) and `beijing.jpg` (1200×800, 124 KB, from Kacper's .avif) · green ✓ 489/489, typecheck 0, lint clean; `expo export -p web` bundles both photos. **Blocker found by a web screenshot:** `Image.resolveAssetSource` (used in `AppProviders` to turn the bundled photos into URIs) does not exist in react-native-web, so the dev web preview crashes on start (iOS/Android unaffected; tests don't run the examples). Asked Kacper (Q12): A — declare `expo-asset` (already installed with `expo`) and use `Asset.fromModule(...).uri`; B — platform file, no example photos on web.
 - Step 6 photos, fix (2026-10-06, D10) — test written (red ✓: `example-covers` module missing) · `expo-asset@~57.0.18` declared (`pnpm add`, version from `expo/bundledNativeModules.json`); `src/data/example-covers.ts` resolves the photos with `Asset.fromModule(require(...)).uri` (relative require: Jest maps `@/` only to `src/`); `AppProviders` uses it · green ✓ 490/490, typecheck 0, lint clean · web dev preview checked with Playwright screenshots (390×844, light and dark): home shows "Kraków → Lisbon" over the bridge photo fading into ink, cards and pinned button below.
+- Step 6 — verifier PASS for the photos part (red checks of both commits, lockfile consistent). Step 6 done. Notes for step 7: release builds still bundle the ~280 KB example photos (Metro bundles static requires); the relative `require('../../assets/...')` is needed because Jest and tsconfig map `@/` only to `src/`.
+- Step 7 — docs only (no tests) · `CLAUDE.md` Data structures (`Trip.name` default and limit, `coverImageUri?`); `GLOSSARY.md` (done in step 1, re-checked); `Architecture.md` (overview, tree, modules, data model, data flow, screens, components, theme, testing, tooling, key decisions, limitations, changelog) — each statement checked against the code · full suite 490/490 (also with `TZ=Europe/Warsaw` and `TZ=America/Los_Angeles`), typecheck 0, lint clean.
 - Risk hit (2026-10-06): the network policy blocks Unsplash, Pexels, Pixabay, Wikimedia and Picsum — example photos must come from Kacper (asked).
 
 ## Risks & open questions
@@ -144,3 +146,14 @@ Per step: red seen for the expected reason → green → `pnpm test` (full), `pn
 - Example photos must be downloaded from a free-licence source (Unsplash licence: free use, no attribution required). If the network blocks it, I ask Kacper to drop 3 photos into `assets/images/examples/`.
 - City names come from the airport list, mostly in English ("Warsaw", but "Kraków"), so the default name can read e.g. "Warsaw → Barcelona" — a known limitation of the list, not fixed here.
 - Removing the list (A7) means a trip that is not the nearest cannot be seen until an "all trips" screen exists.
+
+## Manual test steps (Kacper, on a device)
+1. Create a trip: on step 1 the switch shows "Lot tam" first; "Powrót" shows only the return with the suggested airports; data stays when switching back and forth.
+2. Leave an error only in the return, stay on "Lot tam", press "Dalej": the screen switches to "Powrót", scrolls to the card and the screen reader says "Popraw zaznaczone pola".
+3. Summary: the name is "<from city> → <destination city>"; go back, change the destination, return — the name follows until you type your own. Clear it and press "Utwórz podróż": "Podaj nazwę podróży", nothing saved.
+4. "Wybierz z galerii": pick, crop (square on iOS, 16:9 on Android), cancel, change, remove. The preview is read out by VoiceOver / TalkBack.
+5. Home screen in a development build: "Kraków → Lisbon" over the bridge photo fading into ink; scroll — Loty / Podróżni / Budżet; light and dark system mode both show the dark trip view; status bar is light on the home screen and dark again in the wizard (also during the push animation).
+6. A very long trip name and the largest Dynamic Type over a bright photo: text readable, not growing past the top of the hero.
+7. Loading → trip: the skeleton (light) turns into the ink trip view — check it does not flash badly.
+8. Tablet: cards and the pinned button stay in the centred 720dp column.
+9. The section heading under the switch repeats the tab's label ("Lot tam" / "Powrót") — keep or remove? (Kacper's call.)
