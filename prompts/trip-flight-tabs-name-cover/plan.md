@@ -110,7 +110,7 @@ CLAUDE.md "Data structures" → `Trip` gets `name` (organizer's, default from �
 - `ui-taste` — steps 3–6 — visual review (verifier).
 
 ## Steps
-- [ ] 1. [backend] Schemas: trip name max + `coverImageUri?`, `TripDetailsInputSchema`, `CreateTripInputSchema.details`, `TripOverviewSchema`; i18n validation keys (pl/en); fixtures. — skill: domain-modeling — tests first: step 1 — verify: full suite, typecheck, lint.
+- [x] 1. [backend] Schemas: trip name max + `coverImageUri?`, `TripDetailsInputSchema`, `CreateTripInputSchema.details`, `TripOverviewSchema`; i18n validation keys (pl/en); fixtures. — skill: domain-modeling — tests first: step 1 — verify: full suite, typecheck, lint.
 - [ ] 2. [backend] `defaultTripName`; `buildTrip` uses `details`; repository `nearest()`; `example-trips.ts`. — skill: none — tests first: step 2 — verify: full suite, typecheck, lint.
 - [ ] 3. [frontend] Flights step "Lot tam" / "Powrót" switch (D5). — skill: ui-taste — tests first: step 3 — verify: full suite, typecheck, lint, manual.
 - [ ] 4. [frontend] `expo-image-picker` (`npx expo install`) + `app.json`; draft `name` / `coverImageUri`; `CoverPicker`; "Nazwa i zdjęcie" card on the summary step. — skill: frontend-design, ui-taste — tests first: step 4 — verify: full suite, typecheck, lint, manual on device.
@@ -122,7 +122,9 @@ CLAUDE.md "Data structures" → `Trip` gets `name` (organizer's, default from �
 Per step: red seen for the expected reason → green → `pnpm test` (full), `pnpm typecheck`, `pnpm lint` → verifier PASS. No migrations / RLS / AI / sync in this task. Manual steps for Kacper (device): switching tabs; picking a photo on iOS and Android (crop, cancel); home screen hero with a bright and a dark photo and without a photo; scrolling; light and dark system mode; large Dynamic Type.
 
 ## Progress log
-- 2026-10-06 — plan drafted; Q1–Q5 answered (D1, D3, D5), Q2 clarified (D2), Q4 replaced by the home-screen hero (D4), Q8–Q10 answered (D6–D8).
+- 2026-10-06 — plan drafted; Q1–Q5 answered (D1, D3, D5), Q2 clarified (D2), Q4 replaced by the home-screen hero (D4), Q8–Q10 answered (D6–D8). Approved by Kacper ("akceptuje"). Baseline: 42 suites, 404 tests, typecheck and lint green.
+- Step 1 — tests written (red ✓: 16 failing for the expected reasons — schemas undefined, cover stripped, no max/empty-cover check) · `src/schemas/trip.ts` (`TRIP_NAME_MAX_LENGTH`, `name` max, `coverImageUri?`, `TripOverviewSchema`), `create-trip-form.ts` (`TripDetailsInputSchema`, `CreateTripInputSchema.details`), pl/en `validation.tripNameRequired` / `tripNameTooLong`, fixture `details`, `GLOSSARY.md` (Trip name, Cover photo, Nearest trip; Destination no longer names the trip) · green ✓ 421/421, typecheck 0, lint clean · verifier PASS · skill used: domain-modeling · deviation: `toCreateTripInput` sends `details: { name: destinationName(destination) }` (today's D13 name) until step 4 adds the field — required by the type, behaviour unchanged.
+- Risk hit (2026-10-06): the network policy blocks Unsplash, Pexels, Pixabay, Wikimedia and Picsum — example photos must come from Kacper (asked).
 
 ## Risks & open questions
 - The picker's file URI lives in the app cache; the OS may clear it. Acceptable while data is in memory; must be solved (upload to storage) with Supabase.
