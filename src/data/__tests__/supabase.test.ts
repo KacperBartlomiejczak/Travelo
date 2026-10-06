@@ -1,6 +1,9 @@
 import { createClient } from '@supabase/supabase-js';
 
+const mockPolyfillLoaded = jest.fn();
+
 jest.mock('@supabase/supabase-js', () => ({ createClient: jest.fn(() => ({})) }));
+jest.mock('react-native-url-polyfill/auto', () => mockPolyfillLoaded());
 jest.mock('expo-sqlite/localStorage/install', () => {
   (globalThis as { localStorage?: unknown }).localStorage = { name: 'sqlite-local-storage' };
 });
@@ -42,6 +45,13 @@ describe('supabase client', () => {
         detectSessionInUrl: false,
       },
     });
+  });
+
+  it('loads the URL polyfill before creating the client (Supabase Expo quickstart)', () => {
+    mockPolyfillLoaded.mockClear();
+    loadClient({ url: URL, key: KEY });
+    expect(mockPolyfillLoaded).toHaveBeenCalled();
+    expect(mockPolyfillLoaded.mock.invocationCallOrder[0]).toBeLessThan(jest.mocked(createClient).mock.invocationCallOrder[0]);
   });
 
   it('names the missing variable', () => {
