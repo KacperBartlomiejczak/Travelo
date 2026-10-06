@@ -24,6 +24,24 @@ const trip: TripSummary = {
   travellerCount: 3,
 };
 
+type JsonNode = { type: string; props: Record<string, unknown>; children: (JsonNode | string)[] | null };
+
+function findNode(node: JsonNode | string | null, type: string): JsonNode | null {
+  if (!node || typeof node === 'string') return null;
+  if (node.type === type) return node;
+  for (const child of node.children ?? []) {
+    const found = findNode(child, type);
+    if (found) return found;
+  }
+  return null;
+}
+
+// The SVG stops have no testID; the native LinearGradient carries them as one array.
+function gradientStops(): number[] {
+  const gradient = findNode(screen.toJSON() as JsonNode | null, 'RNSVGLinearGradient');
+  return (gradient?.props.gradient as number[] | undefined) ?? [];
+}
+
 beforeEach(async () => {
   await i18n.changeLanguage('pl');
 });
@@ -41,6 +59,10 @@ describe('TripHero (D4)', () => {
     expect(screen.getByTestId('trip-hero-photo', hidden).props['aria-hidden']).toBe(true);
     expect(screen.getByTestId('trip-hero-image', hidden).props.source).toEqual([{ uri: 'file:///cache/cover.jpg' }]); // expo-image normalises to a list
     expect(screen.getByTestId('trip-hero-gradient', hidden)).toBeTruthy();
+    // The fade follows the theme's gradient token (§20 rule 20). The native gradient prop is
+    // [offset, colour, offset, colour, …].
+    const offsets = gradientStops().filter((_, i) => i % 2 === 0);
+    expect(offsets).toEqual([lightTheme.gradient.heroFade.start, 1]);
   });
 
   it('is plain ink without a cover photo (D6)', async () => {
@@ -49,10 +71,10 @@ describe('TripHero (D4)', () => {
     expect(screen.getByTestId('trip-hero')).toHaveStyle({ backgroundColor: lightTheme.colors.hero.background });
   });
 
-  it('names the trip in the display face and light text, with dates and days below', async () => {
+  it('names the trip in Display XL (§4.2 "Trip hero") and light text, with dates and days below', async () => {
     await render(<TripHero trip={trip} />);
     const name = screen.getByRole('header', { name: 'Warsaw → Bangkok' });
-    expect(name).toHaveStyle({ fontFamily: lightTheme.typography.displayL.fontFamily, color: lightTheme.colors.hero.text });
+    expect(name).toHaveStyle({ ...lightTheme.typography.displayXL, color: lightTheme.colors.hero.text });
     expect(screen.getByText('3 lis – 15 lis 2026 · 13 dni')).toHaveStyle({ color: lightTheme.colors.hero.textSecondary });
   });
 
@@ -69,6 +91,7 @@ describe('TripHeroSkeleton', () => {
     expect(screen.queryByTestId('trip-hero-skeleton')).toBeNull();
     const skeleton = screen.getByTestId('trip-hero-skeleton', { includeHiddenElements: true });
     expect(skeleton.props['aria-hidden']).toBe(true);
-    expect(skeleton).toHaveStyle({ height: 406, backgroundColor: lightTheme.colors.surface.secondary });
+    // Same geometry as the full-bleed hero (§10.18, §5.4 radius.none).
+    expect(skeleton).toHaveStyle({ height: 406, borderRadius: lightTheme.radius.none, backgroundColor: lightTheme.colors.surface.secondary });
   });
 });

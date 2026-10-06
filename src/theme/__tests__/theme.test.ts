@@ -102,6 +102,13 @@ describe('hero roles (trip-flight-tabs-name-cover D4, D7)', () => {
   ])('are the same ink background and light text in %s mode', (_, theme) => {
     expect(theme.colors.hero).toEqual({ background: '#17211B', text: '#F7F3EA', textSecondary: '#C9C2B6' });
   });
+
+  it.each([
+    ['light', lightTheme],
+    ['dark', darkTheme],
+  ])('define the hero fade as a gradient token in %s mode (§20 rule 20)', (_, theme) => {
+    expect(theme.gradient.heroFade).toEqual({ start: 0.35 });
+  });
 });
 
 describe('primary action states (D9)', () => {

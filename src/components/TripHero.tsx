@@ -9,9 +9,8 @@ import { tripDayCount } from '@/lib/trip-days';
 import type { TripSummary } from '@/schemas';
 import { useTheme } from '@/theme/useTheme';
 
-// The hero takes half of the screen (D4); the photo is clear at the top and fades into ink from FADE_START down.
+// The hero takes half of the screen (D4).
 const SCREEN_SHARE = 0.5;
-const FADE_START = 0.35;
 
 export function heroHeight(windowHeight: number): number {
   return Math.round(windowHeight * SCREEN_SHARE);
@@ -34,7 +33,7 @@ export function TripHero({ trip }: { trip: TripSummary }) {
           <Svg testID="trip-hero-gradient" style={StyleSheet.absoluteFill} width="100%" height="100%">
             <Defs>
               <LinearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
-                <Stop offset={FADE_START} stopColor={hero.background} stopOpacity={0} />
+                <Stop offset={theme.gradient.heroFade.start} stopColor={hero.background} stopOpacity={0} />
                 <Stop offset={1} stopColor={hero.background} stopOpacity={1} />
               </LinearGradient>
             </Defs>
@@ -53,7 +52,7 @@ export function TripHero({ trip }: { trip: TripSummary }) {
           gap: theme.spacing[1],
         }}
       >
-        <Text accessibilityRole="header" style={[theme.typography.displayL, { color: hero.text }]}>
+        <Text accessibilityRole="header" style={[theme.typography.displayXL, { color: hero.text }]}>
           {trip.name}
         </Text>
         <Text style={[theme.typography.bodyM, { color: hero.textSecondary }]}>
