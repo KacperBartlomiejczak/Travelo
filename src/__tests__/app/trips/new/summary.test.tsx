@@ -1,6 +1,7 @@
 import { useFonts } from 'expo-font';
 import { useRouter } from 'expo-router';
 import { act, fireEvent, renderRouter, screen, within } from 'expo-router/testing-library';
+import { launchImageLibraryAsync } from 'expo-image-picker';
 import { AccessibilityInfo, Alert, Pressable, Text } from 'react-native';
 
 import RootLayout from '@/app/_layout';
@@ -10,13 +11,14 @@ import NewTripLayout from '@/app/trips/new/_layout';
 import SummaryStep from '@/app/trips/new/summary';
 import { emptySegment, withCompanionCount } from '@/features/trip-create/draft';
 import { useTripDraft } from '@/features/trip-create/TripDraftContext';
-import { useTrips } from '@/hooks/useTrips';
+import { useNearestTrip } from '@/hooks/useTrips';
 import i18n from '@/i18n';
 
 jest.mock('expo-font', () => ({ ...jest.requireActual('expo-font'), useFonts: jest.fn() }));
 jest.mocked(useFonts).mockReturnValue([true, null]);
 // jest-expo's native mock returns undefined; ids must be real UUIDs.
 jest.mock('expo-crypto', () => ({ randomUUID: () => jest.requireActual('crypto').randomUUID() }));
+jest.mock('expo-image-picker', () => ({ launchImageLibraryAsync: jest.fn() }));
 
 let mockSaveFails = false;
 // When set, saving waits until the test calls it.
@@ -29,7 +31,7 @@ jest.mock('@/data/trip-repository', () => {
     createInMemoryTripRepository: () => {
       const repository = actual.createInMemoryTripRepository();
       return {
-        list: () => repository.list(),
+        nearest: () => repository.nearest(),
         create: async (input: unknown) => {
           if (mockHoldSave) await new Promise<void>((resolve) => (mockReleaseSave = resolve));
           if (mockSaveFails) throw new Error('down');
@@ -40,12 +42,12 @@ jest.mock('@/data/trip-repository', () => {
   };
 });
 
-// Trips list stand-in (step 10 builds the real one).
+// Home screen stand-in: the saved trip's name and cover.
 function TripsProbe() {
-  const trips = useTrips();
+  const trip = useNearestTrip().data?.trip;
   return (
     <>
-      <Text>{`trips: ${(trips.data ?? []).map((trip) => trip.name).join(', ')}`}</Text>
+      <Text>{`trips: ${trip ? trip.name + (trip.coverImageUri ? ` [${trip.coverImageUri}]` : '') : ''}`}</Text>
       <Text>Utwórz podróż</Text>
     </>
   );
@@ -190,9 +192,96 @@ describe('Summary step', () => {
     const alert = jest.spyOn(Alert, 'alert');
     const app = await openSummary();
     await fireEvent.press(screen.getByRole('button', { name: 'Utwórz podróż' }));
-    expect(await screen.findByText('trips: Bangkok')).toBeTruthy();
+    expect(await screen.findByText('trips: Warsaw → Bangkok')).toBeTruthy();
     expect(app.getPathname()).toBe('/');
     expect(alert).not.toHaveBeenCalled();
+  });
+
+  describe('name and cover photo (D2)', () => {
+    const details = () => section('details');
+
+    it('comes first, with the name filled in as "from → to" (D3)', async () => {
+      await openSummary();
+      expect(screen.getAllByTestId(/^summary-/)[0].props.testID).toBe('summary-details');
+      expect(details().getByRole('header', { name: 'Nazwa i zdjęcie' })).toBeTruthy();
+      expect(details().getByLabelText('Nazwa podróży').props.value).toBe('Warsaw → Bangkok');
+      expect(details().getByRole('button', { name: 'Wybierz z galerii' })).toBeTruthy();
+    });
+
+    it('saves the name the organizer typed', async () => {
+      await openSummary();
+      await fireEvent.changeText(details().getByLabelText('Nazwa podróży'), 'Tajlandia z ekipą');
+      await fireEvent.press(screen.getByRole('button', { name: 'Utwórz podróż' }));
+      expect(await screen.findByText('trips: Tajlandia z ekipą')).toBeTruthy();
+    });
+
+    it('asks for a name instead of saving when it is cleared, and stays on the summary', async () => {
+      const announce = jest.spyOn(AccessibilityInfo, 'announceForAccessibility');
+      const app = await openSummary();
+      await fireEvent.changeText(details().getByLabelText('Nazwa podróży'), '  ');
+      expect(app.getPathname()).toBe('/trips/new/summary');
+      await fireEvent.press(screen.getByRole('button', { name: 'Utwórz podróż' }));
+      expect(details().getByText('Podaj nazwę podróży')).toBeTruthy();
+      expect(announce).toHaveBeenCalledWith('Popraw zaznaczone pola');
+      expect(app.getPathname()).toBe('/trips/new/summary');
+      expect(screen.queryByTestId('primary-button-spinner')).toBeNull();
+    });
+
+    it('saves the chosen cover photo', async () => {
+      jest.mocked(launchImageLibraryAsync).mockResolvedValue({
+        canceled: false,
+        assets: [{ uri: 'file:///cache/cover.jpg', width: 1600, height: 900 }],
+      });
+      await openSummary();
+      await fireEvent.press(details().getByRole('button', { name: 'Wybierz z galerii' }));
+      expect(await details().findByLabelText('Wybrane zdjęcie okładki')).toBeTruthy();
+      await fireEvent.press(screen.getByRole('button', { name: 'Utwórz podróż' }));
+      expect(await screen.findByText('trips: Warsaw → Bangkok [file:///cache/cover.jpg]')).toBeTruthy();
+    });
+  });
+
+  it('opens with a default name over 60 characters and asks to shorten it (PR #4 review)', async () => {
+    // PKY → NLI: "Palangkaraya-Kalimantan Tengah → Nikolayevsk-na-Amure Airport" is 61 characters.
+    function LongNameFlights() {
+      const { setDraft } = useTripDraft();
+      const router = useRouter();
+      function fill() {
+        setDraft((draft) => ({
+          ...draft,
+          outbound: [
+            { ...emptySegment(), fromIata: 'PKY', departTz: 'Asia/Pontianak', toIata: 'NLI', arriveTz: 'Asia/Vladivostok', departAt: '2026-11-02T08:00', arriveAt: '2026-11-02T20:00' },
+          ],
+          return: [
+            { ...emptySegment(), fromIata: 'NLI', departTz: 'Asia/Vladivostok', toIata: 'PKY', arriveTz: 'Asia/Pontianak', departAt: '2026-11-10T09:00', arriveAt: '2026-11-10T15:00' },
+          ],
+          budget: { amountText: '3000', currency: '' },
+        }));
+        router.push('/trips/new/summary');
+      }
+      return (
+        <Pressable onPress={fill}>
+          <Text>test: long-name trip</Text>
+        </Pressable>
+      );
+    }
+    const rendered = renderRouter(
+      {
+        _layout: RootLayout,
+        index: TripsProbe,
+        'trips/new/_layout': NewTripLayout,
+        'trips/new/index': LongNameFlights,
+        'trips/new/summary': SummaryStep,
+      },
+      { initialUrl: '/trips/new' },
+    );
+    await rendered;
+    await fireEvent.press(screen.getByText('test: long-name trip'));
+    expect(rendered.getPathname()).toBe('/trips/new/summary');
+    const details = section('details');
+    expect(details.getByLabelText('Nazwa podróży').props.value).toHaveLength(61);
+    await fireEvent.press(screen.getByRole('button', { name: 'Utwórz podróż' }));
+    expect(details.getByText('Nazwa może mieć do 60 znaków')).toBeTruthy();
+    expect(rendered.getPathname()).toBe('/trips/new/summary');
   });
 
   it('sends an incomplete draft (e.g. opened by URL) back to step 1', async () => {
@@ -220,7 +309,7 @@ describe('Summary step', () => {
     expect(button).toBeBusy();
     expect(button).toBeDisabled();
     await act(async () => mockReleaseSave?.());
-    expect(await screen.findByText('trips: Bangkok')).toBeTruthy();
+    expect(await screen.findByText('trips: Warsaw → Bangkok')).toBeTruthy();
   });
 
   it('keeps everything, explains and announces when saving fails', async () => {

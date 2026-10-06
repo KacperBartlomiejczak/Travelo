@@ -44,5 +44,6 @@ export function createTripInputFixture(): z.input<typeof CreateTripInputSchema> 
       ],
     },
     budget: { budgetPerPerson: { amountMinor: 3000000, currency: 'THB' } },
+    details: { name: 'Warsaw → Bangkok' },
   };
 }

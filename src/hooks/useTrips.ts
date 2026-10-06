@@ -5,10 +5,10 @@ import { useTripRepository } from '@/providers/AppProviders';
 
 const TRIPS_KEY = ['trips'] as const;
 
-/** Saved trips, soonest first. */
-export function useTrips() {
+/** The soonest trip with its members and flights, or null when there are none (D4). */
+export function useNearestTrip() {
   const repository = useTripRepository();
-  return useQuery({ queryKey: TRIPS_KEY, queryFn: () => repository.list() });
+  return useQuery({ queryKey: [...TRIPS_KEY, 'nearest'], queryFn: () => repository.nearest() });
 }
 
 export function useCreateTrip() {

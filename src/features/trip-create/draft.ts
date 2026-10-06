@@ -2,6 +2,7 @@ import type { z } from 'zod';
 
 import { defaultCurrency } from '@/lib/airport-search';
 import { parseAmountToMinor } from '@/lib/money';
+import { defaultTripName } from '@/lib/trip-name';
 
 import type {
   CreateTripInputSchema,
@@ -9,18 +10,23 @@ import type {
   FriendInputSchema,
   FriendsStepInputSchema,
   SegmentInputSchema,
+  TripDetailsInputSchema,
 } from '@/schemas';
 
 // What the wizard holds while it is being filled in. Validated with the step schemas on "Next".
 /** `key` identifies a segment card on screen; the schema strips it. */
 export type SegmentDraft = z.input<typeof SegmentInputSchema> & { key: string };
 export type FriendDraft = z.input<typeof FriendInputSchema>;
+type DetailsInput = z.input<typeof TripDetailsInputSchema>;
 export type TripDraft = Omit<z.input<typeof FlightsStepInputSchema>, 'outbound' | 'return'> & {
   outbound: SegmentDraft[];
   return: SegmentDraft[];
 } & z.input<typeof FriendsStepInputSchema> & {
     /** The amount as typed; parsed to minor units on "Next". `currency` is only what the user tapped. */
     budget: { amountText: string; currency: string };
+    /** null = not typed yet: the default name follows the flights (trip-flight-tabs-name-cover A2). */
+    name: DetailsInput['name'] | null;
+    coverImageUri?: DetailsInput['coverImageUri'];
   };
 
 let nextSegmentKey = 0;
@@ -37,6 +43,7 @@ export function emptyDraft(): TripDraft {
     companionCount: 0,
     friends: [],
     budget: { amountText: '', currency: '' },
+    name: null,
   };
 }
 
@@ -92,6 +99,11 @@ export function budgetCurrency(draft: TripDraft): string {
   return options.includes(draft.budget.currency) ? draft.budget.currency : options[0];
 }
 
+/** The name typed by the organizer, otherwise "<from city> → <destination city>" (D3). */
+export function tripName(draft: TripDraft): string {
+  return draft.name ?? defaultTripName(draft.outbound);
+}
+
 /** What the summary saves; the schema strips draft-only fields such as segment keys. */
 export function toCreateTripInput(draft: TripDraft, locale: string): z.input<typeof CreateTripInputSchema> {
   const currency = budgetCurrency(draft);
@@ -100,5 +112,6 @@ export function toCreateTripInput(draft: TripDraft, locale: string): z.input<typ
     friends: { friends: draft.friends },
     // The budget step only lets valid amounts through; 0 makes the schema reject anything else.
     budget: { budgetPerPerson: { amountMinor: parseAmountToMinor(draft.budget.amountText, currency, locale) ?? 0, currency } },
+    details: { name: tripName(draft), ...(draft.coverImageUri ? { coverImageUri: draft.coverImageUri } : {}) },
   };
 }

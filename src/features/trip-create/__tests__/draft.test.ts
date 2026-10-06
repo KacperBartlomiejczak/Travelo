@@ -3,6 +3,7 @@ import {
   budgetCurrency,
   budgetCurrencyOptions,
   toCreateTripInput,
+  tripName,
   emptyDraft,
   emptySegment,
   withCompanionCount,
@@ -27,6 +28,33 @@ describe('emptyDraft', () => {
     expect(draft.companionCount).toBe(0);
     expect(draft.friends).toEqual([]);
     expect(draft.budget).toEqual({ amountText: '', currency: '' });
+  });
+
+  it('has no name of its own yet and no cover photo', () => {
+    const draft = emptyDraft();
+    expect(draft.name).toBeNull();
+    expect(draft).not.toHaveProperty('coverImageUri');
+  });
+});
+
+describe('tripName (A2)', () => {
+  const krkBcn = {
+    ...emptyDraft(),
+    outbound: [{ ...emptySegment(), fromIata: 'KRK', departTz: 'Europe/Warsaw', toIata: 'BCN', arriveTz: 'Europe/Madrid' }],
+  };
+
+  it('is the default name while the organizer has not typed one', () => {
+    expect(tripName(krkBcn)).toBe('Kraków → Barcelona');
+  });
+
+  it('follows the flights while it is the default', () => {
+    const toLisbon = { ...krkBcn, outbound: [{ ...krkBcn.outbound[0], toIata: 'LIS', arriveTz: 'Europe/Lisbon' }] };
+    expect(tripName(toLisbon)).toBe('Kraków → Lisbon');
+  });
+
+  it('is what the organizer typed, even when the flights change or it is empty', () => {
+    expect(tripName({ ...krkBcn, name: 'Majówka' })).toBe('Majówka');
+    expect(tripName({ ...krkBcn, name: '' })).toBe('');
   });
 });
 
@@ -150,6 +178,12 @@ describe('toCreateTripInput', () => {
     expect(input.flights.companionCount).toBe(1);
     expect(input.friends).toEqual({ friends: [{ displayName: 'Kasia', interests: ['beaches'] }] });
     expect(input.flights.outbound[0]).toEqual(expect.objectContaining({ fromIata: 'WAW', toIata: 'BKK' }));
+    expect(input.details).toEqual({ name: 'Warsaw → Bangkok' });
+  });
+
+  it('sends the typed name and the cover photo', () => {
+    const draft = { ...emptyDraft(), name: 'Tajlandia', coverImageUri: 'file:///cache/cover.jpg' };
+    expect(toCreateTripInput(draft, 'pl').details).toEqual({ name: 'Tajlandia', coverImageUri: 'file:///cache/cover.jpg' });
   });
 });
 

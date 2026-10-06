@@ -126,3 +126,9 @@ export const elevation = {
     elevation: 1,
   },
 } as const;
+
+// §20 rule 20: gradients only as tokens. Trip hero photo: clear above `start`, fading into ink below
+// (trip-flight-tabs-name-cover D4).
+export const gradient = {
+  heroFade: { start: 0.35 },
+} as const;

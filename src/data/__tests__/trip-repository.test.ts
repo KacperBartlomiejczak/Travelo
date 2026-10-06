@@ -1,5 +1,12 @@
 import { buildTrip, createInMemoryTripRepository, LOCAL_OWNER_ID } from '@/data/trip-repository';
-import { CreateTripInputSchema, FlightSegmentSchema, TripMemberSchema, TripSchema, TripSummarySchema } from '@/schemas';
+import {
+  CreateTripInputSchema,
+  FlightSegmentSchema,
+  TripMemberSchema,
+  TripOverviewSchema,
+  TripSchema,
+  TripSummarySchema,
+} from '@/schemas';
 import { createTripInputFixture } from '@/test/fixtures';
 
 const NOW = new Date('2026-10-04T12:00:00Z');
@@ -24,12 +31,12 @@ afterEach(() => {
 });
 
 describe('buildTrip', () => {
-  it('builds a trip named after the destination city, with dates and budget from the wizard', () => {
+  it('builds a trip with the organizer\'s name, dates and budget from the wizard', () => {
     const { trip } = build();
     expect(trip).toEqual({
       id: '00000000-0000-4000-8000-000000000001',
       ownerId: LOCAL_OWNER_ID,
-      name: 'Bangkok',
+      name: 'Warsaw → Bangkok',
       destination: 'BKK',
       startDate: '2026-11-03',
       endDate: '2026-11-15',
@@ -40,12 +47,19 @@ describe('buildTrip', () => {
     expect(TripSchema.safeParse(trip).success).toBe(true);
   });
 
-  it('falls back to the IATA code when the destination is not in the airport list', () => {
+  it('trims the name', () => {
     const { trip } = build((input) => {
-      input.flights.outbound[1].toIata = 'ZZZ';
-      input.flights.return[0].fromIata = 'ZZZ';
+      input.details.name = '  Tajlandia z ekipą  ';
     });
-    expect(trip.name).toBe('ZZZ');
+    expect(trip.name).toBe('Tajlandia z ekipą');
+  });
+
+  it('keeps the cover photo, and has no cover field without one', () => {
+    const withCover = build((input) => {
+      input.details.coverImageUri = 'file:///cache/cover.jpg';
+    });
+    expect(withCover.trip.coverImageUri).toBe('file:///cache/cover.jpg');
+    expect(build().trip).not.toHaveProperty('coverImageUri');
   });
 
   it('turns friends into members without an account', () => {
@@ -90,29 +104,66 @@ describe('in-memory trip repository', () => {
     return createInMemoryTripRepository({ now: () => NOW, newId: sequentialIds() });
   }
 
-  it('starts empty', async () => {
-    await expect(repository().list()).resolves.toEqual([]);
-  });
-
-  it('lists a created trip with the traveller count (friends + organizer)', async () => {
+  it('shows a created trip with the traveller count (friends + organizer)', async () => {
     const repo = repository();
     const created = await repo.create(createTripInputFixture());
-    const list = await repo.list();
-    expect(list).toEqual([{ ...created, travellerCount: 3 }]);
-    expect(TripSummarySchema.safeParse(list[0]).success).toBe(true);
+    const nearest = await repo.nearest();
+    expect(nearest?.trip).toEqual({ ...created, travellerCount: 3 });
+    expect(TripSummarySchema.safeParse(nearest?.trip).success).toBe(true);
   });
 
-  it('lists trips soonest first', async () => {
-    const repo = repository();
-    const later = createTripInputFixture();
-    const sooner = createTripInputFixture();
-    sooner.flights.outbound = [{ ...sooner.flights.outbound[0], departAt: '2026-10-20T10:00', arriveAt: '2026-10-20T18:30' }];
-    sooner.flights.return = [
-      { ...sooner.flights.return[0], fromIata: 'DXB', departTz: 'Asia/Dubai', departAt: '2026-10-25T09:00', arriveAt: '2026-10-25T13:00' },
-    ];
-    await repo.create(later);
-    await repo.create(sooner);
-    expect((await repo.list()).map((trip) => trip.name)).toEqual(['Dubai', 'Bangkok']);
+  it('starts with the given trips (example trips, D8)', async () => {
+    const seeded = createTripInputFixture();
+    seeded.details.name = 'Seeded';
+    const repo = createInMemoryTripRepository({ now: () => NOW, newId: sequentialIds() }, [seeded]);
+    expect((await repo.nearest())?.trip.name).toBe('Seeded');
+  });
+
+  it('rejects invalid starting trips', () => {
+    const invalid = createTripInputFixture();
+    invalid.details.name = '';
+    expect(() => createInMemoryTripRepository({ now: () => NOW, newId: sequentialIds() }, [invalid])).toThrow();
+  });
+
+  describe('nearest trip', () => {
+    function soonerTrip(name: string) {
+      const input = createTripInputFixture();
+      input.flights.outbound = [{ ...input.flights.outbound[0], departAt: '2026-10-20T10:00', arriveAt: '2026-10-20T18:30' }];
+      input.flights.return = [
+        { ...input.flights.return[0], fromIata: 'DXB', departTz: 'Asia/Dubai', departAt: '2026-10-25T09:00', arriveAt: '2026-10-25T13:00' },
+      ];
+      input.flights.companionCount = 1;
+      input.friends.friends = [{ displayName: 'Ola', interests: [] }];
+      input.details.name = name;
+      return input;
+    }
+
+    it('is null when there are no trips', async () => {
+      await expect(repository().nearest()).resolves.toBeNull();
+    });
+
+    it('returns the soonest trip with its members and flight segments', async () => {
+      const repo = repository();
+      await repo.create(createTripInputFixture());
+      const sooner = await repo.create(soonerTrip('Dubai'));
+      const nearest = await repo.nearest();
+      expect(TripOverviewSchema.safeParse(nearest).success).toBe(true);
+      expect(nearest?.trip).toEqual({ ...sooner, travellerCount: 2 });
+      expect(nearest?.members.map((member) => member.displayName)).toEqual(['Ola']);
+      expect(nearest?.segments.map((s) => [s.direction, s.fromIata, s.toIata])).toEqual([
+        ['outbound', 'WAW', 'DXB'],
+        ['return', 'DXB', 'WAW'],
+      ]);
+    });
+
+    it('takes the earlier created trip when two start on the same day', async () => {
+      // Clock going backwards, so insertion order and createdAt order differ.
+      const times = [new Date('2026-10-04T12:05:00Z'), new Date('2026-10-04T12:00:00Z')];
+      const repo = createInMemoryTripRepository({ now: () => times.shift() ?? NOW, newId: sequentialIds() });
+      await repo.create(soonerTrip('Created later'));
+      await repo.create(soonerTrip('Created earlier'));
+      expect((await repo.nearest())?.trip.name).toBe('Created earlier');
+    });
   });
 
   it('counts a solo trip as one traveller', async () => {
@@ -121,7 +172,7 @@ describe('in-memory trip repository', () => {
     solo.flights.companionCount = 0;
     solo.friends.friends = [];
     await repo.create(solo);
-    expect((await repo.list())[0].travellerCount).toBe(1);
+    expect((await repo.nearest())?.trip.travellerCount).toBe(1);
   });
 
   it('rejects invalid input and stores nothing', async () => {
@@ -129,7 +180,7 @@ describe('in-memory trip repository', () => {
     const invalid = createTripInputFixture();
     invalid.flights.companionCount = 5;
     await expect(repo.create(invalid)).rejects.toThrow();
-    await expect(repo.list()).resolves.toEqual([]);
+    await expect(repo.nearest()).resolves.toBeNull();
   });
 
   it('rejects a time that does not exist (clocks go forward) and stores nothing', async () => {
@@ -157,7 +208,7 @@ describe('in-memory trip repository', () => {
     await expect(repo.create(invalid)).rejects.toMatchObject({
       issues: [expect.objectContaining({ path: ['flights', 'outbound', 0, 'arriveAt'], message: 'validation.timeDoesNotExist' })],
     });
-    await expect(repo.list()).resolves.toEqual([]);
+    await expect(repo.nearest()).resolves.toBeNull();
   });
 
   it('rejects an impossible calendar date as wizard input and stores nothing', async () => {
@@ -167,6 +218,6 @@ describe('in-memory trip repository', () => {
     await expect(repo.create(invalid)).rejects.toMatchObject({
       issues: [expect.objectContaining({ path: ['flights', 'return', 0, 'arriveAt'], message: 'validation.dateTimeRequired' })],
     });
-    await expect(repo.list()).resolves.toEqual([]);
+    await expect(repo.nearest()).resolves.toBeNull();
   });
 });

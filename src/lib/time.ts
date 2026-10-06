@@ -61,3 +61,9 @@ export function todayIn(timeZone: string): string {
   const now = Date.now();
   return new Date(now + offsetMinutes(now, timeZone) * MINUTE_MS).toISOString().slice(0, 10);
 }
+
+/** Airport-local wall clock (`2026-11-02T10:15`) of an ISO instant, for showing stored flight times. */
+export function isoToLocal(iso: string, timeZone: string): string {
+  const utcMs = new Date(iso).getTime();
+  return new Date(utcMs + offsetMinutes(utcMs, timeZone) * MINUTE_MS).toISOString().slice(0, 16);
+}
