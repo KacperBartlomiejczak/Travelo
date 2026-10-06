@@ -1,6 +1,6 @@
 import type { z } from 'zod';
 
-import { defaultCurrency } from '@/lib/airport-search';
+import { defaultCurrency, destinationName } from '@/lib/airport-search';
 import { parseAmountToMinor } from '@/lib/money';
 
 import type {
@@ -100,5 +100,7 @@ export function toCreateTripInput(draft: TripDraft, locale: string): z.input<typ
     friends: { friends: draft.friends },
     // The budget step only lets valid amounts through; 0 makes the schema reject anything else.
     budget: { budgetPerPerson: { amountMinor: parseAmountToMinor(draft.budget.amountText, currency, locale) ?? 0, currency } },
+    // Destination city until the name field exists (plan step 4).
+    details: { name: destinationName(draft.outbound[draft.outbound.length - 1].toIata) },
   };
 }

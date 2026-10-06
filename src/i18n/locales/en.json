@@ -118,6 +118,8 @@
     "flightNumberInvalid": "A flight number has 2 to 8 characters",
     "nameRequired": "Enter a name",
     "nameTooLong": "A name can have up to {{max}} characters",
+    "tripNameRequired": "Enter a trip name",
+    "tripNameTooLong": "A trip name can have up to {{max}} characters",
     "amountRequired": "Enter an amount",
     "amountInvalid": "Enter the amount as a number, e.g. 2500 or 2500.50",
     "amountPositive": "The amount must be more than zero",

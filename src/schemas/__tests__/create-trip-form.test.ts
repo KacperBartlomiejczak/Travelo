@@ -7,6 +7,7 @@ import {
   FriendInputSchema,
   MAX_COMPANIONS,
   SegmentInputSchema,
+  TripDetailsInputSchema,
 } from '@/schemas';
 
 type Segment = z.input<typeof SegmentInputSchema>;
@@ -263,6 +264,39 @@ describe('BudgetStepInput', () => {
   });
 });
 
+describe('TripDetailsInput', () => {
+  it('accepts a name without a cover photo', () => {
+    expect(TripDetailsInputSchema.parse({ name: 'Kraków → Barcelona' })).toEqual({ name: 'Kraków → Barcelona' });
+  });
+
+  it('accepts a name with a cover photo', () => {
+    const details = { name: 'Barcelona', coverImageUri: 'file:///cache/cover.jpg' };
+    expect(TripDetailsInputSchema.parse(details)).toEqual(details);
+  });
+
+  it('trims the name', () => {
+    expect(TripDetailsInputSchema.parse({ name: '  Majówka  ' }).name).toBe('Majówka');
+  });
+
+  it.each([
+    ['empty', ''],
+    ['whitespace-only', '   '],
+  ])('rejects a name that is %s', (_, name) => {
+    expect(issues(TripDetailsInputSchema.safeParse({ name }))).toEqual([{ path: ['name'], message: 'validation.tripNameRequired' }]);
+  });
+
+  it('accepts 60 characters and rejects 61', () => {
+    expect(TripDetailsInputSchema.safeParse({ name: 'a'.repeat(60) }).success).toBe(true);
+    expect(issues(TripDetailsInputSchema.safeParse({ name: 'a'.repeat(61) }))).toEqual([
+      { path: ['name'], message: 'validation.tripNameTooLong' },
+    ]);
+  });
+
+  it('rejects an empty cover photo URI', () => {
+    expect(TripDetailsInputSchema.safeParse({ name: 'Barcelona', coverImageUri: '' }).success).toBe(false);
+  });
+});
+
 describe('CreateTripInput', () => {
   const input = {
     flights,
@@ -273,6 +307,7 @@ describe('CreateTripInput', () => {
       ],
     },
     budget: { budgetPerPerson: { amountMinor: 300000, currency: 'THB' } },
+    details: { name: 'Warszawa → Bangkok' },
   };
 
   it('accepts a complete wizard', () => {
@@ -287,5 +322,10 @@ describe('CreateTripInput', () => {
   it('rejects a friend count different from the companion count', () => {
     const result = CreateTripInputSchema.safeParse({ ...input, flights: { ...flights, companionCount: 3 } });
     expect(issues(result)).toEqual([{ path: ['friends', 'friends'], message: 'validation.friendCountMismatch' }]);
+  });
+
+  it('requires the trip details', () => {
+    const { details: _omit, ...withoutDetails } = input;
+    expect(CreateTripInputSchema.safeParse(withoutDetails).success).toBe(false);
   });
 });

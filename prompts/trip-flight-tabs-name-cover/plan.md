@@ -1,5 +1,5 @@
 # Task: Flights step tabs, trip name, cover photo and the nearest-trip home screen
-Status: awaiting approval
+Status: in progress (approved by Kacper 2026-10-06)
 
 ## Understanding & assumptions
 Kacper's request (2026-10-06), in short:

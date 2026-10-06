@@ -118,6 +118,8 @@
     "flightNumberInvalid": "Numer lotu ma od 2 do 8 znaków",
     "nameRequired": "Wpisz imię",
     "nameTooLong": "Imię może mieć do {{max}} znaków",
+    "tripNameRequired": "Podaj nazwę podróży",
+    "tripNameTooLong": "Nazwa może mieć do {{max}} znaków",
     "amountRequired": "Wpisz kwotę",
     "amountInvalid": "Wpisz kwotę liczbą, np. 2500 lub 2500,50",
     "amountPositive": "Kwota musi być większa od zera",

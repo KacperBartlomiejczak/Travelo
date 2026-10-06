@@ -34,8 +34,20 @@ _Avoid_: Hobby, preference, tag (in UI copy)
 One journey of the group to one destination, with dates, a budget and flights.
 _Avoid_: Journey, travel, vacation
 
+**Trip name**:
+The organizer's name for a trip; by default the city the outbound starts from and the destination city ("Kraków → Barcelona").
+_Avoid_: Title, label
+
+**Cover photo**:
+An optional picture the organizer chooses to represent a trip.
+_Avoid_: Thumbnail, background, banner
+
+**Nearest trip**:
+The trip with the soonest start date; the one the home screen is about.
+_Avoid_: Next trip, current trip, upcoming trip
+
 **Destination**:
-The airport where the outbound flight finally lands; its city names the trip and its country sets the default currency.
+The airport where the outbound flight finally lands; its country sets the default currency.
 _Avoid_: Target, location
 
 **Budget per person**:
