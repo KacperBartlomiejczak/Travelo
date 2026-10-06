@@ -3,7 +3,7 @@ import { act, renderHook, waitFor } from '@testing-library/react-native';
 import type { ReactNode } from 'react';
 
 import { createInMemoryTripRepository, type TripRepository } from '@/data/trip-repository';
-import { useCreateTrip, useTrips } from '@/hooks/useTrips';
+import { useCreateTrip, useNearestTrip } from '@/hooks/useTrips';
 import { AppProviders } from '@/providers/AppProviders';
 import { createTripInputFixture } from '@/test/fixtures';
 
@@ -30,44 +30,50 @@ afterEach(() => {
   jest.useRealTimers();
 });
 
-describe('useTrips', () => {
-  it('returns the trips from the repository', async () => {
+describe('useNearestTrip', () => {
+  it('returns the nearest trip from the repository', async () => {
     const repository = createInMemoryTripRepository({ now: () => NOW, newId });
     await repository.create(createTripInputFixture());
-    const { result } = await renderHook(() => useTrips(), { wrapper: setup(repository) });
+    const { result } = await renderHook(() => useNearestTrip(), { wrapper: setup(repository) });
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
-    expect(result.current.data?.map((trip) => trip.name)).toEqual(['Warsaw → Bangkok']);
+    expect(result.current.data?.trip.name).toBe('Warsaw → Bangkok');
+    expect(result.current.data?.members).toHaveLength(2);
+  });
+
+  it('returns null when there are no trips', async () => {
+    const repository = createInMemoryTripRepository({ now: () => NOW, newId });
+    const { result } = await renderHook(() => useNearestTrip(), { wrapper: setup(repository) });
+    await waitFor(() => expect(result.current.isSuccess).toBe(true));
+    expect(result.current.data).toBeNull();
   });
 
   it('exposes a repository error', async () => {
     const failing: TripRepository = {
-      list: () => Promise.reject(new Error('offline')),
       nearest: () => Promise.reject(new Error('offline')),
       create: () => Promise.reject(new Error('offline')),
     };
-    const { result } = await renderHook(() => useTrips(), { wrapper: setup(failing) });
+    const { result } = await renderHook(() => useNearestTrip(), { wrapper: setup(failing) });
     await waitFor(() => expect(result.current.isError).toBe(true));
   });
 });
 
 describe('useCreateTrip', () => {
-  it('saves a trip and refreshes the trips list', async () => {
+  it('saves a trip and refreshes the nearest trip', async () => {
     const repository = createInMemoryTripRepository({ now: () => NOW, newId });
     const wrapper = setup(repository);
-    const { result } = await renderHook(() => ({ trips: useTrips(), create: useCreateTrip() }), { wrapper });
-    await waitFor(() => expect(result.current.trips.data).toEqual([]));
+    const { result } = await renderHook(() => ({ nearest: useNearestTrip(), create: useCreateTrip() }), { wrapper });
+    await waitFor(() => expect(result.current.nearest.data).toBeNull());
 
     await act(async () => {
       await result.current.create.mutateAsync(createTripInputFixture());
     });
 
-    await waitFor(() => expect(result.current.trips.data?.map((trip) => trip.name)).toEqual(['Warsaw → Bangkok']));
+    await waitFor(() => expect(result.current.nearest.data?.trip.name).toBe('Warsaw → Bangkok'));
   });
 
   it('reports a failed save', async () => {
     const repository = createInMemoryTripRepository({ now: () => NOW, newId });
     const failing: TripRepository = {
-      list: () => repository.list(),
       nearest: () => repository.nearest(),
       create: () => Promise.reject(new Error('down')),
     };

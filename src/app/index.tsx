@@ -2,18 +2,18 @@ import { useRouter } from 'expo-router';
 import { CircleX, Plus } from 'lucide-react-native';
 import { useEffect, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
-import { AccessibilityInfo, ScrollView, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
+import { AccessibilityInfo, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { PrimaryButton } from '@/components/PrimaryButton';
 import { TextButton } from '@/components/TextButton';
-import { TripCard } from '@/components/TripCard';
-import { TripCardSkeleton } from '@/components/TripCardSkeleton';
+import { TripHeroSkeleton } from '@/components/TripHeroSkeleton';
 import { TripsEmptyIllustration } from '@/components/TripsEmptyIllustration';
-import { useTrips } from '@/hooks/useTrips';
-import { useTheme } from '@/theme/useTheme';
+import { NearestTrip } from '@/features/home/NearestTrip';
+import { useNearestTrip } from '@/hooks/useTrips';
+import { DarkThemeScope, useTheme } from '@/theme/useTheme';
 
-// Trips screen: loading, error, empty, or the trips with the soonest one first (D6, D39).
+// Home screen: loading, error, empty, or only the nearest trip (trip-flight-tabs-name-cover D4).
 export default function TripsScreen() {
   const { t } = useTranslation();
   const theme = useTheme();
@@ -22,29 +22,50 @@ export default function TripsScreen() {
   const { width } = useWindowDimensions();
   const { spacing, colors, typography } = theme;
   const isCompact = width < theme.breakpoints.compact;
-  const trips = useTrips();
+  const trips = useNearestTrip();
+  const create = () => router.push('/trips/new');
 
   // The error replaces the skeleton without focus moving; VoiceOver needs it announced.
   useEffect(() => {
     if (trips.isError) AccessibilityInfo.announceForAccessibility(t('trips.loadError'));
   }, [trips.isError, t]);
-  const sectionTitle = [typography.heading3, { color: colors.text.primary }];
 
-  let body: ReactNode;
+  if (trips.data) {
+    return (
+      <DarkThemeScope>
+        <NearestTrip overview={trips.data} onCreate={create} />
+      </DarkThemeScope>
+    );
+  }
+
   if (trips.isPending) {
-    body = (
-      <View
-        testID="trips-loading"
-        accessible
-        accessibilityLabel={t('trips.loading')}
-        accessibilityState={{ busy: true }}
-        style={[styles.fill, { gap: spacing[3], paddingTop: spacing[6] }]}
-      >
-        <TripCardSkeleton />
-        <TripCardSkeleton />
+    // Same geometry as the trip view: the hero placeholder edge to edge (§10.18).
+    return (
+      <View testID="trips-screen" style={[styles.screen, { backgroundColor: colors.background }]}>
+        <View
+          testID="trips-loading"
+          accessible
+          accessibilityLabel={t('trips.loading')}
+          accessibilityState={{ busy: true }}
+          style={styles.fill}
+        >
+          <TripHeroSkeleton />
+        </View>
+        <View
+          style={{
+            paddingHorizontal: isCompact ? spacing[4] : spacing[5],
+            paddingTop: spacing[3],
+            paddingBottom: insets.bottom + spacing[4],
+          }}
+        >
+          <PrimaryButton label={t('trips.create')} icon={Plus} onPress={create} />
+        </View>
       </View>
     );
-  } else if (trips.isError) {
+  }
+
+  let body: ReactNode;
+  if (trips.isError) {
     body = (
       <View style={[styles.centered, { gap: spacing[3] }]}>
         <CircleX size={theme.size.iconFeature} strokeWidth={theme.size.iconStroke} color={colors.status.error} aria-hidden />
@@ -52,7 +73,7 @@ export default function TripsScreen() {
         <TextButton variant="secondary" label={t('trips.retry')} onPress={() => trips.refetch()} />
       </View>
     );
-  } else if (trips.data.length === 0) {
+  } else {
     body = (
       <View style={styles.centered}>
         <TripsEmptyIllustration />
@@ -63,28 +84,6 @@ export default function TripsScreen() {
           {t('trips.empty.description')}
         </Text>
       </View>
-    );
-  } else {
-    const [next, ...later] = trips.data;
-    body = (
-      <ScrollView style={styles.fill} contentContainerStyle={{ gap: spacing[6], paddingVertical: spacing[6] }}>
-        <View testID="trips-next" style={{ gap: spacing[3] }}>
-          <Text accessibilityRole="header" style={sectionTitle}>
-            {t('trips.next')}
-          </Text>
-          <TripCard trip={next} />
-        </View>
-        {later.length > 0 && (
-          <View testID="trips-later" style={{ gap: spacing[3] }}>
-            <Text accessibilityRole="header" style={sectionTitle}>
-              {t('trips.later')}
-            </Text>
-            {later.map((trip) => (
-              <TripCard key={trip.id} trip={trip} />
-            ))}
-          </View>
-        )}
-      </ScrollView>
     );
   }
 
@@ -108,7 +107,7 @@ export default function TripsScreen() {
 
         {body}
 
-        <PrimaryButton label={t('trips.create')} icon={Plus} onPress={() => router.push('/trips/new')} />
+        <PrimaryButton label={t('trips.create')} icon={Plus} onPress={create} />
       </View>
     </View>
   );

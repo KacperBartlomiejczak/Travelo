@@ -74,3 +74,8 @@ export function exampleTrips(today: string): TripInput[] {
     ),
   ];
 }
+
+/** What the in-memory repository starts with: the example trips only in development builds, never in tests (D8). */
+export function startingTrips(env: { isDev: boolean; isTest: boolean }, today: string): TripInput[] {
+  return env.isDev && !env.isTest ? exampleTrips(today) : [];
+}

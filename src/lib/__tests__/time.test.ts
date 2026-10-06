@@ -1,4 +1,4 @@
-import { isExistingLocalTime, localToIso, todayIn, zonedLocalToDate } from '@/lib/time';
+import { isExistingLocalTime, isoToLocal, localToIso, todayIn, zonedLocalToDate } from '@/lib/time';
 
 describe('zonedLocalToDate', () => {
   it('converts winter time in Madrid (UTC+1)', () => {
@@ -57,5 +57,20 @@ describe('isExistingLocalTime', () => {
     ['2026-11-02T10:15', 'Asia/Kolkata'],
   ])('accepts %p in %p', (local, timeZone) => {
     expect(isExistingLocalTime(local, timeZone)).toBe(true);
+  });
+});
+
+describe('isoToLocal', () => {
+  it('gives the airport-local wall clock of an instant', () => {
+    expect(isoToLocal('2026-11-02T10:15:00+01:00', 'Europe/Warsaw')).toBe('2026-11-02T10:15');
+    // Same instant written in UTC: still Warsaw's wall clock.
+    expect(isoToLocal('2026-11-02T09:15:00Z', 'Europe/Warsaw')).toBe('2026-11-02T10:15');
+    expect(isoToLocal('2026-11-02T09:15:00Z', 'Asia/Bangkok')).toBe('2026-11-02T16:15');
+  });
+
+  it('round-trips with localToIso across a DST change', () => {
+    for (const local of ['2027-03-28T01:30', '2027-03-28T03:30', '2026-10-25T02:30']) {
+      expect(isoToLocal(localToIso(local, 'Europe/Warsaw'), 'Europe/Warsaw')).toBe(local);
+    }
   });
 });

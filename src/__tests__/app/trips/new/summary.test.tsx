@@ -11,7 +11,7 @@ import NewTripLayout from '@/app/trips/new/_layout';
 import SummaryStep from '@/app/trips/new/summary';
 import { emptySegment, withCompanionCount } from '@/features/trip-create/draft';
 import { useTripDraft } from '@/features/trip-create/TripDraftContext';
-import { useTrips } from '@/hooks/useTrips';
+import { useNearestTrip } from '@/hooks/useTrips';
 import i18n from '@/i18n';
 
 jest.mock('expo-font', () => ({ ...jest.requireActual('expo-font'), useFonts: jest.fn() }));
@@ -31,7 +31,7 @@ jest.mock('@/data/trip-repository', () => {
     createInMemoryTripRepository: () => {
       const repository = actual.createInMemoryTripRepository();
       return {
-        list: () => repository.list(),
+        nearest: () => repository.nearest(),
         create: async (input: unknown) => {
           if (mockHoldSave) await new Promise<void>((resolve) => (mockReleaseSave = resolve));
           if (mockSaveFails) throw new Error('down');
@@ -42,12 +42,12 @@ jest.mock('@/data/trip-repository', () => {
   };
 });
 
-// Trips list stand-in (step 10 builds the real one).
+// Home screen stand-in: the saved trip's name and cover.
 function TripsProbe() {
-  const trips = useTrips();
+  const trip = useNearestTrip().data?.trip;
   return (
     <>
-      <Text>{`trips: ${(trips.data ?? []).map((trip) => trip.name + (trip.coverImageUri ? ` [${trip.coverImageUri}]` : '')).join(', ')}`}</Text>
+      <Text>{`trips: ${trip ? trip.name + (trip.coverImageUri ? ` [${trip.coverImageUri}]` : '') : ''}`}</Text>
       <Text>Utwórz podróż</Text>
     </>
   );

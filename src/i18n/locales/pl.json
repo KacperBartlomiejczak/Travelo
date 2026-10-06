@@ -6,17 +6,9 @@
       "description": "Zaplanuj pierwszą i zaproś znajomych."
     },
     "create": "Utwórz podróż",
-    "next": "Najbliższa podróż",
-    "later": "Później",
-    "travellers_one": "{{count}} osoba",
-    "travellers_few": "{{count}} osoby",
-    "travellers_many": "{{count}} osób",
-    "travellers_other": "{{count}} osoby",
-    "budget": "Budżet: {{amount}} / os.",
     "loadError": "Nie udało się wczytać podróży.",
     "retry": "Spróbuj ponownie",
-    "loading": "Wczytywanie podróży",
-    "budgetA11y": "Budżet: {{amount}} na osobę"
+    "loading": "Wczytywanie podróży"
   },
   "newTrip": {
     "title": "Nowa podróż",
@@ -162,5 +154,8 @@
     "remove": "Usuń zdjęcie",
     "preview": "Wybrane zdjęcie okładki",
     "error": "Nie udało się otworzyć galerii. Spróbuj ponownie."
+  },
+  "home": {
+    "flights": "Loty"
   }
 }

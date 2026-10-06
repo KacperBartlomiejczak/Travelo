@@ -6,17 +6,9 @@
       "description": "Plan your first one and invite your friends."
     },
     "create": "Create trip",
-    "next": "Next trip",
-    "later": "Later",
-    "travellers_one": "{{count}} person",
-    "travellers_few": "{{count}} people",
-    "travellers_many": "{{count}} people",
-    "travellers_other": "{{count}} people",
-    "budget": "Budget: {{amount}} per person",
     "loadError": "Couldn't load your trips.",
     "retry": "Try again",
-    "loading": "Loading trips",
-    "budgetA11y": "Budget: {{amount}} per person"
+    "loading": "Loading trips"
   },
   "newTrip": {
     "title": "New trip",
@@ -162,5 +154,8 @@
     "remove": "Remove photo",
     "preview": "Selected cover photo",
     "error": "Couldn't open your photos. Try again."
+  },
+  "home": {
+    "flights": "Flights"
   }
 }

@@ -16,7 +16,6 @@ import {
   type Trip,
   type TripMember,
   type TripOverview,
-  type TripSummary,
 } from '@/schemas';
 
 /** Owner of every trip until Supabase Auth exists (plan A3). */
@@ -26,8 +25,6 @@ export type CreatedTrip = { trip: Trip; members: TripMember[]; segments: FlightS
 
 /** Where trips live. In memory now (D1); Supabase replaces the implementation later. */
 export interface TripRepository {
-  /** Trips soonest first. */
-  list(): Promise<TripSummary[]>;
   /** The soonest trip with its members and flights, or null when there are none. */
   nearest(): Promise<TripOverview | null>;
   create(input: z.input<typeof CreateTripInputSchema>): Promise<Trip>;
@@ -95,21 +92,22 @@ export function buildTrip(input: CreateTripInput, { now, newId }: Deps): Created
 
 export function createInMemoryTripRepository(
   deps: { now: () => Date; newId: () => string } = { now: () => new Date(), newId: randomUUID },
+  /** Trips it starts with, e.g. the example trips in development builds (D8). */
+  initial: z.input<typeof CreateTripInputSchema>[] = [],
 ): TripRepository {
-  const stored: CreatedTrip[] = [];
+  const build = (input: z.input<typeof CreateTripInputSchema>) =>
+    buildTrip(CreateTripInputSchema.parse(input), { now: deps.now(), newId: deps.newId });
+  const stored: CreatedTrip[] = initial.map(build);
   const summary = ({ trip, members }: CreatedTrip) => TripSummarySchema.parse({ ...trip, travellerCount: members.length + 1 });
   const soonestFirst = () =>
     [...stored].sort((a, b) => a.trip.startDate.localeCompare(b.trip.startDate) || a.trip.createdAt.localeCompare(b.trip.createdAt));
   return {
-    async list() {
-      return soonestFirst().map(summary);
-    },
     async nearest() {
       const [first] = soonestFirst();
       return first ? TripOverviewSchema.parse({ trip: summary(first), members: first.members, segments: first.segments }) : null;
     },
     async create(input) {
-      const created = buildTrip(CreateTripInputSchema.parse(input), { now: deps.now(), newId: deps.newId });
+      const created = build(input);
       stored.push(created);
       return created.trip;
     },

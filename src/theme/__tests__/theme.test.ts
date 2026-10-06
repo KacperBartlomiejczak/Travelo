@@ -1,7 +1,7 @@
 import { renderHook } from '@testing-library/react-native';
 
 import { darkTheme, lightTheme } from '../theme';
-import { useTheme } from '../useTheme';
+import { DarkThemeScope, useTheme } from '../useTheme';
 
 let mockScheme: 'light' | 'dark' | null = null;
 
@@ -176,4 +176,13 @@ describe('useTheme', () => {
     const { result } = await renderHook(() => useTheme());
     expect(result.current).toBe(lightTheme);
   });
+
+  it.each(['light', 'dark', null] as const)(
+    'returns the dark theme inside a dark scope whatever the device scheme (%p; A4)',
+    async (scheme) => {
+      mockColorScheme(scheme);
+      const { result } = await renderHook(() => useTheme(), { wrapper: DarkThemeScope });
+      expect(result.current).toBe(darkTheme);
+    },
+  );
 });
