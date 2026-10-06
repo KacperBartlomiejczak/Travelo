@@ -27,6 +27,8 @@ export const palette = {
     800: '#302B26',
     900: '#17211B',
   },
+  // Behind bottom sheets: ink (neutral.900, the shadow colour of §6.1) at 50 % (trips-supabase D12).
+  overlay: { scrim: 'rgba(23, 33, 27, 0.5)' },
   // §3.2 dark roles that are not part of the neutral scale.
   dark: {
     background: '#111712',
