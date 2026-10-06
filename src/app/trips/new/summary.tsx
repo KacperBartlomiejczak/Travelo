@@ -23,13 +23,18 @@ import { deriveTripDates } from '@/lib/trip-dates';
 import { CreateTripInputSchema, TRIP_NAME_MAX_LENGTH, TripDetailsInputSchema } from '@/schemas';
 import { useTheme } from '@/theme/useTheme';
 
+// Not shown anywhere; only lets the redirect guard ignore the name.
+const GUARD_NAME = 'Trip';
+
 // Step 4 — check everything, then save (D6, D38).
 export default function SummaryStep() {
   const { draft, isComplete } = useTripDraft();
   const { i18n } = useTranslation();
   // Reached only through the earlier steps; an incomplete draft (e.g. a web deep link) starts over.
-  // The name is entered on this step, so it is checked here, not by this guard.
-  if (!isComplete && !CreateTripInputSchema.safeParse(toCreateTripInput({ ...draft, name: null }, i18n.language)).success) {
+  // The name is entered and checked on this step (`save`), so the guard uses a valid stand-in: even the
+  // default name can be too long (PKY → NLI is 61 characters).
+  const withNameFromThisStep = { ...draft, name: GUARD_NAME };
+  if (!isComplete && !CreateTripInputSchema.safeParse(toCreateTripInput(withNameFromThisStep, i18n.language)).success) {
     return <Redirect href="/trips/new" />;
   }
   return <Summary />;

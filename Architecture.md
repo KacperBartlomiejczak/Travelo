@@ -205,7 +205,7 @@ No server tables and no SQLite tables exist yet. The airport list is a static bu
 - A trip whose return local date is before the outbound arrival date (open-jaw across the date line) breaks the per-day figure and is rejected on save.
 - Only the nearest trip is shown; other trips cannot be seen until an "all trips" screen exists (A6, A7). The home screen's trip view is data only (no actions on the trip).
 - Cover photos are device-local URIs from the picker's cache; the OS may clear them. Must be uploaded (e.g. Supabase Storage) once trips are stored on the server. On iOS the picker crops square (Expo ignores `aspect` there); the preview and hero show it with `cover` fit.
-- City names in default trip names come from the airport list (mostly English, e.g. "Warsaw → Barcelona"). Two very long city names could give a 61-character default name (practically unreachable).
+- City names in default trip names come from the airport list (mostly English, e.g. "Warsaw → Barcelona"). A default name can exceed 60 characters (PKY → NLI is 61); the summary then shows it and asks to shorten it ("Nazwa może mieć do 60 znaków") — the redirect guard ignores the name.
 - Release builds still bundle the ~280 KB example photos (Metro bundles static `require`s even though only development builds use them).
 - `src/data/example-covers.ts` uses a relative `require('../../assets/…')`, because tsconfig and Jest map `@/` only to `src/`.
 - Manual device checks pending (`prompts/trip-flight-tabs-name-cover/plan.md`): long name / largest Dynamic Type over a bright photo, status bar during the push into the wizard, the light → ink switch when the home screen finishes loading, tablet layout.

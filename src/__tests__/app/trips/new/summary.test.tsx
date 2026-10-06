@@ -240,6 +240,50 @@ describe('Summary step', () => {
     });
   });
 
+  it('opens with a default name over 60 characters and asks to shorten it (PR #4 review)', async () => {
+    // PKY → NLI: "Palangkaraya-Kalimantan Tengah → Nikolayevsk-na-Amure Airport" is 61 characters.
+    function LongNameFlights() {
+      const { setDraft } = useTripDraft();
+      const router = useRouter();
+      function fill() {
+        setDraft((draft) => ({
+          ...draft,
+          outbound: [
+            { ...emptySegment(), fromIata: 'PKY', departTz: 'Asia/Pontianak', toIata: 'NLI', arriveTz: 'Asia/Vladivostok', departAt: '2026-11-02T08:00', arriveAt: '2026-11-02T20:00' },
+          ],
+          return: [
+            { ...emptySegment(), fromIata: 'NLI', departTz: 'Asia/Vladivostok', toIata: 'PKY', arriveTz: 'Asia/Pontianak', departAt: '2026-11-10T09:00', arriveAt: '2026-11-10T15:00' },
+          ],
+          budget: { amountText: '3000', currency: '' },
+        }));
+        router.push('/trips/new/summary');
+      }
+      return (
+        <Pressable onPress={fill}>
+          <Text>test: long-name trip</Text>
+        </Pressable>
+      );
+    }
+    const rendered = renderRouter(
+      {
+        _layout: RootLayout,
+        index: TripsProbe,
+        'trips/new/_layout': NewTripLayout,
+        'trips/new/index': LongNameFlights,
+        'trips/new/summary': SummaryStep,
+      },
+      { initialUrl: '/trips/new' },
+    );
+    await rendered;
+    await fireEvent.press(screen.getByText('test: long-name trip'));
+    expect(rendered.getPathname()).toBe('/trips/new/summary');
+    const details = section('details');
+    expect(details.getByLabelText('Nazwa podróży').props.value).toHaveLength(61);
+    await fireEvent.press(screen.getByRole('button', { name: 'Utwórz podróż' }));
+    expect(details.getByText('Nazwa może mieć do 60 znaków')).toBeTruthy();
+    expect(rendered.getPathname()).toBe('/trips/new/summary');
+  });
+
   it('sends an incomplete draft (e.g. opened by URL) back to step 1', async () => {
     const rendered = renderRouter(
       {
