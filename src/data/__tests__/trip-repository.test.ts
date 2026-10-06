@@ -10,6 +10,7 @@ import {
 import { createTripInputFixture } from '@/test/fixtures';
 
 const NOW = new Date('2026-10-04T12:00:00Z');
+const OWNER_ID = '9d3c1b2a-0f4e-4d5c-8b6a-7e8f9a0b1c2d';
 
 function sequentialIds() {
   let n = 0;
@@ -19,7 +20,7 @@ function sequentialIds() {
 function build(patch: (input: ReturnType<typeof createTripInputFixture>) => void = () => {}) {
   const input = createTripInputFixture();
   patch(input);
-  return buildTrip(CreateTripInputSchema.parse(input), { now: NOW, newId: sequentialIds() });
+  return buildTrip(CreateTripInputSchema.parse(input), { now: NOW, newId: sequentialIds(), ownerId: OWNER_ID });
 }
 
 beforeEach(() => {
@@ -35,7 +36,7 @@ describe('buildTrip', () => {
     const { trip } = build();
     expect(trip).toEqual({
       id: '00000000-0000-4000-8000-000000000001',
-      ownerId: LOCAL_OWNER_ID,
+      ownerId: OWNER_ID,
       name: 'Warsaw → Bangkok',
       destination: 'BKK',
       startDate: '2026-11-03',
@@ -43,6 +44,7 @@ describe('buildTrip', () => {
       baseCurrency: 'THB',
       budgetPerPerson: { amountMinor: 3000000, currency: 'THB' },
       createdAt: '2026-10-04T12:00:00.000Z',
+      budgetUpdatedAt: '2026-10-04T12:00:00.000Z',
     });
     expect(TripSchema.safeParse(trip).success).toBe(true);
   });
@@ -110,6 +112,10 @@ describe('in-memory trip repository', () => {
     const nearest = await repo.nearest();
     expect(nearest?.trip).toEqual({ ...created, travellerCount: 3 });
     expect(TripSummarySchema.safeParse(nearest?.trip).success).toBe(true);
+  });
+
+  it('owns its trips by the local owner (tests only, no auth)', async () => {
+    expect((await repository().create(createTripInputFixture())).ownerId).toBe(LOCAL_OWNER_ID);
   });
 
   it('starts with the given trips (example trips, D8)', async () => {

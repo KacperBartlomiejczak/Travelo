@@ -71,3 +71,13 @@ _Avoid_: Departure flight, way back
 **Layover**:
 The time on the ground between two consecutive segments of the same direction; always derived, never entered.
 _Avoid_: Stopover, connection, transfer
+
+## Offline
+
+**Budget change**:
+A new budget per person the organizer sets on an existing trip; it can be made without internet and reaches the server later. The newest change wins.
+_Avoid_: Budget edit, limit update
+
+**Sync status**:
+Whether a change made on the phone has reached the server: synced, pending (waiting) or failed (will be retried).
+_Avoid_: Upload state, saved/unsaved

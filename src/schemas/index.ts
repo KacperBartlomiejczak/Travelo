@@ -5,4 +5,6 @@ export * from './flight';
 export * from './interests';
 export * from './member';
 export * from './supabase-config';
+export * from './sync';
 export * from './trip';
+export * from './trip-budget';

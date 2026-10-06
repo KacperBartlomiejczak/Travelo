@@ -18,7 +18,7 @@ import {
   type TripOverview,
 } from '@/schemas';
 
-/** Owner of every trip until Supabase Auth exists (plan A3). */
+/** Owner of every trip in the in-memory repository, which only tests use now (trips-supabase D8). */
 export const LOCAL_OWNER_ID = 'local-user';
 
 export type CreatedTrip = { trip: Trip; members: TripMember[]; segments: FlightSegment[] };
@@ -30,7 +30,7 @@ export interface TripRepository {
   create(input: z.input<typeof CreateTripInputSchema>): Promise<Trip>;
 }
 
-type Deps = { now: Date; newId: () => string };
+type Deps = { now: Date; newId: () => string; ownerId: string };
 
 function toSegments(
   segments: SegmentInput[],
@@ -54,7 +54,7 @@ function toSegments(
 }
 
 /** Turns the wizard's input into the entities that get stored. */
-export function buildTrip(input: CreateTripInput, { now, newId }: Deps): CreatedTrip {
+export function buildTrip(input: CreateTripInput, { now, newId, ownerId }: Deps): CreatedTrip {
   const tripId = newId();
   const { outbound } = input.flights;
   const destination = outbound[outbound.length - 1].toIata;
@@ -63,7 +63,7 @@ export function buildTrip(input: CreateTripInput, { now, newId }: Deps): Created
 
   const trip = TripSchema.parse({
     id: tripId,
-    ownerId: LOCAL_OWNER_ID,
+    ownerId,
     name,
     ...(coverImageUri ? { coverImageUri } : {}),
     destination,
@@ -71,6 +71,7 @@ export function buildTrip(input: CreateTripInput, { now, newId }: Deps): Created
     baseCurrency: budgetPerPerson.currency,
     budgetPerPerson,
     createdAt: now.toISOString(),
+    budgetUpdatedAt: now.toISOString(),
   });
   const members = input.friends.friends.map((friend) =>
     TripMemberSchema.parse({
@@ -96,7 +97,7 @@ export function createInMemoryTripRepository(
   initial: z.input<typeof CreateTripInputSchema>[] = [],
 ): TripRepository {
   const build = (input: z.input<typeof CreateTripInputSchema>) =>
-    buildTrip(CreateTripInputSchema.parse(input), { now: deps.now(), newId: deps.newId });
+    buildTrip(CreateTripInputSchema.parse(input), { now: deps.now(), newId: deps.newId, ownerId: LOCAL_OWNER_ID });
   const stored: CreatedTrip[] = initial.map(build);
   const summary = ({ trip, members }: CreatedTrip) => TripSummarySchema.parse({ ...trip, travellerCount: members.length + 1 });
   const soonestFirst = () =>
