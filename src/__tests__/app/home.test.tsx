@@ -298,6 +298,18 @@ describe('Home screen — changing the budget (trips-supabase D5, D10–D13)', (
     expect(mockSyncBudgets).toHaveBeenCalled();
   });
 
+  it('closes right after saving on the device, without waiting for Supabase (weak connection)', async () => {
+    mockNearest = () => Promise.resolve(overview());
+    await renderHome();
+    await openSheet();
+    // From now on reading the trip never answers, like a request hanging on a captive portal.
+    mockNearest = () => new Promise(() => {});
+    await fireEvent.changeText(screen.getByLabelText('Kwota na osobę'), '2500');
+    await fireEvent.press(screen.getByRole('button', { name: 'Zapisz' }));
+    expect(screen.queryByRole('header', { name: 'Ile chcecie wydać na osobę?' })).toBeNull();
+    expect(mockSyncBudgets).toHaveBeenCalled();
+  });
+
   it('keeps the sheet open with an error when saving on the device fails', async () => {
     const announce = jest.spyOn(AccessibilityInfo, 'announceForAccessibility');
     mockNearest = () => Promise.resolve(overview());
@@ -378,10 +390,22 @@ describe('Home screen — offline (D6, D11)', () => {
     expect(mockSetBudget).toHaveBeenCalledWith(expect.objectContaining({ id: TRIP_ID }), 250000);
   });
 
-  it('shows the banner on the empty and error screens too', async () => {
+  it('shows the banner on the empty screen too', async () => {
     setNetwork({ isConnected: false, isInternetReachable: false });
     await renderHome();
     expect(await screen.findByText('Nie masz jeszcze żadnej podróży.')).toBeTruthy();
+    expect(screen.getByText('Jesteś offline. Zmiany zapiszą się po połączeniu.')).toBeTruthy();
+  });
+
+  it('shows the banner on the error screen (offline, no copy on the device)', async () => {
+    jest.useFakeTimers({ advanceTimers: true });
+    setNetwork({ isConnected: false, isInternetReachable: false });
+    mockNearest = () => Promise.reject(new Error('Network request failed'));
+    await renderHome();
+    await act(async () => {
+      await jest.runAllTimersAsync();
+    });
+    expect(await screen.findByText('Nie udało się wczytać podróży.')).toBeTruthy();
     expect(screen.getByText('Jesteś offline. Zmiany zapiszą się po połączeniu.')).toBeTruthy();
   });
 

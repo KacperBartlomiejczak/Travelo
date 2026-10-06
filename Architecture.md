@@ -160,7 +160,7 @@ The airport list is a static bundled file, validated row by row in its test (not
 - `jest.setup.ts` (`setupFilesAfterEnv`): `@/data/app-trip-repository` → the in-memory repository, `expo-network` → `src/test/mock-network.ts` (online unless a test calls `setNetwork`). Route tests that need a specific repository mock `@/data/app-trip-repository`.
 - Data-layer tests use a real SQLite (`node:sqlite`, Node 22) behind the `LocalDb` interface (`src/test/node-sqlite.ts`) and a fake Supabase client that records every query chain (`src/test/fake-supabase.ts`).
 - Database tests: `supabase/tests/trips_rls.sql` (RLS for owner / stranger / linked viewer / anon, constraints, idempotent `create_trip`, last write wins) — `pnpm test:db`, not part of `pnpm test`. aria-hidden elements need `includeHiddenElements: true`. Date/time tests switch `process.env.TZ` to check device-time-zone independence.
-- Current suite: 58 suites, 625 tests (also green with `TZ=America/Los_Angeles`).
+- Current suite: 58 suites, 627 tests (also green with `TZ=America/Los_Angeles`).
 
 ## Tooling
 | Area | Setup |

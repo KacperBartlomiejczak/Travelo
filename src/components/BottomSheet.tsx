@@ -14,6 +14,7 @@ type Props = {
 
 const HANDLE = { width: 36, height: 4 }; // §10.12
 const SWIPE_TO_CLOSE = 60; // dp pulled down on the handle area before the sheet closes
+const SWIPE_START = 8; // dp of vertical movement before the handle area takes the gesture (taps stay taps)
 
 // Bottom sheet (design-context §10.12): 24dp top corners, at most 90 % of the screen, a handle,
 // closed by a swipe down, a backdrop tap or the system back button.
@@ -35,7 +36,7 @@ export function BottomSheet({ visible, title, onClose, children }: Props) {
   const swipe = useMemo(
     () =>
       PanResponder.create({
-        onMoveShouldSetPanResponder: (_, gesture) => gesture.dy > 8 && Math.abs(gesture.dy) > Math.abs(gesture.dx),
+        onMoveShouldSetPanResponder: (_, gesture) => gesture.dy > SWIPE_START && Math.abs(gesture.dy) > Math.abs(gesture.dx),
         onPanResponderRelease: (_, gesture) => {
           if (gesture.dy > SWIPE_TO_CLOSE) onClose();
         },

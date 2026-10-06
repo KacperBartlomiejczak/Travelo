@@ -33,8 +33,9 @@ export function useSetTripBudget() {
     mutationFn: ({ trip, amountMinor }: SetBudget) => repository.setBudget(trip, amountMinor),
     // Saving never waits for the network.
     networkMode: 'always',
-    onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: TRIPS_KEY });
+    // Not awaited: the trip is re-read from Supabase first, which must not hold the save up (weak connection).
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: TRIPS_KEY });
       requestSync();
     },
   });
