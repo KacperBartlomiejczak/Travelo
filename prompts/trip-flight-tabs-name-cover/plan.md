@@ -128,5 +128,5 @@ Per step: red seen for the expected reason → green → `pnpm test` (full), `pn
 - The picker's file URI lives in the app cache; the OS may clear it. Acceptable while data is in memory; must be solved (upload to storage) with Supabase.
 - `app.json` permission text is English only; localising native permission strings is out of scope unless Kacper wants it.
 - Example photos must be downloaded from a free-licence source (Unsplash licence: free use, no attribution required). If the network blocks it, I ask Kacper to drop 3 photos into `assets/images/examples/`.
-- City names come from the airport list in English ("Warsaw", "Krakow"), so the default name reads e.g. "Warsaw → Barcelona" — a known limitation of the list, not fixed here.
+- City names come from the airport list, mostly in English ("Warsaw", but "Kraków"), so the default name can read e.g. "Warsaw → Barcelona" — a known limitation of the list, not fixed here.
 - Removing the list (A7) means a trip that is not the nearest cannot be seen until an "all trips" screen exists.
