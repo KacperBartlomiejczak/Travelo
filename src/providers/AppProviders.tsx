@@ -1,16 +1,10 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { createContext, useContext, useState, type ReactNode } from 'react';
-import { Image } from 'react-native';
 
-import { startingTrips, type ExampleCovers } from '@/data/example-trips';
+import { exampleCovers } from '@/data/example-covers';
+import { startingTrips } from '@/data/example-trips';
 import { createInMemoryTripRepository, type TripRepository } from '@/data/trip-repository';
 import { todayIn } from '@/lib/time';
-
-// Bundled example photos (D9), as URIs like a photo picked from the gallery.
-const exampleCovers = (): ExampleCovers => ({
-  lisbon: Image.resolveAssetSource(require('@/assets/images/examples/lisbon.jpg')).uri,
-  beijing: Image.resolveAssetSource(require('@/assets/images/examples/beijing.jpg')).uri,
-});
 
 const TripRepositoryContext = createContext<TripRepository | null>(null);
 
