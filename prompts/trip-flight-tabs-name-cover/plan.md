@@ -1,5 +1,5 @@
 # Task: Flights step tabs, trip name and cover photo
-Status: awaiting approval
+Status: awaiting answers (Q6–Q10), then approval
 
 ## Understanding & assumptions
 Kacper's request (2026-10-06), in short:
@@ -20,6 +20,20 @@ Kacper's request (2026-10-06), in short:
 ## Open questions — Kacper decides (see "Risks & open questions")
 Q1 cover source · Q2 where name + photo go · Q3 default name format and behaviour · Q4 how the darkened card looks (new theme tokens) · Q5 what happens when "Dalej" finds an error on the hidden tab.
 The plan below is written with the **recommended** answers; it changes if Kacper picks differently.
+
+### Decisions (Kacper, 2026-10-06)
+- **D1 (Q1)** — Cover photo from the phone's gallery via `expo-image-picker`; the photo is **optional**.
+- **D2 (Q2)** — Answer "c : podsumowanie": the letter (C = step 1) and the word (summary = option A) disagree — **asked again** (Q6).
+- **D3 (Q3)** — Default name format "Kraków → Barcelona" (cities with an arrow). Behaviour as recommended (not contradicted; to be confirmed with the plan approval).
+- **D4 (Q4)** — Replaces the recommended scrim: the photo takes about **50 % of the screen** and **fades into black**; it can be scrolled; **no new functionality for now — the cards only display data**; **add example cards**. Details asked as Q7–Q10. Gradient can be drawn with `react-native-svg` (installed); RN 0.86 types have no `backgroundImage`, so no new dependency for it.
+- **D5 (Q5)** — As recommended: switch to the tab with the first error, scroll to it, announce.
+
+### Follow-up questions (2026-10-06)
+- **Q6** — Name + photo on the summary step (option A)? (Recommended: yes.)
+- **Q7** — Is the 50 % the **height of each trip card on the trips list** (photo fills the card, bottom fades to black, name/dates/people/budget on the dark part, the list scrolls, cards not pressable)? Or something else (e.g. a trip screen)?
+- **Q8** — Card without a photo: A (recommended) same tall card with a plain dark background, so the list looks even; B the compact card as today; C a placeholder graphic.
+- **Q9** — "Black": A (recommended) Sunline ink `#17211B` (`neutral.900`, darkest colour of the design system); B pure `#000000` (new colour outside the design context).
+- **Q10** — Example cards: A (recommended) 3 example trips added to the in-memory list only in development builds (`__DEV__`), photos bundled in `assets/` (free-licence photos, e.g. Unsplash); B always shown until Supabase arrives (the empty state disappears); C photos as remote URLs instead of bundled files (no files in the repo, but need internet).
 
 ## Approach
 - **Flights tabs (frontend only):** local `useState<'outbound' | 'return'>('outbound')` in the flights screen; render `section(direction)` for the selected one. On a failed "Dalej", switch to the tab holding the first error (outbound first), then scroll to the card (Q5).
