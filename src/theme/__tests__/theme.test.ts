@@ -95,6 +95,15 @@ describe('darkTheme', () => {
   });
 });
 
+describe('hero roles (trip-flight-tabs-name-cover D4, D7)', () => {
+  it.each([
+    ['light', lightTheme],
+    ['dark', darkTheme],
+  ])('are the same ink background and light text in %s mode', (_, theme) => {
+    expect(theme.colors.hero).toEqual({ background: '#17211B', text: '#F7F3EA', textSecondary: '#C9C2B6' });
+  });
+});
+
 describe('primary action states (D9)', () => {
   it('uses the border and tertiary text roles for a disabled primary action', () => {
     expect(lightTheme.colors.action.disabled).toBe('#DDD5C7');
