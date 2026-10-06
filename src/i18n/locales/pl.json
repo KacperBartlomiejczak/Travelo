@@ -30,6 +30,7 @@
       "cancel": "Zostań"
     },
     "flights": {
+      "direction": "Kierunek lotu",
       "heading": "Kiedy i dokąd lecisz?",
       "ticket": "Wyślij bilet · wkrótce",
       "outbound": "Lot tam",

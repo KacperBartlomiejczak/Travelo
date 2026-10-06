@@ -30,6 +30,7 @@
       "cancel": "Stay"
     },
     "flights": {
+      "direction": "Flight direction",
       "heading": "Where and when are you flying?",
       "ticket": "Upload ticket · coming soon",
       "outbound": "Outbound",
