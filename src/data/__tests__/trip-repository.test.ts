@@ -161,11 +161,13 @@ describe('in-memory trip repository', () => {
       ]);
     });
 
-    it('takes the first created trip when two start on the same day', async () => {
-      const repo = repository();
-      await repo.create(soonerTrip('First'));
-      await repo.create(soonerTrip('Second'));
-      expect((await repo.nearest())?.trip.name).toBe('First');
+    it('takes the earlier created trip when two start on the same day', async () => {
+      // Clock going backwards, so insertion order and createdAt order differ.
+      const times = [new Date('2026-10-04T12:05:00Z'), new Date('2026-10-04T12:00:00Z')];
+      const repo = createInMemoryTripRepository({ now: () => times.shift() ?? NOW, newId: sequentialIds() });
+      await repo.create(soonerTrip('Created later'));
+      await repo.create(soonerTrip('Created earlier'));
+      expect((await repo.nearest())?.trip.name).toBe('Created earlier');
     });
   });
 
