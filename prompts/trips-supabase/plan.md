@@ -1,5 +1,5 @@
 # Task: Trips in Supabase, trip budget editable offline
-Status: awaiting approval
+Status: in progress (approved by Kacper 2026-10-06)
 
 ## Understanding & assumptions
 Today trips live in an in-memory repository and vanish on restart. Kacper wants every created trip (flights, friends with their interests, budget) **saved to Supabase** right after the wizard's "Utwórz podróż". On top of that, the **trip budget** ("ile chcę wydać" = `budgetPerPerson`) must be editable **offline**: it is written to SQLite on the device first and synced to Supabase when the connection is back.
@@ -139,7 +139,7 @@ Indexes on every foreign key (`trip_members.trip_id`, `trip_members.user_id`, `f
 - `ui-taste` — step 9 — final visual review of the Budget card and sheet.
 
 ## Steps
-- [ ] 1. Setup, **no tests** (pure tooling, no behavior): add `supabase` (dev), `expo-network`, `react-native-url-polyfill` with versions from Expo's bundled list; `supabase init`; `pnpm test:db` script (applies migrations + runs `supabase/tests/*.sql` with `psql` against `$DB_URL`). — skill: none — verify: `pnpm install`, full suite / typecheck / lint still green, `supabase --version`.
+- [x] 1. Setup, **no tests** (pure tooling, no behavior): add `supabase` (dev), `expo-network`, `react-native-url-polyfill` with versions from Expo's bundled list; `supabase init`; `pnpm test:db` script (runs `supabase/tests/*.sql` with `psql` against `$DB_URL`). — skill: none — verify: `pnpm install`, full suite / typecheck / lint still green, `supabase --version`.
 - [ ] 2. [backend] Zod: `budgetUpdatedAt`, `SyncStatusSchema`, `TripBudgetChangeSchema`, `LocalTripBudgetChangeSchema`, `TripBudgetFormSchema`, `NearestTripSchema`; `buildTrip` takes `ownerId`, sets `budgetUpdatedAt`. — skill: `domain-modeling` — tests first: step 2 list — verify: red → green, full suite, typecheck, lint.
 - [ ] 3. [backend] Migration: tables, constraints, indexes, grants, RLS, `private.is_trip_viewer`, `create_trip`. — skill: `supabase`, `supabase-postgres-best-practices` — tests first: SQL tests (red: tables missing) — verify: `pnpm test:db` on a local Postgres 16 in this container with a minimal `auth` stub (no Docker here) **and** on Kacper's local Supabase (`supabase start`) before `db push`.
 - [ ] 4. [backend] Generate `database.types.ts` + row mappers. — skill: none — tests first: step 4 list — verify: red → green, full suite, typecheck (= parity), lint.
@@ -170,3 +170,6 @@ Each step goes through the verifier before `[x]`.
 - **R4 — Anonymous user lost = trips lost:** if the app is deleted or its storage cleared, the anonymous session is gone and its trips can no longer be read (until e-mail/Apple linking exists). Fine for development; must be solved before real users.
 - **R5 — Bottom sheet:** built on React Native `Modal` + `react-native-gesture-handler`/`reanimated` (already installed) for swipe-down; no new library.
 - **R6 — `travellerCount`** stays `members + 1` (the organizer is not a member row, A4); this changes once the organizer becomes a member (out of scope).
+
+## Progress log
+- Step 1 (setup, no tests): added `expo-network ~57.0.2` (Expo bundled version), `react-native-url-polyfill ^4.0.0` (not in Expo's bundled list; latest), `supabase ^2.119.0` (dev; CLI binary works via `npx supabase`); `supabase init` → `supabase/config.toml` (+ its `.gitignore`), local `enable_anonymous_sign_ins = true` (D2); `pnpm test:db` → `scripts/test-db.sh` runs every `supabase/tests/*.sql` with `psql` against `$DB_URL` (each file rolls back). Deviation: the script does not apply migrations — `supabase start` / `supabase db reset` already do that on local Supabase. Note: these are plain-SQL tests, not pgTAP, so use `pnpm test:db`, not `supabase test db`. Suite 48/501, typecheck, lint ✓. Throwaway Postgres 16 started in the session scratchpad for step 3 (R1). skill used: none.
