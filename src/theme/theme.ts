@@ -1,11 +1,19 @@
 import type { ViewStyle } from 'react-native';
 
-import { breakpoints, elevation, palette, radius, size, spacing } from './tokens';
+import { breakpoints, elevation, gradient, palette, radius, size, spacing } from './tokens';
 import { typography } from './typography';
 
 // §6.1: shadows in light mode; dark mode relies on surface contrast.
 const lightElevation: { card: ViewStyle } = { card: elevation.card };
 const darkElevation: { card: ViewStyle } = { card: {} };
+
+// Trip hero (trip-flight-tabs-name-cover D4, D7): the photo fades into ink in both modes,
+// so its text uses the dark-mode text colours on light and dark devices alike.
+const hero = {
+  background: palette.neutral[900],
+  text: palette.dark.textPrimary,
+  textSecondary: palette.dark.textSecondary,
+};
 
 // Semantic color roles from context/design-context.md §3.
 const light = {
@@ -36,8 +44,10 @@ const light = {
     status: palette.semantic.light,
     budget: palette.budget.light,
     category: palette.category.light,
+    hero,
   },
   elevation: lightElevation,
+  gradient,
   spacing,
   radius,
   size,
@@ -80,8 +90,10 @@ export const darkTheme: Theme = {
     status: palette.semantic.dark,
     budget: palette.budget.dark,
     category: palette.category.dark,
+    hero,
   },
   elevation: darkElevation,
+  gradient,
   spacing,
   radius,
   size,

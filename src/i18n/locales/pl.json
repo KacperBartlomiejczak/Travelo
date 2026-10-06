@@ -6,17 +6,9 @@
       "description": "Zaplanuj pierwszą i zaproś znajomych."
     },
     "create": "Utwórz podróż",
-    "next": "Najbliższa podróż",
-    "later": "Później",
-    "travellers_one": "{{count}} osoba",
-    "travellers_few": "{{count}} osoby",
-    "travellers_many": "{{count}} osób",
-    "travellers_other": "{{count}} osoby",
-    "budget": "Budżet: {{amount}} / os.",
     "loadError": "Nie udało się wczytać podróży.",
     "retry": "Spróbuj ponownie",
-    "loading": "Wczytywanie podróży",
-    "budgetA11y": "Budżet: {{amount}} na osobę"
+    "loading": "Wczytywanie podróży"
   },
   "newTrip": {
     "title": "Nowa podróż",
@@ -30,6 +22,7 @@
       "cancel": "Zostań"
     },
     "flights": {
+      "direction": "Kierunek lotu",
       "heading": "Kiedy i dokąd lecisz?",
       "ticket": "Wyślij bilet · wkrótce",
       "outbound": "Lot tam",
@@ -84,7 +77,9 @@
       "create": "Utwórz podróż",
       "saveError": "Nie udało się zapisać podróży. Spróbuj ponownie.",
       "budgetTitle": "Budżet",
-      "changeSection": "Zmień: {{section}}"
+      "changeSection": "Zmień: {{section}}",
+      "detailsTitle": "Nazwa i zdjęcie",
+      "name": "Nazwa podróży"
     }
   },
   "duration": {
@@ -118,6 +113,8 @@
     "flightNumberInvalid": "Numer lotu ma od 2 do 8 znaków",
     "nameRequired": "Wpisz imię",
     "nameTooLong": "Imię może mieć do {{max}} znaków",
+    "tripNameRequired": "Podaj nazwę podróży",
+    "tripNameTooLong": "Nazwa może mieć do {{max}} znaków",
     "amountRequired": "Wpisz kwotę",
     "amountInvalid": "Wpisz kwotę liczbą, np. 2500 lub 2500,50",
     "amountPositive": "Kwota musi być większa od zera",
@@ -149,5 +146,16 @@
     "food": "Jedzenie",
     "active": "Aktywnie",
     "relax": "Relaks i inne"
+  },
+  "coverPicker": {
+    "label": "Zdjęcie okładki",
+    "choose": "Wybierz z galerii",
+    "change": "Zmień zdjęcie",
+    "remove": "Usuń zdjęcie",
+    "preview": "Wybrane zdjęcie okładki",
+    "error": "Nie udało się otworzyć galerii. Spróbuj ponownie."
+  },
+  "home": {
+    "flights": "Loty"
   }
 }

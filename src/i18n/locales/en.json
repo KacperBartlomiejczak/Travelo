@@ -6,17 +6,9 @@
       "description": "Plan your first one and invite your friends."
     },
     "create": "Create trip",
-    "next": "Next trip",
-    "later": "Later",
-    "travellers_one": "{{count}} person",
-    "travellers_few": "{{count}} people",
-    "travellers_many": "{{count}} people",
-    "travellers_other": "{{count}} people",
-    "budget": "Budget: {{amount}} per person",
     "loadError": "Couldn't load your trips.",
     "retry": "Try again",
-    "loading": "Loading trips",
-    "budgetA11y": "Budget: {{amount}} per person"
+    "loading": "Loading trips"
   },
   "newTrip": {
     "title": "New trip",
@@ -30,6 +22,7 @@
       "cancel": "Stay"
     },
     "flights": {
+      "direction": "Flight direction",
       "heading": "Where and when are you flying?",
       "ticket": "Upload ticket · coming soon",
       "outbound": "Outbound",
@@ -84,7 +77,9 @@
       "create": "Create trip",
       "saveError": "Couldn't save the trip. Try again.",
       "budgetTitle": "Budget",
-      "changeSection": "Change: {{section}}"
+      "changeSection": "Change: {{section}}",
+      "detailsTitle": "Name and photo",
+      "name": "Trip name"
     }
   },
   "duration": {
@@ -118,6 +113,8 @@
     "flightNumberInvalid": "A flight number has 2 to 8 characters",
     "nameRequired": "Enter a name",
     "nameTooLong": "A name can have up to {{max}} characters",
+    "tripNameRequired": "Enter a trip name",
+    "tripNameTooLong": "A trip name can have up to {{max}} characters",
     "amountRequired": "Enter an amount",
     "amountInvalid": "Enter the amount as a number, e.g. 2500 or 2500.50",
     "amountPositive": "The amount must be more than zero",
@@ -149,5 +146,16 @@
     "food": "Food",
     "active": "Active",
     "relax": "Relax & more"
+  },
+  "coverPicker": {
+    "label": "Cover photo",
+    "choose": "Choose from gallery",
+    "change": "Change photo",
+    "remove": "Remove photo",
+    "preview": "Selected cover photo",
+    "error": "Couldn't open your photos. Try again."
+  },
+  "home": {
+    "flights": "Flights"
   }
 }

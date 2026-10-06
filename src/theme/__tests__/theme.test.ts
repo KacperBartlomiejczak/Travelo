@@ -1,7 +1,7 @@
 import { renderHook } from '@testing-library/react-native';
 
 import { darkTheme, lightTheme } from '../theme';
-import { useTheme } from '../useTheme';
+import { DarkThemeScope, useTheme } from '../useTheme';
 
 let mockScheme: 'light' | 'dark' | null = null;
 
@@ -95,6 +95,22 @@ describe('darkTheme', () => {
   });
 });
 
+describe('hero roles (trip-flight-tabs-name-cover D4, D7)', () => {
+  it.each([
+    ['light', lightTheme],
+    ['dark', darkTheme],
+  ])('are the same ink background and light text in %s mode', (_, theme) => {
+    expect(theme.colors.hero).toEqual({ background: '#17211B', text: '#F7F3EA', textSecondary: '#C9C2B6' });
+  });
+
+  it.each([
+    ['light', lightTheme],
+    ['dark', darkTheme],
+  ])('define the hero fade as a gradient token in %s mode (§20 rule 20)', (_, theme) => {
+    expect(theme.gradient.heroFade).toEqual({ start: 0.35 });
+  });
+});
+
 describe('primary action states (D9)', () => {
   it('uses the border and tertiary text roles for a disabled primary action', () => {
     expect(lightTheme.colors.action.disabled).toBe('#DDD5C7');
@@ -160,4 +176,13 @@ describe('useTheme', () => {
     const { result } = await renderHook(() => useTheme());
     expect(result.current).toBe(lightTheme);
   });
+
+  it.each(['light', 'dark', null] as const)(
+    'returns the dark theme inside a dark scope whatever the device scheme (%p; A4)',
+    async (scheme) => {
+      mockColorScheme(scheme);
+      const { result } = await renderHook(() => useTheme(), { wrapper: DarkThemeScope });
+      expect(result.current).toBe(darkTheme);
+    },
+  );
 });

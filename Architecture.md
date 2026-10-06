@@ -4,7 +4,7 @@ Last updated: 2026-10-06 · after task: supabase-client (Supabase client and con
 ## Overview
 Traveling is a mobile app for the person who organizes a trip for a group of friends: trip setup, members, flights and layovers, AI day plans built from real places, offline expenses, and a plan-vs-reality budget summary. The product scope and rules are defined in `CLAUDE.md`; the visual system ("Sunline") is defined in `context/design-context.md`.
 
-**Current state: create a trip + trips list, data in memory.** The organizer creates a trip in a 4-step wizard (`/trips/new`): flights with layover segments and the number of companions → friends with interests (skipped when travelling alone) → budget per person → summary → save. Saved trips appear on the Trips screen (`/`), soonest first. Data shapes are Zod schemas (`src/schemas/`); trips are stored by an **in-memory repository** behind an interface and read/written with TanStack Query, so they are lost when the app restarts (a configured Supabase client exists but nothing uses it yet; tables, SQLite and auth do not exist yet). Feature plans live in `prompts/<feature-name>/plan.md`; domain terms in `GLOSSARY.md`.
+**Current state: create a trip + the nearest trip on the home screen, data in memory.** The organizer creates a trip in a 4-step wizard (`/trips/new`): flights (outbound / return shown one at a time) with layover segments and the number of companions → friends with interests (skipped when travelling alone) → budget per person → summary with the trip's name and an optional cover photo → save. The home screen (`/`) shows only the nearest trip: its cover photo fading into ink over half the screen, then flights, travellers and budget (data only). Development builds start with 3 example trips. Data shapes are Zod schemas (`src/schemas/`); trips are stored by an **in-memory repository** behind an interface and read/written with TanStack Query, so they are lost when the app restarts (a configured Supabase client exists but nothing uses it yet; tables, SQLite and auth do not exist yet). Feature plans live in `prompts/<feature-name>/plan.md`; domain terms in `GLOSSARY.md`.
 
 ## Folder tree
 ```
@@ -16,21 +16,23 @@ Travelo/
 │   ├── launch.json             Preview config: Expo web on port 8081 (dev tooling only)
 │   └── settings.json           Enables the official `expo` Claude plugin
 ├── .vscode/                    Editor settings + recommended Expo extension
-├── assets/                     App icon, Android adaptive icon, splash, favicon, template images
+├── assets/                     App icon, Android adaptive icon, splash, favicon, template images, `images/examples/` (example trip photos)
 ├── context/design-context.md   Design system — single source of truth for visuals
 ├── prompts/
 │   ├── trips-empty-state/plan.md   Plan + progress log of the first feature
-│   └── trip-create-wizard/plan.md  Plan, decisions D1–D40, progress log, manual test steps
+│   ├── trip-create-wizard/plan.md  Plan, decisions D1–D42, progress log, manual test steps
+│   └── trip-flight-tabs-name-cover/plan.md  Flights tabs, trip name, cover photo, home screen: D1–D10, progress log
 ├── scripts/build-airports.mjs  Dev-only generator of src/data/airports.json (downloads 3 public sources)
 ├── src/
 │   ├── app/                    Expo Router routes ONLY (every file here becomes a screen)
 │   │   ├── _layout.tsx         Root Stack inside AppProviders: fonts, splash screen, i18n init
-│   │   ├── index.tsx           `/` — Trips screen (loading / error / empty / list)
+│   │   ├── index.tsx           `/` — home screen (loading / error / empty / nearest trip)
 │   │   └── trips/new/          Create-trip wizard: nested Stack (`_layout`) + steps index (flights), friends, budget, summary
 │   ├── components/             Shared UI components (+ `__tests__/`)
-│   ├── data/                   airports.json (+ typed export), trip repository (+ `__tests__/`)
+│   ├── data/                   airports.json (+ typed export), trip repository, example trips and covers (+ `__tests__/`)
+│   ├── features/home/          `NearestTrip` — the home screen's trip view
 │   ├── features/trip-create/   Wizard state and pieces: draft, steps, context, frame, cards, errors (+ `__tests__/`)
-│   ├── hooks/                  TanStack Query hooks (`useTrips`, `useCreateTrip`)
+│   ├── hooks/                  TanStack Query hooks (`useNearestTrip`, `useCreateTrip`)
 │   ├── i18n/                   i18next setup and pl/en dictionaries (+ `__tests__/`)
 │   ├── lib/                    Pure logic: time zones, layovers, dates, money, airport search (+ `__tests__/`)
 │   ├── providers/              AppProviders: QueryClient + trip repository context
@@ -63,16 +65,17 @@ Travelo/
 ## Modules
 | Module | Path | Responsibility | Depends on |
 |---|---|---|---|
-| Routes | `src/app/` | Root Stack layout, Trips screen, create-trip wizard screens | `expo-router`, features, components, hooks, theme, i18n |
-| Schemas | `src/schemas/` | Zod schemas and inferred types: common (money, codes, dates), interests, airport, flight segment, member, trip / trip summary, wizard inputs, Supabase client config | `zod`, `lib/time` |
-| Data | `src/data/` | `AIRPORTS` (bundled list), `TripRepository` interface, `buildTrip`, in-memory repository, `supabase` client (not used yet) | schemas, lib, `expo-crypto`, `@supabase/supabase-js`, `expo-sqlite` (localStorage) |
-| Lib | `src/lib/` | Pure functions: airport-local time ↔ instants and pickers (`isExistingLocalTime`: round-trip check for DST gaps), date display formatters, layovers (none for an impossible or skipped time), trip dates/days, money parse/format (ISO 4217 digits), airport search, text folding | schemas, data (airports) |
-| Hooks | `src/hooks/` | `useTrips` (query `['trips']`), `useCreateTrip` (mutation, invalidates trips) | `@tanstack/react-query`, providers |
-| Providers | `src/providers/` | `AppProviders`: `QueryClientProvider` + trip repository context (`useTripRepository`) | data, `@tanstack/react-query` |
+| Routes | `src/app/` | Root Stack layout, home screen, create-trip wizard screens | `expo-router`, features, components, hooks, theme, i18n |
+| Schemas | `src/schemas/` | Zod schemas and inferred types: common (money, codes, dates), interests, airport, flight segment, member, trip / trip summary / trip overview, wizard inputs, Supabase client config | `zod`, `lib/time` |
+| Data | `src/data/` | `AIRPORTS` (bundled list), `TripRepository` interface, `buildTrip`, in-memory repository (optional starting trips), example trips (`exampleTrips`, `startingTrips`) and their bundled photos (`exampleCovers`), `supabase` client (not used yet) | schemas, lib, `expo-crypto`, `expo-asset`, `@supabase/supabase-js`, `expo-sqlite` (localStorage) |
+| Lib | `src/lib/` | Pure functions: airport-local time ↔ instants and pickers (`isExistingLocalTime`: round-trip check for DST gaps; `isoToLocal`: stored instant → airport wall clock), date display formatters, layovers (`layoverMinutes` from wall clocks — none for an impossible or skipped time; `savedLayoverMinutes` from stored instants), trip dates/days, default trip name (`defaultTripName`), money parse/format (ISO 4217 digits), airport search, text folding | schemas, data (airports) |
+| Hooks | `src/hooks/` | `useNearestTrip` (query `['trips', 'nearest']`), `useCreateTrip` (mutation, invalidates `['trips']`) | `@tanstack/react-query`, providers |
+| Providers | `src/providers/` | `AppProviders`: `QueryClientProvider` + trip repository context (`useTripRepository`); the default repository starts with the example trips in development builds only | data, `@tanstack/react-query` |
+| Home feature | `src/features/home/` | `NearestTrip`: hero + "Loty" / "Podróżni" / "Budżet" cards + pinned "Utwórz podróż" | components, lib, theme, `expo-router`, `expo-status-bar` |
 | Create-trip feature | `src/features/trip-create/` | Draft type and helpers, step routing, draft context (dirty/complete), wizard frame, segment/friend cards, field errors, leave confirmation | schemas, lib, components |
-| Theme | `src/theme/` | Primitive tokens (`tokens.ts`), type scale (`typography.ts`), semantic `lightTheme` / `darkTheme` and `Theme` type (`theme.ts`), `useTheme()` hook | `react-native` (`useColorScheme`) |
+| Theme | `src/theme/` | Primitive tokens (`tokens.ts`, incl. the `gradient` group), type scale (`typography.ts`), semantic `lightTheme` / `darkTheme` and `Theme` type (`theme.ts`), `useTheme()` hook and `DarkThemeScope` | `react-native` (`useColorScheme`) |
 | i18n | `src/i18n/` | One i18next instance with `pl` / `en` resources; language picked from the device | `i18next`, `react-i18next`, `expo-localization` |
-| Components | `src/components/` | Buttons, fields, chips, cards, step indicator, stepper, segmented control, trip card (see Frontend) | theme, i18n, lib, `lucide-react-native`, `react-native-svg`, `@expo/ui` |
+| Components | `src/components/` | Buttons, fields, chips, cards, step indicator, stepper, segmented control, cover picker, trip hero (see Frontend) | theme, i18n, lib, `lucide-react-native`, `react-native-svg`, `@expo/ui`, `expo-image`, `expo-image-picker` |
 
 ## Data model
 Zod schemas in `src/schemas/` (constants `XSchema`, types `X = z.infer<typeof XSchema>`):
@@ -81,15 +84,16 @@ Zod schemas in `src/schemas/` (constants `XSchema`, types `X = z.infer<typeof XS
 - `airport.ts` — `AirportSchema` (iata, name, city, countryCode, IANA timezone, currency, large).
 - `flight.ts` — `FlightSegmentSchema` (arrival after departure as instants).
 - `member.ts` — `TripMemberSchema` (friends: `userId: null`, role `viewer`; `budgetLevel`/`pace` optional).
-- `trip.ts` — `TripSchema` (`budgetPerPerson`, end ≥ start, budget in base currency), `TripSummarySchema` (+ `travellerCount`).
+- `trip.ts` — `TripSchema` (`name` 1–60 chars, optional `coverImageUri`, `budgetPerPerson`, end ≥ start, budget in base currency), `TripSummarySchema` (+ `travellerCount`), `TripOverviewSchema` (`{ trip: TripSummary, members, segments }` — what the home screen shows).
 - `supabase-config.ts` — `SupabaseConfigSchema` (`url`: https URL, `key`: must start with `sb_publishable_`, so a secret key cannot ship in the app).
-- `create-trip-form.ts` — wizard input: `SegmentInputSchema` (each time must exist in its airport's zone — a time skipped when clocks go forward gives `validation.timeDoesNotExist`; arrival vs departure compared only when both exist), `FlightsStepInputSchema` (segment chain, return after outbound, first departure not before today at the departure airport, 0–19 companions), `FriendInputSchema`, `FriendsStepInputSchema`, `BudgetStepInputSchema`, `CreateTripInputSchema`. Messages are i18n keys (`validation.*`).
+- `create-trip-form.ts` — wizard input: `SegmentInputSchema` (each time must exist in its airport's zone — a time skipped when clocks go forward gives `validation.timeDoesNotExist`; arrival vs departure compared only when both exist), `FlightsStepInputSchema` (segment chain, return after outbound, first departure not before today at the departure airport, 0–19 companions), `FriendInputSchema`, `FriendsStepInputSchema`, `BudgetStepInputSchema`, `TripDetailsInputSchema` (name trimmed, required, ≤ 60; optional cover URI), `CreateTripInputSchema` (flights, friends, budget, details). Messages are i18n keys (`validation.*`).
 
 No server tables and no SQLite tables exist yet. The airport list is a static bundled file, validated row by row in its test (not parsed at runtime).
 
 ## Data flow
-- Server-first (in memory for now): screens use `useTrips` / `useCreateTrip` → `TripRepository` from `AppProviders`. The in-memory implementation parses input with `CreateTripInputSchema`, builds `Trip` + `TripMember[]` + `FlightSegment[]` with `buildTrip` (ids from `expo-crypto`, times converted to ISO with offset), parses each with its schema, and lists `TripSummary` soonest first. Data is lost on restart.
-- Create-trip wizard: the draft lives in `TripDraftProvider` (wizard layout) as airport-local strings and typed text; each step validates its slice with its Zod schema on "Next"; the summary saves `toCreateTripInput(draft)`. Leaving with unsaved input asks via the system dialog (`usePreventRemove`); after saving it does not.
+- Server-first (in memory for now): screens use `useNearestTrip` / `useCreateTrip` → `TripRepository` from `AppProviders`. The in-memory implementation parses input with `CreateTripInputSchema`, builds `Trip` + `TripMember[]` + `FlightSegment[]` with `buildTrip` (ids from `expo-crypto`, times converted to ISO with offset, name and cover from `details`), parses each with its schema, and `nearest()` returns the soonest trip (ties by `createdAt`) as a `TripOverview` parsed with its schema, or `null`. Data is lost on restart.
+- Example trips: in development builds (`__DEV__`, not under Jest) the repository starts with `exampleTrips(today in Warsaw, exampleCovers())` — Kraków → Lisbon (photo), Warsaw → Beijing via Dubai (photo), Warsaw → Rome (no photo); the photos are bundled files resolved to URIs with `expo-asset`.
+- Create-trip wizard: the draft lives in `TripDraftProvider` (wizard layout) as airport-local strings and typed text; each step validates its slice with its Zod schema on "Next"; the summary validates the name with `TripDetailsInputSchema` and saves `toCreateTripInput(draft)`. The name follows the flights (`defaultTripName`) until the organizer types one; the cover photo is the URI returned by the gallery picker. Leaving with unsaved input asks via the system dialog (`usePreventRemove`); after saving it does not.
 - Offline expenses: not implemented.
 - AI day plan: not implemented.
 
@@ -105,23 +109,23 @@ No server tables and no SQLite tables exist yet. The airport list is a static bu
 | Route | File | What it shows |
 |---|---|---|
 | (root) | `src/app/_layout.tsx` | Stack navigator. Keeps the splash screen until DM Sans (400/500/600/700) and Fraunces (500/600/700) are loaded; on a font error it renders with system fonts. Imports `@/i18n`. Wraps the Stack in `AppProviders`. Header hidden on `index` and on `trips/new` (the wizard's nested stack draws its own). |
-| `/` | `src/app/index.tsx` | Trips screen: title "Twoje podróże" (Heading 1) and a pinned "Utwórz podróż" button → `/trips/new`. Body by query state: loading (2 static skeleton cards, one accessible "Wczytywanie podróży" element), error (`CircleX`, "Nie udało się wczytać podróży.", announced, "Spróbuj ponownie" refetches), empty (suitcase + 2 lines), list (scrollable: "Najbliższa podróż" with the soonest trip, "Później" with the rest; `TripCard`s, not pressable). Safe-area aware; side padding 20dp, 16dp below 360dp; max width 720dp. |
+| `/` | `src/app/index.tsx` | Home screen, by query state. **Trip** (always dark, inside `DarkThemeScope`): `NearestTrip` — `TripHero` (50 % of the window, cover photo fading into ink or plain ink, name in Display XL, dates + days), then scrollable cards on `surface.secondary`: "Loty" (outbound / return lines in airport-local time, layover labels from stored instants), "Podróżni · N" (Ty + names), "Budżet" (per person, total, ~per person per day); light status bar while focused; pinned "Utwórz podróż" → `/trips/new`. **Loading**: full-bleed `TripHeroSkeleton` (one accessible "Wczytywanie podróży" element) + pinned button. **Error** (`CircleX`, "Nie udało się wczytać podróży.", announced, "Spróbuj ponownie" refetches) and **empty** (suitcase + 2 lines) keep the title "Twoje podróże". Other trips are not shown. Safe-area aware; side padding 20dp, 16dp below 360dp; content and pinned button max width 720dp. |
 | `/trips/new` (layout) | `src/app/trips/new/_layout.tsx` | Nested Stack inside `TripDraftProvider`; header "Nowa podróż" (theme tokens); step 1 gets a `HeaderBackButton` "Twoje podróże", later steps the native back "Wstecz". `LeaveGuard` asks "Odrzucić wpisane dane?" (native `Alert`, `confirm` on web) when the draft changed and the trip is not saved. |
-| `/trips/new` | `src/app/trips/new/index.tsx` | Step 1 — flights: disabled "Wyślij bilet · wkrótce", outbound and return sections of segment cards (airport search, date/time pickers, optional flight number), amber layover labels between segments, "Dodaj przesiadkę"/"Usuń", return suggested as the outbound reversed, companions stepper (0–19). "Dalej" validates (`FlightsStepInputSchema`), scrolls to the first card with an error and announces. |
+| `/trips/new` | `src/app/trips/new/index.tsx` | Step 1 — flights: disabled "Wyślij bilet · wkrótce", a "Lot tam" / "Powrót" switch (`SegmentedControl`, outbound first) showing one direction's section of segment cards (airport search, date/time pickers, optional flight number), amber layover labels between segments, "Dodaj przesiadkę"/"Usuń", return suggested as the outbound reversed, companions stepper (0–19) on both tabs. "Dalej" validates (`FlightsStepInputSchema`), switches to the tab with the first error (outbound first), scrolls to that card and announces. |
 | `/trips/new/friends` | `src/app/trips/new/friends.tsx` | Step 2 (skipped at 0 companions): one card per friend with name and 17 interest chips in 6 groups; validates names. |
 | `/trips/new/budget` | `src/app/trips/new/budget.tsx` | Step 3: amount per person (whole trip, without flights) + currency segmented control (destination currency, PLN, EUR, USD); group total and ~per person per day; solo wording. |
-| `/trips/new/summary` | `src/app/trips/new/summary.tsx` | Step 4: trip / travellers / budget cards with "Zmień" back to each step; "Utwórz podróż" saves (loading, error announced), then returns to `/`. Redirects to step 1 when the draft is incomplete. |
+| `/trips/new/summary` | `src/app/trips/new/summary.tsx` | Step 4: first a "Nazwa i zdjęcie" card (name field pre-filled "<from city> → <destination city>", max 60, empty → "Podaj nazwę podróży" on save; `CoverPicker`), then trip / travellers / budget cards with "Zmień" back to each step; "Utwórz podróż" saves (loading, error announced), then returns to `/`. Redirects to step 1 when the draft is incomplete (the name is not part of that check). |
 
 ### Shared components / hooks
-- `Field` (label + error frame, input border/box/text styles), `TextField`, `AirportField` (search over the bundled list), `DateTimeField` (`.tsx` iOS wheel in UTC, `.android.tsx` date→time dialogs, `.web.tsx` browser input; shared `DateTimeFieldBase`), `AmountField` (§10.5), `TextButton` (secondary / ghost), `IconButton`, `Stepper` (adjustable for screen readers), `SegmentedControl`, `Chip` (checkbox), `Card`, `StepIndicator` ("Krok 2 z 4" + bar), `LayoverLabel`, `TripCard`, `TripCardSkeleton`.
-- Wizard pieces in `src/features/trip-create/`: `WizardScreen` (step indicator, scroll, pinned action with optional error) + `useGoToNextStep`, `SegmentCard`, `FriendCard`, `TripDraftProvider` / `useTripDraft`, `draft.ts` (types, `withCompanionCount`, `addLayover`, `withOutbound`, `budgetCurrency*`, `toCreateTripInput`), `steps.ts`, `field-errors.ts`, `confirm-discard.ts`.
-- `useTrips`, `useCreateTrip` (`src/hooks/useTrips.ts`); `useTripRepository` (`src/providers/AppProviders.tsx`).
+- `Field` (label + error frame, input border/box/text styles), `TextField`, `AirportField` (search over the bundled list), `DateTimeField` (`.tsx` iOS wheel in UTC, `.android.tsx` date→time dialogs, `.web.tsx` browser input; shared `DateTimeFieldBase`), `AmountField` (§10.5), `TextButton` (secondary / ghost), `IconButton`, `Stepper` (adjustable for screen readers), `SegmentedControl`, `Chip` (checkbox), `Card`, `StepIndicator` ("Krok 2 z 4" + bar), `LayoverLabel`, `CoverPicker` (optional cover photo from the gallery via `expo-image-picker`, crop 16:9 on Android, preview + change / remove, error message), `TripHero` + `TripHeroSkeleton`.
+- Wizard pieces in `src/features/trip-create/`: `WizardScreen` (step indicator, scroll, pinned action with optional error) + `useGoToNextStep`, `SegmentCard`, `FriendCard`, `TripDraftProvider` / `useTripDraft`, `draft.ts` (types incl. `name: string | null` and `coverImageUri?`, `withCompanionCount`, `addLayover`, `withOutbound`, `budgetCurrency*`, `tripName`, `toCreateTripInput`), `steps.ts`, `field-errors.ts`, `confirm-discard.ts`.
+- `useNearestTrip`, `useCreateTrip` (`src/hooks/useTrips.ts`); `useTripRepository` (`src/providers/AppProviders.tsx`).
 - `PrimaryButton` (`src/components/PrimaryButton.tsx`) — design-context §10.1: min height 52dp (grows with Dynamic Type), 16dp horizontal padding, 12dp radius; states default / pressed / focused (2dp brand ring, 4dp offset) / disabled / loading (spinner, `busy`); optional leading lucide icon (20dp, stroke 2, hidden from screen readers).
 - `TripsEmptyIllustration` (`src/components/TripsEmptyIllustration.tsx`) — 160×160 SVG suitcase with a luggage tag in theme colours (brand body, `text.primary` outline, `category.transport` tag), wrapped in a `View` with `aria-hidden` so it is hidden from screen readers on iOS, Android and web.
-- `useTheme()` (`src/theme/useTheme.ts`) — returns `darkTheme` when the system colour scheme is `dark`, otherwise `lightTheme`.
+- `useTheme()` (`src/theme/useTheme.ts`) — returns `darkTheme` when the system colour scheme is `dark`, otherwise `lightTheme`; inside `DarkThemeScope` always `darkTheme`.
 
 ### Theme & i18n
-- **Tokens** live in `src/theme/tokens.ts` (palette, dark roles, semantic/budget/category colours, spacing, radius incl. `segmented`, size, breakpoints, elevation) and `src/theme/typography.ts` (type scale; font weight is encoded in the `@expo-google-fonts` family name). Components consume semantic tokens from `theme.ts` (`colors.background`, `colors.text.*`, `colors.action.*` incl. `link`, `colors.input.border`, `elevation.card` — shadow in light, none in dark), never raw palette values.
+- **Tokens** live in `src/theme/tokens.ts` (palette, dark roles, semantic/budget/category colours, spacing, radius incl. `segmented`, size, breakpoints, elevation, `gradient.heroFade`) and `src/theme/typography.ts` (type scale; font weight is encoded in the `@expo-google-fonts` family name). Components consume semantic tokens from `theme.ts` (`colors.background`, `colors.text.*`, `colors.action.*` incl. `link`, `colors.input.border`, `colors.hero.*` — ink background and light text, same in both themes, `elevation.card` — shadow in light, none in dark, `gradient`), never raw palette values.
 - **i18n**: `src/i18n/index.ts` creates its own i18next instance (`createInstance()` + `initReactI18next`, synchronous init). Language = the device's first preferred locale if it is `pl` or `en`, otherwise `en`. It is read once at startup. Dictionaries: `src/i18n/locales/pl.json`, `en.json` (same keys, checked by a test).
 
 ## Testing
@@ -130,15 +134,15 @@ No server tables and no SQLite tables exist yet. The airport list is a static bu
 - `package.json` → `jest.moduleNameMapper` maps `lucide-react-native` to its CommonJS build, because its React Native entry is `.mjs`, which jest-expo does not transform.
 - `useColorScheme` / `useWindowDimensions` are mocked at `react-native/Libraries/Utilities/*` (RN imports them internally, so spying on `Appearance` / `Dimensions` does not work).
 - Jest mocks RN `View` as a pass-through, so `aria-*` → native accessibility prop conversion is not observable in tests.
-- Pickers (`@expo/ui`) and `expo-crypto` are mocked in tests; the Supabase client test mocks `createClient` and `expo-sqlite/localStorage/install` and loads the module with `jest.isolateModules` per env (no network in tests); route tests use stand-in screens for steps they don't test. Date/time tests switch `process.env.TZ` to check device-time-zone independence.
-- Current suite: 44 suites, 414 tests (also green with `TZ=Europe/Warsaw` and `TZ=America/Los_Angeles`).
+- Pickers (`@expo/ui`, `expo-image-picker`), `expo-crypto` and (in the home tests) `expo-status-bar` are mocked; the Supabase client test mocks `createClient` and `expo-sqlite/localStorage/install` and loads the module with `jest.isolateModules` per env (no network in tests); route tests use stand-in screens for steps they don't test. Example trips are off under Jest; image `require`s are stubs carrying their path. aria-hidden elements need `includeHiddenElements: true`. Date/time tests switch `process.env.TZ` to check device-time-zone independence.
+- Current suite: 48 suites, 501 tests (also green with `TZ=Europe/Warsaw` and `TZ=America/Los_Angeles`).
 
 ## Tooling
 | Area | Setup |
 |---|---|
 | Runtime | Expo SDK 57, React Native 0.86, React 19.2, New Architecture, React Compiler and typed routes enabled in `app.json` |
 | Language | TypeScript 6 strict; `types: ["jest"]` (TS 6 no longer includes `@types/*` automatically); aliases `@/*` → `src/*`, `@/assets/*` → `assets/*` |
-| Package manager | **pnpm** (`pnpm-lock.yaml`, `.npmrc` with `node-linker=hoisted`). Add dependencies with `npx expo install` (it detects pnpm). |
+| Package manager | **pnpm** (`pnpm-lock.yaml`, `.npmrc` with `node-linker=hoisted`). Add dependencies with `npx expo install` (it detects pnpm); where it cannot reach the Expo API, `pnpm add <pkg>@<version from node_modules/expo/bundledNativeModules.json>`. |
 | Lint | `pnpm lint` (`expo lint`) |
 | Typecheck | `pnpm typecheck` (`tsc --noEmit`) |
 | Tests | `pnpm test` (Jest) |
@@ -146,7 +150,7 @@ No server tables and no SQLite tables exist yet. The airport list is a static bu
 | Native projects | `ios/` and `android/` are generated (Continuous Native Generation) and git-ignored |
 
 ### Dependencies in use
-`expo-router`, `expo-font`, `expo-splash-screen`, `expo-localization`, `i18next`, `react-i18next`, `@expo-google-fonts/dm-sans`, `@expo-google-fonts/fraunces`, `lucide-react-native`, `react-native-svg`, `react-native-safe-area-context`, `zod`, `@tanstack/react-query`, `@expo/ui` (date/time pickers), `expo-crypto` (UUIDs), `@supabase/supabase-js` (client only, `src/data/supabase.ts`), `expo-sqlite` (only its `localStorage` for the auth session).
+`expo-router`, `expo-font`, `expo-splash-screen`, `expo-localization`, `i18next`, `react-i18next`, `@expo-google-fonts/dm-sans`, `@expo-google-fonts/fraunces`, `lucide-react-native`, `react-native-svg`, `react-native-safe-area-context`, `zod`, `@tanstack/react-query`, `@expo/ui` (date/time pickers), `expo-crypto` (UUIDs), `expo-image-picker` (cover photo from the gallery), `expo-image` (cover preview, trip hero), `expo-asset` (example photos → URIs), `expo-status-bar` (light bar over the hero), `@supabase/supabase-js` (client only, `src/data/supabase.ts`), `expo-sqlite` (only its `localStorage` for the auth session).
 
 ### Dependencies installed for planned features (not used by any code yet)
 | Package | Intended use |
@@ -180,6 +184,10 @@ No server tables and no SQLite tables exist yet. The airport list is a static bu
 | OurAirports, mwgg/Airports, datasets/country-codes | Airport list (generated once at dev time, bundled) | `scripts/build-airports.mjs` only | — |
 
 ## Key decisions
+- 2026-10-06 — Home screen shows only the nearest trip, CheckMyTrip-style: cover photo over ~50 % of the screen fading into ink (`#17211B`), data only; always dark (`DarkThemeScope`); the trips list was removed (`prompts/trip-flight-tabs-name-cover/plan.md` D4, D6, D7, A4, A7).
+- 2026-10-06 — Trip name is the organizer's, default "<from city> → <destination city>", set on the summary step; optional cover photo from the gallery via `expo-image-picker`, stored as a device-local URI while trips are in memory (D1–D3). Flights step shows one direction at a time (D5).
+- 2026-10-06 — Gradients only as theme tokens (§20 rule 20): `gradient.heroFade`; hero roles `colors.hero.*`; the hero title uses Display XL (§4.2 "Trip hero").
+- 2026-10-06 — Example trips in development builds only, photos bundled and resolved with `expo-asset` so web works too (D8–D10).
 - 2026-10-06 — Supabase connected at client level only; trips stay in memory. Session storage: `expo-sqlite/localStorage`, not AsyncStorage (no new dependency). For the next feature: anonymous sign-in at first launch, Supabase CLI + local Supabase in Docker for migrations and RLS tests (`prompts/supabase-client/plan.md` D1–D4).
 - 2026-10-04 — Create-trip wizard as a nested stack under `/trips/new` with a draft context in its layout; trips behind a `TripRepository` interface, in memory for now — Supabase replaces only the implementation (`prompts/trip-create-wizard/plan.md` D1).
 - 2026-10-04 — Layovers are flight segments; durations are derived (D3). Trip dates come from flights (D4). Budget is one amount per person for the whole trip, without flights; daily budget is derived (D5, D33, D35).
@@ -191,19 +199,25 @@ No server tables and no SQLite tables exist yet. The airport list is a static bu
 - 2026-10-03 — Plans live in `prompts/<feature-name>/plan.md`, one folder per feature — Kacper's rule, added to `CLAUDE.md`.
 - 2026-10-03 — Package manager switched from npm to pnpm (`node-linker=hoisted`) — npm was too slow (D6 in `prompts/trips-empty-state/plan.md`).
 - 2026-10-03 — i18n with `i18next` + `react-i18next` + `expo-localization`; unsupported device languages fall back to English (D4, D5).
-- 2026-10-03 — Trips screen is UI-only for now; loading / error / offline states arrive with the data task (D1). *Superseded 2026-10-04: loading / error / list added by trip-create-wizard; offline still pending.*
+- 2026-10-03 — Trips screen is UI-only for now; loading / error / offline states arrive with the data task (D1). *Superseded 2026-10-04: loading / error / list added by trip-create-wizard; offline still pending. Superseded 2026-10-06: the list became the nearest-trip home screen (trip-flight-tabs-name-cover).*
 - 2026-10-03 — Design-context gaps decided by Kacper: back button label (D7), native header style (D8), dark disabled button colours (D9), focus ring offset (D10), screen spacing (D11), empty-state illustration (D12) — see `prompts/trips-empty-state/plan.md`.
 
 ## Known limitations & tech debt
 - Trips are stored in memory only (D1) and disappear on restart; the Supabase client is not used yet; no auth or SQLite yet.
 - `react-native-url-polyfill` (installed by the Supabase Expo quickstart) is not added — awaiting Kacper's decision (`prompts/supabase-client/plan.md` Q1). Supabase has not been called from a device yet. The organizer is not a `TripMember` yet; `ownerId` is `LOCAL_OWNER_ID`.
 - Airport list (3,153 airports, ~470 KB): city names come from merged sources with hand overrides for large airports; some small airports keep odd names, 91 airports are dropped (no time zone / city). City names are in English ("Warsaw").
-- Pickers are mocked in tests; device checks are pending (see the manual steps in `prompts/trip-create-wizard/plan.md`). On web, browser back/forward may bypass the leave confirmation and an offline browser would pause the trips query (skeletons).
+- Pickers are mocked in tests; device checks are pending (see the manual steps in `prompts/trip-create-wizard/plan.md`). On web, browser back/forward may bypass the leave confirmation and an offline browser would pause the nearest-trip query (skeleton).
 - A trip whose return local date is before the outbound arrival date (open-jaw across the date line) breaks the per-day figure and is rejected on save.
-- Trip cards are not pressable (no trip details screen yet).
+- Only the nearest trip is shown; other trips cannot be seen until an "all trips" screen exists (A6, A7). The home screen's trip view is data only (no actions on the trip).
+- Cover photos are device-local URIs from the picker's cache; the OS may clear them. Must be uploaded (e.g. Supabase Storage) once trips are stored on the server. On iOS the picker crops square (Expo ignores `aspect` there); the preview and hero show it with `cover` fit.
+- City names in default trip names come from the airport list (mostly English, e.g. "Warsaw → Barcelona"). A default name can exceed 60 characters (PKY → NLI is 61); the summary then shows it and asks to shorten it ("Nazwa może mieć do 60 znaków") — the redirect guard ignores the name.
+- Release builds still bundle the ~280 KB example photos (Metro bundles static `require`s even though only development builds use them).
+- `src/data/example-covers.ts` uses a relative `require('../../assets/…')`, because tsconfig and Jest map `@/` only to `src/`.
+- Manual device checks pending (`prompts/trip-flight-tabs-name-cover/plan.md`): long name / largest Dynamic Type over a bright photo, status bar during the push into the wizard, the light → ink switch when the home screen finishes loading, tablet layout.
+- `src/hooks/useTrips.ts` now exports `useNearestTrip` and `useCreateTrip`; the file name is historical.
 - `CLAUDE.md` and the agent definitions assume a monorepo (`apps/mobile`, `packages/schemas`, `supabase/`); the app is a single package at the repo root.
 - `.claude/agents/Planner.md`, `Frontend.md` and `Backend.md` still mention a root `PLAN.md`; plans now live in `prompts/<feature-name>/plan.md` (awaiting Kacper's decision whether to update them).
-- The Trips screen's empty and error states are not scrollable (the list is); at very large Dynamic Type on a small phone they may not fit (manual check pending).
+- The home screen's empty and error states are not scrollable (the trip view is); at very large Dynamic Type on a small phone they may not fit (manual check pending).
 - Language is read once at startup; on Android a system-language change may only apply after an app restart.
 - Peer-range warnings: `lucide-react-native@1.50` declares `react-native ^0.87.1` (project has 0.86.3); `test-renderer` (RNTL 14) wants `react ^19.3.0` (project has 19.2.3). Both work in tests; device check pending.
 - `pnpm install` skipped the `unrs-resolver` build script (pnpm build-script approval); lint works without it.
@@ -213,6 +227,7 @@ No server tables and no SQLite tables exist yet. The airport list is a static bu
 
 ## Changelog
 - 2026-10-06 — supabase-client — `SupabaseConfigSchema` (`src/schemas/supabase-config.ts`), shared Supabase client `src/data/supabase.ts` (session in `expo-sqlite` localStorage), `.env.example`; `@supabase/supabase-js` moved from "planned" to "in use". No tables, no auth, no consumers yet.
+- 2026-10-06 — trip-flight-tabs-name-cover — schemas: trip name ≤ 60, optional `coverImageUri`, `TripDetailsInputSchema`, `TripOverviewSchema`; `defaultTripName`, `isoToLocal`, `savedLayoverMinutes`; repository `nearest()` + starting trips (`list()` removed); example trips + covers; `useNearestTrip` (replaces `useTrips`); flights step outbound/return switch; summary "Nazwa i zdjęcie" card with `CoverPicker`; home screen `NearestTrip` + `TripHero` / `TripHeroSkeleton`; theme `colors.hero`, `gradient`, `DarkThemeScope`; removed `TripCard`, `TripCardSkeleton`; added `expo-image-picker`, `expo-asset` (and now use `expo-image`, `expo-status-bar`); `GLOSSARY.md` (trip name, cover photo, nearest trip); CLAUDE.md data structures (`Trip.name`, `coverImageUri?`).
 - 2026-10-06 — trip-create-wizard follow-up (PR #2 review) — `isLocalDateTime` in `src/schemas/common.ts` (calendar check, shared by `LocalDateTimeSchema`, the wizard and layovers); `isExistingLocalTime` in `src/lib/time.ts`; `SegmentInputSchema` rejects DST-gap times (`validation.timeDoesNotExist`, pl/en); `layoverMinutes` ignores impossible / skipped times. No new modules or dependencies.
 - 2026-10-04 — trip-create-wizard — added Zod schemas (`src/schemas/`), bundled airport list + generator script, pure logic in `src/lib/`, in-memory trip repository with TanStack Query hooks and `AppProviders`, the 4-step create-trip wizard (`src/app/trips/new/`, `src/features/trip-create/`), new shared components, Trips screen states and list, `GLOSSARY.md`; added `expo-crypto`; CLAUDE.md data structures updated (`budgetPerPerson`, optional `pace`/`budgetLevel`, `Airport`).
 - 2026-10-03 — Initial workspace audit and dependency setup — first version of this document; added runtime dependencies, ESLint, Jest and the `typecheck`/`test` scripts.

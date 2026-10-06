@@ -4,7 +4,7 @@ import * as SplashScreen from 'expo-splash-screen';
 import { Text } from 'react-native';
 
 import RootLayout from '@/app/_layout';
-import { useTrips } from '@/hooks/useTrips';
+import { useNearestTrip } from '@/hooks/useTrips';
 
 jest.mock('expo-font', () => ({ ...jest.requireActual('expo-font'), useFonts: jest.fn() }));
 jest.mock('expo-splash-screen', () => ({
@@ -49,10 +49,11 @@ describe('RootLayout', () => {
   it('gives screens the trips data layer (query client + trip repository)', async () => {
     mockedUseFonts.mockReturnValue([true, null]);
     function TripsProbe() {
-      const trips = useTrips();
-      return <Text>{trips.isSuccess ? `trips: ${trips.data.length}` : 'loading'}</Text>;
+      const nearest = useNearestTrip();
+      return <Text>{nearest.isSuccess ? `nearest: ${nearest.data?.trip.name ?? 'none'}` : 'loading'}</Text>;
     }
     await renderRouter({ _layout: RootLayout, index: TripsProbe, 'trips/new/index': () => null });
-    expect(await screen.findByText('trips: 0')).toBeTruthy();
+    // No example trips under Jest (D8).
+    expect(await screen.findByText('nearest: none')).toBeTruthy();
   });
 });

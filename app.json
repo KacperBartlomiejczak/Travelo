@@ -34,7 +34,15 @@
         }
       ],
       "expo-sqlite",
-      "expo-localization"
+      "expo-localization",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Travelo uses your photos so you can choose a cover photo for a trip.",
+          "cameraPermission": false,
+          "microphonePermission": false
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true,

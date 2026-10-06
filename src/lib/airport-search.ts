@@ -52,7 +52,7 @@ export function defaultCurrency(destinationIata: string): Airport['currency'] | 
   return findAirport(destinationIata)?.currency;
 }
 
-/** A trip is named after its destination city, or the airport code if unknown (D13). */
+/** The city of an airport, or its code if unknown; used in trip names and summaries. */
 export function destinationName(iata: string): string {
   return findAirport(iata)?.city ?? iata;
 }

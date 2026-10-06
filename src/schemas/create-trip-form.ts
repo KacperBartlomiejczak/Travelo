@@ -6,6 +6,7 @@ import { IATA_CODE_PATTERN, isLocalDateTime, isTimeZone, MoneySchema } from './c
 import { FLIGHT_NUMBER_MAX_LENGTH } from './flight';
 import { InterestTagSchema } from './interests';
 import { DISPLAY_NAME_MAX_LENGTH } from './member';
+import { TRIP_NAME_MAX_LENGTH } from './trip';
 
 // Create-trip wizard input. Error messages are i18n keys, translated by the screens.
 
@@ -115,9 +116,25 @@ export const BudgetStepInputSchema = z.object({
 });
 export type BudgetStepInput = z.infer<typeof BudgetStepInputSchema>;
 
+/** Summary step: the trip's name and optional cover photo (trip-flight-tabs-name-cover D2). */
+export const TripDetailsInputSchema = z.object({
+  name: z
+    .string()
+    .trim()
+    .min(1, { error: 'validation.tripNameRequired' })
+    .max(TRIP_NAME_MAX_LENGTH, { error: 'validation.tripNameTooLong' }),
+  coverImageUri: z.string().min(1).optional(),
+});
+export type TripDetailsInput = z.infer<typeof TripDetailsInputSchema>;
+
 /** Everything the wizard collects; what the summary saves. */
 export const CreateTripInputSchema = z
-  .object({ flights: FlightsStepInputSchema, friends: FriendsStepInputSchema, budget: BudgetStepInputSchema })
+  .object({
+    flights: FlightsStepInputSchema,
+    friends: FriendsStepInputSchema,
+    budget: BudgetStepInputSchema,
+    details: TripDetailsInputSchema,
+  })
   .refine((input) => input.friends.friends.length === input.flights.companionCount, {
     path: ['friends', 'friends'],
     error: 'validation.friendCountMismatch',

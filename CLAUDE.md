@@ -148,6 +148,8 @@ Money          { amountMinor: int, currency: ISO4217 }
 CostEstimate   { minMinor: int, maxMinor: int, currency: ISO4217, perPerson: boolean }
 
 Trip           { id, ownerId, name, destination: IATA,     // destination = outbound's final airport
+                                                           // name: organizer's, default "<from city> → <destination city>", ≤ 60 chars
+                 coverImageUri?,                           // optional cover photo (device-local URI while trips are in memory)
                  startDate, endDate,                       // derived from flights
                  baseCurrency, budgetPerPerson: Money,     // whole trip, without flights; daily budget is derived
                  createdAt }

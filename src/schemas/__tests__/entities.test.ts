@@ -1,4 +1,12 @@
-import { AirportSchema, FlightSegmentSchema, TripSchema, TripMemberSchema, TripSummarySchema } from '@/schemas';
+import {
+  AirportSchema,
+  FlightSegmentSchema,
+  TRIP_NAME_MAX_LENGTH,
+  TripMemberSchema,
+  TripOverviewSchema,
+  TripSchema,
+  TripSummarySchema,
+} from '@/schemas';
 
 const TRIP_ID = '0b9e7c4e-6a43-4c4b-9a55-2f6f0f7e1a01';
 
@@ -138,6 +146,24 @@ describe('Trip', () => {
     expect(TripSchema.safeParse(withoutBudget).success).toBe(false);
   });
 
+  it('accepts a cover photo URI, which is optional', () => {
+    expect(TripSchema.parse({ ...trip, coverImageUri: 'file:///cache/cover.jpg' }).coverImageUri).toBe('file:///cache/cover.jpg');
+    expect(TripSchema.parse(trip)).not.toHaveProperty('coverImageUri');
+  });
+
+  it('accepts a name of up to 60 characters', () => {
+    expect(TRIP_NAME_MAX_LENGTH).toBe(60);
+    expect(TripSchema.safeParse({ ...trip, name: 'a'.repeat(60) }).success).toBe(true);
+  });
+
+  it.each([
+    ['a 61-character name', { name: 'a'.repeat(61) }],
+    ['an empty name', { name: '' }],
+    ['an empty cover URI', { coverImageUri: '' }],
+  ])('rejects %s', (_, patch) => {
+    expect(TripSchema.safeParse({ ...trip, ...patch }).success).toBe(false);
+  });
+
   describe('TripSummary', () => {
     it('adds the traveller count, at least 1 (the organizer)', () => {
       expect(TripSummarySchema.safeParse({ ...trip, travellerCount: 4 }).success).toBe(true);
@@ -146,6 +172,48 @@ describe('Trip', () => {
 
     it('keeps the trip rules', () => {
       expect(TripSummarySchema.safeParse({ ...trip, endDate: '2026-11-01', travellerCount: 1 }).success).toBe(false);
+    });
+
+    it('carries the cover photo', () => {
+      const summary = { ...trip, coverImageUri: 'file:///cache/cover.jpg', travellerCount: 1 };
+      expect(TripSummarySchema.parse(summary).coverImageUri).toBe('file:///cache/cover.jpg');
+      expect(TripSummarySchema.safeParse({ ...summary, name: 'a'.repeat(61) }).success).toBe(false);
+    });
+  });
+
+  describe('TripOverview', () => {
+    const overview = {
+      trip: { ...trip, travellerCount: 2 },
+      members: [
+        { id: '7c2d9e1f-3a4b-4c5d-8e6f-7a8b9c0d1e2f', tripId: TRIP_ID, userId: null, displayName: 'Kasia', role: 'viewer', interests: [] },
+      ],
+      segments: [
+        {
+          id: '5b1f0f6a-2c7d-4a8e-9b3c-1d2e3f4a5b6c',
+          tripId: TRIP_ID,
+          direction: 'outbound',
+          order: 0,
+          fromIata: 'WAW',
+          toIata: 'BCN',
+          departAt: '2026-11-02T10:15:00+01:00',
+          departTz: 'Europe/Warsaw',
+          arriveAt: '2026-11-02T13:30:00+01:00',
+          arriveTz: 'Europe/Madrid',
+        },
+      ],
+    };
+
+    it('accepts a trip with its members and flight segments', () => {
+      expect(TripOverviewSchema.safeParse(overview).success).toBe(true);
+    });
+
+    it('rejects an invalid member or segment', () => {
+      expect(TripOverviewSchema.safeParse({ ...overview, members: [{ ...overview.members[0], displayName: '' }] }).success).toBe(false);
+      expect(TripOverviewSchema.safeParse({ ...overview, segments: [{ ...overview.segments[0], fromIata: 'warsaw' }] }).success).toBe(false);
+    });
+
+    it('rejects an invalid trip', () => {
+      expect(TripOverviewSchema.safeParse({ ...overview, trip: { ...overview.trip, travellerCount: 0 } }).success).toBe(false);
     });
   });
 });

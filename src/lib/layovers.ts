@@ -22,6 +22,12 @@ export function layoverMinutes(previous: Arrival, next: Departure): number | nul
   return Math.round((leaves - landed) / MINUTE_MS);
 }
 
+/** Minutes on the ground between two saved segments, from their stored instants; null when they overlap. */
+export function savedLayoverMinutes(previous: { arriveAt: string }, next: { departAt: string }): number | null {
+  const minutes = Math.round((Date.parse(next.departAt) - Date.parse(previous.arriveAt)) / MINUTE_MS);
+  return minutes > 0 ? minutes : null;
+}
+
 /** Layovers of one direction (outbound or return), derived from consecutive segments. */
 export function getLayovers(segments: (Arrival & Departure)[]): { airportIata: string; minutes: number }[] {
   return segments.slice(1).flatMap((next, i) => {

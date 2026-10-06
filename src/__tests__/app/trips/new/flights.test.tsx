@@ -50,6 +50,10 @@ function card(title: string, section: 'Lot tam' | 'Powrót') {
   return within(screen.getByTestId(`${section}-${title}`));
 }
 
+async function showDirection(name: 'Lot tam' | 'Powrót') {
+  await fireEvent.press(screen.getByRole('radio', { name }));
+}
+
 async function chooseAirport(scope: ReturnType<typeof card>, label: 'Skąd' | 'Dokąd', query: string, option: RegExp) {
   await fireEvent.changeText(scope.getByLabelText(label), query);
   await fireEvent.press(scope.getByRole('button', { name: option }));
@@ -68,6 +72,7 @@ async function fillValidTrip() {
   await chooseAirport(out, 'Dokąd', 'BKK', /Bangkok · BKK/);
   await pickDateTime(out, 'Wylot', '2026-11-02T10:00');
   await pickDateTime(out, 'Przylot', '2026-11-03T05:00');
+  await showDirection('Powrót');
   const back = card('Odcinek 1', 'Powrót');
   await pickDateTime(back, 'Wylot', '2026-11-15T09:00');
   await pickDateTime(back, 'Przylot', '2026-11-15T17:00');
@@ -83,14 +88,48 @@ afterEach(() => {
 });
 
 describe('Flights step', () => {
-  it('shows the heading, the disabled ticket button and both sections (D2, D24)', async () => {
+  it('shows the heading, the disabled ticket button and the outbound first (D2, D24)', async () => {
     await openFlights();
     expect(screen.getByRole('header', { name: 'Kiedy i dokąd lecisz?' })).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Wyślij bilet · wkrótce' })).toBeDisabled();
-    expect(screen.getByText('Lot tam')).toBeTruthy();
-    expect(screen.getByText('Powrót')).toBeTruthy();
+    expect(screen.getByLabelText('Kierunek lotu').props.accessibilityRole).toBe('radiogroup');
+    expect(screen.getByRole('radio', { name: 'Lot tam' })).toBeChecked();
+    expect(screen.getByRole('radio', { name: 'Powrót' })).not.toBeChecked();
     expect(screen.getByTestId('Lot tam-Odcinek 1')).toBeTruthy();
+    expect(screen.queryByTestId('Powrót-Odcinek 1')).toBeNull();
+  });
+
+  it('shows only the return after switching to it, and the outbound again after switching back', async () => {
+    await openFlights();
+    await showDirection('Powrót');
+    expect(screen.getByRole('radio', { name: 'Powrót' })).toBeChecked();
     expect(screen.getByTestId('Powrót-Odcinek 1')).toBeTruthy();
+    expect(screen.queryByTestId('Lot tam-Odcinek 1')).toBeNull();
+    await showDirection('Lot tam');
+    expect(screen.getByTestId('Lot tam-Odcinek 1')).toBeTruthy();
+    expect(screen.queryByTestId('Powrót-Odcinek 1')).toBeNull();
+  });
+
+  it('keeps what was entered in a direction while the other one is shown', async () => {
+    await openFlights();
+    const out = card('Odcinek 1', 'Lot tam');
+    await chooseAirport(out, 'Dokąd', 'DXB', /Dubai · DXB/);
+    await pickDateTime(out, 'Wylot', '2026-11-02T10:00');
+    await showDirection('Powrót');
+    await pickDateTime(card('Odcinek 1', 'Powrót'), 'Przylot', '2026-11-15T17:00');
+    await showDirection('Lot tam');
+    expect(card('Odcinek 1', 'Lot tam').getByLabelText('Dokąd').props.value).toBe('Dubai · DXB');
+    // One of the two date fields is still empty (placeholder) in each direction.
+    expect(card('Odcinek 1', 'Lot tam').getAllByText('Wybierz datę i godzinę')).toHaveLength(1);
+    await showDirection('Powrót');
+    expect(card('Odcinek 1', 'Powrót').getAllByText('Wybierz datę i godzinę')).toHaveLength(1);
+  });
+
+  it('shows the companions stepper on both tabs', async () => {
+    await openFlights();
+    expect(screen.getByRole('button', { name: 'Zwiększ' })).toBeTruthy();
+    await showDirection('Powrót');
+    expect(screen.getByRole('button', { name: 'Zwiększ' })).toBeTruthy();
   });
 
   it('finds an airport by typing and fills the field', async () => {
@@ -105,6 +144,7 @@ describe('Flights step', () => {
     const out = card('Odcinek 1', 'Lot tam');
     await chooseAirport(out, 'Skąd', 'WAW', /Warsaw · WAW/);
     await chooseAirport(out, 'Dokąd', 'BKK', /Bangkok · BKK/);
+    await showDirection('Powrót');
     const back = card('Odcinek 1', 'Powrót');
     expect(back.getByLabelText('Skąd').props.value).toBe('Bangkok · BKK');
     expect(back.getByLabelText('Dokąd').props.value).toBe('Warsaw · WAW');
@@ -158,6 +198,38 @@ describe('Flights step', () => {
     const out = card('Odcinek 1', 'Lot tam');
     expect(out.getAllByText('Wybierz lotnisko')).toHaveLength(2);
     expect(out.getAllByText('Wybierz datę i godzinę')).toHaveLength(4); // 2 placeholders + 2 errors
+  });
+
+  it('shows the outbound when both directions have errors (D5)', async () => {
+    await openFlights();
+    await showDirection('Powrót');
+    await fireEvent.press(screen.getByText('Dalej'));
+    expect(screen.getByRole('radio', { name: 'Lot tam' })).toBeChecked();
+    expect(card('Odcinek 1', 'Lot tam').getAllByText('Wybierz lotnisko')).toHaveLength(2);
+  });
+
+  it('switches to the return, announces and scrolls to it when only the return has an error (D5)', async () => {
+    const announce = jest.spyOn(AccessibilityInfo, 'announceForAccessibility');
+    const scrollTo = jest.mocked(ScrollView.prototype.scrollTo);
+    const app = await openFlights();
+    await fillValidTrip();
+    await pickDateTime(card('Odcinek 1', 'Powrót'), 'Wylot', '2026-11-03T04:00');
+    await pickDateTime(card('Odcinek 1', 'Powrót'), 'Przylot', '2026-11-03T12:00');
+    await showDirection('Lot tam');
+    const layout = (y: number) => ({ nativeEvent: { layout: { x: 0, y, width: 335, height: 600 } } });
+    await fireEvent(screen.getByTestId('Lot tam-section'), 'layout', layout(300));
+    scrollTo.mockClear();
+
+    await fireEvent.press(screen.getByText('Dalej'));
+
+    expect(app.getPathname()).toBe('/trips/new');
+    expect(screen.getByRole('radio', { name: 'Powrót' })).toBeChecked();
+    expect(card('Odcinek 1', 'Powrót').getByText('Powrót musi wylatywać po przylocie na miejsce')).toBeTruthy();
+    expect(announce).toHaveBeenCalledWith('Popraw zaznaczone pola');
+    // The return card is measured only once it is shown; then the screen scrolls to it.
+    await fireEvent(screen.getByTestId('Powrót-Odcinek 1'), 'layout', layout(40));
+    expect(scrollTo).toHaveBeenLastCalledWith({ y: 300 + 40 - 16, animated: true });
+    announce.mockRestore();
   });
 
   it('explains a time that does not add up', async () => {
