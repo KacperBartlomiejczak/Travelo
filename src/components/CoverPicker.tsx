@@ -38,6 +38,7 @@ export function CoverPicker({ value, onChange }: Props) {
           <Image
             source={{ uri: value }}
             contentFit="cover"
+            accessible
             accessibilityLabel={t('coverPicker.preview')}
             style={{ width: '100%', aspectRatio: ASPECT[0] / ASPECT[1], borderRadius: theme.radius.md }}
           />

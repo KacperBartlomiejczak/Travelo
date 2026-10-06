@@ -29,7 +29,8 @@ describe('CoverPicker (D1)', () => {
     launch.mockResolvedValue(picked('file:///cache/other.jpg'));
     const onChange = jest.fn();
     await render(<CoverPicker value="file:///cache/cover.jpg" onChange={onChange} />);
-    expect(screen.getByLabelText('Wybrane zdjęcie okładki')).toBeTruthy();
+    // expo-image is not an accessibility element by default; the preview must be read out.
+    expect(screen.getByLabelText('Wybrane zdjęcie okładki').props.accessible).toBe(true);
     expect(screen.queryByRole('button', { name: 'Wybierz z galerii' })).toBeNull();
     await fireEvent.press(screen.getByRole('button', { name: 'Zmień zdjęcie' }));
     expect(onChange).toHaveBeenLastCalledWith('file:///cache/other.jpg');
