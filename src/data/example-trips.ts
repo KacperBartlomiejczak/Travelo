@@ -17,22 +17,32 @@ function segment(from: [string, string], to: [string, string], departAt: string,
   return { fromIata: from[0], departTz: from[1], toIata: to[0], arriveTz: to[1], departAt, arriveAt, flightNumber };
 }
 
-function trip(flights: TripInput['flights'], friends: TripInput['friends']['friends'], budget: TripInput['budget']): TripInput {
-  return { flights, friends: { friends }, budget, details: { name: defaultTripName(flights.outbound) } };
+/** Device URIs of the bundled example photos (D9). */
+export type ExampleCovers = { lisbon: string; beijing: string };
+
+function trip(
+  flights: TripInput['flights'],
+  friends: TripInput['friends']['friends'],
+  budget: TripInput['budget'],
+  coverImageUri?: string,
+): TripInput {
+  const name = defaultTripName(flights.outbound);
+  return { flights, friends: { friends }, budget, details: coverImageUri ? { name, coverImageUri } : { name } };
 }
 
 const KRK: [string, string] = ['KRK', 'Europe/Warsaw'];
 const WAW: [string, string] = ['WAW', 'Europe/Warsaw'];
 const LIS: [string, string] = ['LIS', 'Europe/Lisbon'];
 const DXB: [string, string] = ['DXB', 'Asia/Dubai'];
-const BKK: [string, string] = ['BKK', 'Asia/Bangkok'];
+const PEK: [string, string] = ['PEK', 'Asia/Shanghai'];
 const FCO: [string, string] = ['FCO', 'Europe/Rome'];
 
 /**
  * Three trips shown in development builds (trip-flight-tabs-name-cover D8), dated from `today` (YYYY-MM-DD)
  * so they always lie in the future. Times avoid 02:00–03:00 in Europe, where clocks change.
+ * Lisbon and Beijing have photos, Rome has none (D6, D9).
  */
-export function exampleTrips(today: string): TripInput[] {
+export function exampleTrips(today: string, covers: ExampleCovers): TripInput[] {
   const day = (offset: number, time: string) => `${addDays(today, offset)}T${time}`;
   return [
     trip(
@@ -46,14 +56,15 @@ export function exampleTrips(today: string): TripInput[] {
         { displayName: 'Ola', interests: ['museums', 'local_cuisine'] },
       ],
       { budgetPerPerson: { amountMinor: 250000, currency: 'EUR' } },
+      covers.lisbon,
     ),
     trip(
       {
         outbound: [
           segment(WAW, DXB, day(40, '14:00'), day(40, '22:10'), 'EK180'),
-          segment(DXB, BKK, day(41, '03:30'), day(41, '12:45'), 'EK384'),
+          segment(DXB, PEK, day(41, '03:30'), day(41, '15:00'), 'EK308'),
         ],
-        return: [segment(BKK, WAW, day(52, '09:00'), day(52, '17:00'), 'LO791')],
+        return: [segment(PEK, WAW, day(52, '11:00'), day(52, '15:30'), 'LO96')],
         companionCount: 3,
       },
       [
@@ -61,7 +72,8 @@ export function exampleTrips(today: string): TripInput[] {
         { displayName: 'Bartek', interests: ['street_food', 'nightlife'] },
         { displayName: 'Ola', interests: [] },
       ],
-      { budgetPerPerson: { amountMinor: 3000000, currency: 'THB' } },
+      { budgetPerPerson: { amountMinor: 600000, currency: 'CNY' } },
+      covers.beijing,
     ),
     trip(
       {
@@ -76,6 +88,7 @@ export function exampleTrips(today: string): TripInput[] {
 }
 
 /** What the in-memory repository starts with: the example trips only in development builds, never in tests (D8). */
-export function startingTrips(env: { isDev: boolean; isTest: boolean }, today: string): TripInput[] {
-  return env.isDev && !env.isTest ? exampleTrips(today) : [];
+/** `covers` is called only when the examples are used, so tests and release builds never load the photos. */
+export function startingTrips(env: { isDev: boolean; isTest: boolean }, today: string, covers: () => ExampleCovers): TripInput[] {
+  return env.isDev && !env.isTest ? exampleTrips(today, covers()) : [];
 }
