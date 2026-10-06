@@ -172,6 +172,19 @@ describe('Flights step', () => {
     );
   });
 
+  it('explains a time skipped when clocks go forward', async () => {
+    const app = await openFlights();
+    await fillValidTrip();
+    const back = card('Odcinek 1', 'Powrót'); // BKK → WAW (D25)
+    await pickDateTime(back, 'Wylot', '2027-03-27T20:00');
+    await pickDateTime(back, 'Przylot', '2027-03-28T02:30');
+    await fireEvent.press(screen.getByText('Dalej'));
+    const message = 'Tej godziny nie ma — tej nocy zegarki przestawiono o godzinę do przodu. Sprawdź bilet.';
+    expect(card('Odcinek 1', 'Powrót').getByRole('button', { name: 'Przylot' }).props.accessibilityHint).toBe(message);
+    expect(card('Odcinek 1', 'Powrót').getByText(message)).toBeTruthy();
+    expect(app.getPathname()).toBe('/trips/new');
+  });
+
   it('announces and scrolls to the first card with an error (D29)', async () => {
     const announce = jest.spyOn(AccessibilityInfo, 'announceForAccessibility');
     const scrollTo = jest.mocked(ScrollView.prototype.scrollTo);

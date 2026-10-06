@@ -110,6 +110,7 @@
     "dateTimeRequired": "Wybierz datę i godzinę",
     "sameAirport": "Lotnisko przylotu musi być inne niż wylotu",
     "arrivalBeforeDeparture": "Przylot musi być po wylocie",
+    "timeDoesNotExist": "Tej godziny nie ma — tej nocy zegarki przestawiono o godzinę do przodu. Sprawdź bilet.",
     "layoverAirportMismatch": "Ten odcinek musi startować z lotniska, na którym wylądował poprzedni",
     "departsBeforePreviousArrival": "Ten odcinek startuje przed przylotem poprzedniego",
     "returnBeforeOutbound": "Powrót musi wylatywać po przylocie na miejsce",

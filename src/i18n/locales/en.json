@@ -110,6 +110,7 @@
     "dateTimeRequired": "Choose date and time",
     "sameAirport": "Arrival airport must differ from departure",
     "arrivalBeforeDeparture": "Arrival must be after departure",
+    "timeDoesNotExist": "This time doesn't exist — clocks go forward that night. Check your ticket.",
     "layoverAirportMismatch": "This flight must leave from the airport the previous one landed at",
     "departsBeforePreviousArrival": "This flight leaves before the previous one lands",
     "returnBeforeOutbound": "The return must leave after you arrive",

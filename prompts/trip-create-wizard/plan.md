@@ -233,7 +233,7 @@ Location convention: next to the code in `__tests__/`; route tests in `src/__tes
 - [x] 10. [frontend] Trips screen: loading / empty / error / list with `TripCard`, soonest first — skill: frontend-design, ui-taste — tests first: Step 10 — verify: as above + screenshot + manual test steps for Kacper.
 - [x] 11. Docs: update CLAUDE.md "Data structures" (A4) and `Architecture.md` — no tests (docs only) — verify: every statement checked against the code.
 - [x] 12. [backend] Reject impossible calendar dates in local date-times (Copilot review, thread 2) — skill: none — tests first: see follow-up section — verify: full suite + typecheck + lint, verifier PASS.
-- [ ] 13. [backend] Reject airport-local times that do not exist (DST gap) in `SegmentInputSchema` (Copilot review, thread 1) — skill: none — tests first: see follow-up section — verify: as above.
+- [x] 13. [backend] Reject airport-local times that do not exist (DST gap) in `SegmentInputSchema` (Copilot review, thread 1) — skill: none — tests first: see follow-up section — verify: as above.
 - [ ] 14. [frontend] Error copy for the DST gap (pl/en) + no layover label for a non-existent time — skill: none — tests first: see follow-up section — verify: as above + manual step for Kacper.
 - [ ] 15. Docs: progress log, `Architecture.md` (changelog / known limitations) — no tests (docs only) — verify: every statement checked against the code.
 
@@ -332,6 +332,11 @@ Per step: tests written first and seen failing for the expected reason → minim
   - Test fix (test was wrong): the first layover case (`2026-02-31` departure) passed before the code — the rolled-over date was earlier than the arrival, so `null` for the wrong reason. Rewritten to arrival `2026-11-31T18:30` → departure `2026-12-01T20:00` (90 min without the fix) → red ✓.
   - Repository test is stricter than planned: asserts the wizard issue at `['flights','return',0,'arriveAt']` / `validation.dateTimeRequired`, not just any rejection.
   - Verifier note (no action): `Date.UTC` maps years 0–99 to 1900–1999, so `0000-02-29` is rejected; irrelevant for flights.
+- **Step 13 — done (2026-10-06).** Tests first (red ✓, 13 failing: 8 × `isExistingLocalTime` missing; 3 segment cases returned `[]` or `arrivalBeforeDeparture`; LHR → WAW → BKK returned `[]`; repository `create()` resolved) → `isExistingLocalTime` (round trip local → instant → wall clock) in `src/lib/time.ts`; `SegmentInputSchema` adds `validation.timeDoesNotExist` on `departAt` / `arriveAt` and compares the two times only when both exist → green ✓. Full suite 402/402 (also TZ=Europe/Warsaw, America/Los_Angeles; verifier also Australia/Lord_Howe), typecheck 0, lint clean. Verifier: PASS (incl. a brute-force check of every minute around all 2025–2027 DST changes in 17 zones, 0 mismatches). Skill used: none.
+  - Schema/repository test dates are in 2027 (Warsaw gap 28 Mar 2027): the tests pin today to 2026-10-04 and D15 rejects past departures.
+  - Extra test beyond the plan: departure 02:45 (gap) + arrival 03:15 → only the `departAt` issue; this is the case that proves the ordering check is skipped (the KRK 01:45 → 02:30 case covers it only trivially).
+  - Process deviation: the step was committed (to satisfy the session's commit hook) while the verifier was still running; the reviewed diff and the commit are identical. Push to GitHub failed (403, no GitHub access for this session) — commits are local until access is restored.
+  - Plan correction (R4 wording, no code change): an autumn duplicate hour resolves to the **earlier** occurrence for New York (01:30 EDT on 2026-11-01) and to winter time for Warsaw; `zonedLocalToDate` and `localToIso` agree in both cases, which is what matters.
 
 ## Risks & open questions
 **Need Kacper's answer (can be answered together with approval):**
@@ -391,7 +396,7 @@ Assumptions (correct me if wrong):
 - **R1** — a non-existent time is **rejected with a field error** (option A, recommended), not silently shifted. See Q14.
 - **R2** — an impossible calendar date reuses the existing `validation.dateTimeRequired` ("Wybierz datę i godzinę"); no new copy, since the UI cannot produce it. See Q16.
 - **R3** — fixed in this PR (branch `feature/trip-create-wizard`), as steps 12–15 of this plan.
-- **R4** — the ambiguous autumn hour stays as is (winter-time occurrence), consistent in both functions.
+- **R4** — the ambiguous autumn hour stays as is, consistent in both functions (winter-time occurrence in Warsaw; the earlier, summer-time one in New York — corrected after step 13).
 
 ## Approach
 One idea covers both threads: a local wall clock is valid only if it **round-trips** — convert it to an instant in the airport's zone and back; if the result differs from the input (`02:30` → `03:30`, `02-31` → `03-03`), it does not exist.

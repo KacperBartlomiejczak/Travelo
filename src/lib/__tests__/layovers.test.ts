@@ -32,6 +32,12 @@ describe('layoverMinutes', () => {
     expect(layoverMinutes(arrival, { ...DXB_BKK, departAt: '2026-12-01T20:00' })).toBeNull();
   });
 
+  it('returns null for an arrival time skipped when clocks go forward', () => {
+    // Warsaw, 28 Mar 2027: 02:00 → 03:00, so landing at 02:30 is not a real time.
+    const waw = { toIata: 'WAW', arriveAt: '2027-03-28T02:30', arriveTz: 'Europe/Warsaw' };
+    expect(layoverMinutes(waw, { departAt: '2027-03-28T06:00', departTz: 'Europe/Warsaw' })).toBeNull();
+  });
+
   it('returns null when the next segment leaves before the previous one lands', () => {
     expect(layoverMinutes(WAW_DXB, { ...DXB_BKK, departAt: '2026-11-02T18:00' })).toBeNull();
   });
