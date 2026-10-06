@@ -24,11 +24,10 @@ let mockSaveFails = false;
 // When set, saving waits until the test calls it.
 let mockReleaseSave: (() => void) | null = null;
 let mockHoldSave = false;
-jest.mock('@/data/trip-repository', () => {
+jest.mock('@/data/app-trip-repository', () => {
   const actual = jest.requireActual('@/data/trip-repository');
   return {
-    ...actual,
-    createInMemoryTripRepository: () => {
+    createAppTripRepository: () => {
       const repository = actual.createInMemoryTripRepository();
       return {
         ...repository,

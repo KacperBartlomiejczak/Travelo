@@ -30,7 +30,12 @@ const MIGRATIONS = [
 export async function migrateLocalDb(db: LocalDb): Promise<void> {
   const current = (await db.getFirstAsync<{ user_version: number }>('pragma user_version', []))?.user_version ?? 0;
   for (let version = current + 1; version <= MIGRATIONS.length; version++) {
-    await db.execAsync(`begin; ${MIGRATIONS[version - 1]} pragma user_version = ${version}; commit;`);
+    try {
+      await db.execAsync(`begin; ${MIGRATIONS[version - 1]} pragma user_version = ${version}; commit;`);
+    } catch (error) {
+      await db.execAsync('rollback').catch(() => {});
+      throw error;
+    }
   }
 }
 

@@ -53,7 +53,7 @@ describe('RootLayout', () => {
       return <Text>{nearest.isSuccess ? `nearest: ${nearest.data?.overview.trip.name ?? 'none'}` : 'loading'}</Text>;
     }
     await renderRouter({ _layout: RootLayout, index: TripsProbe, 'trips/new/index': () => null });
-    // No example trips under Jest (D8).
+    // Example trips are gone (trips-supabase D8); under Jest the app repository is in memory (jest.setup.ts).
     expect(await screen.findByText('nearest: none')).toBeTruthy();
   });
 });

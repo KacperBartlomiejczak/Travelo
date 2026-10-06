@@ -1,9 +1,9 @@
-import { QueryClient } from '@tanstack/react-query';
+import { onlineManager, QueryClient } from '@tanstack/react-query';
 import { act, renderHook, waitFor } from '@testing-library/react-native';
 import type { ReactNode } from 'react';
 
 import { createInMemoryTripRepository, type TripRepository } from '@/data/trip-repository';
-import { useCreateTrip, useNearestTrip } from '@/hooks/useTrips';
+import { useCreateTrip, useNearestTrip, useSetTripBudget } from '@/hooks/useTrips';
 import { AppProviders } from '@/providers/AppProviders';
 import { createTripInputFixture } from '@/test/fixtures';
 
@@ -84,5 +84,54 @@ describe('useCreateTrip', () => {
       await result.current.mutateAsync(createTripInputFixture()).catch(() => {});
     });
     await waitFor(() => expect(result.current.isError).toBe(true));
+  });
+});
+
+describe('useSetTripBudget', () => {
+  it('saves the budget, refreshes the nearest trip and starts a sync', async () => {
+    const repository = createInMemoryTripRepository({ now: () => NOW, newId });
+    const trip = await repository.create(createTripInputFixture());
+    const syncBudgets = jest.fn(async () => ({ nextAttemptAt: null }));
+    const wrapper = setup({ ...repository, syncBudgets });
+    const { result } = await renderHook(() => ({ nearest: useNearestTrip(), setBudget: useSetTripBudget() }), { wrapper });
+    await waitFor(() => expect(result.current.nearest.isSuccess).toBe(true));
+    syncBudgets.mockClear();
+
+    await act(async () => {
+      await result.current.setBudget.mutateAsync({ trip, amountMinor: 250000 });
+    });
+
+    await waitFor(() => expect(result.current.nearest.data?.overview.trip.budgetPerPerson.amountMinor).toBe(250000));
+    expect(syncBudgets).toHaveBeenCalled();
+  });
+
+  it('saves even when the app thinks it is offline (saving never waits for the network)', async () => {
+    const repository = createInMemoryTripRepository({ now: () => NOW, newId });
+    const trip = await repository.create(createTripInputFixture());
+    const setBudget = jest.fn(repository.setBudget);
+    const { result } = await renderHook(() => useSetTripBudget(), { wrapper: setup({ ...repository, setBudget }) });
+    onlineManager.setOnline(false);
+    try {
+      await act(async () => {
+        await result.current.mutateAsync({ trip, amountMinor: 250000 });
+      });
+      expect(setBudget).toHaveBeenCalledWith(trip, 250000);
+    } finally {
+      onlineManager.setOnline(true);
+    }
+  });
+});
+
+describe('useNearestTrip offline', () => {
+  it('still asks the repository, which answers from the device copy', async () => {
+    const repository = createInMemoryTripRepository({ now: () => NOW, newId });
+    await repository.create(createTripInputFixture());
+    onlineManager.setOnline(false);
+    try {
+      const { result } = await renderHook(() => useNearestTrip(), { wrapper: setup(repository) });
+      await waitFor(() => expect(result.current.isSuccess).toBe(true));
+    } finally {
+      onlineManager.setOnline(true);
+    }
   });
 });

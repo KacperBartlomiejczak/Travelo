@@ -26,6 +26,15 @@ describe('local database', () => {
     expect(await db.getAllAsync('select trip_id from trip_overview_cache', [])).toEqual([{ trip_id: 't' }]);
   });
 
+  it('rolls a failed migration back and leaves the database usable', async () => {
+    const db = openTestDb();
+    // A leftover table makes the first migration fail half-way.
+    await db.execAsync('create table trip_overview_cache (x text)');
+    await expect(migrateLocalDb(db)).rejects.toThrow();
+    expect(await db.getFirstAsync('pragma user_version', [])).toEqual({ user_version: 0 });
+    await expect(db.execAsync('begin; commit;')).resolves.toBeUndefined();
+  });
+
   it('stores money as INTEGER minor units', async () => {
     const db = openTestDb();
     await migrateLocalDb(db);

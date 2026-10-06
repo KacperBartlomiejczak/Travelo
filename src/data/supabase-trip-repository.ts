@@ -59,7 +59,8 @@ export function createSupabaseTripRepository({ supabase, local: localStore, now 
   function withLocalBudget(overview: TripOverview, change: LocalTripBudgetChange | null, fromCache: boolean): NearestTrip {
     if (!change) return NearestTripSchema.parse({ overview, budgetSyncStatus: 'synced', fromCache });
     const newer = Date.parse(change.updatedAt) > Date.parse(overview.trip.budgetUpdatedAt);
-    const trip = newer ? { ...overview.trip, budgetPerPerson: change.budgetPerPerson, budgetUpdatedAt: change.updatedAt } : overview.trip;
+    if (!newer) return NearestTripSchema.parse({ overview, budgetSyncStatus: 'synced', fromCache });
+    const trip = { ...overview.trip, budgetPerPerson: change.budgetPerPerson, budgetUpdatedAt: change.updatedAt };
     return NearestTripSchema.parse({ overview: { ...overview, trip }, budgetSyncStatus: change.syncStatus, fromCache });
   }
 

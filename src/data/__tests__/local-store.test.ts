@@ -102,6 +102,27 @@ describe('budget changes', () => {
     await expect(local.budgetChange(TRIP_ID)).resolves.toBeNull();
   });
 
+  it('writes the synced amount into the device copy of that trip, so offline it is not the old one', async () => {
+    const { local } = await store();
+    await local.cacheNearest(overview, '2026-10-06T09:00:00.000Z');
+    await local.saveBudgetChange(change);
+    await local.markBudgetSynced(change);
+    const cached = await local.cachedNearest();
+    expect(cached?.trip.budgetPerPerson).toEqual(change.budgetPerPerson);
+    expect(cached?.trip.budgetUpdatedAt).toBe(change.updatedAt);
+  });
+
+  it('leaves the copy alone when it is another trip or already has a newer budget', async () => {
+    const { local } = await store();
+    const newerCopy = { ...overview, trip: { ...overview.trip, budgetUpdatedAt: '2026-10-07T00:00:00+00:00' } };
+    await local.cacheNearest(newerCopy, '2026-10-06T09:00:00.000Z');
+    await local.saveBudgetChange(change);
+    await local.markBudgetSynced(change);
+    await local.saveBudgetChange({ ...change, tripId: OTHER_TRIP_ID });
+    await local.markBudgetSynced({ ...change, tripId: OTHER_TRIP_ID });
+    await expect(local.cachedNearest()).resolves.toEqual(newerCopy);
+  });
+
   it('does not remove a newer change saved while the older one was being sent', async () => {
     const { local } = await store();
     await local.saveBudgetChange(change);

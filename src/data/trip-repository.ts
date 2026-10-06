@@ -98,14 +98,13 @@ export function buildTrip(input: CreateTripInput, { now, newId, ownerId }: Deps)
   return { trip, members, segments };
 }
 
+/** Trips in memory, lost on restart. Tests only (trips-supabase D8). */
 export function createInMemoryTripRepository(
   deps: { now: () => Date; newId: () => string } = { now: () => new Date(), newId: randomUUID },
-  /** Trips it starts with, e.g. the example trips in development builds (D8). */
-  initial: z.input<typeof CreateTripInputSchema>[] = [],
 ): TripRepository {
   const build = (input: z.input<typeof CreateTripInputSchema>) =>
     buildTrip(CreateTripInputSchema.parse(input), { now: deps.now(), newId: deps.newId, ownerId: LOCAL_OWNER_ID });
-  const stored: CreatedTrip[] = initial.map(build);
+  const stored: CreatedTrip[] = [];
   const summary = ({ trip, members }: CreatedTrip) => TripSummarySchema.parse({ ...trip, travellerCount: members.length + 1 });
   const soonestFirst = () =>
     [...stored].sort((a, b) => a.trip.startDate.localeCompare(b.trip.startDate) || a.trip.createdAt.localeCompare(b.trip.createdAt));

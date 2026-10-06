@@ -133,6 +133,11 @@ insert into public.trip_members (id, trip_id, user_id, display_name, role, inter
 values ('20000000-0000-4000-8000-000000000003', '10000000-0000-4000-8000-000000000001',
         '00000000-0000-4000-a000-00000000000c', 'Celina', 'viewer', '{}');
 
+-- The owner cannot hand the trip to someone else.
+select test_helpers.throws(
+  $$update public.trips set owner_id = '00000000-0000-4000-a000-00000000000b' where id = '10000000-0000-4000-8000-000000000001'$$,
+  '42501', 'A cannot change the owner of a trip');
+
 -- ---------------------------------------------------------------------------
 -- Last write wins on the budget
 -- ---------------------------------------------------------------------------
@@ -211,7 +216,16 @@ select test_helpers.ok((select count(*) from public.flight_segments) = 0, 'B can
 update public.trips set name = 'Hacked';
 delete from public.trips;
 update public.trip_members set display_name = 'Hacked';
+delete from public.trip_members;
+update public.flight_segments set flight_number = 'XX1';
 delete from public.flight_segments;
+
+select test_helpers.throws(
+  $$insert into public.trips (id, owner_id, name, destination, start_date, end_date, base_currency,
+                              budget_per_person_minor, budget_updated_at)
+    values ('10000000-0000-4000-8000-0000000000b9', '00000000-0000-4000-a000-00000000000a', 'Planted', 'BKK',
+            '2026-11-03', '2026-11-15', 'THB', 1, now())$$,
+  '42501', 'B cannot create a trip owned by A');
 
 select test_helpers.throws(
   $$insert into public.trip_members (id, trip_id, display_name, role, interests)
@@ -243,6 +257,7 @@ update public.trips set name = 'Changed by C', budget_per_person_minor = 1;
 delete from public.trips;
 update public.trip_members set display_name = 'Changed by C';
 delete from public.trip_members;
+update public.flight_segments set flight_number = 'XX1';
 delete from public.flight_segments;
 
 select test_helpers.throws(
@@ -269,7 +284,15 @@ select test_helpers.ok(
     and not exists (select 1 from public.trip_members where display_name in ('Hacked', 'Changed by C')),
   'A''s members are unchanged'
 );
-select test_helpers.ok((select count(*) from public.flight_segments) = 3, 'A''s segments are unchanged');
+select test_helpers.ok(
+  (select count(*) from public.flight_segments) = 3
+    and not exists (select 1 from public.flight_segments where flight_number = 'XX1'),
+  'A''s segments are unchanged'
+);
+select test_helpers.ok(
+  (select owner_id from public.trips) = '00000000-0000-4000-a000-00000000000a',
+  'A still owns the trip'
+);
 
 -- ---------------------------------------------------------------------------
 -- Requests without a session get nothing
@@ -282,6 +305,9 @@ select test_helpers.throws('select count(*) from public.flight_segments', '42501
 select test_helpers.throws(
   format('select public.create_trip(%L, %L, %L)', test_helpers.trip_payload('10000000-0000-4000-8000-0000000000a1'), '[]', '[]'),
   '42501', 'anon cannot create a trip');
+select test_helpers.throws(
+  $$select private.is_trip_owner('10000000-0000-4000-8000-000000000001')$$,
+  '42501', 'anon cannot call the access helpers');
 
 select 'trips_rls: all checks passed' as result;
 rollback;

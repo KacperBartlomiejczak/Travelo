@@ -36,6 +36,17 @@ export type BudgetAttempt = { syncStatus: Exclude<SyncStatus, 'synced'>; error?:
 
 /** What the device keeps in SQLite: the last nearest trip read from Supabase and budget changes not yet synced. */
 export function createLocalStore(db: LocalDb) {
+  /** The copy, or null when there is none or it cannot be read any more. */
+  async function cachedNearest(): Promise<TripOverview | null> {
+    const row = await db.getFirstAsync<{ overview_json: string }>('select overview_json from trip_overview_cache limit 1', []);
+    if (!row) return null;
+    try {
+      return TripOverviewSchema.parse(JSON.parse(row.overview_json));
+    } catch {
+      return null;
+    }
+  }
+
   return {
     /** Replaces the copy with the trip the server just returned as nearest (null: the server has none). */
     async cacheNearest(overview: TripOverview | null, cachedAt: string): Promise<void> {
@@ -49,16 +60,7 @@ export function createLocalStore(db: LocalDb) {
       }
     },
 
-    /** The copy, or null when there is none or it cannot be read any more. */
-    async cachedNearest(): Promise<TripOverview | null> {
-      const row = await db.getFirstAsync<{ overview_json: string }>('select overview_json from trip_overview_cache limit 1', []);
-      if (!row) return null;
-      try {
-        return TripOverviewSchema.parse(JSON.parse(row.overview_json));
-      } catch {
-        return null;
-      }
-    },
+    cachedNearest,
 
     /** Saves the change as pending; a newer change for the same trip replaces the older one (A7). */
     async saveBudgetChange(change: TripBudgetChange): Promise<void> {
@@ -82,8 +84,19 @@ export function createLocalStore(db: LocalDb) {
       return rows.map(budgetChangeFromRow);
     },
 
-    /** The change reached the server. A newer change saved meanwhile stays. */
+    /**
+     * The change reached the server: the device copy of the trip gets it (so offline it is not the old amount),
+     * then the change is forgotten. A newer change saved meanwhile stays.
+     */
     async markBudgetSynced(change: TripBudgetChange): Promise<void> {
+      const cached = await cachedNearest();
+      if (cached?.trip.id === change.tripId && Date.parse(cached.trip.budgetUpdatedAt) < Date.parse(change.updatedAt)) {
+        const trip = { ...cached.trip, budgetPerPerson: change.budgetPerPerson, budgetUpdatedAt: change.updatedAt };
+        await db.runAsync('update trip_overview_cache set overview_json = ? where trip_id = ?', [
+          JSON.stringify(TripOverviewSchema.parse({ ...cached, trip })),
+          change.tripId,
+        ]);
+      }
       await db.runAsync('delete from trip_budget_changes where trip_id = ? and updated_at = ?', [change.tripId, change.updatedAt]);
     },
 

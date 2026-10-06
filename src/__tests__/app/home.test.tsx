@@ -25,14 +25,15 @@ jest.mock('expo-status-bar', () => ({
 
 // The screen reads the nearest trip through the repository; tests decide what `nearest` returns.
 let mockNearest: () => Promise<TripOverview | null> = () => Promise.resolve(null);
-jest.mock('@/data/trip-repository', () => ({
-  ...jest.requireActual('@/data/trip-repository'),
-  createInMemoryTripRepository: () => ({
+jest.mock('@/data/app-trip-repository', () => ({
+  createAppTripRepository: () => ({
     nearest: async () => {
       const overview = await mockNearest();
       return overview && { overview, budgetSyncStatus: 'synced', fromCache: false };
     },
     create: () => Promise.reject(new Error('unused')),
+    setBudget: () => Promise.reject(new Error('unused')),
+    syncBudgets: async () => ({ nextAttemptAt: null }),
   }),
 }));
 

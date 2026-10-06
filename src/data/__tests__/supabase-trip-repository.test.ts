@@ -279,12 +279,24 @@ describe('budget changes (offline-first)', () => {
     await expect(repository.syncBudgets()).resolves.toEqual({ nextAttemptAt: null });
   });
 
-  it('a newer server budget wins over an older change on the device', async () => {
+  it('a newer server budget wins over an older change on the device, and shows as synced', async () => {
     const { supabase, repository, trip } = await withNearest();
     await repository.setBudget(trip, 250000);
     supabase.respond('trips', { data: [serverTrip({ budget_per_person_minor: 999900, budget_updated_at: '2026-10-07T00:00:00+00:00' }).row] });
     const nearest = await repository.nearest();
     expect(nearest?.overview.trip.budgetPerPerson.amountMinor).toBe(999900);
+    expect(nearest?.budgetSyncStatus).toBe('synced');
+  });
+
+  it('after a successful sync, going offline shows the new amount from the copy, as synced', async () => {
+    const { supabase, repository, trip } = await withNearest();
+    await repository.setBudget(trip, 250000);
+    supabase.respond('trips', { data: [{ id: trip.id }] });
+    await repository.syncBudgets();
+    supabase.respond('trips', NETWORK_FAILURE);
+    const nearest = await repository.nearest();
+    expect(nearest).toEqual(expect.objectContaining({ fromCache: true, budgetSyncStatus: 'synced' }));
+    expect(nearest?.overview.trip.budgetPerPerson.amountMinor).toBe(250000);
   });
 
   it('runs one sync at a time, so a change is never sent twice in parallel', async () => {

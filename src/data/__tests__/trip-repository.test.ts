@@ -118,19 +118,6 @@ describe('in-memory trip repository', () => {
     expect((await repository().create(createTripInputFixture())).ownerId).toBe(LOCAL_OWNER_ID);
   });
 
-  it('starts with the given trips (example trips, D8)', async () => {
-    const seeded = createTripInputFixture();
-    seeded.details.name = 'Seeded';
-    const repo = createInMemoryTripRepository({ now: () => NOW, newId: sequentialIds() }, [seeded]);
-    expect((await repo.nearest())?.overview.trip.name).toBe('Seeded');
-  });
-
-  it('rejects invalid starting trips', () => {
-    const invalid = createTripInputFixture();
-    invalid.details.name = '';
-    expect(() => createInMemoryTripRepository({ now: () => NOW, newId: sequentialIds() }, [invalid])).toThrow();
-  });
-
   describe('nearest trip', () => {
     function soonerTrip(name: string) {
       const input = createTripInputFixture();
