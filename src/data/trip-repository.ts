@@ -6,28 +6,35 @@ import { deriveTripDates } from '@/lib/trip-dates';
 import {
   CreateTripInputSchema,
   FlightSegmentSchema,
+  NearestTripSchema,
   TripMemberSchema,
   TripSchema,
-  TripOverviewSchema,
+  TripBudgetFormSchema,
   TripSummarySchema,
   type CreateTripInput,
   type FlightSegment,
+  type NearestTrip,
   type SegmentInput,
   type Trip,
   type TripMember,
-  type TripOverview,
 } from '@/schemas';
+
+import type { SyncResult } from './budget-sync';
 
 /** Owner of every trip in the in-memory repository, which only tests use now (trips-supabase D8). */
 export const LOCAL_OWNER_ID = 'local-user';
 
 export type CreatedTrip = { trip: Trip; members: TripMember[]; segments: FlightSegment[] };
 
-/** Where trips live. In memory now (D1); Supabase replaces the implementation later. */
+/** Where trips live: Supabase in the app (trips-supabase), in memory in tests. */
 export interface TripRepository {
   /** The soonest trip with its members and flights, or null when there are none. */
-  nearest(): Promise<TripOverview | null>;
+  nearest(): Promise<NearestTrip | null>;
   create(input: z.input<typeof CreateTripInputSchema>): Promise<Trip>;
+  /** Saves a new budget per person (whole amount in minor units, the trip's base currency) on the device. */
+  setBudget(trip: Pick<Trip, 'id' | 'baseCurrency'>, amountMinor: number): Promise<void>;
+  /** Sends budget changes still on the device; says when the next retry is due. */
+  syncBudgets(): Promise<SyncResult>;
 }
 
 type Deps = { now: Date; newId: () => string; ownerId: string };
@@ -105,12 +112,22 @@ export function createInMemoryTripRepository(
   return {
     async nearest() {
       const [first] = soonestFirst();
-      return first ? TripOverviewSchema.parse({ trip: summary(first), members: first.members, segments: first.segments }) : null;
+      if (!first) return null;
+      const overview = { trip: summary(first), members: first.members, segments: first.segments };
+      return NearestTripSchema.parse({ overview, budgetSyncStatus: 'synced', fromCache: false });
     },
     async create(input) {
       const created = build(input);
       stored.push(created);
       return created.trip;
+    },
+    async setBudget(trip, amountMinor) {
+      const { budgetPerPerson } = TripBudgetFormSchema.parse({ budgetPerPerson: { amountMinor, currency: trip.baseCurrency } });
+      const found = stored.find((entry) => entry.trip.id === trip.id);
+      if (found) found.trip = TripSchema.parse({ ...found.trip, budgetPerPerson, budgetUpdatedAt: deps.now().toISOString() });
+    },
+    async syncBudgets() {
+      return { nextAttemptAt: null };
     },
   };
 }

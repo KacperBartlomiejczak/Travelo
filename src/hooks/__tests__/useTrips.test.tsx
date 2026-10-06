@@ -36,8 +36,8 @@ describe('useNearestTrip', () => {
     await repository.create(createTripInputFixture());
     const { result } = await renderHook(() => useNearestTrip(), { wrapper: setup(repository) });
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
-    expect(result.current.data?.trip.name).toBe('Warsaw → Bangkok');
-    expect(result.current.data?.members).toHaveLength(2);
+    expect(result.current.data?.overview.trip.name).toBe('Warsaw → Bangkok');
+    expect(result.current.data?.overview.members).toHaveLength(2);
   });
 
   it('returns null when there are no trips', async () => {
@@ -51,6 +51,8 @@ describe('useNearestTrip', () => {
     const failing: TripRepository = {
       nearest: () => Promise.reject(new Error('offline')),
       create: () => Promise.reject(new Error('offline')),
+      setBudget: () => Promise.reject(new Error('offline')),
+      syncBudgets: () => Promise.reject(new Error('offline')),
     };
     const { result } = await renderHook(() => useNearestTrip(), { wrapper: setup(failing) });
     await waitFor(() => expect(result.current.isError).toBe(true));
@@ -68,13 +70,13 @@ describe('useCreateTrip', () => {
       await result.current.create.mutateAsync(createTripInputFixture());
     });
 
-    await waitFor(() => expect(result.current.nearest.data?.trip.name).toBe('Warsaw → Bangkok'));
+    await waitFor(() => expect(result.current.nearest.data?.overview.trip.name).toBe('Warsaw → Bangkok'));
   });
 
   it('reports a failed save', async () => {
     const repository = createInMemoryTripRepository({ now: () => NOW, newId });
     const failing: TripRepository = {
-      nearest: () => repository.nearest(),
+      ...repository,
       create: () => Promise.reject(new Error('down')),
     };
     const { result } = await renderHook(() => useCreateTrip(), { wrapper: setup(failing) });

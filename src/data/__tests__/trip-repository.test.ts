@@ -3,7 +3,7 @@ import {
   CreateTripInputSchema,
   FlightSegmentSchema,
   TripMemberSchema,
-  TripOverviewSchema,
+  NearestTripSchema,
   TripSchema,
   TripSummarySchema,
 } from '@/schemas';
@@ -110,8 +110,8 @@ describe('in-memory trip repository', () => {
     const repo = repository();
     const created = await repo.create(createTripInputFixture());
     const nearest = await repo.nearest();
-    expect(nearest?.trip).toEqual({ ...created, travellerCount: 3 });
-    expect(TripSummarySchema.safeParse(nearest?.trip).success).toBe(true);
+    expect(nearest?.overview.trip).toEqual({ ...created, travellerCount: 3 });
+    expect(TripSummarySchema.safeParse(nearest?.overview.trip).success).toBe(true);
   });
 
   it('owns its trips by the local owner (tests only, no auth)', async () => {
@@ -122,7 +122,7 @@ describe('in-memory trip repository', () => {
     const seeded = createTripInputFixture();
     seeded.details.name = 'Seeded';
     const repo = createInMemoryTripRepository({ now: () => NOW, newId: sequentialIds() }, [seeded]);
-    expect((await repo.nearest())?.trip.name).toBe('Seeded');
+    expect((await repo.nearest())?.overview.trip.name).toBe('Seeded');
   });
 
   it('rejects invalid starting trips', () => {
@@ -153,10 +153,11 @@ describe('in-memory trip repository', () => {
       await repo.create(createTripInputFixture());
       const sooner = await repo.create(soonerTrip('Dubai'));
       const nearest = await repo.nearest();
-      expect(TripOverviewSchema.safeParse(nearest).success).toBe(true);
-      expect(nearest?.trip).toEqual({ ...sooner, travellerCount: 2 });
-      expect(nearest?.members.map((member) => member.displayName)).toEqual(['Ola']);
-      expect(nearest?.segments.map((s) => [s.direction, s.fromIata, s.toIata])).toEqual([
+      expect(NearestTripSchema.safeParse(nearest).success).toBe(true);
+      expect(nearest).toEqual(expect.objectContaining({ budgetSyncStatus: 'synced', fromCache: false }));
+      expect(nearest?.overview.trip).toEqual({ ...sooner, travellerCount: 2 });
+      expect(nearest?.overview.members.map((member) => member.displayName)).toEqual(['Ola']);
+      expect(nearest?.overview.segments.map((s) => [s.direction, s.fromIata, s.toIata])).toEqual([
         ['outbound', 'WAW', 'DXB'],
         ['return', 'DXB', 'WAW'],
       ]);
@@ -168,8 +169,17 @@ describe('in-memory trip repository', () => {
       const repo = createInMemoryTripRepository({ now: () => times.shift() ?? NOW, newId: sequentialIds() });
       await repo.create(soonerTrip('Created later'));
       await repo.create(soonerTrip('Created earlier'));
-      expect((await repo.nearest())?.trip.name).toBe('Created earlier');
+      expect((await repo.nearest())?.overview.trip.name).toBe('Created earlier');
     });
+  });
+
+  it('changes the budget in the trip\'s base currency, and rejects a non-positive amount', async () => {
+    const repo = repository();
+    const created = await repo.create(createTripInputFixture());
+    await repo.setBudget(created, 250000);
+    expect((await repo.nearest())?.overview.trip.budgetPerPerson).toEqual({ amountMinor: 250000, currency: 'THB' });
+    await expect(repo.setBudget(created, 0)).rejects.toThrow();
+    await expect(repo.syncBudgets()).resolves.toEqual({ nextAttemptAt: null });
   });
 
   it('counts a solo trip as one traveller', async () => {
@@ -178,7 +188,7 @@ describe('in-memory trip repository', () => {
     solo.flights.companionCount = 0;
     solo.friends.friends = [];
     await repo.create(solo);
-    expect((await repo.nearest())?.trip.travellerCount).toBe(1);
+    expect((await repo.nearest())?.overview.trip.travellerCount).toBe(1);
   });
 
   it('rejects invalid input and stores nothing', async () => {

@@ -33,7 +33,7 @@ export default function TripsScreen() {
   if (trips.data) {
     return (
       <DarkThemeScope>
-        <NearestTrip overview={trips.data} onCreate={create} />
+        <NearestTrip overview={trips.data.overview} onCreate={create} />
       </DarkThemeScope>
     );
   }

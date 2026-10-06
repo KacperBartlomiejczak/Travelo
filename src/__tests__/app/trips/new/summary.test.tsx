@@ -31,7 +31,7 @@ jest.mock('@/data/trip-repository', () => {
     createInMemoryTripRepository: () => {
       const repository = actual.createInMemoryTripRepository();
       return {
-        nearest: () => repository.nearest(),
+        ...repository,
         create: async (input: unknown) => {
           if (mockHoldSave) await new Promise<void>((resolve) => (mockReleaseSave = resolve));
           if (mockSaveFails) throw new Error('down');
@@ -44,7 +44,7 @@ jest.mock('@/data/trip-repository', () => {
 
 // Home screen stand-in: the saved trip's name and cover.
 function TripsProbe() {
-  const trip = useNearestTrip().data?.trip;
+  const trip = useNearestTrip().data?.overview.trip;
   return (
     <>
       <Text>{`trips: ${trip ? trip.name + (trip.coverImageUri ? ` [${trip.coverImageUri}]` : '') : ''}`}</Text>

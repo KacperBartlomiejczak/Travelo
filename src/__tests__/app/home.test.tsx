@@ -27,7 +27,13 @@ jest.mock('expo-status-bar', () => ({
 let mockNearest: () => Promise<TripOverview | null> = () => Promise.resolve(null);
 jest.mock('@/data/trip-repository', () => ({
   ...jest.requireActual('@/data/trip-repository'),
-  createInMemoryTripRepository: () => ({ nearest: () => mockNearest(), create: () => Promise.reject(new Error('unused')) }),
+  createInMemoryTripRepository: () => ({
+    nearest: async () => {
+      const overview = await mockNearest();
+      return overview && { overview, budgetSyncStatus: 'synced', fromCache: false };
+    },
+    create: () => Promise.reject(new Error('unused')),
+  }),
 }));
 
 const TRIP_ID = '0b9e7c4e-6a43-4c4b-9a55-2f6f0f7e1a01';
