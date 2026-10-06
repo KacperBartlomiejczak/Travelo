@@ -132,6 +132,34 @@ describe('in-memory trip repository', () => {
     await expect(repo.list()).resolves.toEqual([]);
   });
 
+  it('rejects a time that does not exist (clocks go forward) and stores nothing', async () => {
+    const repo = repository();
+    const invalid = createTripInputFixture();
+    invalid.flights.outbound = [
+      {
+        fromIata: 'LHR',
+        departTz: 'Europe/London',
+        toIata: 'WAW',
+        arriveTz: 'Europe/Warsaw',
+        departAt: '2027-03-27T22:00',
+        arriveAt: '2027-03-28T02:30',
+      },
+      {
+        fromIata: 'WAW',
+        departTz: 'Europe/Warsaw',
+        toIata: 'BKK',
+        arriveTz: 'Asia/Bangkok',
+        departAt: '2027-03-28T06:00',
+        arriveAt: '2027-03-28T21:00',
+      },
+    ];
+    invalid.flights.return[0] = { ...invalid.flights.return[0], departAt: '2027-04-05T09:00', arriveAt: '2027-04-05T15:00' };
+    await expect(repo.create(invalid)).rejects.toMatchObject({
+      issues: [expect.objectContaining({ path: ['flights', 'outbound', 0, 'arriveAt'], message: 'validation.timeDoesNotExist' })],
+    });
+    await expect(repo.list()).resolves.toEqual([]);
+  });
+
   it('rejects an impossible calendar date as wizard input and stores nothing', async () => {
     const repo = repository();
     const invalid = createTripInputFixture();

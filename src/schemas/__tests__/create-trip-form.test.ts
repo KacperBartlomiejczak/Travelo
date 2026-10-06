@@ -83,6 +83,33 @@ describe('SegmentInput', () => {
     expect(issues(result)).toEqual([{ path: ['toIata'], message: 'validation.sameAirport' }]);
   });
 
+  describe('times skipped when clocks go forward (Warsaw, 28 Mar 2027 02:00 → 03:00)', () => {
+    const krkWaw: Segment = {
+      fromIata: 'KRK',
+      departTz: 'Europe/Warsaw',
+      toIata: 'WAW',
+      arriveTz: 'Europe/Warsaw',
+      departAt: '2027-03-28T01:45',
+      arriveAt: '2027-03-28T02:30',
+    };
+
+    it('rejects an arrival time that does not exist', () => {
+      const result = SegmentInputSchema.safeParse(krkWaw);
+      expect(issues(result)).toEqual([{ path: ['arriveAt'], message: 'validation.timeDoesNotExist' }]);
+    });
+
+    it('rejects a departure time that does not exist', () => {
+      const result = SegmentInputSchema.safeParse({ ...WAW_DXB, departAt: '2027-03-28T02:30', arriveAt: '2027-03-28T12:00' });
+      expect(issues(result)).toEqual([{ path: ['departAt'], message: 'validation.timeDoesNotExist' }]);
+    });
+
+    it('does not also compare the times when one does not exist', () => {
+      // Read as 03:45, the departure would look later than the 03:15 arrival.
+      const result = SegmentInputSchema.safeParse({ ...krkWaw, departAt: '2027-03-28T02:45', arriveAt: '2027-03-28T03:15' });
+      expect(issues(result)).toEqual([{ path: ['departAt'], message: 'validation.timeDoesNotExist' }]);
+    });
+  });
+
   it('rejects an impossible calendar date as a missing date-time', () => {
     const result = SegmentInputSchema.safeParse({ ...WAW_DXB, departAt: '2027-02-31T10:00', arriveAt: '2027-03-01T18:30' });
     expect(issues(result)).toEqual([{ path: ['departAt'], message: 'validation.dateTimeRequired' }]);
@@ -150,6 +177,29 @@ describe('FlightsStepInput', () => {
     const fromAuh = { ...BKK_WAW, fromIata: 'AUH', departTz: 'Asia/Dubai', departAt: '2026-11-15T16:00', arriveAt: '2026-11-15T20:00' };
     const result = FlightsStepInputSchema.safeParse({ ...flights, return: [bkkDoh, fromAuh] });
     expect(issues(result)).toEqual([{ path: ['return', 1, 'fromIata'], message: 'validation.layoverAirportMismatch' }]);
+  });
+
+  it('reports a time that does not exist on its segment and adds no chain or return issues', () => {
+    // LHR → WAW lands at 02:30 on the night Warsaw skips 02:00–02:59.
+    const lhrWaw: Segment = {
+      fromIata: 'LHR',
+      departTz: 'Europe/London',
+      toIata: 'WAW',
+      arriveTz: 'Europe/Warsaw',
+      departAt: '2027-03-27T22:00',
+      arriveAt: '2027-03-28T02:30',
+    };
+    const wawBkk: Segment = {
+      fromIata: 'WAW',
+      departTz: 'Europe/Warsaw',
+      toIata: 'BKK',
+      arriveTz: 'Asia/Bangkok',
+      departAt: '2027-03-28T06:00',
+      arriveAt: '2027-03-28T21:00',
+    };
+    const back = { ...BKK_WAW, departAt: '2027-04-05T09:00', arriveAt: '2027-04-05T15:00' };
+    const result = FlightsStepInputSchema.safeParse({ ...flights, outbound: [lhrWaw, wawBkk], return: [back] });
+    expect(issues(result)).toEqual([{ path: ['outbound', 0, 'arriveAt'], message: 'validation.timeDoesNotExist' }]);
   });
 
   it('rejects a return that departs before the outbound lands', () => {

@@ -34,6 +34,16 @@ export function zonedLocalToDate(local: string, timeZone: string): Date {
   return new Date(wall - offsetMinutes(firstGuess, timeZone) * MINUTE_MS);
 }
 
+/**
+ * False for a wall clock the zone skips when clocks go forward (Warsaw 2026-03-29 02:30):
+ * converted to an instant and back, it comes out as a different time.
+ */
+export function isExistingLocalTime(local: string, timeZone: string): boolean {
+  const utcMs = zonedLocalToDate(local, timeZone).getTime();
+  const wall = new Date(utcMs + offsetMinutes(utcMs, timeZone) * MINUTE_MS).toISOString().slice(0, 16);
+  return wall === local;
+}
+
 function formatOffset(minutes: number): string {
   const sign = minutes < 0 ? '-' : '+';
   const abs = Math.abs(minutes);

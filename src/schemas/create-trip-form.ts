@@ -1,6 +1,6 @@
 import { z } from 'zod';
 
-import { todayIn, zonedLocalToDate } from '@/lib/time';
+import { isExistingLocalTime, todayIn, zonedLocalToDate } from '@/lib/time';
 
 import { IATA_CODE_PATTERN, isLocalDateTime, isTimeZone, MoneySchema } from './common';
 import { FLIGHT_NUMBER_MAX_LENGTH } from './flight';
@@ -43,7 +43,12 @@ export const SegmentInputSchema = z
     if (segment.fromIata === segment.toIata) {
       ctx.addIssue({ code: 'custom', path: ['toIata'], message: 'validation.sameAirport' });
     }
-    if (instant(segment.arriveAt, segment.arriveTz) <= instant(segment.departAt, segment.departTz)) {
+    const departs = isExistingLocalTime(segment.departAt, segment.departTz);
+    const arrives = isExistingLocalTime(segment.arriveAt, segment.arriveTz);
+    if (!departs) ctx.addIssue({ code: 'custom', path: ['departAt'], message: 'validation.timeDoesNotExist' });
+    if (!arrives) ctx.addIssue({ code: 'custom', path: ['arriveAt'], message: 'validation.timeDoesNotExist' });
+    // One clear error per segment: times are compared only when both exist.
+    if (departs && arrives && instant(segment.arriveAt, segment.arriveTz) <= instant(segment.departAt, segment.departTz)) {
       ctx.addIssue({ code: 'custom', path: ['arriveAt'], message: 'validation.arrivalBeforeDeparture' });
     }
   }, onlyWhenFieldsValid);

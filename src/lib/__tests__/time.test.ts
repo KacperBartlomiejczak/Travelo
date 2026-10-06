@@ -1,4 +1,4 @@
-import { localToIso, todayIn, zonedLocalToDate } from '@/lib/time';
+import { isExistingLocalTime, localToIso, todayIn, zonedLocalToDate } from '@/lib/time';
 
 describe('zonedLocalToDate', () => {
   it('converts winter time in Madrid (UTC+1)', () => {
@@ -36,5 +36,26 @@ describe('todayIn', () => {
     expect(todayIn('Pacific/Auckland')).toBe('2026-10-05');
     expect(todayIn('Europe/Warsaw')).toBe('2026-10-04');
     expect(todayIn('Pacific/Honolulu')).toBe('2026-10-04');
+  });
+});
+
+describe('isExistingLocalTime', () => {
+  // Clocks go forward: Warsaw 29 Mar 2026 02:00 → 03:00, New York 8 Mar 2026 02:00 → 03:00.
+  it.each([
+    ['2026-03-29T02:00', 'Europe/Warsaw'],
+    ['2026-03-29T02:30', 'Europe/Warsaw'],
+    ['2026-03-08T02:30', 'America/New_York'],
+  ])('rejects %p in %p (skipped when clocks go forward)', (local, timeZone) => {
+    expect(isExistingLocalTime(local, timeZone)).toBe(false);
+  });
+
+  it.each([
+    ['2026-03-29T01:59', 'Europe/Warsaw'],
+    ['2026-03-29T03:00', 'Europe/Warsaw'],
+    ['2026-10-25T02:30', 'Europe/Warsaw'], // occurs twice when clocks go back
+    ['2026-11-02T10:15', 'Europe/Madrid'],
+    ['2026-11-02T10:15', 'Asia/Kolkata'],
+  ])('accepts %p in %p', (local, timeZone) => {
+    expect(isExistingLocalTime(local, timeZone)).toBe(true);
   });
 });
