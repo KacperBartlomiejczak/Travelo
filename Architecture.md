@@ -1,10 +1,10 @@
 # Architecture
-Last updated: 2026-10-06 · after task: trip-create-wizard follow-up (PR #2 review fixes: impossible dates, DST gap)
+Last updated: 2026-10-06 · after task: supabase-client (Supabase client and configuration)
 
 ## Overview
 Traveling is a mobile app for the person who organizes a trip for a group of friends: trip setup, members, flights and layovers, AI day plans built from real places, offline expenses, and a plan-vs-reality budget summary. The product scope and rules are defined in `CLAUDE.md`; the visual system ("Sunline") is defined in `context/design-context.md`.
 
-**Current state: create a trip + trips list, data in memory.** The organizer creates a trip in a 4-step wizard (`/trips/new`): flights with layover segments and the number of companions → friends with interests (skipped when travelling alone) → budget per person → summary → save. Saved trips appear on the Trips screen (`/`), soonest first. Data shapes are Zod schemas (`src/schemas/`); trips are stored by an **in-memory repository** behind an interface and read/written with TanStack Query, so they are lost when the app restarts (Supabase, SQLite and auth do not exist yet). Feature plans live in `prompts/<feature-name>/plan.md`; domain terms in `GLOSSARY.md`.
+**Current state: create a trip + trips list, data in memory.** The organizer creates a trip in a 4-step wizard (`/trips/new`): flights with layover segments and the number of companions → friends with interests (skipped when travelling alone) → budget per person → summary → save. Saved trips appear on the Trips screen (`/`), soonest first. Data shapes are Zod schemas (`src/schemas/`); trips are stored by an **in-memory repository** behind an interface and read/written with TanStack Query, so they are lost when the app restarts (a configured Supabase client exists but nothing uses it yet; tables, SQLite and auth do not exist yet). Feature plans live in `prompts/<feature-name>/plan.md`; domain terms in `GLOSSARY.md`.
 
 ## Folder tree
 ```
@@ -64,8 +64,8 @@ Travelo/
 | Module | Path | Responsibility | Depends on |
 |---|---|---|---|
 | Routes | `src/app/` | Root Stack layout, Trips screen, create-trip wizard screens | `expo-router`, features, components, hooks, theme, i18n |
-| Schemas | `src/schemas/` | Zod schemas and inferred types: common (money, codes, dates), interests, airport, flight segment, member, trip / trip summary, wizard inputs | `zod`, `lib/time` |
-| Data | `src/data/` | `AIRPORTS` (bundled list), `TripRepository` interface, `buildTrip`, in-memory repository | schemas, lib, `expo-crypto` |
+| Schemas | `src/schemas/` | Zod schemas and inferred types: common (money, codes, dates), interests, airport, flight segment, member, trip / trip summary, wizard inputs, Supabase client config | `zod`, `lib/time` |
+| Data | `src/data/` | `AIRPORTS` (bundled list), `TripRepository` interface, `buildTrip`, in-memory repository, `supabase` client (not used yet) | schemas, lib, `expo-crypto`, `@supabase/supabase-js`, `expo-sqlite` (localStorage) |
 | Lib | `src/lib/` | Pure functions: airport-local time ↔ instants and pickers (`isExistingLocalTime`: round-trip check for DST gaps), date display formatters, layovers (none for an impossible or skipped time), trip dates/days, money parse/format (ISO 4217 digits), airport search, text folding | schemas, data (airports) |
 | Hooks | `src/hooks/` | `useTrips` (query `['trips']`), `useCreateTrip` (mutation, invalidates trips) | `@tanstack/react-query`, providers |
 | Providers | `src/providers/` | `AppProviders`: `QueryClientProvider` + trip repository context (`useTripRepository`) | data, `@tanstack/react-query` |
@@ -82,6 +82,7 @@ Zod schemas in `src/schemas/` (constants `XSchema`, types `X = z.infer<typeof XS
 - `flight.ts` — `FlightSegmentSchema` (arrival after departure as instants).
 - `member.ts` — `TripMemberSchema` (friends: `userId: null`, role `viewer`; `budgetLevel`/`pace` optional).
 - `trip.ts` — `TripSchema` (`budgetPerPerson`, end ≥ start, budget in base currency), `TripSummarySchema` (+ `travellerCount`).
+- `supabase-config.ts` — `SupabaseConfigSchema` (`url`: https URL, `key`: must start with `sb_publishable_`, so a secret key cannot ship in the app).
 - `create-trip-form.ts` — wizard input: `SegmentInputSchema` (each time must exist in its airport's zone — a time skipped when clocks go forward gives `validation.timeDoesNotExist`; arrival vs departure compared only when both exist), `FlightsStepInputSchema` (segment chain, return after outbound, first departure not before today at the departure airport, 0–19 companions), `FriendInputSchema`, `FriendsStepInputSchema`, `BudgetStepInputSchema`, `CreateTripInputSchema`. Messages are i18n keys (`validation.*`).
 
 No server tables and no SQLite tables exist yet. The airport list is a static bundled file, validated row by row in its test (not parsed at runtime).
@@ -93,7 +94,9 @@ No server tables and no SQLite tables exist yet. The airport list is a static bu
 - AI day plan: not implemented.
 
 ## Backend
-- Tables & RLS policies: none. No Supabase project is configured in the repo.
+- Supabase project: `hwsqdlxojllclbwlhuwb` (URL + publishable key in git-ignored `.env.local`; variable names in `.env.example`: `EXPO_PUBLIC_SUPABASE_URL`, `EXPO_PUBLIC_SUPABASE_KEY`). Anonymous sign-ins are currently disabled in the project.
+- Supabase client: `src/data/supabase.ts` parses both env values with `SupabaseConfigSchema` at module load (throws `Invalid Supabase env variables: <names>`), then `createClient` with the auth session in SQLite-backed `localStorage` (`expo-sqlite/localStorage/install`), `persistSession`, `autoRefreshToken`, `detectSessionInUrl: false`. No module imports it yet; there is no sign-in and no `AppState` refresh handling.
+- Tables & RLS policies: none (no `supabase/` folder, no Supabase CLI setup yet).
 - Edge Functions: none.
 - Trip storage: `TripRepository` interface (`src/data/trip-repository.ts`) with an in-memory implementation (`createInMemoryTripRepository`); `ownerId` is the constant `LOCAL_OWNER_ID` until auth exists.
 
@@ -127,8 +130,8 @@ No server tables and no SQLite tables exist yet. The airport list is a static bu
 - `package.json` → `jest.moduleNameMapper` maps `lucide-react-native` to its CommonJS build, because its React Native entry is `.mjs`, which jest-expo does not transform.
 - `useColorScheme` / `useWindowDimensions` are mocked at `react-native/Libraries/Utilities/*` (RN imports them internally, so spying on `Appearance` / `Dimensions` does not work).
 - Jest mocks RN `View` as a pass-through, so `aria-*` → native accessibility prop conversion is not observable in tests.
-- Pickers (`@expo/ui`) and `expo-crypto` are mocked in tests; route tests use stand-in screens for steps they don't test. Date/time tests switch `process.env.TZ` to check device-time-zone independence.
-- Current suite: 42 suites, 382 tests (also green with `TZ=Europe/Warsaw` and `TZ=America/Los_Angeles`).
+- Pickers (`@expo/ui`) and `expo-crypto` are mocked in tests; the Supabase client test mocks `createClient` and `expo-sqlite/localStorage/install` and loads the module with `jest.isolateModules` per env (no network in tests); route tests use stand-in screens for steps they don't test. Date/time tests switch `process.env.TZ` to check device-time-zone independence.
+- Current suite: 44 suites, 414 tests (also green with `TZ=Europe/Warsaw` and `TZ=America/Los_Angeles`).
 
 ## Tooling
 | Area | Setup |
@@ -143,13 +146,12 @@ No server tables and no SQLite tables exist yet. The airport list is a static bu
 | Native projects | `ios/` and `android/` are generated (Continuous Native Generation) and git-ignored |
 
 ### Dependencies in use
-`expo-router`, `expo-font`, `expo-splash-screen`, `expo-localization`, `i18next`, `react-i18next`, `@expo-google-fonts/dm-sans`, `@expo-google-fonts/fraunces`, `lucide-react-native`, `react-native-svg`, `react-native-safe-area-context`, `zod`, `@tanstack/react-query`, `@expo/ui` (date/time pickers), `expo-crypto` (UUIDs).
+`expo-router`, `expo-font`, `expo-splash-screen`, `expo-localization`, `i18next`, `react-i18next`, `@expo-google-fonts/dm-sans`, `@expo-google-fonts/fraunces`, `lucide-react-native`, `react-native-svg`, `react-native-safe-area-context`, `zod`, `@tanstack/react-query`, `@expo/ui` (date/time pickers), `expo-crypto` (UUIDs), `@supabase/supabase-js` (client only, `src/data/supabase.ts`), `expo-sqlite` (only its `localStorage` for the auth session).
 
 ### Dependencies installed for planned features (not used by any code yet)
 | Package | Intended use |
 |---|---|
-| `expo-sqlite` | Offline expenses and sync outbox |
-| `@supabase/supabase-js` | Supabase client |
+| `expo-sqlite` (database API) | Offline expenses and sync outbox |
 
 ## Claude Code configuration
 ### Subagents (`.claude/agents/`)
@@ -174,9 +176,11 @@ No server tables and no SQLite tables exist yet. The airport list is a static bu
 ## External services
 | Service | Used for | Called from | Secrets |
 |---|---|---|---|
+| Supabase (project `hwsqdlxojllclbwlhuwb`) | Client configured; no feature calls it yet | `src/data/supabase.ts` | Publishable key in `.env.local` (public by design); no secret key in the repo |
 | OurAirports, mwgg/Airports, datasets/country-codes | Airport list (generated once at dev time, bundled) | `scripts/build-airports.mjs` only | — |
 
 ## Key decisions
+- 2026-10-06 — Supabase connected at client level only; trips stay in memory. Session storage: `expo-sqlite/localStorage`, not AsyncStorage (no new dependency). For the next feature: anonymous sign-in at first launch, Supabase CLI + local Supabase in Docker for migrations and RLS tests (`prompts/supabase-client/plan.md` D1–D4).
 - 2026-10-04 — Create-trip wizard as a nested stack under `/trips/new` with a draft context in its layout; trips behind a `TripRepository` interface, in memory for now — Supabase replaces only the implementation (`prompts/trip-create-wizard/plan.md` D1).
 - 2026-10-04 — Layovers are flight segments; durations are derived (D3). Trip dates come from flights (D4). Budget is one amount per person for the whole trip, without flights; daily budget is derived (D5, D33, D35).
 - 2026-10-04 — Times are stored as airport-local wall clock + IANA zone; no conversion through the device time zone anywhere (pickers shown in UTC on iOS) (step 6).
@@ -191,7 +195,8 @@ No server tables and no SQLite tables exist yet. The airport list is a static bu
 - 2026-10-03 — Design-context gaps decided by Kacper: back button label (D7), native header style (D8), dark disabled button colours (D9), focus ring offset (D10), screen spacing (D11), empty-state illustration (D12) — see `prompts/trips-empty-state/plan.md`.
 
 ## Known limitations & tech debt
-- Trips are stored in memory only (D1) and disappear on restart; no Supabase, auth or SQLite yet. The organizer is not a `TripMember` yet; `ownerId` is `LOCAL_OWNER_ID`.
+- Trips are stored in memory only (D1) and disappear on restart; the Supabase client is not used yet; no auth or SQLite yet.
+- `react-native-url-polyfill` (installed by the Supabase Expo quickstart) is not added — awaiting Kacper's decision (`prompts/supabase-client/plan.md` Q1). Supabase has not been called from a device yet. The organizer is not a `TripMember` yet; `ownerId` is `LOCAL_OWNER_ID`.
 - Airport list (3,153 airports, ~470 KB): city names come from merged sources with hand overrides for large airports; some small airports keep odd names, 91 airports are dropped (no time zone / city). City names are in English ("Warsaw").
 - Pickers are mocked in tests; device checks are pending (see the manual steps in `prompts/trip-create-wizard/plan.md`). On web, browser back/forward may bypass the leave confirmation and an offline browser would pause the trips query (skeletons).
 - A trip whose return local date is before the outbound arrival date (open-jaw across the date line) breaks the per-day figure and is rejected on save.
@@ -207,6 +212,7 @@ No server tables and no SQLite tables exist yet. The airport list is a static bu
 - Template images in `assets/images/` (React/Expo logos, `tabIcons/`, `tutorial-web.png`) are not referenced by any code.
 
 ## Changelog
+- 2026-10-06 — supabase-client — `SupabaseConfigSchema` (`src/schemas/supabase-config.ts`), shared Supabase client `src/data/supabase.ts` (session in `expo-sqlite` localStorage), `.env.example`; `@supabase/supabase-js` moved from "planned" to "in use". No tables, no auth, no consumers yet.
 - 2026-10-06 — trip-create-wizard follow-up (PR #2 review) — `isLocalDateTime` in `src/schemas/common.ts` (calendar check, shared by `LocalDateTimeSchema`, the wizard and layovers); `isExistingLocalTime` in `src/lib/time.ts`; `SegmentInputSchema` rejects DST-gap times (`validation.timeDoesNotExist`, pl/en); `layoverMinutes` ignores impossible / skipped times. No new modules or dependencies.
 - 2026-10-04 — trip-create-wizard — added Zod schemas (`src/schemas/`), bundled airport list + generator script, pure logic in `src/lib/`, in-memory trip repository with TanStack Query hooks and `AppProviders`, the 4-step create-trip wizard (`src/app/trips/new/`, `src/features/trip-create/`), new shared components, Trips screen states and list, `GLOSSARY.md`; added `expo-crypto`; CLAUDE.md data structures updated (`budgetPerPerson`, optional `pace`/`budgetLevel`, `Airport`).
 - 2026-10-03 — Initial workspace audit and dependency setup — first version of this document; added runtime dependencies, ESLint, Jest and the `typecheck`/`test` scripts.
