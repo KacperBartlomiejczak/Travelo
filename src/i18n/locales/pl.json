@@ -5,9 +5,149 @@
       "heading": "Nie masz jeszcze żadnej podróży.",
       "description": "Zaplanuj pierwszą i zaproś znajomych."
     },
-    "create": "Utwórz podróż"
+    "create": "Utwórz podróż",
+    "next": "Najbliższa podróż",
+    "later": "Później",
+    "travellers_one": "{{count}} osoba",
+    "travellers_few": "{{count}} osoby",
+    "travellers_many": "{{count}} osób",
+    "travellers_other": "{{count}} osoby",
+    "budget": "Budżet: {{amount}} / os.",
+    "loadError": "Nie udało się wczytać podróży.",
+    "retry": "Spróbuj ponownie",
+    "loading": "Wczytywanie podróży",
+    "budgetA11y": "Budżet: {{amount}} na osobę"
   },
   "newTrip": {
-    "title": "Nowa podróż"
+    "title": "Nowa podróż",
+    "step": "Krok {{current}} z {{total}}",
+    "next": "Dalej",
+    "back": "Wstecz",
+    "discard": {
+      "title": "Odrzucić wpisane dane?",
+      "message": "Podróż nie zostanie zapisana.",
+      "confirm": "Odrzuć",
+      "cancel": "Zostań"
+    },
+    "flights": {
+      "heading": "Kiedy i dokąd lecisz?",
+      "ticket": "Wyślij bilet · wkrótce",
+      "outbound": "Lot tam",
+      "return": "Powrót",
+      "segment": "Odcinek {{number}}",
+      "from": "Skąd",
+      "to": "Dokąd",
+      "departAt": "Wylot",
+      "arriveAt": "Przylot",
+      "flightNumber": "Nr lotu",
+      "addLayover": "Dodaj przesiadkę",
+      "remove": "Usuń",
+      "companions": "Ile osób leci z Tobą?"
+    },
+    "fixErrors": "Popraw zaznaczone pola",
+    "friends": {
+      "heading": "Kto leci z Tobą?",
+      "hint": "Zaznacz, co lubią — plan dnia to uwzględni.",
+      "card": "Znajomy {{number}}",
+      "name": "Imię",
+      "interests": "Co lubi?"
+    },
+    "budget": {
+      "heading": "Ile chcecie wydać na osobę?",
+      "hint": "Na cały wyjazd, bez lotów: noclegi, jedzenie, atrakcje, transport na miejscu.",
+      "amount": "Kwota na osobę",
+      "currency": "Waluta",
+      "groupTotal": "Razem dla {{count}} osób: {{total}}",
+      "perDay": "~{{amount}} dziennie na osobę",
+      "headingSolo": "Ile chcesz wydać?",
+      "amountSolo": "Kwota"
+    },
+    "summary": {
+      "heading": "Sprawdź podróż",
+      "change": "Zmień",
+      "dateLine": "{{range}} · {{days}}",
+      "days_one": "{{count}} dzień",
+      "days_few": "{{count}} dni",
+      "days_many": "{{count}} dni",
+      "days_other": "{{count}} dnia",
+      "travellers_one": "Podróżni · {{count}} osoba",
+      "travellers_few": "Podróżni · {{count}} osoby",
+      "travellers_many": "Podróżni · {{count}} osób",
+      "travellers_other": "Podróżni · {{count}} osoby",
+      "you": "Ty",
+      "friendInterests": "{{name}} — {{interests}}",
+      "friendNoInterests": "{{name}} — bez zainteresowań",
+      "segment": "{{from}} {{departAt}} → {{to}} {{arriveAt}}",
+      "perPerson": "na osobę",
+      "totals": "Razem {{total}} · ~{{perDay}} dziennie na osobę",
+      "perDay": "~{{perDay}} dziennie",
+      "create": "Utwórz podróż",
+      "saveError": "Nie udało się zapisać podróży. Spróbuj ponownie.",
+      "budgetTitle": "Budżet",
+      "changeSection": "Zmień: {{section}}"
+    }
+  },
+  "duration": {
+    "hoursMinutes": "{{hours}} godz. {{minutes}} min",
+    "hours": "{{hours}} godz.",
+    "minutes": "{{minutes}} min"
+  },
+  "common": {
+    "optional": "(opcjonalnie)",
+    "increase": "Zwiększ",
+    "decrease": "Zmniejsz"
+  },
+  "airportField": {
+    "placeholder": "Miasto lub kod lotniska",
+    "noResults": "Nie znaleziono lotniska"
+  },
+  "dateTimeField": {
+    "placeholder": "Wybierz datę i godzinę"
+  },
+  "layover": "{{duration}} przesiadki w {{airport}}",
+  "validation": {
+    "airportRequired": "Wybierz lotnisko",
+    "dateTimeRequired": "Wybierz datę i godzinę",
+    "sameAirport": "Lotnisko przylotu musi być inne niż wylotu",
+    "arrivalBeforeDeparture": "Przylot musi być po wylocie",
+    "timeDoesNotExist": "Tej godziny nie ma — tej nocy zegarki przestawiono o godzinę do przodu. Sprawdź bilet.",
+    "layoverAirportMismatch": "Ten odcinek musi startować z lotniska, na którym wylądował poprzedni",
+    "departsBeforePreviousArrival": "Ten odcinek startuje przed przylotem poprzedniego",
+    "returnBeforeOutbound": "Powrót musi wylatywać po przylocie na miejsce",
+    "departureInPast": "Wylot nie może być w przeszłości",
+    "flightNumberInvalid": "Numer lotu ma od 2 do 8 znaków",
+    "nameRequired": "Wpisz imię",
+    "nameTooLong": "Imię może mieć do {{max}} znaków",
+    "amountRequired": "Wpisz kwotę",
+    "amountInvalid": "Wpisz kwotę liczbą, np. 2500 lub 2500,50",
+    "amountPositive": "Kwota musi być większa od zera",
+    "amountInvalidWhole": "Wpisz kwotę liczbą, np. 2500"
+  },
+  "interests": {
+    "nightlife": "Imprezy i nocne życie",
+    "theme_parks": "Aquaparki i parki rozrywki",
+    "concerts_festivals": "Koncerty i festiwale",
+    "mountains_hiking": "Góry i trekking",
+    "beaches": "Plaże",
+    "nature_parks": "Parki narodowe i przyroda",
+    "museums": "Muzea",
+    "landmarks": "Zabytki i architektura",
+    "art_galleries": "Sztuka i galerie",
+    "local_cuisine": "Lokalna kuchnia",
+    "cafes_desserts": "Kawiarnie i desery",
+    "street_food": "Street food i targi",
+    "water_sports": "Sporty wodne",
+    "cycling": "Rowery i wycieczki",
+    "spa_wellness": "Spa i wellness",
+    "shopping": "Zakupy",
+    "photography": "Fotografia"
+  },
+  "interestGroups": {
+    "fun": "Zabawa",
+    "nature": "Natura",
+    "culture": "Kultura",
+    "food": "Jedzenie",
+    "active": "Aktywnie",
+    "relax": "Relaks i inne"
   }
 }

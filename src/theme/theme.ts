@@ -1,5 +1,11 @@
-import { breakpoints, palette, radius, size, spacing } from './tokens';
+import type { ViewStyle } from 'react-native';
+
+import { breakpoints, elevation, palette, radius, size, spacing } from './tokens';
 import { typography } from './typography';
+
+// §6.1: shadows in light mode; dark mode relies on surface contrast.
+const lightElevation: { card: ViewStyle } = { card: elevation.card };
+const darkElevation: { card: ViewStyle } = { card: {} };
 
 // Semantic color roles from context/design-context.md §3.
 const light = {
@@ -17,10 +23,13 @@ const light = {
     },
     border: palette.neutral[200],
     divider: palette.neutral[100],
+    input: { border: palette.neutral[300] },
     action: {
       primary: palette.brand[500],
       primaryPressed: palette.brand[600],
       onPrimary: palette.neutral[0],
+      // D28: ghost button text (§10.1 brand.600).
+      link: palette.brand[600],
       disabled: palette.neutral[200],
       onDisabled: palette.neutral[500],
     },
@@ -28,6 +37,7 @@ const light = {
     budget: palette.budget.light,
     category: palette.category.light,
   },
+  elevation: lightElevation,
   spacing,
   radius,
   size,
@@ -57,10 +67,12 @@ export const darkTheme: Theme = {
     },
     border: palette.dark.border,
     divider: palette.dark.divider,
+    input: { border: palette.dark.inputBorder },
     action: {
       primary: palette.dark.brand,
       primaryPressed: palette.dark.brandPressed,
       onPrimary: palette.dark.onBrand,
+      link: palette.dark.brand,
       // D9: same roles as light mode (border / tertiary text).
       disabled: palette.dark.border,
       onDisabled: palette.dark.textTertiary,
@@ -69,6 +81,7 @@ export const darkTheme: Theme = {
     budget: palette.budget.dark,
     category: palette.category.dark,
   },
+  elevation: darkElevation,
   spacing,
   radius,
   size,

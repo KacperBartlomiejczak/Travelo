@@ -5,9 +5,149 @@
       "heading": "You don't have any trips yet.",
       "description": "Plan your first one and invite your friends."
     },
-    "create": "Create trip"
+    "create": "Create trip",
+    "next": "Next trip",
+    "later": "Later",
+    "travellers_one": "{{count}} person",
+    "travellers_few": "{{count}} people",
+    "travellers_many": "{{count}} people",
+    "travellers_other": "{{count}} people",
+    "budget": "Budget: {{amount}} per person",
+    "loadError": "Couldn't load your trips.",
+    "retry": "Try again",
+    "loading": "Loading trips",
+    "budgetA11y": "Budget: {{amount}} per person"
   },
   "newTrip": {
-    "title": "New trip"
+    "title": "New trip",
+    "step": "Step {{current}} of {{total}}",
+    "next": "Next",
+    "back": "Back",
+    "discard": {
+      "title": "Discard entered data?",
+      "message": "The trip will not be saved.",
+      "confirm": "Discard",
+      "cancel": "Stay"
+    },
+    "flights": {
+      "heading": "Where and when are you flying?",
+      "ticket": "Upload ticket · coming soon",
+      "outbound": "Outbound",
+      "return": "Return",
+      "segment": "Flight {{number}}",
+      "from": "From",
+      "to": "To",
+      "departAt": "Departure",
+      "arriveAt": "Arrival",
+      "flightNumber": "Flight no.",
+      "addLayover": "Add layover",
+      "remove": "Remove",
+      "companions": "How many people fly with you?"
+    },
+    "fixErrors": "Fix the highlighted fields",
+    "friends": {
+      "heading": "Who's flying with you?",
+      "hint": "Pick what they enjoy — day plans will take it into account.",
+      "card": "Friend {{number}}",
+      "name": "Name",
+      "interests": "What do they enjoy?"
+    },
+    "budget": {
+      "heading": "How much will each person spend?",
+      "hint": "For the whole trip, without flights: stays, food, attractions, local transport.",
+      "amount": "Amount per person",
+      "currency": "Currency",
+      "groupTotal": "Total for {{count}} people: {{total}}",
+      "perDay": "~{{amount}} per person per day",
+      "headingSolo": "How much will you spend?",
+      "amountSolo": "Amount"
+    },
+    "summary": {
+      "heading": "Check your trip",
+      "change": "Change",
+      "dateLine": "{{range}} · {{days}}",
+      "days_one": "{{count}} day",
+      "days_few": "{{count}} days",
+      "days_many": "{{count}} days",
+      "days_other": "{{count}} days",
+      "travellers_one": "Travellers · {{count}} person",
+      "travellers_few": "Travellers · {{count}} people",
+      "travellers_many": "Travellers · {{count}} people",
+      "travellers_other": "Travellers · {{count}} people",
+      "you": "You",
+      "friendInterests": "{{name}} — {{interests}}",
+      "friendNoInterests": "{{name}} — no interests yet",
+      "segment": "{{from}} {{departAt}} → {{to}} {{arriveAt}}",
+      "perPerson": "per person",
+      "totals": "Total {{total}} · ~{{perDay}} per person a day",
+      "perDay": "~{{perDay}} a day",
+      "create": "Create trip",
+      "saveError": "Couldn't save the trip. Try again.",
+      "budgetTitle": "Budget",
+      "changeSection": "Change: {{section}}"
+    }
+  },
+  "duration": {
+    "hoursMinutes": "{{hours}}h {{minutes}}m",
+    "hours": "{{hours}}h",
+    "minutes": "{{minutes}}m"
+  },
+  "common": {
+    "optional": "(optional)",
+    "increase": "Increase",
+    "decrease": "Decrease"
+  },
+  "airportField": {
+    "placeholder": "City or airport code",
+    "noResults": "No airport found"
+  },
+  "dateTimeField": {
+    "placeholder": "Choose date and time"
+  },
+  "layover": "{{duration}} layover in {{airport}}",
+  "validation": {
+    "airportRequired": "Choose an airport",
+    "dateTimeRequired": "Choose date and time",
+    "sameAirport": "Arrival airport must differ from departure",
+    "arrivalBeforeDeparture": "Arrival must be after departure",
+    "timeDoesNotExist": "This time doesn't exist — clocks go forward that night. Check your ticket.",
+    "layoverAirportMismatch": "This flight must leave from the airport the previous one landed at",
+    "departsBeforePreviousArrival": "This flight leaves before the previous one lands",
+    "returnBeforeOutbound": "The return must leave after you arrive",
+    "departureInPast": "Departure can't be in the past",
+    "flightNumberInvalid": "A flight number has 2 to 8 characters",
+    "nameRequired": "Enter a name",
+    "nameTooLong": "A name can have up to {{max}} characters",
+    "amountRequired": "Enter an amount",
+    "amountInvalid": "Enter the amount as a number, e.g. 2500 or 2500.50",
+    "amountPositive": "The amount must be more than zero",
+    "amountInvalidWhole": "Enter the amount as a whole number, e.g. 2500"
+  },
+  "interests": {
+    "nightlife": "Nightlife",
+    "theme_parks": "Theme parks & aquaparks",
+    "concerts_festivals": "Concerts & festivals",
+    "mountains_hiking": "Mountains & hiking",
+    "beaches": "Beaches",
+    "nature_parks": "National parks & nature",
+    "museums": "Museums",
+    "landmarks": "Landmarks & architecture",
+    "art_galleries": "Art & galleries",
+    "local_cuisine": "Local cuisine",
+    "cafes_desserts": "Cafés & desserts",
+    "street_food": "Street food & markets",
+    "water_sports": "Water sports",
+    "cycling": "Cycling & excursions",
+    "spa_wellness": "Spa & wellness",
+    "shopping": "Shopping",
+    "photography": "Photography"
+  },
+  "interestGroups": {
+    "fun": "Fun",
+    "nature": "Nature",
+    "culture": "Culture",
+    "food": "Food",
+    "active": "Active",
+    "relax": "Relax & more"
   }
 }

@@ -11,11 +11,11 @@ You are the lead engineer and **orchestrator** on a group trip planner app, work
 
 # What you're building
 
-A mobile app for the person who organizes a trip for a group of friends. **Only the organizer needs the app.** Friends are added to a trip as guests (name + interests). Friends who do have an account can optionally be added by user ID to follow the plan read-only.
+A mobile app for the person who organizes a trip for a group of friends. **Only the organizer needs the app.** Friends are added to a trip by name and interests, without an account. Friends who do have an account can optionally be added by user ID to follow the plan read-only.
 
 ### Core features (MVP)
 1. **Trip setup** — destination, dates, base currency, daily budget.
-2. **Members** — guests (no account, just data) or linked users (added by ID). Each has interests, budget level, pace, dietary notes.
+2. **Members** — friends (no account, just data) or linked users (added by ID). Each has interests, budget level, pace, dietary notes.
 3. **Flights & layovers** — manual entry of flight segments; layovers are derived and long ones get planned too ("9h in Dubai — worth leaving the airport?").
 4. **AI day plans** — per-day schedule built from **real places** (attractions + where to eat), with estimated costs as ranges. Can split the group when interests diverge ("afternoon: Kasia + Ola → beach, rest → museum, dinner together").
 5. **Expenses during the trip** — adding one must take seconds. Multi-currency. **Works offline**: expenses are saved locally first and synced when the connection is back.
@@ -141,19 +141,25 @@ These principles are working if: diffs contain fewer unnecessary changes, there 
 
 # Data structures
 
-Conceptual model. **Canonical definitions live in `packages/schemas`** — if this section and the schemas disagree, the schemas win and this section gets updated.
+Conceptual model. **Canonical definitions live in `packages/schemas`** (for now `src/schemas/`, see `Architecture.md`) — if this section and the schemas disagree, the schemas win and this section gets updated. Schema constants are named `XSchema`, types `X = z.infer<typeof XSchema>`.
 
 ```
 Money          { amountMinor: int, currency: ISO4217 }
 CostEstimate   { minMinor: int, maxMinor: int, currency: ISO4217, perPerson: boolean }
 
-Trip           { id, ownerId, name, destination, startDate, endDate,
-                 baseCurrency, dailyBudget?: Money, createdAt }
+Trip           { id, ownerId, name, destination: IATA,     // destination = outbound's final airport
+                 startDate, endDate,                       // derived from flights
+                 baseCurrency, budgetPerPerson: Money,     // whole trip, without flights; daily budget is derived
+                 createdAt }
 
-TripMember     { id, tripId, userId: string | null,      // null = guest without an account
+TripMember     { id, tripId, userId: string | null,      // null = friend without an account
                  displayName, role: 'owner' | 'viewer',
-                 interests: InterestTag[], budgetLevel: 'low' | 'mid' | 'high',
-                 pace: 'relaxed' | 'normal' | 'intense', dietaryNotes?: string }
+                 interests: InterestTag[], budgetLevel?: 'low' | 'mid' | 'high',
+                 pace?: 'relaxed' | 'normal' | 'intense', dietaryNotes?: string }
+                 // budgetLevel / pace optional until member editing exists
+
+Airport        { iata, name, city, countryCode, timezone: IANA, currency: ISO4217, large: boolean }
+               // bundled static list (src/data/airports.json), not a server table
 
 FlightSegment  { id, tripId, direction: 'outbound' | 'return' | 'internal', order: int,
                  flightNumber?, fromIata, toIata,
