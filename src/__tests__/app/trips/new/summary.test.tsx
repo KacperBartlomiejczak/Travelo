@@ -1,6 +1,7 @@
 import { useFonts } from 'expo-font';
 import { useRouter } from 'expo-router';
 import { act, fireEvent, renderRouter, screen, within } from 'expo-router/testing-library';
+import { launchImageLibraryAsync } from 'expo-image-picker';
 import { AccessibilityInfo, Alert, Pressable, Text } from 'react-native';
 
 import RootLayout from '@/app/_layout';
@@ -17,6 +18,7 @@ jest.mock('expo-font', () => ({ ...jest.requireActual('expo-font'), useFonts: je
 jest.mocked(useFonts).mockReturnValue([true, null]);
 // jest-expo's native mock returns undefined; ids must be real UUIDs.
 jest.mock('expo-crypto', () => ({ randomUUID: () => jest.requireActual('crypto').randomUUID() }));
+jest.mock('expo-image-picker', () => ({ launchImageLibraryAsync: jest.fn() }));
 
 let mockSaveFails = false;
 // When set, saving waits until the test calls it.
@@ -45,7 +47,7 @@ function TripsProbe() {
   const trips = useTrips();
   return (
     <>
-      <Text>{`trips: ${(trips.data ?? []).map((trip) => trip.name).join(', ')}`}</Text>
+      <Text>{`trips: ${(trips.data ?? []).map((trip) => trip.name + (trip.coverImageUri ? ` [${trip.coverImageUri}]` : '')).join(', ')}`}</Text>
       <Text>Utwórz podróż</Text>
     </>
   );
@@ -190,9 +192,52 @@ describe('Summary step', () => {
     const alert = jest.spyOn(Alert, 'alert');
     const app = await openSummary();
     await fireEvent.press(screen.getByRole('button', { name: 'Utwórz podróż' }));
-    expect(await screen.findByText('trips: Bangkok')).toBeTruthy();
+    expect(await screen.findByText('trips: Warsaw → Bangkok')).toBeTruthy();
     expect(app.getPathname()).toBe('/');
     expect(alert).not.toHaveBeenCalled();
+  });
+
+  describe('name and cover photo (D2)', () => {
+    const details = () => section('details');
+
+    it('comes first, with the name filled in as "from → to" (D3)', async () => {
+      await openSummary();
+      expect(screen.getAllByTestId(/^summary-/)[0].props.testID).toBe('summary-details');
+      expect(details().getByRole('header', { name: 'Nazwa i zdjęcie' })).toBeTruthy();
+      expect(details().getByLabelText('Nazwa podróży').props.value).toBe('Warsaw → Bangkok');
+      expect(details().getByRole('button', { name: 'Wybierz z galerii' })).toBeTruthy();
+    });
+
+    it('saves the name the organizer typed', async () => {
+      await openSummary();
+      await fireEvent.changeText(details().getByLabelText('Nazwa podróży'), 'Tajlandia z ekipą');
+      await fireEvent.press(screen.getByRole('button', { name: 'Utwórz podróż' }));
+      expect(await screen.findByText('trips: Tajlandia z ekipą')).toBeTruthy();
+    });
+
+    it('asks for a name instead of saving when it is cleared, and stays on the summary', async () => {
+      const announce = jest.spyOn(AccessibilityInfo, 'announceForAccessibility');
+      const app = await openSummary();
+      await fireEvent.changeText(details().getByLabelText('Nazwa podróży'), '  ');
+      expect(app.getPathname()).toBe('/trips/new/summary');
+      await fireEvent.press(screen.getByRole('button', { name: 'Utwórz podróż' }));
+      expect(details().getByText('Podaj nazwę podróży')).toBeTruthy();
+      expect(announce).toHaveBeenCalledWith('Popraw zaznaczone pola');
+      expect(app.getPathname()).toBe('/trips/new/summary');
+      expect(screen.queryByTestId('primary-button-spinner')).toBeNull();
+    });
+
+    it('saves the chosen cover photo', async () => {
+      jest.mocked(launchImageLibraryAsync).mockResolvedValue({
+        canceled: false,
+        assets: [{ uri: 'file:///cache/cover.jpg', width: 1600, height: 900 }],
+      });
+      await openSummary();
+      await fireEvent.press(details().getByRole('button', { name: 'Wybierz z galerii' }));
+      expect(await details().findByLabelText('Wybrane zdjęcie okładki')).toBeTruthy();
+      await fireEvent.press(screen.getByRole('button', { name: 'Utwórz podróż' }));
+      expect(await screen.findByText('trips: Warsaw → Bangkok [file:///cache/cover.jpg]')).toBeTruthy();
+    });
   });
 
   it('sends an incomplete draft (e.g. opened by URL) back to step 1', async () => {
@@ -220,7 +265,7 @@ describe('Summary step', () => {
     expect(button).toBeBusy();
     expect(button).toBeDisabled();
     await act(async () => mockReleaseSave?.());
-    expect(await screen.findByText('trips: Bangkok')).toBeTruthy();
+    expect(await screen.findByText('trips: Warsaw → Bangkok')).toBeTruthy();
   });
 
   it('keeps everything, explains and announces when saving fails', async () => {

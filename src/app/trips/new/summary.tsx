@@ -1,13 +1,15 @@
 import { Redirect, useRouter } from 'expo-router';
 import { Plus } from 'lucide-react-native';
-import { Fragment, useEffect, type ReactNode } from 'react';
+import { Fragment, useEffect, useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { AccessibilityInfo, Text, View } from 'react-native';
 
 import { Card } from '@/components/Card';
+import { CoverPicker } from '@/components/CoverPicker';
 import { LayoverLabel } from '@/components/LayoverLabel';
 import { TextButton } from '@/components/TextButton';
-import { toCreateTripInput, type SegmentDraft } from '@/features/trip-create/draft';
+import { TextField } from '@/components/TextField';
+import { toCreateTripInput, tripName, type SegmentDraft } from '@/features/trip-create/draft';
 import { stepRoute, type WizardStep } from '@/features/trip-create/steps';
 import { useTripDraft } from '@/features/trip-create/TripDraftContext';
 import { WizardScreen } from '@/features/trip-create/WizardScreen';
@@ -18,7 +20,7 @@ import { layoverMinutes } from '@/lib/layovers';
 import { formatMoney } from '@/lib/money';
 import { perPersonPerDay, tripDayCount } from '@/lib/trip-days';
 import { deriveTripDates } from '@/lib/trip-dates';
-import { CreateTripInputSchema } from '@/schemas';
+import { CreateTripInputSchema, TRIP_NAME_MAX_LENGTH, TripDetailsInputSchema } from '@/schemas';
 import { useTheme } from '@/theme/useTheme';
 
 // Step 4 — check everything, then save (D6, D38).
@@ -26,7 +28,8 @@ export default function SummaryStep() {
   const { draft, isComplete } = useTripDraft();
   const { i18n } = useTranslation();
   // Reached only through the earlier steps; an incomplete draft (e.g. a web deep link) starts over.
-  if (!isComplete && !CreateTripInputSchema.safeParse(toCreateTripInput(draft, i18n.language)).success) {
+  // The name is entered on this step, so it is checked here, not by this guard.
+  if (!isComplete && !CreateTripInputSchema.safeParse(toCreateTripInput({ ...draft, name: null }, i18n.language)).success) {
     return <Redirect href="/trips/new" />;
   }
   return <Summary />;
@@ -36,9 +39,11 @@ function Summary() {
   const { t, i18n } = useTranslation();
   const theme = useTheme();
   const router = useRouter();
-  const { draft, isComplete, complete } = useTripDraft();
+  const { draft, setDraft, isComplete, complete } = useTripDraft();
   const createTrip = useCreateTrip();
   const locale = i18n.language;
+  // The name error appears after the first "Utwórz podróż" and then follows every change.
+  const [submitted, setSubmitted] = useState(false);
 
   // Leave only after the guard knows the trip was saved (D38: no discard question).
   useEffect(() => {
@@ -52,11 +57,18 @@ function Summary() {
   const input = toCreateTripInput(draft, locale);
   const perPerson = input.budget.budgetPerPerson;
   const perDay = formatMoney(perPersonPerDay(perPerson, days), locale);
+  const details = TripDetailsInputSchema.safeParse(input.details);
+  const nameError = submitted && !details.success ? details.error.issues[0].message : undefined;
   const text = (style: 'primary' | 'secondary') => [theme.typography.bodyM, { color: theme.colors.text[style] }];
 
   const goTo = (step: WizardStep) => router.dismissTo(stepRoute(step));
 
   function save() {
+    setSubmitted(true);
+    if (!details.success) {
+      AccessibilityInfo.announceForAccessibility(t('newTrip.fixErrors'));
+      return;
+    }
     createTrip.mutate(input, {
       onSuccess: complete,
       // The message is also shown above the button; VoiceOver needs it announced.
@@ -98,6 +110,20 @@ function Summary() {
       <Text accessibilityRole="header" style={[theme.typography.heading2, { color: theme.colors.text.primary }]}>
         {t('newTrip.summary.heading')}
       </Text>
+
+      <Card testID="summary-details">
+        <Text accessibilityRole="header" style={[theme.typography.bodyMMedium, { color: theme.colors.text.primary }]}>
+          {t('newTrip.summary.detailsTitle')}
+        </Text>
+        <TextField
+          label={t('newTrip.summary.name')}
+          value={tripName(draft)}
+          onChangeText={(name) => setDraft((current) => ({ ...current, name }))}
+          maxLength={TRIP_NAME_MAX_LENGTH}
+          error={nameError ? t(nameError, { max: TRIP_NAME_MAX_LENGTH }) : undefined}
+        />
+        <CoverPicker value={draft.coverImageUri} onChange={(coverImageUri) => setDraft((current) => ({ ...current, coverImageUri }))} />
+      </Card>
 
       <SummaryCard testID="summary-trip" title={destinationName(destination)} heading onChange={() => goTo('flights')}>
         <Text style={text('secondary')}>

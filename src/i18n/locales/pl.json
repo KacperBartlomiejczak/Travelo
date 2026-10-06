@@ -85,7 +85,9 @@
       "create": "Utwórz podróż",
       "saveError": "Nie udało się zapisać podróży. Spróbuj ponownie.",
       "budgetTitle": "Budżet",
-      "changeSection": "Zmień: {{section}}"
+      "changeSection": "Zmień: {{section}}",
+      "detailsTitle": "Nazwa i zdjęcie",
+      "name": "Nazwa podróży"
     }
   },
   "duration": {
@@ -152,5 +154,13 @@
     "food": "Jedzenie",
     "active": "Aktywnie",
     "relax": "Relaks i inne"
+  },
+  "coverPicker": {
+    "label": "Zdjęcie okładki",
+    "choose": "Wybierz z galerii",
+    "change": "Zmień zdjęcie",
+    "remove": "Usuń zdjęcie",
+    "preview": "Wybrane zdjęcie okładki",
+    "error": "Nie udało się otworzyć galerii. Spróbuj ponownie."
   }
 }

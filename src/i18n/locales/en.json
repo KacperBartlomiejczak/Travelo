@@ -85,7 +85,9 @@
       "create": "Create trip",
       "saveError": "Couldn't save the trip. Try again.",
       "budgetTitle": "Budget",
-      "changeSection": "Change: {{section}}"
+      "changeSection": "Change: {{section}}",
+      "detailsTitle": "Name and photo",
+      "name": "Trip name"
     }
   },
   "duration": {
@@ -152,5 +154,13 @@
     "food": "Food",
     "active": "Active",
     "relax": "Relax & more"
+  },
+  "coverPicker": {
+    "label": "Cover photo",
+    "choose": "Choose from gallery",
+    "change": "Change photo",
+    "remove": "Remove photo",
+    "preview": "Selected cover photo",
+    "error": "Couldn't open your photos. Try again."
   }
 }
