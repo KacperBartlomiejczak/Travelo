@@ -1,5 +1,5 @@
 # Task: Trips in Supabase, trip budget editable offline
-Status: done — awaiting Kacper's manual steps (anonymous sign-ins, `db push`, device check) and approval of the logged deviations
+Status: awaiting approval — follow-up steps 11–12 (CodeRabbit review on PR #5); steps 1–10 done, awaiting Kacper's manual steps (anonymous sign-ins, `db push`, device check) and approval of the logged deviations
 
 ## Understanding & assumptions
 Today trips live in an in-memory repository and vanish on restart. Kacper wants every created trip (flights, friends with their interests, budget) **saved to Supabase** right after the wizard's "Utwórz podróż". On top of that, the **trip budget** ("ile chcę wydać" = `budgetPerPerson`) must be editable **offline**: it is written to SQLite on the device first and synced to Supabase when the connection is back.
@@ -151,6 +151,39 @@ Indexes on every foreign key (`trip_members.trip_id`, `trip_members.user_id`, `f
 - [x] 10. Docs: `GLOSSARY.md`, `CLAUDE.md` (offline scope decision, `Trip.budgetUpdatedAt`), `Architecture.md`. — verify: everything described exists in code.
 
 Each step goes through the verifier before `[x]`.
+
+## Follow-up: CodeRabbit review on PR #5 (2026-10-07)
+Two findings, both checked against the code and the installed `@supabase/*` 2.117.2 sources.
+
+**Understanding.** (F1, major) The shared Supabase client (`src/data/supabase.ts`) has no request timeout. A request that never answers (captive portal; React Native's Android HTTP client has no default timeout) never settles, so: (a) `syncBudgets()` chains every call behind the previous `syncing` promise → all later syncs (save, foreground, reconnect, retry timer) wait forever and pending budgets stay unsent until restart; (b) `nearest()` falls back to the device copy (D6) only when a request *fails* → the home screen stays on the skeleton. (F2, minor) Approach §1 says a retried create "never duplicates", but the progress log (verifier notes) says a retry after a lost response builds new ids and can create a second trip.
+
+**Decisions (Kacper, 2026-10-07):**
+- **D14 — Request timeout: 20 s** for every request of the shared client (database, RPC, auth).
+- **D15 — Fixes go on the PR branch** `claude/serene-hopper-h3r80a` so they land in PR #5.
+
+**Checked in the libraries (no guessing):**
+- postgrest-js: an aborted fetch (`AbortError`) is not retried and comes back as `{ error, status: 0 }` → `budget-sync.ts` already maps it to `pending`, `fetchNearest` to `ServerUnreachableError` → device copy.
+- auth-js `_handleRequest`: any rejected fetch (aborted included) → `AuthRetryableFetchError` → already `pending` / device copy.
+- supabase-js passes `global.fetch` to both the REST client and the auth client.
+
+**Approach.** A small `fetchWithTimeout(ms)` wrapper in its own module (`src/data/fetch-timeout.ts`, testable without env vars): an `AbortController` aborts the request after 20 s; the caller's own `signal` still aborts it; the timer is cleared when the response arrives. `supabase.ts` passes it as `global: { fetch }`. No new dependency, no schema change (no new data shape → no Zod step). Rejected: a timeout around `syncBudgets` / `nearest` only — it would release the queue but leave the request (and auth calls elsewhere) hanging.
+
+**Tests (written first, must fail first):**
+- `src/data/__tests__/fetch-timeout.test.ts` (fake timers): a request that never answers rejects with `AbortError` after 20 s and not before (19 999 ms still pending); an answer before 20 s is passed through unchanged and no abort happens later; the caller's own abort signal still aborts; method / headers / body reach the underlying fetch.
+- `src/data/__tests__/supabase.test.ts`: the client is created with `global: { fetch }` where that fetch is the 20 s timeout wrapper (assert on the extended `createClient` options).
+- `src/data/__tests__/supabase-trip-repository.test.ts` (integration, real `createClient` from `@supabase/supabase-js` + `fetchWithTimeout` over a stub fetch that never answers `/rest/v1/`, session pre-seeded in an in-memory auth storage so no auth request is made; fake timers; no network): (1) a stalled `trips` read → after 20 s `nearest()` resolves with the device copy and `fromCache: true`; (2) a stalled budget `update` → that sync ends with the change still `pending`, and a later `syncBudgets()` runs and sends it (the queue is not stuck). Offline-sync rules (Verification §8): saving while offline and failed-stays-visible are already covered; this adds "stalled request → pending, next sync still runs".
+
+**Files:** new `src/data/fetch-timeout.ts`, `src/data/__tests__/fetch-timeout.test.ts`; modified `src/data/supabase.ts`, `src/data/__tests__/supabase.test.ts`, `src/data/__tests__/supabase-trip-repository.test.ts`, `prompts/trips-supabase/plan.md` (F2 wording), `Architecture.md`.
+
+**Skills:** `supabase` — step 11 — client options and network-error shapes (already checked in `node_modules`, see above).
+
+**Steps:**
+- [ ] 11. [frontend] 20 s request timeout on the shared Supabase client. — skill: `supabase` — tests first: the three test groups above (red: module missing / no `global.fetch` / repository hangs past 20 s) — verify: red → green, `pnpm test` (full), `pnpm typecheck`, `pnpm lint`, verifier.
+- [ ] 12. Docs, **no tests** (wording only, no behavior): Approach §1 — "on conflict (id) do nothing makes a retry with the *same* ids a no-op; the app builds new ids per attempt, so retrying after a lost response can create a second trip (known, A3)"; `Architecture.md` — client timeout in Data flow / Known limitations, changelog line. — verify: everything described exists in code.
+
+**Not acted on:** CodeRabbit's ESLint failure (`expo/tsconfig.base` not found — its sandbox had no `node_modules`; `pnpm lint` is green locally); docstring coverage 49 % < 80 % (CodeRabbit's default check, not a project rule).
+
+**Risks:** R7 — the integration test needs the real `createClient` inside jest-expo: probed before the plan (throwaway test, deleted) — `AbortController`, `Headers`, `Response` exist and a query with a stub `global.fetch` works. If fake timers turn out to clash with supabase-js internals, I stop and ask before changing the test approach.
 
 ## Verification
 - Every step: red first, then `pnpm test` (full), `pnpm typecheck`, `pnpm lint`.
