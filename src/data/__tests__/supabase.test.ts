@@ -1,6 +1,11 @@
 import { createClient } from '@supabase/supabase-js';
 
+import { withTimeout } from '@/data/fetch-timeout';
+
 const mockPolyfillLoaded = jest.fn();
+const mockTimedFetch = jest.fn();
+
+jest.mock('@/data/fetch-timeout', () => ({ REQUEST_TIMEOUT_MS: 20_000, withTimeout: jest.fn(() => mockTimedFetch) }));
 
 jest.mock('@supabase/supabase-js', () => ({ createClient: jest.fn(() => ({})) }));
 jest.mock('react-native-url-polyfill/auto', () => mockPolyfillLoaded());
@@ -44,7 +49,13 @@ describe('supabase client', () => {
         persistSession: true,
         detectSessionInUrl: false,
       },
+      global: { fetch: mockTimedFetch },
     });
+  });
+
+  it('gives every request (database, RPC, auth) the 20 s timeout (trips-supabase D14)', () => {
+    loadClient({ url: URL, key: KEY });
+    expect(withTimeout).toHaveBeenCalledWith(globalThis.fetch, 20_000);
   });
 
   it('loads the URL polyfill before creating the client (Supabase Expo quickstart)', () => {

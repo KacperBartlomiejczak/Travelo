@@ -1,3 +1,7 @@
+import { createClient } from '@supabase/supabase-js';
+
+import type { Database } from '@/data/database.types';
+import { REQUEST_TIMEOUT_MS, withTimeout } from '@/data/fetch-timeout';
 import { migrateLocalDb } from '@/data/local-db';
 import { createLocalStore } from '@/data/local-store';
 import { createSupabaseTripRepository } from '@/data/supabase-trip-repository';
@@ -305,5 +309,87 @@ describe('budget changes (offline-first)', () => {
     supabase.respond('trips', { data: [{ id: trip.id }] });
     await Promise.all([repository.syncBudgets(), repository.syncBudgets()]);
     expect(supabase.queries.filter((q) => q.ops[0]?.[0] === 'update')).toHaveLength(1);
+  });
+});
+
+describe('a request that never answers (real Supabase client with the 20 s timeout, no network)', () => {
+  type Answer = 'never' | (() => Response);
+
+  /**
+   * The real supabase-js client over a stub server: each request takes the next answer, 'never' = the server
+   * stays silent (captive portal). Like a real fetch, a silent request rejects only when it is aborted.
+   * The session is already stored, so no auth request is made.
+   */
+  async function setupStalled(answers: Answer[]) {
+    const requests: string[] = [];
+    const server = (input: RequestInfo | URL, init?: RequestInit) => {
+      requests.push(`${init?.method ?? 'GET'} ${new URL(String(input)).pathname}`);
+      const answer = answers.shift() ?? 'never';
+      if (answer !== 'never') return Promise.resolve(answer());
+      return new Promise<Response>((_, reject) => {
+        const abort = () => reject(new DOMException('Aborted', 'AbortError'));
+        if (init?.signal?.aborted) abort();
+        init?.signal?.addEventListener('abort', abort);
+      });
+    };
+    const session = {
+      access_token: 'access-token',
+      refresh_token: 'refresh-token',
+      token_type: 'bearer',
+      expires_in: 3600,
+      expires_at: 4102444800, // 2100-01-01
+      user: { id: SIGNED_IN_USER_ID, aud: 'authenticated', app_metadata: {}, user_metadata: {}, created_at: '2026-10-01T00:00:00Z' },
+    };
+    const stored = new Map([['test-session', JSON.stringify(session)]]);
+    const supabase = createClient<Database>('https://example.supabase.co', 'sb_publishable_test', {
+      auth: {
+        storageKey: 'test-session',
+        storage: { getItem: (key) => stored.get(key) ?? null, setItem: (key, value) => void stored.set(key, value), removeItem: (key) => void stored.delete(key) },
+        autoRefreshToken: false,
+        persistSession: true,
+        detectSessionInUrl: false,
+      },
+      global: { fetch: withTimeout(server, REQUEST_TIMEOUT_MS) },
+    });
+    const db = openTestDb();
+    await migrateLocalDb(db);
+    const local = createLocalStore(db);
+    const repository = createSupabaseTripRepository({ supabase, local: Promise.resolve(local), now: () => NOW, newId: sequentialIds() });
+    return { repository, local, requests };
+  }
+
+  const json = (body: unknown) => () => new Response(JSON.stringify(body), { status: 200, headers: { 'Content-Type': 'application/json' } });
+
+  beforeEach(() => jest.useFakeTimers({ doNotFake: ['nextTick', 'setImmediate'] }));
+  afterEach(() => jest.useRealTimers());
+
+  it('the home screen gets the copy on the device after 20 s instead of loading forever', async () => {
+    const { row } = serverTrip();
+    const { repository } = await setupStalled([json([row]), 'never']);
+    const online = await repository.nearest();
+
+    const stalled = repository.nearest();
+    await jest.advanceTimersByTimeAsync(REQUEST_TIMEOUT_MS);
+
+    await expect(stalled).resolves.toEqual({ ...online, fromCache: true });
+  });
+
+  it('a stalled budget sync ends as pending, and the next sync still runs and sends the change', async () => {
+    const { row, trip } = serverTrip();
+    const { repository, local, requests } = await setupStalled([json([row]), 'never', json([{ id: trip.id }])]);
+    await repository.nearest();
+    await repository.setBudget(trip, 250000);
+    const recordAttempt = jest.spyOn(local, 'recordBudgetAttempt');
+
+    const first = repository.syncBudgets();
+    const second = repository.syncBudgets();
+    await jest.advanceTimersByTimeAsync(REQUEST_TIMEOUT_MS);
+
+    await expect(first).resolves.toEqual({ nextAttemptAt: new Date(NOW.getTime() + 1000) });
+    expect(recordAttempt).toHaveBeenCalledTimes(1);
+    expect(recordAttempt).toHaveBeenCalledWith(expect.objectContaining({ tripId: trip.id }), { syncStatus: 'pending', at: NOW.toISOString() });
+    await expect(second).resolves.toEqual({ nextAttemptAt: null });
+    expect(requests.filter((r) => r === 'PATCH /rest/v1/trips')).toHaveLength(2);
+    await expect(local.budgetChange(trip.id)).resolves.toBeNull();
   });
 });
