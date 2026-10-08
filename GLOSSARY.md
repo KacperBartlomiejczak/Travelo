@@ -42,9 +42,17 @@ _Avoid_: Title, label
 An optional picture the organizer chooses to represent a trip.
 _Avoid_: Thumbnail, background, banner
 
-**Nearest trip**:
-The trip with the soonest start date; the one the home screen is about.
-_Avoid_: Next trip, current trip, upcoming trip
+**Upcoming trip** / **Past trip**:
+A trip that has not ended yet, ongoing trips included / a trip whose last day is before today.
+_Avoid_: Future trip, active trip / old trip, finished trip, archived trip
+
+**Current trip**:
+The trip the home screen is about: the one the organizer last chose on this phone, or the default trip when there is no choice.
+_Avoid_: Nearest trip, selected trip, active trip, open trip
+
+**Default trip**:
+The trip shown when the organizer has not chosen one: the soonest upcoming trip, or the most recently ended one when nothing is upcoming.
+_Avoid_: Next trip, first trip
 
 **Destination**:
 The airport where the outbound flight finally lands; its country sets the default currency.

@@ -1,9 +1,9 @@
 import { buildTrip, createInMemoryTripRepository, LOCAL_OWNER_ID } from '@/data/trip-repository';
 import {
   CreateTripInputSchema,
+  CurrentTripSchema,
   FlightSegmentSchema,
   TripMemberSchema,
-  NearestTripSchema,
   TripSchema,
   TripSummarySchema,
 } from '@/schemas';
@@ -140,7 +140,7 @@ describe('in-memory trip repository', () => {
       await repo.create(createTripInputFixture());
       const sooner = await repo.create(soonerTrip('Dubai'));
       const nearest = await repo.nearest();
-      expect(NearestTripSchema.safeParse(nearest).success).toBe(true);
+      expect(CurrentTripSchema.safeParse(nearest).success).toBe(true);
       expect(nearest).toEqual(expect.objectContaining({ budgetSyncStatus: 'synced', fromCache: false }));
       expect(nearest?.overview.trip).toEqual({ ...sooner, travellerCount: 2 });
       expect(nearest?.overview.members.map((member) => member.displayName)).toEqual(['Ola']);

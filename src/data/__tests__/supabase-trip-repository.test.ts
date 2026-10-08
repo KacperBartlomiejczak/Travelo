@@ -7,7 +7,7 @@ import { createLocalStore } from '@/data/local-store';
 import { createSupabaseTripRepository } from '@/data/supabase-trip-repository';
 import { buildTrip } from '@/data/trip-repository';
 import { toCreateTripArgs, type MemberRow, type SegmentRow, type TripRow } from '@/data/trip-rows';
-import { CreateTripInputSchema, NearestTripSchema } from '@/schemas';
+import { CreateTripInputSchema, CurrentTripSchema } from '@/schemas';
 import { fakeSupabase, NETWORK_FAILURE, SIGNED_IN_USER_ID } from '@/test/fake-supabase';
 import { createTripInputFixture } from '@/test/fixtures';
 import { openTestDb } from '@/test/node-sqlite';
@@ -117,7 +117,7 @@ describe('nearest', () => {
         ['limit', [1]],
       ],
     });
-    expect(NearestTripSchema.safeParse(nearest).success).toBe(true);
+    expect(CurrentTripSchema.safeParse(nearest).success).toBe(true);
     expect(nearest?.overview.trip).toEqual(expect.objectContaining({ id: trip.id, name: trip.name, travellerCount: 3 }));
     expect(nearest?.overview.members.map((m) => m.displayName)).toEqual(['Kasia', 'Ola']);
     expect(nearest?.overview.segments).toHaveLength(3);

@@ -5,15 +5,15 @@ import { localToIso } from '@/lib/time';
 import { deriveTripDates } from '@/lib/trip-dates';
 import {
   CreateTripInputSchema,
+  CurrentTripSchema,
   FlightSegmentSchema,
-  NearestTripSchema,
   TripMemberSchema,
   TripSchema,
   TripBudgetFormSchema,
   TripSummarySchema,
   type CreateTripInput,
+  type CurrentTrip,
   type FlightSegment,
-  type NearestTrip,
   type SegmentInput,
   type Trip,
   type TripMember,
@@ -29,7 +29,7 @@ export type CreatedTrip = { trip: Trip; members: TripMember[]; segments: FlightS
 /** Where trips live: Supabase in the app (trips-supabase), in memory in tests. */
 export interface TripRepository {
   /** The soonest trip with its members and flights, or null when there are none. */
-  nearest(): Promise<NearestTrip | null>;
+  nearest(): Promise<CurrentTrip | null>;
   create(input: z.input<typeof CreateTripInputSchema>): Promise<Trip>;
   /** Saves a new budget per person (whole amount in minor units, the trip's base currency) on the device. */
   setBudget(trip: Pick<Trip, 'id' | 'baseCurrency'>, amountMinor: number): Promise<void>;
@@ -113,7 +113,7 @@ export function createInMemoryTripRepository(
       const [first] = soonestFirst();
       if (!first) return null;
       const overview = { trip: summary(first), members: first.members, segments: first.segments };
-      return NearestTripSchema.parse({ overview, budgetSyncStatus: 'synced', fromCache: false });
+      return CurrentTripSchema.parse({ overview, budgetSyncStatus: 'synced', fromCache: false });
     },
     async create(input) {
       const created = build(input);

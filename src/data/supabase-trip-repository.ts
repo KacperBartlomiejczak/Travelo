@@ -3,11 +3,11 @@ import { randomUUID } from 'expo-crypto';
 
 import {
   CreateTripInputSchema,
-  NearestTripSchema,
+  CurrentTripSchema,
   TripBudgetChangeSchema,
   TripBudgetFormSchema,
+  type CurrentTrip,
   type LocalTripBudgetChange,
-  type NearestTrip,
   type TripOverview,
 } from '@/schemas';
 
@@ -56,12 +56,12 @@ export function createSupabaseTripRepository({ supabase, local: localStore, now 
   }
 
   /** A budget change still on the device is shown instead of the server's older amount. */
-  function withLocalBudget(overview: TripOverview, change: LocalTripBudgetChange | null, fromCache: boolean): NearestTrip {
-    if (!change) return NearestTripSchema.parse({ overview, budgetSyncStatus: 'synced', fromCache });
+  function withLocalBudget(overview: TripOverview, change: LocalTripBudgetChange | null, fromCache: boolean): CurrentTrip {
+    if (!change) return CurrentTripSchema.parse({ overview, budgetSyncStatus: 'synced', fromCache });
     const newer = Date.parse(change.updatedAt) > Date.parse(overview.trip.budgetUpdatedAt);
-    if (!newer) return NearestTripSchema.parse({ overview, budgetSyncStatus: 'synced', fromCache });
+    if (!newer) return CurrentTripSchema.parse({ overview, budgetSyncStatus: 'synced', fromCache });
     const trip = { ...overview.trip, budgetPerPerson: change.budgetPerPerson, budgetUpdatedAt: change.updatedAt };
-    return NearestTripSchema.parse({ overview: { ...overview, trip }, budgetSyncStatus: change.syncStatus, fromCache });
+    return CurrentTripSchema.parse({ overview: { ...overview, trip }, budgetSyncStatus: change.syncStatus, fromCache });
   }
 
   // One sync at a time: a call made during a sync runs after it, so no change is sent twice in parallel.

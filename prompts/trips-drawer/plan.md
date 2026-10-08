@@ -1,5 +1,5 @@
 # Task: Trips drawer — side panel with all trips
-Status: awaiting approval
+Status: in progress — plan approved by Kacper on 2026-10-08
 
 ## Understanding & assumptions
 Today the home screen (`/`) shows only the **nearest trip** (soonest start date). Other trips cannot be seen at all (Architecture "Known limitations", `prompts/trip-flight-tabs-name-cover/plan.md` A6). Kacper wants navigation: a **menu button in the top-left corner** that slides out a **side panel** (drawer) listing **all the organizer's trips**. Tapping a trip opens it on the home screen.
@@ -25,6 +25,7 @@ Assumptions (Kacper confirms them together with the plan, see "Proposals to conf
 - **A8 — Swipe from the left edge opens the panel** only on the home screen, not in the wizard.
 
 ## Decisions (Kacper, 2026-10-08)
+- **D0 — Plan approved as written** (2026-10-08). The plan says A1–A8 and P1–P6 are confirmed together with it, so they are implemented as written. P2 lists two options; the plan's recommended option **(a)** is implemented (the drawer's slide is accepted as a gesture-driven navigation transition). If Kacper prefers (b), that changes step 6 and needs a plan update. Only this feature is in scope; trip-edit-menu waits.
 - **D1 — Split and order.** The request ("navigation + trip card update + ⋮ edit button") is four features. Each has **its own plan file** and its own approval, done in this order:
   1. **trips-drawer** (this plan);
   2. **trip-edit-menu** (`prompts/trip-edit-menu/plan.md`);
@@ -149,7 +150,7 @@ Written before the code of each step, run, and seen failing for the expected rea
 - `ui-taste` — step 7 — final visual review of the panel and the hero menu button.
 
 ## Steps
-- [ ] 1. [backend] Schemas: `TripListItemSchema`, `TripListSchema`, `SelectedTripSchema`; rename `NearestTripSchema` → `CurrentTripSchema`; glossary. — skill: domain-modeling — tests first: step 1 — verify: full suite, typecheck, lint.
+- [x] 1. [backend] Schemas: `TripListItemSchema`, `TripListSchema`, `SelectedTripSchema`; rename `NearestTripSchema` → `CurrentTripSchema`; glossary. — skill: domain-modeling — tests first: step 1 — verify: full suite, typecheck, lint.
 - [ ] 2. [backend] `src/lib/trip-sections.ts`: `tripSections`, `defaultTripId`. — skill: none — tests first: step 2 — verify: full suite, typecheck, lint.
 - [ ] 3. [backend] SQLite v2 + local store: list copy (with pruning), overview copy per trip, chosen trip, budget sync per trip. — skill: none — tests first: step 3 — verify: full suite, typecheck, lint.
 - [ ] 4. [backend] Repositories: `list`, `current` (replaces `nearest`), `select`, create-selects; Supabase and in-memory; `listItemFromRow`. — skill: supabase — tests first: step 4 — verify: full suite, typecheck, lint.
@@ -189,3 +190,4 @@ Written before the code of each step, run, and seen failing for the expected rea
 - `react-native-drawer-layout` gestures and focus handling are covered only by the manual steps (Jest mocks gesture-handler and reanimated).
 
 ## Progress log
+- Step 1: tests written — `src/schemas/__tests__/trip.test.ts` (new, 13 cases: `TripListItem` with / without cover and one-day trip, keeps only the panel's fields, rejects end before start / empty name / 61-character name / non-uuid id / impossible date `2026-02-30` / empty cover URI; `TripList` accepts `[]` and several trips, rejects one bad item; `SelectedTrip` accepts a uuid, rejects a non-uuid and a missing id), `trip-budget.test.ts` (`NearestTrip` block renamed to `CurrentTrip`, same fixtures and assertions) · red ✓ (`TypeError: Cannot read properties of undefined (reading 'parse')` — schemas missing) · added `TripListItemSchema`, `TripListSchema`, `SelectedTripSchema` to `src/schemas/trip.ts`; `NearestTripSchema` / `NearestTrip` → `CurrentTripSchema` / `CurrentTrip` in `src/schemas/trip-budget.ts` · green ✓ · suite 60/649, typecheck, lint ✓ · verifier PASS · skill used: `domain-modeling` (`GLOSSARY.md`: "Nearest trip" → "Current trip", new "Default trip") · Deviations: (1) the rename had to reach its callers to compile: `src/data/trip-repository.ts`, `src/data/supabase-trip-repository.ts` and their two tests (rename only; `nearest()` and `useNearestTrip` keep their names until steps 4–5); (2) `GLOSSARY.md` also gained "Upcoming trip / Past trip" (the panel's two sections, from A2), so the panel's words are defined too.

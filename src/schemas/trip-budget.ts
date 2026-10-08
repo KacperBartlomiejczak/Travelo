@@ -27,12 +27,12 @@ export type LocalTripBudgetChange = z.infer<typeof LocalTripBudgetChangeSchema>;
 export const TripBudgetFormSchema = BudgetStepInputSchema;
 export type TripBudgetForm = z.infer<typeof TripBudgetFormSchema>;
 
-/** What the home screen shows: the nearest trip, the state of a local budget change, and where it was read from (D5, D6). */
-export const NearestTripSchema = z.object({
+/** What the home screen shows: the current trip, the state of a local budget change, and where it was read from (D5, D6; trips-drawer). */
+export const CurrentTripSchema = z.object({
   overview: TripOverviewSchema,
   /** 'synced' when no local change is waiting. */
   budgetSyncStatus: SyncStatusSchema,
   /** Read from the SQLite copy because Supabase could not be reached. */
   fromCache: z.boolean(),
 });
-export type NearestTrip = z.infer<typeof NearestTripSchema>;
+export type CurrentTrip = z.infer<typeof CurrentTripSchema>;
