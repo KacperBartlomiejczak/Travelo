@@ -355,15 +355,24 @@ If a check fails: fix the code → rerun. Never "fix" it by weakening a test. Af
 ### Subagents
 Definitions live in `.claude/agents/`.
 
-| Agent | Does | Edits | Must not |
-|---|---|---|---|
-| **explorer** (read-only) | Finds code, patterns, existing schemas | nothing | Edit files, propose implementations |
-| **planner** (read-only) | Drafts a plan in the plan template format, every step tagged `[backend]` or `[frontend]` | nothing — returns the plan to the orchestrator | Start implementing, edit any `plan.md` |
-| **backend** | Executes **one approved backend step**: tests first (red), then code (green) | `packages/schemas/`, `supabase/migrations/`, `supabase/functions/` | Touch `apps/mobile/`, return with any failing test |
-| **frontend** | Executes **one approved frontend step** following `context/design-context.md`: tests first, then code | `apps/mobile/` | Change Zod schemas or `supabase/` (stop and report instead), return with any failing test |
-| **verifier** (fresh context) | Checks a finished step against the plan, Rules, design context and Verification loop; runs the checks itself | nothing | Fix things itself — it reports PASS / FAIL |
+| Agent | Model | Does | Edits | Must not |
+|---|---|---|---|---|
+| **explorer** (read-only) | Haiku 5.5 (`claude-haiku-5-5`) | Answers one concrete question about the codebase: where X lives, which schemas / components / hooks / tests / migrations already exist, which pattern to follow. Returns `file:line` locations and short conclusions | nothing | Edit files, propose implementations |
+| **planner** (read-only) | opus | Drafts a plan in the plan template format, every step tagged `[backend]` or `[frontend]` | nothing — returns the plan to the orchestrator | Start implementing, edit any `plan.md` |
+| **backend** | sonnet | Executes **one approved backend step**: tests first (red), then code (green) | `packages/schemas/`, `supabase/migrations/`, `supabase/functions/` | Touch `apps/mobile/`, return with any failing test |
+| **frontend** | sonnet | Executes **one approved frontend step** following `context/design-context.md`: tests first, then code | `apps/mobile/` | Change Zod schemas or `supabase/` (stop and report instead), return with any failing test |
+| **verifier** (fresh context) | Haiku 5.5 (`claude-haiku-5-5`) | Checks a finished step against the plan, Rules, design context and Verification loop; runs the checks itself | nothing | Fix things itself — it reports PASS / FAIL |
+
+The model column mirrors the `model:` field in `.claude/agents/*.md`; change both together.
+
+### When to use the explorer
+- **Before drafting a plan**, when the orchestrator does not yet know which files, schemas, components or tests the feature touches. Its findings go into the plan's Files section.
+- **Before writing a step brief**, so the brief names the exact files, existing patterns and test helpers instead of guesses.
+- **When a subagent returns `Status: question` about the codebase** (not about requirements; those go to Kacper).
+- Not for small lookups the orchestrator can do with one search, and never as a substitute for asking Kacper about behavior.
 
 ### Step flow
+0. **explorer** maps the relevant code (files, schemas, patterns, tests) when it is not already known.
 1. Planner (or orchestrator) drafts the plan → Kacper approves.
 2. Orchestrator sends each step to **backend** or **frontend** by its tag. Order: schemas → backend → frontend.
 3. **verifier** checks every finished step. FAIL → back to the same implementer with the verifier's issues.
@@ -394,9 +403,39 @@ If instructions conflict, this order wins: **Kacper's current message → `CLAUD
 | `find-skills` | You think a skill might exist for the job but none of the above fits. | orchestrator |
 | `stack-review` | Before milestone 0, whenever a new library/service/dependency is proposed, or when Kacper asks to re-check the stack. Questions each technology choice and asks Kacper to confirm or switch. | orchestrator, planner |
 
+#### Engineering workflow skills (`addyosmani/agent-skills`, installed 2026-10-08)
+| Skill | Use it when | Used by |
+|---|---|---|
+| `interview-me` | An ask is underspecified. Alternative to `grill-me` (one question at a time, in Polish); use one of them, not both. Runs before the plan, like `grill-me`. | orchestrator |
+| `idea-refine` | Kacper asks to explore or stress-test a raw idea before it becomes a feature. Results go into the feature's `plan.md`, **not** into `docs/ideas/`. | orchestrator |
+| `spec-driven-development` | A new feature has no clear requirements yet. The "spec" is the feature's `plan.md` (Understanding & assumptions, Data structures); never a separate spec file. | orchestrator, planner |
+| `planning-and-task-breakdown` | Breaking an approved scope into the plan's numbered Steps (small, independently verifiable). | orchestrator, planner |
+| `incremental-implementation` | Executing a plan step: thin slices, one coherent diff per step. | backend, frontend |
+| `test-driven-development` | Every step with behavior: the red → green → refactor loop. It supports the TDD rule above, never relaxes it. | backend, frontend |
+| `api-and-interface-design` | Designing a repository interface, hook contract, Edge Function input/output or module boundary (shapes are still Zod schemas). | planner, backend |
+| `source-driven-development` | Writing against a library/API where current docs matter (Expo, expo-router, Supabase, TanStack Query, `@google/genai`). Check the docs first, cite them in the progress log. | backend, frontend |
+| `frontend-ui-engineering` | Building screens and components: accessibility, states, responsive layout. Subordinate to `context/design-context.md` like the other design skills. | frontend |
+| `debugging-and-error-recovery` | A test, typecheck, lint or build fails for an unclear reason: root cause first, never weaken a test. Counts toward the "3 failed attempts → blocked" rule. | backend, frontend, orchestrator |
+| `code-review-and-quality` | Reviewing a finished step or a PR before merge. | verifier, orchestrator |
+| `code-simplification` | Code works but is more complex than needed. Only inside the current step's files (surgical changes); anything wider is proposed to Kacper. | backend, frontend, verifier |
+| `doubt-driven-development` | High-stakes or irreversible work: RLS, auth, migrations, offline sync, deleting data. | orchestrator, verifier |
+| `security-and-hardening` | Untrusted input, auth, RLS, storage, external APIs (Places, Gemini, FX), new dependencies, personal data. | backend, verifier |
+| `performance-optimization` | A measured performance problem (slow list, query, startup). Not speculatively. | backend, frontend |
+| `documentation-and-adrs` | Recording a decision. Decisions go into the feature's `plan.md` and `Architecture.md` "Key decisions"; a separate ADR only when Kacper asks. | orchestrator |
+| `git-workflow-and-versioning` | Committing, branching, PRs: atomic commits per step, English messages. | orchestrator |
+| `deprecation-and-migration` | Removing or replacing an existing feature, API or table (expand/contract migrations, never editing an applied one). | planner, backend |
+| `context-engineering` | Agent output degrades, or rules files / briefs need restructuring. | orchestrator |
+| `constraint-driven-development` | **Only when Kacper asks** to write the quality bar down (it creates `CONSTRAINTS.md`). | orchestrator |
+| `ci-cd-and-automation` | **Only when a task is about** CI/CD (GitHub Actions, EAS builds). | orchestrator, backend |
+| `observability-and-instrumentation` | **Only when a task is about** logging, crash reporting or metrics. | backend, frontend |
+| `shipping-and-launch` | **Only when preparing a release** (store build, rollout, rollback). | orchestrator |
+| `browser-testing-with-devtools` | Debugging the Expo **web** build in a real browser. Needs the chrome-devtools MCP server, which is not configured; ask Kacper first. | frontend |
+| `using-agent-skills` | Picking which of the skills above fits a piece of work. Its "proceed unless corrected" rule does **not** apply here: the approval gate always wins. | orchestrator |
+
 ### Rules
 - **Design skills are subordinate to `context/design-context.md`.** They may improve how a screen is built or reviewed, but they must not introduce new colors, fonts, spacing, gradients or any visual rule that is not in the design context. If the design context has no answer, ask Kacper.
 - **Architecture suggestions are not changes.** `improve-codebase-architecture` produces proposals only. Each proposal becomes a normal plan that Kacper approves, then runs through tests-first. This keeps the "surgical changes" rule intact.
+- **Workflow skills serve this file's process, they do not replace it.** `spec-driven-development`, `planning-and-task-breakdown` and `documentation-and-adrs` write into `prompts/<feature-name>/plan.md` and `Architecture.md`, never into their own spec, task or ADR files; `idea-refine` and `constraint-driven-development` create files (`docs/ideas/`, `CONSTRAINTS.md`) only when Kacper asks.
 - **Do not install or add new skills without asking Kacper.** `find-skills` may suggest one; he decides.
 - **Skills are declared in the plan.** Every plan has a **Skills** section and every step names its skill (or "none"). Do not use a skill that is not in the approved plan (the one exception is `grill-me`, which runs *before* the plan exists; its outcome is then written into the plan); if another skill turns out to be needed, update the plan and get approval first. The orchestrator records the skill actually used in the progress log after each step.
 - **Skill output is input to the plan, not a replacement for it.** Decisions from `grill-me` and `domain-modeling` are recorded in the feature's `plan.md` (assumptions and Data structures sections).

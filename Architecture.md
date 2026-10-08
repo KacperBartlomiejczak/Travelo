@@ -12,7 +12,7 @@ Travelo/
 ├── .agents/skills/             Real skill files (installed by the `skills` CLI)
 ├── .claude/
 │   ├── agents/                 Subagent definitions (Explorer, Planner, Backend, Frontend, Verifier)
-│   ├── skills/                 Symlinks to ../.agents/skills/* so Claude Code finds them
+│   ├── skills/                 Symlinks to ../.agents/skills/* so Claude Code finds them, plus the addyosmani/agent-skills copied in place
 │   ├── launch.json             Preview config: Expo web on port 8081 (dev tooling only)
 │   └── settings.json           Enables the official `expo` Claude plugin
 ├── .vscode/                    Editor settings + recommended Expo extension
@@ -206,6 +206,7 @@ The airport list is a static bundled file, validated row by row in its test (not
 | `frontend-design` | anthropics/skills | Guidance for building distinctive UI |
 | `ui-taste` | uizze.sh | UI polish and review playbooks for web and iOS |
 | `find-skills` | vercel-labs/skills | Discover and install further skills |
+| 25 engineering workflow skills (`interview-me`, `spec-driven-development`, `planning-and-task-breakdown`, `incremental-implementation`, `test-driven-development`, `source-driven-development`, `frontend-ui-engineering`, `code-review-and-quality`, `security-and-hardening`, …) | addyosmani/agent-skills | Workflow per development phase; when each one is used and its limits are listed in `CLAUDE.md` → Skills. Copied straight into `.claude/skills/` (not symlinked from `.agents/skills/` like the others) |
 
 ## External services
 | Service | Used for | Called from | Secrets |
@@ -262,6 +263,7 @@ The airport list is a static bundled file, validated row by row in its test (not
 - Template images in `assets/images/` (React/Expo logos, `tabIcons/`, `tutorial-web.png`) are not referenced by any code.
 
 ## Changelog
+- 2026-10-08 — skills — installed `addyosmani/agent-skills` (25 skills, `skills-lock.json`), added to `CLAUDE.md` with usage rules; `CLAUDE.md` now says when to use the explorer agent (step 0 of the step flow) and lists each agent's model. No change to the app.
 - 2026-10-08 — agent models — `explorer` and `verifier` now run on Haiku 5.5 (`claude-haiku-5-5`, Kacper's decision); no change to the app's architecture.
 - 2026-10-07 — trips-supabase follow-up (CodeRabbit review on PR #5) — `src/data/fetch-timeout.ts` (`withTimeout`, `REQUEST_TIMEOUT_MS` = 20 s) used as the shared Supabase client's `global.fetch`; no schema, table or dependency change.
 - 2026-10-06 — trips-supabase — Supabase CLI project (`supabase/`), migration with `trips` / `trip_members` / `flight_segments`, RLS, `private` helpers and `create_trip`; SQL tests + `pnpm test:db`; generated `database.types.ts`; schemas `sync.ts`, `trip-budget.ts`, `Trip.budgetUpdatedAt`; data: `trip-rows`, `auth`, `local-db`, `local-store`, `budget-sync`, `supabase-trip-repository`, `app-trip-repository`; `TripRepository` now returns `NearestTrip` and has `setBudget` / `syncBudgets`; `BudgetSyncProvider`; `useSetTripBudget`; UI `BottomSheet`, `SyncIndicator`, `OfflineBanner`, `BudgetSheet`; theme `colors.overlay.scrim`; `formatAmountInput`; `jest.setup.ts`; example trips and photos removed; added `expo-network`, `react-native-url-polyfill`, dev `supabase`, `@types/node`; `CLAUDE.md` offline scope and data structures; `GLOSSARY.md` "Budget change", "Sync status".
