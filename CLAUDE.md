@@ -30,7 +30,7 @@ A mobile app for the person who organizes a trip for a group of friends. **Only 
 - Settlements ("who owes whom") — not in MVP.
 
 ### Decisions made
-- **Offline scope (MVP):** **expenses** and **changes to a trip's budget per person** work offline, stored locally in SQLite and synced to Supabase (last write wins by `budgetUpdatedAt`; decided 2026-10-06, `prompts/trips-supabase/plan.md` D1). Everything else (trips, members, flights, plans) is server-first; creating a trip needs internet. The nearest trip is also kept as a read-only copy in SQLite so the home screen works offline after a restart (D6). Extending offline to other entities is a new decision for Kacper, not something to do on your own.
+- **Offline scope (MVP):** **expenses** and **changes to a trip's budget per person** work offline, stored locally in SQLite and synced to Supabase (last write wins by `budgetUpdatedAt`; decided 2026-10-06, `prompts/trips-supabase/plan.md` D1). Everything else (trips, members, flights, plans) is server-first; creating a trip needs internet. The trip list and every trip opened on the phone are also kept as read-only copies in SQLite, and the trip chosen in the side panel is remembered on the phone, so the home screen and the side panel work offline after a restart (D6, extended 2026-10-08 by `prompts/trips-drawer/plan.md` D2, D3). Extending offline to other entities is a new decision for Kacper, not something to do on your own.
 - **LLM:** Google Gemini via the **Gemini API with a Google AI Studio key**.
 
 ### Open decisions — ask before assuming
