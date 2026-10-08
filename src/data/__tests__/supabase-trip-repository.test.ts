@@ -272,6 +272,33 @@ describe('current (trips-drawer D2, A1)', () => {
     await expect(repository.current()).resolves.toBeNull();
   });
 
+  it('offline: a chosen trip gone from the last list read is forgotten; the default trip shows instead (D2, A1)', async () => {
+    const { supabase, local, repository } = await setup();
+    supabase.respond('trips', { data: later().row }, { data: past().row }, { data: [listRow(later())] }, NETWORK_FAILURE);
+    // Both trips were opened on this phone, Lisbon last.
+    await repository.select(LATER_ID);
+    await repository.current();
+    await repository.select(PAST_ID);
+    await repository.current();
+    // The side panel reads the list: Lisbon was deleted meanwhile.
+    await repository.list();
+    await expect(local.selectedTripId()).resolves.toBeNull();
+
+    const offline = await repository.current();
+
+    expect(offline?.fromCache).toBe(true);
+    expect(offline?.overview.trip.id).toBe(LATER_ID);
+  });
+
+  it('offline: when the last trip is gone from the last list read, there are no trips, not an error (D5)', async () => {
+    const { supabase, repository } = await setup();
+    await repository.select(PAST_ID);
+    supabase.respond('trips', { data: past().row }, { data: [] }, NETWORK_FAILURE);
+    await repository.current();
+    await repository.list();
+    await expect(repository.current()).resolves.toBeNull();
+  });
+
   it('offline: a chosen trip never opened on this phone has no copy, so it rejects (A5)', async () => {
     const { supabase, repository } = await setup();
     supabase.respond('trips', { data: [listRow(past()), listRow(ongoing())] }, { data: ongoing().row }, NETWORK_FAILURE);

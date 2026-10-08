@@ -55,17 +55,20 @@ export function createLocalStore(db: LocalDb) {
 
   return {
     /**
-     * Replaces the list copy with the list the server just returned (trips-drawer D3), and deletes the copies
-     * of trips that are no longer on it (A5). Budget changes stay: one waiting for a gone trip must stay visible.
+     * Replaces the list copy with the list the server just returned (trips-drawer D3). Trips no longer on it are
+     * gone: their copies are deleted (A5) and a choice of one is forgotten (D2). Budget changes stay: one waiting
+     * for a gone trip must stay visible.
      */
     async cacheList(list: TripList, cachedAt: string): Promise<void> {
       const json = JSON.stringify(TripListSchema.parse(list));
+      const listedIds = "select json_extract(value, '$.id') from json_each(?)";
       await db.runAsync(
         `insert into trip_list_cache (id, list_json, cached_at) values (1, ?, ?)
          on conflict (id) do update set list_json = excluded.list_json, cached_at = excluded.cached_at`,
         [json, cachedAt],
       );
-      await db.runAsync("delete from trip_overview_cache where trip_id not in (select json_extract(value, '$.id') from json_each(?))", [json]);
+      await db.runAsync(`delete from trip_overview_cache where trip_id not in (${listedIds})`, [json]);
+      await db.runAsync(`delete from selected_trip where trip_id not in (${listedIds})`, [json]);
     },
 
     /** The list copy, or null when there is none or it cannot be read any more. */

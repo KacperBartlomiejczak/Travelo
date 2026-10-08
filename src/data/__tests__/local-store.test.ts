@@ -71,6 +71,15 @@ describe('trip list copy (trips-drawer D3)', () => {
     await expect(local.cachedOverview(OTHER_TRIP_ID)).resolves.toBeNull();
   });
 
+  it('forgets the chosen trip once it is no longer on the list, and keeps a chosen trip that is (D2)', async () => {
+    const { local } = await store();
+    await local.selectTrip(OTHER_TRIP_ID);
+    await local.cacheList(list, '2026-10-08T09:00:00.000Z');
+    await expect(local.selectedTripId()).resolves.toBe(OTHER_TRIP_ID);
+    await local.cacheList([list[0]], '2026-10-08T09:05:00.000Z');
+    await expect(local.selectedTripId()).resolves.toBeNull();
+  });
+
   it('never deletes a budget change that is still waiting', async () => {
     const { local } = await store();
     await local.saveBudgetChange(change);
