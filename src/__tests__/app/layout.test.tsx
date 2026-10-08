@@ -4,7 +4,7 @@ import * as SplashScreen from 'expo-splash-screen';
 import { Text } from 'react-native';
 
 import RootLayout from '@/app/_layout';
-import { useNearestTrip } from '@/hooks/useTrips';
+import { useCurrentTrip } from '@/hooks/useTrips';
 
 jest.mock('expo-font', () => ({ ...jest.requireActual('expo-font'), useFonts: jest.fn() }));
 jest.mock('expo-splash-screen', () => ({
@@ -49,11 +49,11 @@ describe('RootLayout', () => {
   it('gives screens the trips data layer (query client + trip repository)', async () => {
     mockedUseFonts.mockReturnValue([true, null]);
     function TripsProbe() {
-      const nearest = useNearestTrip();
-      return <Text>{nearest.isSuccess ? `nearest: ${nearest.data?.overview.trip.name ?? 'none'}` : 'loading'}</Text>;
+      const current = useCurrentTrip();
+      return <Text>{current.isSuccess ? `current: ${current.data?.overview.trip.name ?? 'none'}` : 'loading'}</Text>;
     }
     await renderRouter({ _layout: RootLayout, index: TripsProbe, 'trips/new/index': () => null });
     // Example trips are gone (trips-supabase D8); under Jest the app repository is in memory (jest.setup.ts).
-    expect(await screen.findByText('nearest: none')).toBeTruthy();
+    expect(await screen.findByText('current: none')).toBeTruthy();
   });
 });

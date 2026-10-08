@@ -11,7 +11,7 @@ import { TextButton } from '@/components/TextButton';
 import { TripHeroSkeleton } from '@/components/TripHeroSkeleton';
 import { TripsEmptyIllustration } from '@/components/TripsEmptyIllustration';
 import { NearestTrip } from '@/features/home/NearestTrip';
-import { useNearestTrip } from '@/hooks/useTrips';
+import { useCurrentTrip } from '@/hooks/useTrips';
 import { useIsOffline } from '@/providers/BudgetSync';
 import { DarkThemeScope, useTheme } from '@/theme/useTheme';
 
@@ -24,7 +24,7 @@ export default function TripsScreen() {
   const { width } = useWindowDimensions();
   const { spacing, colors, typography } = theme;
   const isCompact = width < theme.breakpoints.compact;
-  const trips = useNearestTrip();
+  const trips = useCurrentTrip();
   const offline = useIsOffline();
   const create = () => router.push('/trips/new');
 

@@ -4,7 +4,7 @@ import type { ReactNode } from 'react';
 import { AppState, Text, type AppStateStatus } from 'react-native';
 
 import { createInMemoryTripRepository, type TripRepository } from '@/data/trip-repository';
-import { useNearestTrip } from '@/hooks/useTrips';
+import { useCurrentTrip } from '@/hooks/useTrips';
 import { AppProviders } from '@/providers/AppProviders';
 import { useIsOffline } from '@/providers/BudgetSync';
 import { setNetwork } from '@/test/mock-network';
@@ -84,7 +84,7 @@ describe('budget sync triggers', () => {
   it('refreshes the trip after a sync so the indicator follows', async () => {
     const { repository, current } = repositoryWithSync();
     function Probe() {
-      useNearestTrip();
+      useCurrentTrip();
       return null;
     }
     await render(<Probe />, { wrapper: wrapper(repository) });

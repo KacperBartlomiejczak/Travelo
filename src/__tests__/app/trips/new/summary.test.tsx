@@ -11,7 +11,7 @@ import NewTripLayout from '@/app/trips/new/_layout';
 import SummaryStep from '@/app/trips/new/summary';
 import { emptySegment, withCompanionCount } from '@/features/trip-create/draft';
 import { useTripDraft } from '@/features/trip-create/TripDraftContext';
-import { useNearestTrip } from '@/hooks/useTrips';
+import { useCurrentTrip } from '@/hooks/useTrips';
 import i18n from '@/i18n';
 
 jest.mock('expo-font', () => ({ ...jest.requireActual('expo-font'), useFonts: jest.fn() }));
@@ -43,7 +43,7 @@ jest.mock('@/data/app-trip-repository', () => {
 
 // Home screen stand-in: the saved trip's name and cover.
 function TripsProbe() {
-  const trip = useNearestTrip().data?.overview.trip;
+  const trip = useCurrentTrip().data?.overview.trip;
   return (
     <>
       <Text>{`trips: ${trip ? trip.name + (trip.coverImageUri ? ` [${trip.coverImageUri}]` : '') : ''}`}</Text>
