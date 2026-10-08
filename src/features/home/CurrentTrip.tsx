@@ -42,6 +42,8 @@ export function CurrentTrip({ overview, budgetSyncStatus, onOpenMenu }: Props) {
   return (
     <View testID="home-screen" style={{ flex: 1, backgroundColor: colors.hero.background }}>
       <StatusBar style={focused ? 'light' : 'auto'} />
+      {/* First, so screen readers reach the navigation before the trip (§15); drawn above the photo. */}
+      <HeroMenuButton onPress={onOpenMenu} />
       <ScrollView testID="home-scroll" contentContainerStyle={{ paddingBottom: spacing[6] }}>
         <TripHero trip={trip} />
         <View style={{ gap: spacing[4], paddingHorizontal: side, width: '100%', maxWidth: theme.size.maxContentWidth, alignSelf: 'center' }}>
@@ -58,7 +60,6 @@ export function CurrentTrip({ overview, budgetSyncStatus, onOpenMenu }: Props) {
           <Budget trip={trip} syncStatus={budgetSyncStatus} />
         </View>
       </ScrollView>
-      <HeroMenuButton onPress={onOpenMenu} />
       {offline && (
         <View
           testID="home-action"

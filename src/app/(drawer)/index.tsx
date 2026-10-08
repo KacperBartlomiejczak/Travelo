@@ -51,6 +51,7 @@ export default function HomeScreen() {
     // Same geometry as the trip view: the hero placeholder edge to edge, the menu button in its place (§10.18).
     return (
       <View testID="trips-screen" style={[styles.screen, { backgroundColor: colors.background }]}>
+        <HeroMenuButton onPress={openMenu} />
         <View
           testID="trips-loading"
           accessible
@@ -60,7 +61,6 @@ export default function HomeScreen() {
         >
           <TripHeroSkeleton />
         </View>
-        <HeroMenuButton onPress={openMenu} />
       </View>
     );
   }

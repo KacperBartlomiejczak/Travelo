@@ -459,9 +459,16 @@ describe('Home screen — menu button (trips-drawer P5)', () => {
     expect(within(screen.getByTestId('home-scroll')).queryByRole('button', { name: MENU })).toBeNull();
   });
 
-  it('sits over the skeleton in the same place while the trip loads (§10.18)', async () => {
+  it('is there over the skeleton while the trip loads (§10.18)', async () => {
     await showState('loading');
     expect(screen.getByRole('button', { name: MENU })).toHaveStyle({ backgroundColor: lightTheme.colors.hero.control });
+  });
+
+  it('comes first for screen readers, before the trip (§15 focus order: navigation first)', async () => {
+    await showState('trip');
+    const labels = screen.getAllByRole('button').map((button) => button.props.accessibilityLabel);
+    expect(labels[0]).toBe(MENU);
+    expect(labels).toContain('Zmień budżet');
   });
 
   it('reads in English', async () => {
