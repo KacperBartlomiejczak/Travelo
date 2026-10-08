@@ -1,9 +1,10 @@
 import { isHiddenFromAccessibility } from '@testing-library/react-native';
 import { useFonts } from 'expo-font';
-import { fireEvent, renderRouter, screen, waitFor } from 'expo-router/testing-library';
+import { fireEvent, renderRouter, screen, waitFor, within } from 'expo-router/testing-library';
 
+import DrawerLayout from '@/app/(drawer)/_layout';
+import HomeScreen from '@/app/(drawer)/index';
 import RootLayout from '@/app/_layout';
-import TripsScreen from '@/app/index';
 import FlightsStep from '@/app/trips/new/index';
 import NewTripLayout from '@/app/trips/new/_layout';
 import i18n from '@/i18n';
@@ -29,7 +30,8 @@ jest.mocked(useFonts).mockReturnValue([true, null]);
 function renderTrips() {
   const rendered = renderRouter({
     _layout: RootLayout,
-    index: TripsScreen,
+    '(drawer)/_layout': DrawerLayout,
+    '(drawer)/index': HomeScreen,
     'trips/new/_layout': NewTripLayout,
     'trips/new/index': FlightsStep,
   });
@@ -64,9 +66,11 @@ describe('Trips screen — empty state', () => {
     expect(screen.getByRole('button', { name: 'Create trip' })).toBeTruthy();
   });
 
-  it('has exactly one action', async () => {
+  it('has exactly one action, next to the menu button by the title (§10.19, trips-drawer P5)', async () => {
     await renderTrips();
-    expect(screen.getAllByRole('button')).toHaveLength(1);
+    // Within the screen: the side panel's scrim sits beside it (hidden on a device while the panel is closed).
+    const buttons = within(screen.getByTestId('trips-screen')).getAllByRole('button').map((button) => button.props.accessibilityLabel);
+    expect(buttons).toEqual(['Otwórz listę podróży', 'Utwórz podróż']);
   });
 
   it('opens the new trip screen when the button is pressed', async () => {

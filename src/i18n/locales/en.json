@@ -8,7 +8,8 @@
     "create": "Create trip",
     "loadError": "Couldn't load your trips.",
     "retry": "Try again",
-    "loading": "Loading trips"
+    "loading": "Loading trips",
+    "openList": "Open trips list"
   },
   "newTrip": {
     "title": "New trip",

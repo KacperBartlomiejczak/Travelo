@@ -4,6 +4,7 @@ import { act, fireEvent, renderRouter, screen, within } from 'expo-router/testin
 import { launchImageLibraryAsync } from 'expo-image-picker';
 import { AccessibilityInfo, Alert, Pressable, Text } from 'react-native';
 
+import DrawerLayout from '@/app/(drawer)/_layout';
 import RootLayout from '@/app/_layout';
 import BudgetStep from '@/app/trips/new/budget';
 import FriendsStep from '@/app/trips/new/friends';
@@ -89,7 +90,8 @@ async function openSummary(companions = 2) {
   const rendered = renderRouter(
     {
       _layout: RootLayout,
-      index: TripsProbe,
+      '(drawer)/_layout': DrawerLayout,
+      '(drawer)/index': TripsProbe,
       'trips/new/_layout': NewTripLayout,
       'trips/new/index': filledSteps(companions),
       'trips/new/friends': FriendsStep,
@@ -266,7 +268,8 @@ describe('Summary step', () => {
     const rendered = renderRouter(
       {
         _layout: RootLayout,
-        index: TripsProbe,
+        '(drawer)/_layout': DrawerLayout,
+        '(drawer)/index': TripsProbe,
         'trips/new/_layout': NewTripLayout,
         'trips/new/index': LongNameFlights,
         'trips/new/summary': SummaryStep,
@@ -287,7 +290,8 @@ describe('Summary step', () => {
     const rendered = renderRouter(
       {
         _layout: RootLayout,
-        index: TripsProbe,
+        '(drawer)/_layout': DrawerLayout,
+        '(drawer)/index': TripsProbe,
         'trips/new/_layout': NewTripLayout,
         'trips/new/index': filledSteps(2),
         'trips/new/summary': SummaryStep,

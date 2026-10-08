@@ -13,6 +13,8 @@ const hero = {
   background: palette.neutral[900],
   text: palette.dark.textPrimary,
   textSecondary: palette.dark.textSecondary,
+  // Behind the menu button over the photo: ink at 50 %, the scrim value, readable on a bright photo (trips-drawer P5).
+  control: palette.overlay.scrim,
 };
 
 // Semantic color roles from context/design-context.md §3.

@@ -4,7 +4,7 @@ import { useTheme } from '@/theme/useTheme';
 
 import { heroHeight } from './TripHero';
 
-// Static placeholder with the full-bleed hero's geometry while the nearest trip loads (§10.18; no shimmer).
+// Static placeholder with the full-bleed hero's geometry while the current trip loads (§10.18; no shimmer).
 export function TripHeroSkeleton() {
   const theme = useTheme();
   const { height } = useWindowDimensions();

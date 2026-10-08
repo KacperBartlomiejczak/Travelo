@@ -1,6 +1,5 @@
 import { useIsFocused } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import { Plus } from 'lucide-react-native';
 import { Fragment, useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ScrollView, Text, useWindowDimensions, View } from 'react-native';
@@ -8,7 +7,6 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { LayoverLabel } from '@/components/LayoverLabel';
 import { OfflineBanner } from '@/components/OfflineBanner';
-import { PrimaryButton } from '@/components/PrimaryButton';
 import { SyncIndicator } from '@/components/SyncIndicator';
 import { TextButton } from '@/components/TextButton';
 import { TripHero } from '@/components/TripHero';
@@ -22,12 +20,14 @@ import type { FlightSegment, SyncStatus, TripOverview } from '@/schemas';
 import { useTheme } from '@/theme/useTheme';
 
 import { BudgetSheet } from './BudgetSheet';
+import { HeroMenuButton } from './HeroMenuButton';
 
-type Props = { overview: TripOverview; budgetSyncStatus: SyncStatus; onCreate: () => void };
+type Props = { overview: TripOverview; budgetSyncStatus: SyncStatus; onOpenMenu: () => void };
 
 // Home screen with a trip (D4, A5): the hero, then flights, travellers and budget — data only.
 // Rendered inside DarkThemeScope: the photo fades into ink and the content continues on it (A4).
-export function NearestTrip({ overview, budgetSyncStatus, onCreate }: Props) {
+// A new trip starts from the side panel; the menu button stays over the photo (trips-drawer D4, P5).
+export function CurrentTrip({ overview, budgetSyncStatus, onOpenMenu }: Props) {
   const { t } = useTranslation();
   const theme = useTheme();
   const insets = useSafeAreaInsets();
@@ -42,7 +42,7 @@ export function NearestTrip({ overview, budgetSyncStatus, onCreate }: Props) {
   return (
     <View testID="home-screen" style={{ flex: 1, backgroundColor: colors.hero.background }}>
       <StatusBar style={focused ? 'light' : 'auto'} />
-      <ScrollView contentContainerStyle={{ paddingBottom: spacing[6] }}>
+      <ScrollView testID="home-scroll" contentContainerStyle={{ paddingBottom: spacing[6] }}>
         <TripHero trip={trip} />
         <View style={{ gap: spacing[4], paddingHorizontal: side, width: '100%', maxWidth: theme.size.maxContentWidth, alignSelf: 'center' }}>
           <Section testID="home-flights" title={t('home.flights')}>
@@ -58,21 +58,22 @@ export function NearestTrip({ overview, budgetSyncStatus, onCreate }: Props) {
           <Budget trip={trip} syncStatus={budgetSyncStatus} />
         </View>
       </ScrollView>
-      <View
-        testID="home-action"
-        style={{
-          width: '100%',
-          maxWidth: theme.size.maxContentWidth,
-          alignSelf: 'center',
-          paddingHorizontal: side,
-          paddingTop: spacing[3],
-          paddingBottom: insets.bottom + spacing[4],
-          gap: spacing[3],
-        }}
-      >
-        {offline && <OfflineBanner />}
-        <PrimaryButton label={t('trips.create')} icon={Plus} onPress={onCreate} />
-      </View>
+      <HeroMenuButton onPress={onOpenMenu} />
+      {offline && (
+        <View
+          testID="home-action"
+          style={{
+            width: '100%',
+            maxWidth: theme.size.maxContentWidth,
+            alignSelf: 'center',
+            paddingHorizontal: side,
+            paddingTop: spacing[3],
+            paddingBottom: insets.bottom + spacing[4],
+          }}
+        >
+          <OfflineBanner />
+        </View>
+      )}
     </View>
   );
 }

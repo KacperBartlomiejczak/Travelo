@@ -3,8 +3,10 @@ import { renderRouter, screen } from 'expo-router/testing-library';
 import * as SplashScreen from 'expo-splash-screen';
 import { Text } from 'react-native';
 
+import DrawerLayout from '@/app/(drawer)/_layout';
 import RootLayout from '@/app/_layout';
 import { useCurrentTrip } from '@/hooks/useTrips';
+import { drawerStatus } from '@/test/drawer-status';
 
 jest.mock('expo-font', () => ({ ...jest.requireActual('expo-font'), useFonts: jest.fn() }));
 jest.mock('expo-splash-screen', () => ({
@@ -17,7 +19,8 @@ const mockedUseFonts = jest.mocked(useFonts);
 function renderApp() {
   return renderRouter({
     _layout: RootLayout,
-    index: () => <Text>home screen</Text>,
+    '(drawer)/_layout': DrawerLayout,
+    '(drawer)/index': () => <Text>home screen</Text>,
     'trips/new/index': () => null,
   });
 }
@@ -39,6 +42,16 @@ describe('RootLayout', () => {
     expect(SplashScreen.hideAsync).toHaveBeenCalled();
   });
 
+  it('shows the home screen at / inside the side panel navigator, closed at start (trips-drawer)', async () => {
+    mockedUseFonts.mockReturnValue([true, null]);
+    const rendered = renderApp();
+    await rendered;
+    expect(rendered.getPathname()).toBe('/');
+    expect(rendered.getSegments()).toEqual(['(drawer)']);
+    expect(screen.getByText('home screen')).toBeTruthy();
+    expect(drawerStatus(rendered)).toBe('closed');
+  });
+
   it('still renders the app with system fonts when font loading fails', async () => {
     mockedUseFonts.mockReturnValue([false, new Error('font failed')]);
     await renderApp();
@@ -52,7 +65,7 @@ describe('RootLayout', () => {
       const current = useCurrentTrip();
       return <Text>{current.isSuccess ? `current: ${current.data?.overview.trip.name ?? 'none'}` : 'loading'}</Text>;
     }
-    await renderRouter({ _layout: RootLayout, index: TripsProbe, 'trips/new/index': () => null });
+    await renderRouter({ _layout: RootLayout, '(drawer)/_layout': DrawerLayout, '(drawer)/index': TripsProbe, 'trips/new/index': () => null });
     // Example trips are gone (trips-supabase D8); under Jest the app repository is in memory (jest.setup.ts).
     expect(await screen.findByText('current: none')).toBeTruthy();
   });

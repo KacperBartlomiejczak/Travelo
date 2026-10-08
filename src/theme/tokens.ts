@@ -111,6 +111,9 @@ export const size = {
   focusRing: 2,
   illustration: 160,
   maxContentWidth: 720,
+  // trips-drawer P1: the side panel is 85 % of the screen up to this width; trip thumbnails in it.
+  drawerMaxWidth: 360,
+  thumbnail: 48,
 } as const;
 
 // design-context §18: below this width the screen uses compact horizontal padding.

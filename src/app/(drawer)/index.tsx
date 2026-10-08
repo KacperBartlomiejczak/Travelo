@@ -1,25 +1,30 @@
-import { useRouter } from 'expo-router';
-import { CircleX, Plus } from 'lucide-react-native';
+import { useNavigation, useRouter } from 'expo-router';
+import type { DrawerNavigationProp } from 'expo-router/drawer';
+import { CircleX, Menu, Plus } from 'lucide-react-native';
 import { useEffect, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { AccessibilityInfo, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { IconButton } from '@/components/IconButton';
 import { OfflineBanner } from '@/components/OfflineBanner';
 import { PrimaryButton } from '@/components/PrimaryButton';
 import { TextButton } from '@/components/TextButton';
 import { TripHeroSkeleton } from '@/components/TripHeroSkeleton';
 import { TripsEmptyIllustration } from '@/components/TripsEmptyIllustration';
-import { NearestTrip } from '@/features/home/NearestTrip';
+import { CurrentTrip } from '@/features/home/CurrentTrip';
+import { HeroMenuButton } from '@/features/home/HeroMenuButton';
 import { useCurrentTrip } from '@/hooks/useTrips';
 import { useIsOffline } from '@/providers/BudgetSync';
 import { DarkThemeScope, useTheme } from '@/theme/useTheme';
 
-// Home screen: loading, error, empty, or only the nearest trip (trip-flight-tabs-name-cover D4).
-export default function TripsScreen() {
+// Home screen: loading, error, empty, or the current trip (trip-flight-tabs-name-cover D4, trips-drawer).
+// Every state has the menu button that opens the side panel with all trips (trips-drawer P5).
+export default function HomeScreen() {
   const { t } = useTranslation();
   const theme = useTheme();
   const router = useRouter();
+  const navigation = useNavigation<DrawerNavigationProp<Record<string, object | undefined>>>();
   const insets = useSafeAreaInsets();
   const { width } = useWindowDimensions();
   const { spacing, colors, typography } = theme;
@@ -27,6 +32,7 @@ export default function TripsScreen() {
   const trips = useCurrentTrip();
   const offline = useIsOffline();
   const create = () => router.push('/trips/new');
+  const openMenu = () => navigation.openDrawer();
 
   // The error replaces the skeleton without focus moving; VoiceOver needs it announced.
   useEffect(() => {
@@ -36,13 +42,13 @@ export default function TripsScreen() {
   if (trips.data) {
     return (
       <DarkThemeScope>
-        <NearestTrip overview={trips.data.overview} budgetSyncStatus={trips.data.budgetSyncStatus} onCreate={create} />
+        <CurrentTrip overview={trips.data.overview} budgetSyncStatus={trips.data.budgetSyncStatus} onOpenMenu={openMenu} />
       </DarkThemeScope>
     );
   }
 
   if (trips.isPending) {
-    // Same geometry as the trip view: the hero placeholder edge to edge (§10.18).
+    // Same geometry as the trip view: the hero placeholder edge to edge, the menu button in its place (§10.18).
     return (
       <View testID="trips-screen" style={[styles.screen, { backgroundColor: colors.background }]}>
         <View
@@ -54,19 +60,7 @@ export default function TripsScreen() {
         >
           <TripHeroSkeleton />
         </View>
-        <View
-          testID="home-action"
-          style={{
-            width: '100%',
-            maxWidth: theme.size.maxContentWidth,
-            alignSelf: 'center',
-            paddingHorizontal: isCompact ? spacing[4] : spacing[5],
-            paddingTop: spacing[3],
-            paddingBottom: insets.bottom + spacing[4],
-          }}
-        >
-          <PrimaryButton label={t('trips.create')} icon={Plus} onPress={create} />
-        </View>
+        <HeroMenuButton onPress={openMenu} />
       </View>
     );
   }
@@ -108,9 +102,12 @@ export default function TripsScreen() {
       ]}
     >
       <View style={[styles.content, { maxWidth: theme.size.maxContentWidth }]}>
-        <Text accessibilityRole="header" style={[typography.heading1, { color: colors.text.primary }]}>
-          {t('trips.title')}
-        </Text>
+        <View style={[styles.titleRow, { gap: spacing[2] }]}>
+          <IconButton icon={Menu} label={t('trips.openList')} onPress={openMenu} />
+          <Text accessibilityRole="header" style={[typography.heading1, styles.title, { color: colors.text.primary }]}>
+            {t('trips.title')}
+          </Text>
+        </View>
 
         {body}
 
@@ -130,6 +127,8 @@ const styles = StyleSheet.create({
   // Full width on phones, centred column on tablets (design-context §18).
   content: { flex: 1, width: '100%', alignSelf: 'center' },
   fill: { flex: 1 },
+  titleRow: { flexDirection: 'row', alignItems: 'center' },
+  title: { flexShrink: 1 },
   centered: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   textCentered: { textAlign: 'center' },
 });

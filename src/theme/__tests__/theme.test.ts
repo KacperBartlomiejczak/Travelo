@@ -100,7 +100,7 @@ describe('hero roles (trip-flight-tabs-name-cover D4, D7)', () => {
     ['light', lightTheme],
     ['dark', darkTheme],
   ])('are the same ink background and light text in %s mode', (_, theme) => {
-    expect(theme.colors.hero).toEqual({ background: '#17211B', text: '#F7F3EA', textSecondary: '#C9C2B6' });
+    expect(theme.colors.hero).toEqual({ background: '#17211B', text: '#F7F3EA', textSecondary: '#C9C2B6', control: 'rgba(23, 33, 27, 0.5)' });
   });
 
   it.each([
@@ -193,5 +193,20 @@ describe('overlay roles (trips-supabase D12)', () => {
     ['dark', darkTheme],
   ])('dims the screen behind a bottom sheet with ink at 50 %% in %s mode', (_, theme) => {
     expect(theme.colors.overlay.scrim).toBe('rgba(23, 33, 27, 0.5)');
+  });
+});
+
+describe('side panel and hero menu button (trips-drawer P1, P5)', () => {
+  it.each([
+    ['light', lightTheme],
+    ['dark', darkTheme],
+  ])('backs the menu button over the photo with ink at 50 %%, the scrim value, in %s mode', (_, theme) => {
+    expect(theme.colors.hero.control).toBe(theme.colors.overlay.scrim);
+  });
+
+  it('caps the side panel at 360dp and gives trip thumbnails 48dp', () => {
+    expect(lightTheme.size.drawerMaxWidth).toBe(360);
+    expect(lightTheme.size.thumbnail).toBe(48);
+    expect(darkTheme.size).toBe(lightTheme.size);
   });
 });

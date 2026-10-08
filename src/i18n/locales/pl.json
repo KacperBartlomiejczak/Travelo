@@ -8,7 +8,8 @@
     "create": "Utwórz podróż",
     "loadError": "Nie udało się wczytać podróży.",
     "retry": "Spróbuj ponownie",
-    "loading": "Wczytywanie podróży"
+    "loading": "Wczytywanie podróży",
+    "openList": "Otwórz listę podróży"
   },
   "newTrip": {
     "title": "Nowa podróż",
