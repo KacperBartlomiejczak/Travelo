@@ -323,7 +323,8 @@ describe('Home screen — changing the budget (trips-supabase D5, D10–D13)', (
     mockCurrent = () => Promise.resolve(overview());
     await renderHome();
     await openSheet();
-    await fireEvent.press(screen.getByRole('button', { name: 'Zamknij' }));
+    // The sheet's backdrop; the side panel's scrim has the same label (hidden on a device while the panel is closed).
+    await fireEvent.press(within(screen.getByTestId('bottom-sheet-modal')).getByRole('button', { name: 'Zamknij' }));
     expect(screen.queryByRole('header', { name: 'Ile chcecie wydać na osobę?' })).toBeNull();
     expect(mockSetBudget).not.toHaveBeenCalled();
   });

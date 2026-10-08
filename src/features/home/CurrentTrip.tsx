@@ -1,4 +1,5 @@
 import { useIsFocused } from 'expo-router';
+import { useDrawerStatus } from 'expo-router/drawer';
 import { StatusBar } from 'expo-status-bar';
 import { Fragment, useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -35,13 +36,15 @@ export function CurrentTrip({ overview, budgetSyncStatus, onOpenMenu }: Props) {
   const { spacing, colors } = theme;
   const side = width < theme.breakpoints.compact ? spacing[4] : spacing[5];
   const { trip, members, segments } = overview;
-  // The screen stays mounted under the wizard; only the focused screen may keep the bar light.
+  // The screen stays mounted under the wizard; only the focused screen may keep the bar light. Over the open
+  // side panel, which follows the system theme, the bar follows it too (trips-drawer A7).
   const focused = useIsFocused();
+  const panelOpen = useDrawerStatus() === 'open';
   const offline = useIsOffline();
 
   return (
     <View testID="home-screen" style={{ flex: 1, backgroundColor: colors.hero.background }}>
-      <StatusBar style={focused ? 'light' : 'auto'} />
+      <StatusBar style={focused && !panelOpen ? 'light' : 'auto'} />
       {/* First, so screen readers reach the navigation before the trip (§15); drawn above the photo. */}
       <HeroMenuButton onPress={onOpenMenu} />
       <ScrollView testID="home-scroll" contentContainerStyle={{ paddingBottom: spacing[6] }}>

@@ -11,6 +11,12 @@
     "loading": "Wczytywanie podróży",
     "openList": "Otwórz listę podróży"
   },
+  "drawer": {
+    "upcoming": "Nadchodzące",
+    "past": "Minione",
+    "newTrip": "Nowa podróż",
+    "trip": "{{name}}, {{dates}}"
+  },
   "newTrip": {
     "title": "Nowa podróż",
     "step": "Krok {{current}} z {{total}}",

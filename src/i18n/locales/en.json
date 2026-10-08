@@ -11,6 +11,12 @@
     "loading": "Loading trips",
     "openList": "Open trips list"
   },
+  "drawer": {
+    "upcoming": "Upcoming",
+    "past": "Past",
+    "newTrip": "New trip",
+    "trip": "{{name}}, {{dates}}"
+  },
   "newTrip": {
     "title": "New trip",
     "step": "Step {{current}} of {{total}}",
