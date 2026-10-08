@@ -37,19 +37,11 @@ function budgetChangeFromRow(row: BudgetChangeRow): LocalTripBudgetChange {
 
 export type BudgetAttempt = { syncStatus: Exclude<SyncStatus, 'synced'>; error?: string; at: string };
 
-/** What the device keeps in SQLite: the last nearest trip read from Supabase and budget changes not yet synced. */
+/**
+ * What the device keeps in SQLite: copies of the trip list and of each trip opened here, the chosen trip
+ * (trips-drawer D2, D3), and budget changes not yet synced (trips-supabase D1).
+ */
 export function createLocalStore(db: LocalDb) {
-  /** The copy, or null when there is none or it cannot be read any more. */
-  async function cachedNearest(): Promise<TripOverview | null> {
-    const row = await db.getFirstAsync<{ overview_json: string }>('select overview_json from trip_overview_cache limit 1', []);
-    if (!row) return null;
-    try {
-      return TripOverviewSchema.parse(JSON.parse(row.overview_json));
-    } catch {
-      return null;
-    }
-  }
-
   /** The copy of one trip, or null when it was never opened here or cannot be read any more. */
   async function cachedOverview(tripId: string): Promise<TripOverview | null> {
     const row = await db.getFirstAsync<{ overview_json: string }>('select overview_json from trip_overview_cache where trip_id = ?', [tripId]);
@@ -62,20 +54,6 @@ export function createLocalStore(db: LocalDb) {
   }
 
   return {
-    /** Replaces the copy with the trip the server just returned as nearest (null: the server has none). */
-    async cacheNearest(overview: TripOverview | null, cachedAt: string): Promise<void> {
-      await db.runAsync('delete from trip_overview_cache', []);
-      if (overview) {
-        await db.runAsync('insert into trip_overview_cache (trip_id, overview_json, cached_at) values (?, ?, ?)', [
-          overview.trip.id,
-          JSON.stringify(overview),
-          cachedAt,
-        ]);
-      }
-    },
-
-    cachedNearest,
-
     /**
      * Replaces the list copy with the list the server just returned (trips-drawer D3), and deletes the copies
      * of trips that are no longer on it (A5). Budget changes stay: one waiting for a gone trip must stay visible.

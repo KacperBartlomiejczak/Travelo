@@ -19,7 +19,7 @@ function sequentialIds() {
   return () => `00000000-0000-4000-8000-${String(++n).padStart(12, '0')}`;
 }
 
-/** The nearest trip as Supabase returns it: a trips row with its members and segments embedded. */
+/** A trip as Supabase returns it: a trips row with its members and segments embedded. */
 function serverTrip(patch: Partial<TripRow> = {}) {
   const built = buildTrip(CreateTripInputSchema.parse(createTripInputFixture()), {
     now: new Date('2026-10-04T12:00:00.000Z'),
@@ -82,7 +82,14 @@ describe('create', () => {
     const { supabase, local, repository } = await setup();
     supabase.rpc.mockResolvedValueOnce({ data: null, error: { message: 'new row violates row-level security policy' }, status: 403 });
     await expect(repository.create(createTripInputFixture())).rejects.toThrow('row-level security');
-    await expect(local.cachedNearest()).resolves.toBeNull();
+    await expect(local.cachedList()).resolves.toBeNull();
+    await expect(local.selectedTripId()).resolves.toBeNull();
+  });
+
+  it('makes the new trip the chosen one, so the home screen shows it (A3)', async () => {
+    const { local, repository } = await setup();
+    const trip = await repository.create(createTripInputFixture());
+    await expect(local.selectedTripId()).resolves.toBe(trip.id);
   });
 
   it('rejects offline (creating a trip needs internet, A3)', async () => {
@@ -100,87 +107,240 @@ describe('create', () => {
   });
 });
 
-describe('nearest', () => {
-  it('reads the soonest trip with its members and segments from Supabase', async () => {
-    const { supabase, repository } = await setup();
-    const { row, trip } = serverTrip();
-    supabase.respond('trips', { data: [row] });
+/** A trip as the side panel's query returns it: only the listed columns. */
+function listRow({ row }: ReturnType<typeof serverTrip>) {
+  return { id: row.id, name: row.name, cover_image_uri: row.cover_image_uri, start_date: row.start_date, end_date: row.end_date };
+}
 
-    const nearest = await repository.nearest();
+const LIST_QUERY = {
+  table: 'trips',
+  ops: [
+    ['select', ['id, name, cover_image_uri, start_date, end_date']],
+    ['order', ['start_date']],
+    ['order', ['created_at']],
+  ],
+};
 
-    expect(supabase.queries[0]).toEqual({
-      table: 'trips',
-      ops: [
-        ['select', ['*, trip_members(*), flight_segments(*)']],
-        ['order', ['start_date']],
-        ['order', ['created_at']],
-        ['limit', [1]],
-      ],
-    });
-    expect(CurrentTripSchema.safeParse(nearest).success).toBe(true);
-    expect(nearest?.overview.trip).toEqual(expect.objectContaining({ id: trip.id, name: trip.name, travellerCount: 3 }));
-    expect(nearest?.overview.members.map((m) => m.displayName)).toEqual(['Kasia', 'Ola']);
-    expect(nearest?.overview.segments).toHaveLength(3);
-    expect(nearest).toEqual(expect.objectContaining({ budgetSyncStatus: 'synced', fromCache: false }));
-  });
+function tripByIdQuery(id: string) {
+  return {
+    table: 'trips',
+    ops: [
+      ['select', ['*, trip_members(*), flight_segments(*)']],
+      ['eq', ['id', id]],
+      ['maybeSingle', []],
+    ],
+  };
+}
 
-  it('returns null when there are no trips, and clears the copy', async () => {
+// NOW is 2026-10-06: one trip already over, one going on, one later.
+const PAST_ID = '00000000-0000-4000-8000-0000000000a1';
+const ONGOING_ID = '00000000-0000-4000-8000-0000000000a2';
+const LATER_ID = '00000000-0000-4000-8000-0000000000a3';
+const past = () => serverTrip({ id: PAST_ID, name: 'Lisbon', start_date: '2026-05-01', end_date: '2026-05-08' });
+const ongoing = () => serverTrip({ id: ONGOING_ID, name: 'Rome', start_date: '2026-10-01', end_date: '2026-10-07' });
+const later = () => serverTrip({ id: LATER_ID, name: 'Bangkok', start_date: '2026-11-03', end_date: '2026-11-15' });
+
+describe('list (trips-drawer D4)', () => {
+  it('reads every trip with only the columns the side panel needs, and keeps a copy', async () => {
     const { supabase, local, repository } = await setup();
-    supabase.respond('trips', { data: [serverTrip().row] }, { data: [] });
-    await repository.nearest();
-    await expect(repository.nearest()).resolves.toBeNull();
-    await expect(local.cachedNearest()).resolves.toBeNull();
+    supabase.respond('trips', { data: [listRow(past()), listRow(ongoing())] });
+
+    const list = await repository.list();
+
+    expect(supabase.queries).toEqual([LIST_QUERY]);
+    expect(list).toEqual([
+      { id: PAST_ID, name: 'Lisbon', startDate: '2026-05-01', endDate: '2026-05-08' },
+      { id: ONGOING_ID, name: 'Rome', startDate: '2026-10-01', endDate: '2026-10-07' },
+    ]);
+    await expect(local.cachedList()).resolves.toEqual(list);
   });
 
-  it('keeps a copy in SQLite and shows it when Supabase cannot be reached (D6)', async () => {
+  it('shows the copy when Supabase cannot be reached', async () => {
     const { supabase, repository } = await setup();
-    supabase.respond('trips', { data: [serverTrip().row] }, NETWORK_FAILURE);
-    const online = await repository.nearest();
-    const offline = await repository.nearest();
-    expect(offline).toEqual({ ...online, fromCache: true });
+    supabase.respond('trips', { data: [listRow(past())] }, NETWORK_FAILURE);
+    const online = await repository.list();
+    await expect(repository.list()).resolves.toEqual(online);
   });
 
   it('shows the copy when signing in fails for lack of connection', async () => {
     const { supabase, repository } = await setup();
-    supabase.respond('trips', { data: [serverTrip().row] });
-    const online = await repository.nearest();
+    supabase.respond('trips', { data: [listRow(past())] });
+    const online = await repository.list();
     const { AuthRetryableFetchError } = jest.requireActual('@supabase/supabase-js');
     supabase.auth.getSession.mockResolvedValueOnce({ data: { session: null as never }, error: null });
     supabase.auth.signInAnonymously.mockResolvedValueOnce({ data: { session: null as never, user: null as never }, error: new AuthRetryableFetchError('Network request failed', 0) });
-    await expect(repository.nearest()).resolves.toEqual({ ...online, fromCache: true });
+    await expect(repository.list()).resolves.toEqual(online);
   });
 
   it('rejects when Supabase cannot be reached and there is no copy', async () => {
     const { supabase, repository } = await setup();
     supabase.respond('trips', NETWORK_FAILURE);
-    await expect(repository.nearest()).rejects.toThrow('Network request failed');
+    await expect(repository.list()).rejects.toThrow('Network request failed');
   });
 
   it('rejects on a server error instead of hiding it behind the copy', async () => {
     const { supabase, repository } = await setup();
-    supabase.respond('trips', { data: [serverTrip().row] }, { error: { message: 'permission denied for table trips' }, status: 401 });
-    await repository.nearest();
-    await expect(repository.nearest()).rejects.toThrow('permission denied');
+    supabase.respond('trips', { data: [listRow(past())] }, { error: { message: 'permission denied for table trips' }, status: 401 });
+    await repository.list();
+    await expect(repository.list()).rejects.toThrow('permission denied');
   });
 
   it('rejects a row that does not match the schema', async () => {
     const { supabase, repository } = await setup();
-    supabase.respond('trips', { data: [serverTrip({ budget_per_person_minor: 1.5 }).row] });
-    await expect(repository.nearest()).rejects.toThrow();
+    supabase.respond('trips', { data: [{ ...listRow(past()), name: '' }] });
+    await expect(repository.list()).rejects.toThrow();
+  });
+});
+
+describe('current (trips-drawer D2, A1)', () => {
+  it('with nothing chosen, shows the default trip: the ongoing one, not the oldest past one', async () => {
+    const { supabase, repository } = await setup();
+    supabase.respond('trips', { data: [listRow(past()), listRow(ongoing()), listRow(later())] }, { data: ongoing().row });
+
+    const current = await repository.current();
+
+    expect(supabase.queries).toEqual([LIST_QUERY, tripByIdQuery(ONGOING_ID)]);
+    expect(CurrentTripSchema.safeParse(current).success).toBe(true);
+    expect(current?.overview.trip).toEqual(expect.objectContaining({ id: ONGOING_ID, name: 'Rome', travellerCount: 3 }));
+    expect(current?.overview.members.map((m) => m.displayName)).toEqual(['Kasia', 'Ola']);
+    expect(current?.overview.segments).toHaveLength(3);
+    expect(current).toEqual(expect.objectContaining({ budgetSyncStatus: 'synced', fromCache: false }));
+  });
+
+  it('with only past trips, shows the most recently ended one', async () => {
+    const { supabase, repository } = await setup();
+    const older = serverTrip({ id: LATER_ID, name: 'Oslo', start_date: '2026-01-02', end_date: '2026-01-09' });
+    supabase.respond('trips', { data: [listRow(older), listRow(past())] }, { data: past().row });
+    await expect(repository.current()).resolves.toEqual(expect.objectContaining({ overview: expect.objectContaining({ trip: expect.objectContaining({ id: PAST_ID }) }) }));
+    expect(supabase.queries[1]).toEqual(tripByIdQuery(PAST_ID));
+  });
+
+  it('shows the chosen trip, read by its id, and keeps a copy of it', async () => {
+    const { supabase, local, repository } = await setup();
+    await repository.select(PAST_ID);
+    supabase.respond('trips', { data: past().row });
+
+    const current = await repository.current();
+
+    expect(supabase.queries).toEqual([tripByIdQuery(PAST_ID)]);
+    expect(current?.overview.trip.name).toBe('Lisbon');
+    await expect(local.cachedOverview(PAST_ID)).resolves.toEqual(current?.overview);
+  });
+
+  it('forgets a chosen trip that is gone and shows the default trip instead', async () => {
+    const { supabase, local, repository } = await setup();
+    await repository.select(PAST_ID);
+    supabase.respond('trips', { data: null }, { data: [listRow(later())] }, { data: later().row });
+
+    const current = await repository.current();
+
+    expect(supabase.queries).toEqual([tripByIdQuery(PAST_ID), LIST_QUERY, tripByIdQuery(LATER_ID)]);
+    expect(current?.overview.trip.id).toBe(LATER_ID);
+    await expect(local.selectedTripId()).resolves.toBeNull();
+  });
+
+  it('returns null with no trips at all; the empty list removes the copies (D5)', async () => {
+    const { supabase, local, repository } = await setup();
+    supabase.respond('trips', { data: [listRow(later())] }, { data: later().row }, { data: [] });
+    await repository.current();
+    await expect(local.cachedOverview(LATER_ID)).resolves.not.toBeNull();
+
+    await expect(repository.current()).resolves.toBeNull();
+    await expect(local.cachedList()).resolves.toEqual([]);
+    await expect(local.cachedOverview(LATER_ID)).resolves.toBeNull();
+  });
+
+  it('offline: shows the copy of the chosen trip (D3)', async () => {
+    const { supabase, repository } = await setup();
+    await repository.select(PAST_ID);
+    supabase.respond('trips', { data: past().row }, NETWORK_FAILURE);
+    const online = await repository.current();
+    await expect(repository.current()).resolves.toEqual({ ...online, fromCache: true });
+  });
+
+  it('offline with nothing chosen: shows the default trip from the copy of the list', async () => {
+    const { supabase, repository } = await setup();
+    supabase.respond('trips', { data: [listRow(past()), listRow(ongoing())] }, { data: ongoing().row }, NETWORK_FAILURE);
+    const online = await repository.current();
+    await expect(repository.current()).resolves.toEqual({ ...online, fromCache: true });
+  });
+
+  it('offline with an empty copy of the list: no trips, not an error (D5)', async () => {
+    const { supabase, repository } = await setup();
+    supabase.respond('trips', { data: [] }, NETWORK_FAILURE);
+    await expect(repository.current()).resolves.toBeNull();
+    await expect(repository.current()).resolves.toBeNull();
+  });
+
+  it('offline: a chosen trip never opened on this phone has no copy, so it rejects (A5)', async () => {
+    const { supabase, repository } = await setup();
+    supabase.respond('trips', { data: [listRow(past()), listRow(ongoing())] }, { data: ongoing().row }, NETWORK_FAILURE);
+    await repository.current();
+    await repository.select(PAST_ID);
+    await expect(repository.current()).rejects.toThrow('Network request failed');
+  });
+
+  it('shows the copy when signing in fails for lack of connection', async () => {
+    const { supabase, repository } = await setup();
+    await repository.select(PAST_ID);
+    supabase.respond('trips', { data: past().row });
+    const online = await repository.current();
+    const { AuthRetryableFetchError } = jest.requireActual('@supabase/supabase-js');
+    supabase.auth.getSession.mockResolvedValueOnce({ data: { session: null as never }, error: null });
+    supabase.auth.signInAnonymously.mockResolvedValueOnce({ data: { session: null as never, user: null as never }, error: new AuthRetryableFetchError('Network request failed', 0) });
+    await expect(repository.current()).resolves.toEqual({ ...online, fromCache: true });
+  });
+
+  it('rejects when Supabase cannot be reached and there is no copy', async () => {
+    const { supabase, repository } = await setup();
+    supabase.respond('trips', NETWORK_FAILURE);
+    await expect(repository.current()).rejects.toThrow('Network request failed');
+  });
+
+  it('rejects on a server error instead of hiding it behind the copy', async () => {
+    const { supabase, repository } = await setup();
+    await repository.select(PAST_ID);
+    supabase.respond('trips', { data: past().row }, { error: { message: 'permission denied for table trips' }, status: 401 });
+    await repository.current();
+    await expect(repository.current()).rejects.toThrow('permission denied');
+  });
+
+  it('rejects a row that does not match the schema', async () => {
+    const { supabase, repository } = await setup();
+    await repository.select(PAST_ID);
+    supabase.respond('trips', { data: serverTrip({ id: PAST_ID, budget_per_person_minor: 1.5 }).row });
+    await expect(repository.current()).rejects.toThrow();
+  });
+});
+
+describe('select (trips-drawer D2)', () => {
+  it('remembers the chosen trip on the phone without touching the network', async () => {
+    const { supabase, local, repository } = await setup();
+    await repository.select(PAST_ID);
+    expect(supabase.queries).toHaveLength(0);
+    expect(supabase.auth.getSession).not.toHaveBeenCalled();
+    await expect(local.selectedTripId()).resolves.toBe(PAST_ID);
+  });
+
+  it('rejects an id that is not a UUID', async () => {
+    const { repository } = await setup();
+    await expect(repository.select('trip-1')).rejects.toThrow();
   });
 });
 
 describe('budget changes (offline-first)', () => {
-  async function withNearest(changes: Partial<TripRow> = {}) {
+  /** The trip is the chosen one and has been read once, so every `current()` reads it by id. */
+  async function withCurrent(changes: Partial<TripRow> = {}) {
     const ctx = await setup();
     const server = serverTrip(changes);
-    ctx.supabase.respond('trips', { data: [server.row] });
-    await ctx.repository.nearest();
+    await ctx.repository.select(server.trip.id);
+    ctx.supabase.respond('trips', { data: server.row });
+    await ctx.repository.current();
     return { ...ctx, trip: server.trip };
   }
 
   it('saves on the device without touching the network', async () => {
-    const { supabase, local, repository, trip } = await withNearest();
+    const { supabase, local, repository, trip } = await withCurrent();
     const queriesBefore = supabase.queries.length;
     await repository.setBudget(trip, 250000);
     expect(supabase.queries).toHaveLength(queriesBefore);
@@ -194,26 +354,26 @@ describe('budget changes (offline-first)', () => {
   });
 
   it('uses the trip\'s base currency and rejects an amount that is not a positive whole number', async () => {
-    const { repository, trip } = await withNearest();
+    const { repository, trip } = await withCurrent();
     await expect(repository.setBudget(trip, 0)).rejects.toThrow();
     await expect(repository.setBudget(trip, 12.5)).rejects.toThrow();
   });
 
   it('offline: the new amount shows right away as pending, also from the copy after a restart', async () => {
-    const { supabase, repository, trip } = await withNearest();
+    const { supabase, repository, trip } = await withCurrent();
     await repository.setBudget(trip, 250000);
     supabase.respond('trips', NETWORK_FAILURE, NETWORK_FAILURE);
     await repository.syncBudgets();
 
-    const nearest = await repository.nearest();
-    expect(nearest?.fromCache).toBe(true);
-    expect(nearest?.budgetSyncStatus).toBe('pending');
-    expect(nearest?.overview.trip.budgetPerPerson).toEqual({ amountMinor: 250000, currency: 'THB' });
-    expect(nearest?.overview.trip.budgetUpdatedAt).toBe(NOW.toISOString());
+    const current = await repository.current();
+    expect(current?.fromCache).toBe(true);
+    expect(current?.budgetSyncStatus).toBe('pending');
+    expect(current?.overview.trip.budgetPerPerson).toEqual({ amountMinor: 250000, currency: 'THB' });
+    expect(current?.overview.trip.budgetUpdatedAt).toBe(NOW.toISOString());
   });
 
   it('on reconnect: sends the change with last-write-wins and forgets it once the server has it', async () => {
-    const { supabase, local, repository, trip } = await withNearest();
+    const { supabase, local, repository, trip } = await withCurrent();
     await repository.setBudget(trip, 250000);
     supabase.respond('trips', { data: [{ id: trip.id }] });
 
@@ -232,7 +392,7 @@ describe('budget changes (offline-first)', () => {
   });
 
   it('retrying the same change never duplicates anything: the server already having it counts as synced', async () => {
-    const { supabase, local, repository, trip } = await withNearest();
+    const { supabase, local, repository, trip } = await withCurrent();
     await repository.setBudget(trip, 250000);
     // First send: the response is lost.
     supabase.respond('trips', NETWORK_FAILURE);
@@ -248,7 +408,7 @@ describe('budget changes (offline-first)', () => {
   });
 
   it('a change the server refuses stays visible as failed, with its error', async () => {
-    const { supabase, local, repository, trip } = await withNearest();
+    const { supabase, local, repository, trip } = await withCurrent();
     await repository.setBudget(trip, 250000);
     supabase.respond('trips', { error: { message: 'new row violates check constraint' }, status: 400 });
     await repository.syncBudgets();
@@ -256,12 +416,12 @@ describe('budget changes (offline-first)', () => {
     await expect(local.budgetChange(trip.id)).resolves.toEqual(
       expect.objectContaining({ syncStatus: 'failed', syncError: 'new row violates check constraint', attempts: 1 }),
     );
-    supabase.respond('trips', { data: [serverTrip().row] });
-    await expect(repository.nearest()).resolves.toEqual(expect.objectContaining({ budgetSyncStatus: 'failed' }));
+    supabase.respond('trips', { data: serverTrip().row });
+    await expect(repository.current()).resolves.toEqual(expect.objectContaining({ budgetSyncStatus: 'failed' }));
   });
 
   it('a trip the server no longer shows fails instead of silently dropping the change', async () => {
-    const { supabase, local, repository, trip } = await withNearest();
+    const { supabase, local, repository, trip } = await withCurrent();
     await repository.setBudget(trip, 250000);
     supabase.respond('trips', { data: [] }, { data: null });
     await repository.syncBudgets();
@@ -269,7 +429,7 @@ describe('budget changes (offline-first)', () => {
   });
 
   it('tells when to retry: after the backoff delay from the last attempt', async () => {
-    const { supabase, repository, trip } = await withNearest();
+    const { supabase, repository, trip } = await withCurrent();
     await repository.setBudget(trip, 250000);
     supabase.respond('trips', { error: { message: 'boom' }, status: 500 }, { error: { message: 'boom' }, status: 500 });
     await expect(repository.syncBudgets()).resolves.toEqual({ nextAttemptAt: new Date(NOW.getTime() + 1000) });
@@ -277,34 +437,34 @@ describe('budget changes (offline-first)', () => {
   });
 
   it('nothing to retry once everything is synced', async () => {
-    const { supabase, repository, trip } = await withNearest();
+    const { supabase, repository, trip } = await withCurrent();
     await repository.setBudget(trip, 250000);
     supabase.respond('trips', { data: [{ id: trip.id }] });
     await expect(repository.syncBudgets()).resolves.toEqual({ nextAttemptAt: null });
   });
 
   it('a newer server budget wins over an older change on the device, and shows as synced', async () => {
-    const { supabase, repository, trip } = await withNearest();
+    const { supabase, repository, trip } = await withCurrent();
     await repository.setBudget(trip, 250000);
-    supabase.respond('trips', { data: [serverTrip({ budget_per_person_minor: 999900, budget_updated_at: '2026-10-07T00:00:00+00:00' }).row] });
-    const nearest = await repository.nearest();
-    expect(nearest?.overview.trip.budgetPerPerson.amountMinor).toBe(999900);
-    expect(nearest?.budgetSyncStatus).toBe('synced');
+    supabase.respond('trips', { data: serverTrip({ budget_per_person_minor: 999900, budget_updated_at: '2026-10-07T00:00:00+00:00' }).row });
+    const current = await repository.current();
+    expect(current?.overview.trip.budgetPerPerson.amountMinor).toBe(999900);
+    expect(current?.budgetSyncStatus).toBe('synced');
   });
 
   it('after a successful sync, going offline shows the new amount from the copy, as synced', async () => {
-    const { supabase, repository, trip } = await withNearest();
+    const { supabase, repository, trip } = await withCurrent();
     await repository.setBudget(trip, 250000);
     supabase.respond('trips', { data: [{ id: trip.id }] });
     await repository.syncBudgets();
     supabase.respond('trips', NETWORK_FAILURE);
-    const nearest = await repository.nearest();
-    expect(nearest).toEqual(expect.objectContaining({ fromCache: true, budgetSyncStatus: 'synced' }));
-    expect(nearest?.overview.trip.budgetPerPerson.amountMinor).toBe(250000);
+    const current = await repository.current();
+    expect(current).toEqual(expect.objectContaining({ fromCache: true, budgetSyncStatus: 'synced' }));
+    expect(current?.overview.trip.budgetPerPerson.amountMinor).toBe(250000);
   });
 
   it('runs one sync at a time, so a change is never sent twice in parallel', async () => {
-    const { supabase, repository, trip } = await withNearest();
+    const { supabase, repository, trip } = await withCurrent();
     await repository.setBudget(trip, 250000);
     supabase.respond('trips', { data: [{ id: trip.id }] });
     await Promise.all([repository.syncBudgets(), repository.syncBudgets()]);
@@ -364,11 +524,11 @@ describe('a request that never answers (real Supabase client with the 20 s timeo
   afterEach(() => jest.useRealTimers());
 
   it('the home screen gets the copy on the device after 20 s instead of loading forever', async () => {
-    const { row } = serverTrip();
-    const { repository } = await setupStalled([json([row]), 'never']);
-    const online = await repository.nearest();
+    const server = serverTrip();
+    const { repository } = await setupStalled([json([listRow(server)]), json([server.row]), 'never']);
+    const online = await repository.current();
 
-    const stalled = repository.nearest();
+    const stalled = repository.current();
     await jest.advanceTimersByTimeAsync(REQUEST_TIMEOUT_MS);
 
     await expect(stalled).resolves.toEqual({ ...online, fromCache: true });
@@ -377,7 +537,8 @@ describe('a request that never answers (real Supabase client with the 20 s timeo
   it('a stalled budget sync ends as pending, and the next sync still runs and sends the change', async () => {
     const { row, trip } = serverTrip();
     const { repository, local, requests } = await setupStalled([json([row]), 'never', json([{ id: trip.id }])]);
-    await repository.nearest();
+    await repository.select(trip.id);
+    await repository.current();
     await repository.setBudget(trip, 250000);
     const recordAttempt = jest.spyOn(local, 'recordBudgetAttempt');
 

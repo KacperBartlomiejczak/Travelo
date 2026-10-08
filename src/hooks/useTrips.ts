@@ -10,7 +10,7 @@ const TRIPS_KEY = ['trips'] as const;
 export function useNearestTrip() {
   const repository = useTripRepository();
   // 'always': offline the repository answers from the copy on the device (trips-supabase D6).
-  return useQuery({ queryKey: [...TRIPS_KEY, 'nearest'], queryFn: () => repository.nearest(), networkMode: 'always' });
+  return useQuery({ queryKey: [...TRIPS_KEY, 'nearest'], queryFn: () => repository.current(), networkMode: 'always' });
 }
 
 export function useCreateTrip() {

@@ -1,11 +1,13 @@
 import type { CreatedTrip } from '@/data/trip-repository';
 import {
   FlightSegmentSchema,
+  TripListItemSchema,
   TripMemberSchema,
   TripOverviewSchema,
   TripSummarySchema,
   type FlightDirection,
   type FlightSegment,
+  type TripListItem,
   type TripMember,
   type TripOverview,
 } from '@/schemas';
@@ -17,6 +19,8 @@ export type TripRow = Tables['trips']['Row'];
 export type MemberRow = Tables['trip_members']['Row'];
 export type SegmentRow = Tables['flight_segments']['Row'];
 export type CreateTripArgs = Database['public']['Functions']['create_trip']['Args'];
+/** The columns the side panel's query selects (trips-drawer D4). */
+export type TripListRow = Pick<TripRow, 'id' | 'name' | 'cover_image_uri' | 'start_date' | 'end_date'>;
 
 /** The owner is always the caller (`create_trip` sets it), so it is not sent. */
 type TripPayload = Omit<Tables['trips']['Insert'], 'owner_id'>;
@@ -122,4 +126,15 @@ export function overviewFromRows(tripRow: TripRow, memberRows: MemberRow[], segm
     travellerCount: members.length + 1,
   });
   return TripOverviewSchema.parse({ trip, members, segments });
+}
+
+/** One trip for the side panel, from the columns `list()` selects (trips-drawer D4). Parsed with Zod. */
+export function listItemFromRow(row: TripListRow): TripListItem {
+  return TripListItemSchema.parse({
+    id: row.id,
+    name: row.name,
+    ...(row.cover_image_uri !== null ? { coverImageUri: row.cover_image_uri } : {}),
+    startDate: row.start_date,
+    endDate: row.end_date,
+  });
 }

@@ -2,7 +2,7 @@ import { readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 import { buildTrip } from '@/data/trip-repository';
-import { overviewFromRows, toCreateTripArgs, type MemberRow, type SegmentRow, type TripRow } from '@/data/trip-rows';
+import { listItemFromRow, overviewFromRows, toCreateTripArgs, type MemberRow, type SegmentRow, type TripRow } from '@/data/trip-rows';
 import { CreateTripInputSchema, InterestTagSchema, TripOverviewSchema } from '@/schemas';
 import { createTripInputFixture } from '@/test/fixtures';
 
@@ -135,6 +135,32 @@ describe('overviewFromRows', () => {
     const { tripRow, members, segments } = storedRows(created());
     expect(() => overviewFromRows(tripRow, [{ ...members[0], interests: ['golf'] }], segments)).toThrow();
     expect(() => overviewFromRows(tripRow, members, [{ ...segments[0], direction: 'sideways' }])).toThrow();
+  });
+});
+
+describe('listItemFromRow (trips-drawer D4)', () => {
+  const row = { id: '0b9e7c4e-6a43-4c4b-9a55-2f6f0f7e1a01', name: 'Warsaw → Bangkok', cover_image_uri: 'file:///cache/cover.jpg', start_date: '2026-11-03', end_date: '2026-11-15' };
+
+  it('turns the selected columns into a side panel item', () => {
+    expect(listItemFromRow(row)).toEqual({
+      id: row.id,
+      name: 'Warsaw → Bangkok',
+      coverImageUri: 'file:///cache/cover.jpg',
+      startDate: '2026-11-03',
+      endDate: '2026-11-15',
+    });
+  });
+
+  it('leaves a missing cover out', () => {
+    expect(listItemFromRow({ ...row, cover_image_uri: null })).not.toHaveProperty('coverImageUri');
+  });
+
+  it.each([
+    ['an empty name', { name: '' }],
+    ['an end date before the start date', { end_date: '2026-11-01' }],
+    ['an id that is not a UUID', { id: 'trip-1' }],
+  ])('rejects a row with %s', (_, patch) => {
+    expect(() => listItemFromRow({ ...row, ...patch })).toThrow();
   });
 });
 

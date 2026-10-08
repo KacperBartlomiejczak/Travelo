@@ -49,7 +49,9 @@ describe('useNearestTrip', () => {
 
   it('exposes a repository error', async () => {
     const failing: TripRepository = {
-      nearest: () => Promise.reject(new Error('offline')),
+      list: () => Promise.reject(new Error('offline')),
+      current: () => Promise.reject(new Error('offline')),
+      select: () => Promise.reject(new Error('offline')),
       create: () => Promise.reject(new Error('offline')),
       setBudget: () => Promise.reject(new Error('offline')),
       syncBudgets: () => Promise.reject(new Error('offline')),

@@ -32,7 +32,7 @@ const mockSetBudget = jest.fn(async (_trip: { id: string; baseCurrency: string }
 const mockSyncBudgets = jest.fn(async () => ({ nextAttemptAt: null }));
 jest.mock('@/data/app-trip-repository', () => ({
   createAppTripRepository: () => ({
-    nearest: async () => {
+    current: async () => {
       const overview = await mockNearest();
       return overview && { overview, budgetSyncStatus: mockSyncStatus, fromCache: mockFromCache };
     },

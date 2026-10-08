@@ -4,6 +4,7 @@ import {
   CurrentTripSchema,
   FlightSegmentSchema,
   TripMemberSchema,
+  TripListSchema,
   TripSchema,
   TripSummarySchema,
 } from '@/schemas';
@@ -109,16 +110,18 @@ describe('in-memory trip repository', () => {
   it('shows a created trip with the traveller count (friends + organizer)', async () => {
     const repo = repository();
     const created = await repo.create(createTripInputFixture());
-    const nearest = await repo.nearest();
-    expect(nearest?.overview.trip).toEqual({ ...created, travellerCount: 3 });
-    expect(TripSummarySchema.safeParse(nearest?.overview.trip).success).toBe(true);
+    const current = await repo.current();
+    expect(current?.overview.trip).toEqual({ ...created, travellerCount: 3 });
+    expect(TripSummarySchema.safeParse(current?.overview.trip).success).toBe(true);
   });
 
   it('owns its trips by the local owner (tests only, no auth)', async () => {
     expect((await repository().create(createTripInputFixture())).ownerId).toBe(LOCAL_OWNER_ID);
   });
 
-  describe('nearest trip', () => {
+  describe('list, chosen and current trip (trips-drawer)', () => {
+    const UNKNOWN_ID = '1c0f8d5f-7b54-4d5c-8b66-3a7f1f8f2b02';
+
     function soonerTrip(name: string) {
       const input = createTripInputFixture();
       input.flights.outbound = [{ ...input.flights.outbound[0], departAt: '2026-10-20T10:00', arriveAt: '2026-10-20T18:30' }];
@@ -131,23 +134,68 @@ describe('in-memory trip repository', () => {
       return input;
     }
 
-    it('is null when there are no trips', async () => {
-      await expect(repository().nearest()).resolves.toBeNull();
+    it('has no current trip and an empty list when there are no trips', async () => {
+      const repo = repository();
+      await expect(repo.current()).resolves.toBeNull();
+      await expect(repo.list()).resolves.toEqual([]);
     });
 
-    it('returns the soonest trip with its members and flight segments', async () => {
+    it('lists every trip with what the side panel needs, soonest start first', async () => {
       const repo = repository();
-      await repo.create(createTripInputFixture());
+      const later = await repo.create(createTripInputFixture());
       const sooner = await repo.create(soonerTrip('Dubai'));
-      const nearest = await repo.nearest();
-      expect(CurrentTripSchema.safeParse(nearest).success).toBe(true);
-      expect(nearest).toEqual(expect.objectContaining({ budgetSyncStatus: 'synced', fromCache: false }));
-      expect(nearest?.overview.trip).toEqual({ ...sooner, travellerCount: 2 });
-      expect(nearest?.overview.members.map((member) => member.displayName)).toEqual(['Ola']);
-      expect(nearest?.overview.segments.map((s) => [s.direction, s.fromIata, s.toIata])).toEqual([
+      const list = await repo.list();
+      expect(TripListSchema.safeParse(list).success).toBe(true);
+      expect(list).toEqual([
+        { id: sooner.id, name: 'Dubai', startDate: '2026-10-20', endDate: '2026-10-25' },
+        { id: later.id, name: 'Warsaw → Bangkok', startDate: '2026-11-03', endDate: '2026-11-15' },
+      ]);
+    });
+
+    it('makes a newly created trip the current trip, even when another starts sooner (A3)', async () => {
+      const repo = repository();
+      await repo.create(soonerTrip('Dubai'));
+      const later = await repo.create(createTripInputFixture());
+      expect((await repo.current())?.overview.trip.id).toBe(later.id);
+    });
+
+    it('shows the chosen trip with its members and flight segments (D2)', async () => {
+      const repo = repository();
+      const sooner = await repo.create(soonerTrip('Dubai'));
+      await repo.create(createTripInputFixture());
+      await repo.select(sooner.id);
+      const current = await repo.current();
+      expect(CurrentTripSchema.safeParse(current).success).toBe(true);
+      expect(current).toEqual(expect.objectContaining({ budgetSyncStatus: 'synced', fromCache: false }));
+      expect(current?.overview.trip).toEqual({ ...sooner, travellerCount: 2 });
+      expect(current?.overview.members.map((member) => member.displayName)).toEqual(['Ola']);
+      expect(current?.overview.segments.map((s) => [s.direction, s.fromIata, s.toIata])).toEqual([
         ['outbound', 'WAW', 'DXB'],
         ['return', 'DXB', 'WAW'],
       ]);
+    });
+
+    it('shows the default trip when the chosen one is not there: the soonest upcoming (A1)', async () => {
+      const repo = repository();
+      const sooner = await repo.create(soonerTrip('Dubai'));
+      await repo.create(createTripInputFixture());
+      await repo.select(UNKNOWN_ID);
+      expect((await repo.current())?.overview.trip.id).toBe(sooner.id);
+    });
+
+    it('shows an ended trip only when nothing is upcoming, the most recently ended one (A1)', async () => {
+      let now = NOW;
+      const repo = createInMemoryTripRepository({ now: () => now, newId: sequentialIds() });
+      const sooner = await repo.create(soonerTrip('Dubai'));
+      const later = await repo.create(createTripInputFixture());
+      await repo.select(UNKNOWN_ID);
+      // Dubai ended on 25 Oct, Bangkok goes on until 15 Nov.
+      now = new Date('2026-10-30T12:00:00Z');
+      expect((await repo.current())?.overview.trip.id).toBe(later.id);
+      // Both ended: Bangkok ended last, although Dubai comes first in the list.
+      now = new Date('2026-12-01T12:00:00Z');
+      expect((await repo.current())?.overview.trip.id).toBe(later.id);
+      expect((await repo.list())[0].id).toBe(sooner.id);
     });
 
     it('takes the earlier created trip when two start on the same day', async () => {
@@ -156,7 +204,13 @@ describe('in-memory trip repository', () => {
       const repo = createInMemoryTripRepository({ now: () => times.shift() ?? NOW, newId: sequentialIds() });
       await repo.create(soonerTrip('Created later'));
       await repo.create(soonerTrip('Created earlier'));
-      expect((await repo.nearest())?.overview.trip.name).toBe('Created earlier');
+      await repo.select(UNKNOWN_ID);
+      expect((await repo.current())?.overview.trip.name).toBe('Created earlier');
+      expect((await repo.list()).map((trip) => trip.name)).toEqual(['Created earlier', 'Created later']);
+    });
+
+    it('rejects a chosen id that is not a UUID', async () => {
+      await expect(repository().select('trip-1')).rejects.toThrow();
     });
   });
 
@@ -164,7 +218,7 @@ describe('in-memory trip repository', () => {
     const repo = repository();
     const created = await repo.create(createTripInputFixture());
     await repo.setBudget(created, 250000);
-    expect((await repo.nearest())?.overview.trip.budgetPerPerson).toEqual({ amountMinor: 250000, currency: 'THB' });
+    expect((await repo.current())?.overview.trip.budgetPerPerson).toEqual({ amountMinor: 250000, currency: 'THB' });
     await expect(repo.setBudget(created, 0)).rejects.toThrow();
     await expect(repo.syncBudgets()).resolves.toEqual({ nextAttemptAt: null });
   });
@@ -175,7 +229,7 @@ describe('in-memory trip repository', () => {
     solo.flights.companionCount = 0;
     solo.friends.friends = [];
     await repo.create(solo);
-    expect((await repo.nearest())?.overview.trip.travellerCount).toBe(1);
+    expect((await repo.current())?.overview.trip.travellerCount).toBe(1);
   });
 
   it('rejects invalid input and stores nothing', async () => {
@@ -183,7 +237,7 @@ describe('in-memory trip repository', () => {
     const invalid = createTripInputFixture();
     invalid.flights.companionCount = 5;
     await expect(repo.create(invalid)).rejects.toThrow();
-    await expect(repo.nearest()).resolves.toBeNull();
+    await expect(repo.current()).resolves.toBeNull();
   });
 
   it('rejects a time that does not exist (clocks go forward) and stores nothing', async () => {
@@ -211,7 +265,7 @@ describe('in-memory trip repository', () => {
     await expect(repo.create(invalid)).rejects.toMatchObject({
       issues: [expect.objectContaining({ path: ['flights', 'outbound', 0, 'arriveAt'], message: 'validation.timeDoesNotExist' })],
     });
-    await expect(repo.nearest()).resolves.toBeNull();
+    await expect(repo.current()).resolves.toBeNull();
   });
 
   it('rejects an impossible calendar date as wizard input and stores nothing', async () => {
@@ -221,6 +275,6 @@ describe('in-memory trip repository', () => {
     await expect(repo.create(invalid)).rejects.toMatchObject({
       issues: [expect.objectContaining({ path: ['flights', 'return', 0, 'arriveAt'], message: 'validation.dateTimeRequired' })],
     });
-    await expect(repo.nearest()).resolves.toBeNull();
+    await expect(repo.current()).resolves.toBeNull();
   });
 });
