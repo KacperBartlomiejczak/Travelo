@@ -23,7 +23,11 @@ Travelo/
 │   ├── trip-create-wizard/plan.md  Plan, decisions D1–D42, progress log, manual test steps
 │   ├── trip-flight-tabs-name-cover/plan.md  Flights tabs, trip name, cover photo, home screen: D1–D10, progress log
 │   ├── supabase-client/plan.md     Supabase client and configuration
-│   └── trips-supabase/plan.md      Trips in Supabase, offline budget: D1–D13, progress log, manual steps
+│   ├── trips-supabase/plan.md      Trips in Supabase, offline budget: D1–D13, progress log, manual steps
+│   ├── trips-drawer/plan.md        Side panel with all trips (awaiting approval)
+│   ├── trip-edit-menu/plan.md      ⋮ menu for editing a trip (drafting)
+│   ├── trip-photos/plan.md         Trip photos in Supabase Storage (drafting)
+│   └── expenses/plan.md            Expenses screen + pill nav (drafting)
 ├── scripts/build-airports.mjs  Dev-only generator of src/data/airports.json (downloads 3 public sources)
 ├── scripts/test-db.sh          `pnpm test:db`: runs supabase/tests/*.sql with psql against $DB_URL
 ├── supabase/                   Supabase CLI project: config.toml, migrations/ (SQL), tests/ (plain-SQL RLS tests)
@@ -187,11 +191,11 @@ The airport list is a static bundled file, validated row by row in its test (not
 ### Subagents (`.claude/agents/`)
 | Agent | Model | Tools | Role |
 |---|---|---|---|
-| `explorer` | haiku | Read, Grep, Glob | Read-only scout: finds code, schemas and patterns |
+| `explorer` | `claude-haiku-5-5` (Haiku 5.5) | Read, Grep, Glob | Read-only scout: finds code, schemas and patterns |
 | `planner` | opus | Read, Grep, Glob | Read-only: drafts a plan in the plan template format |
 | `backend` | sonnet | Read, Edit, Write, Grep, Glob, Bash | Executes one backend step test-first (schemas, migrations, RLS, Edge Functions) |
 | `frontend` | sonnet | Read, Edit, Write, Grep, Glob, Bash | Executes one frontend step test-first, following the design context |
-| `verifier` | opus | Read, Grep, Glob, Bash | Independent PASS/FAIL review of a finished step; never fixes |
+| `verifier` | `claude-haiku-5-5` (Haiku 5.5) | Read, Grep, Glob, Bash | Independent PASS/FAIL review of a finished step; never fixes |
 
 ### Skills (`.claude/skills/`)
 | Skill | Source | Purpose |
@@ -258,6 +262,7 @@ The airport list is a static bundled file, validated row by row in its test (not
 - Template images in `assets/images/` (React/Expo logos, `tabIcons/`, `tutorial-web.png`) are not referenced by any code.
 
 ## Changelog
+- 2026-10-08 — agent models — `explorer` and `verifier` now run on Haiku 5.5 (`claude-haiku-5-5`, Kacper's decision); no change to the app's architecture.
 - 2026-10-07 — trips-supabase follow-up (CodeRabbit review on PR #5) — `src/data/fetch-timeout.ts` (`withTimeout`, `REQUEST_TIMEOUT_MS` = 20 s) used as the shared Supabase client's `global.fetch`; no schema, table or dependency change.
 - 2026-10-06 — trips-supabase — Supabase CLI project (`supabase/`), migration with `trips` / `trip_members` / `flight_segments`, RLS, `private` helpers and `create_trip`; SQL tests + `pnpm test:db`; generated `database.types.ts`; schemas `sync.ts`, `trip-budget.ts`, `Trip.budgetUpdatedAt`; data: `trip-rows`, `auth`, `local-db`, `local-store`, `budget-sync`, `supabase-trip-repository`, `app-trip-repository`; `TripRepository` now returns `NearestTrip` and has `setBudget` / `syncBudgets`; `BudgetSyncProvider`; `useSetTripBudget`; UI `BottomSheet`, `SyncIndicator`, `OfflineBanner`, `BudgetSheet`; theme `colors.overlay.scrim`; `formatAmountInput`; `jest.setup.ts`; example trips and photos removed; added `expo-network`, `react-native-url-polyfill`, dev `supabase`, `@types/node`; `CLAUDE.md` offline scope and data structures; `GLOSSARY.md` "Budget change", "Sync status".
 - 2026-10-06 — supabase-client — `SupabaseConfigSchema` (`src/schemas/supabase-config.ts`), shared Supabase client `src/data/supabase.ts` (session in `expo-sqlite` localStorage), `.env.example`; `@supabase/supabase-js` moved from "planned" to "in use". No tables, no auth, no consumers yet.

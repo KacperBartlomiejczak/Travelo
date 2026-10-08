@@ -11,6 +11,7 @@ Today the home screen (`/`) shows only the **nearest trip** (soonest start date)
 - The pinned "Utwórz podróż" button disappears from the trip view (Kacper, 2026-10-08). Creating a trip now starts from "Nowa podróż" in the panel, or from the empty state when there are no trips.
 - Offline, the panel shows the copy of the list kept on the phone, and the home screen shows the copy of the current trip. Both are read-only.
 - The panel has loading, empty, error and offline states.
+- **No trips never means a blank screen** (D5). When the organizer has no trips, the panel shows the "no trips" message and "Nowa podróż", and the home screen shows its empty state with the menu button and "Utwórz podróż". Every combination of data and connection ends in exactly one visible state: loading, trip, empty or error.
 - Full suite, typecheck and lint are green. Manual device steps are written for Kacper.
 
 Assumptions (Kacper confirms them together with the plan, see "Proposals to confirm"):
@@ -24,15 +25,19 @@ Assumptions (Kacper confirms them together with the plan, see "Proposals to conf
 - **A8 — Swipe from the left edge opens the panel** only on the home screen, not in the wizard.
 
 ## Decisions (Kacper, 2026-10-08)
-- **D1 — Split and order.** The request ("navigation + trip card update + ⋮ edit button") is four features, each with its own plan and approval, in this order: 1) **trips-drawer** (this plan), 2) **trip-edit-menu**, 3) **trip-photos**, 4) **expenses**. See "Agreed for the next features" below.
+- **D1 — Split and order.** The request ("navigation + trip card update + ⋮ edit button") is four features. Each has **its own plan file** and its own approval, done in this order:
+  1. **trips-drawer** (this plan);
+  2. **trip-edit-menu** (`prompts/trip-edit-menu/plan.md`);
+  3. **trip-photos** (`prompts/trip-photos/plan.md`);
+  4. **expenses** (`prompts/expenses/plan.md`).
+  What was agreed for 2–4 is recorded in their own plans, not here.
 - **D2 — Remember the chosen trip** across restarts. If it is gone, show the default trip.
 - **D3 — Offline: keep a copy of the list on the phone** (name, dates, cover) and of the chosen trip. This extends trips-supabase D6, which kept only the nearest trip.
 - **D4 — Panel content:** sections "Nadchodzące" / "Minione". Each row is cover thumbnail + name + dates. The open trip is marked. "Nowa podróż" sits at the bottom of the panel. The pinned "Utwórz podróż" leaves the bottom of the home screen.
-
-## Agreed for the next features (recorded here so they are not asked again)
-- **trip-edit-menu:** a ⋮ button (lucide `EllipsisVertical`) for editing the trip, with: change name and cover photo, change budget (the existing sheet), trip photos (the entry point arrives with trip-photos), and delete trip.
-- **trip-photos:** photos from the phone's gallery are stored in **Supabase Storage**. Store the photo, the date added and the date taken (EXIF). **Strip GPS** — location and consent come later with the community feature. Purpose later: a community forum where travellers share photos and recommend places ("travel Facebook"). ⚠ `CLAUDE.md` lists "social feed" as *out of scope — do not build*. Kacper decides about that rule when the forum is planned. Nothing of the forum is built before then.
-- **expenses:** a separate screen. Switching screens through a **pill nav** with icons and text: the active item changes colour, and its icon and text grow (animated). Add-expense form: name, amount, which friend paid, an optional receipt photo. Offline-first, as `CLAUDE.md` "Offline expenses" requires. Details are asked when that plan is drafted.
+- **D5 — No trips must always show "no trips"** (Kacper's review of this plan): the user must never see an empty, blank screen when they have no trips.
+  - **Panel:** the "no trips" text from `context/design-context.md` §13.2 — "Nie masz jeszcze żadnej podróży." / "Zaplanuj pierwszą i zaproś znajomych." (en: "You don't have any trips yet." / "Plan your first one and invite your friends.") — above "Nowa podróż".
+  - **Home screen:** the existing empty state (suitcase illustration + the same two lines + "Utwórz podróż"), now with the menu button.
+  - It also applies when the last trip disappears from the server (the copies are cleared, so offline does not show a deleted trip either).
 
 ## Approach
 1. **Navigation:** the built-in `expo-router/drawer` (expo-router 57 ships it; it uses `react-native-drawer-layout`, which expo-router already depends on, plus `react-native-gesture-handler` and `react-native-reanimated`, which are already in `package.json`). **No new dependency.** The home route moves into a route group: `src/app/(drawer)/_layout.tsx` (Drawer) + `src/app/(drawer)/index.tsx`. The URL stays `/`. The wizard stays in the root Stack above the drawer. The panel content is our own component (`drawerContent`). The trips-expenses pill nav (feature 4) will later sit inside this group.
@@ -118,6 +123,7 @@ Written before the code of each step, run, and seen failing for the expected rea
   - The home screen still renders at `/` inside the drawer group.
   - In each state (loading, empty, error, trip) there is a button "Otwórz listę podróży", and pressing it opens the panel (drawer status `open`).
   - The trip view and the loading state no longer have "Utwórz podróż". The empty and error states still do.
+  - **No trips (D5):** when the repository has no trips, the home screen shows the heading "Nie masz jeszcze żadnej podróży.", the line "Zaplanuj pierwszą i zaproś znajomych.", "Utwórz podróż" and the menu button. The same holds after the last trip disappears: `current()` → `null` → empty state, never a blank screen.
   - The offline banner still shows in the trip view when offline.
   - New theme roles exist in both themes with the agreed values (P1, P5).
 - **Step 7 — `src/features/drawer/__tests__/TripsDrawer.test.tsx`** + route test for the full flow:
@@ -126,7 +132,8 @@ Written before the code of each step, run, and seen failing for the expected rea
   - The current trip is marked (`selected` state + check icon) and no other row is.
   - Tapping another trip calls `select` with its id, closes the panel, and the home screen then shows that trip's hero. Tapping the current trip only closes the panel.
   - "Nowa podróż" closes the panel and opens `/trips/new`.
-  - Loading: one busy element "Wczytywanie podróży". Error: the message is shown and "Spróbuj ponownie" refetches. Empty: "Nie masz jeszcze żadnej podróży." + "Nowa podróż". Offline: the banner above "Nowa podróż", with the list from the copy.
+  - Loading: one busy element "Wczytywanie podróży". Error: the message is shown and "Spróbuj ponownie" refetches. Offline: the banner above "Nowa podróż", with the list from the copy.
+  - **No trips (D5):** no section headers, but the text "Nie masz jeszcze żadnej podróży." and "Zaplanuj pierwszą i zaproś znajomych." above "Nowa podróż". Also offline with an empty list copy: the same text plus the banner. The panel is never empty.
   - The row's screen reader label is "<name>, <dates>".
 
 ## Files
@@ -164,6 +171,7 @@ Written before the code of each step, run, and seen failing for the expected rea
   - Reduced motion (P2).
   - The app restarts on the chosen trip.
   - Airplane mode: the panel shows the copy, and opening a trip never opened on this phone shows the error state.
+  - With no trips at all: the panel shows "Nie masz jeszcze żadnej podróży." and the home screen shows its empty state (D5).
 
 ## Proposals to confirm (P1–P6) — the design context has no side panel, so these are new visual and behaviour rules
 - **P1 — Panel look.** Width = 85 % of the screen, at most **360dp** (new token `size.drawerMaxWidth`). Background `surface.elevated`, like bottom sheets. Right corners `radius.xl` (24dp), mirroring the sheet's top corners. Scrim = the existing `overlay.scrim` (ink 50 %). Follows the system theme (A7). Rows follow §10.8: min 64dp, 16dp side padding, `surface.secondary` when pressed. Thumbnail 48×48dp (new token `size.thumbnail`), `radius.sm`, `cover` fit. Without a cover: a `surface.secondary` square with a `Plane` icon (20dp, `text.secondary`). Name: `bodyMMedium`, up to 2 lines. Dates: `bodyS` `text.secondary`. Section labels: `caption` `text.secondary`. The current trip has a `surface.secondary` background **and** a `Check` icon in the brand colour, never colour alone (§15).
@@ -179,6 +187,5 @@ Written before the code of each step, run, and seen failing for the expected rea
 - Two queries at launch when no trip has been chosen yet (the list, then the default trip's details). The list is also read by the panel. This is acceptable now. It can be merged later if it proves slow.
 - An update from the current version, opened offline before the first online read, has no list copy and no choice yet. It shows the error state until the phone is online once. Kacper's phone is the only install, so this is accepted.
 - `react-native-drawer-layout` gestures and focus handling are covered only by the manual steps (Jest mocks gesture-handler and reanimated).
-- Feature 3 (photos) is the base for a community forum, which `CLAUDE.md` currently marks out of scope. To be decided when that plan is drafted.
 
 ## Progress log
