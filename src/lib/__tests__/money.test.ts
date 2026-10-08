@@ -1,4 +1,4 @@
-import { currencyMinorDigits, formatMoney, parseAmountToMinor } from '@/lib/money';
+import { currencyMinorDigits, formatAmountInput, formatMoney, parseAmountToMinor } from '@/lib/money';
 
 describe('currencyMinorDigits', () => {
   it('knows how many minor digits a currency has', () => {
@@ -71,5 +71,21 @@ describe('formatMoney', () => {
 
   it('groups thousands with the locale separator', () => {
     expect(formatMoney({ amountMinor: 3000000, currency: 'PLN' }, 'pl')).toBe('30\u00a0000\u00a0PLN');
+  });
+});
+
+describe('formatAmountInput', () => {
+  it('writes minor units back as the user would type them, without grouping', () => {
+    expect(formatAmountInput(300000, 'THB', 'pl')).toBe('3000');
+    expect(formatAmountInput(250050, 'EUR', 'pl')).toBe('2500,50');
+    expect(formatAmountInput(250050, 'EUR', 'en')).toBe('2500.50');
+    expect(formatAmountInput(120000, 'JPY', 'en')).toBe('120000');
+    expect(formatAmountInput(1500, 'KWD', 'pl')).toBe('1,500');
+  });
+
+  it('parses back to the same amount', () => {
+    for (const [minor, currency, locale] of [[250050, 'EUR', 'pl'], [99, 'PLN', 'en'], [1500, 'KWD', 'pl']] as const) {
+      expect(parseAmountToMinor(formatAmountInput(minor, currency, locale), currency, locale)).toBe(minor);
+    }
   });
 });

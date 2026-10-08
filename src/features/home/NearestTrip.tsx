@@ -1,27 +1,33 @@
 import { useIsFocused } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { Plus } from 'lucide-react-native';
-import { Fragment, type ReactNode } from 'react';
+import { Fragment, useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ScrollView, Text, useWindowDimensions, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { LayoverLabel } from '@/components/LayoverLabel';
+import { OfflineBanner } from '@/components/OfflineBanner';
 import { PrimaryButton } from '@/components/PrimaryButton';
+import { SyncIndicator } from '@/components/SyncIndicator';
+import { TextButton } from '@/components/TextButton';
 import { TripHero } from '@/components/TripHero';
 import { formatLocalShort } from '@/lib/date-time';
 import { savedLayoverMinutes } from '@/lib/layovers';
 import { formatMoney } from '@/lib/money';
 import { isoToLocal } from '@/lib/time';
 import { perPersonPerDay, tripDayCount } from '@/lib/trip-days';
-import type { FlightSegment, TripOverview } from '@/schemas';
+import { useIsOffline, useRequestBudgetSync } from '@/providers/BudgetSync';
+import type { FlightSegment, SyncStatus, TripOverview } from '@/schemas';
 import { useTheme } from '@/theme/useTheme';
 
-type Props = { overview: TripOverview; onCreate: () => void };
+import { BudgetSheet } from './BudgetSheet';
+
+type Props = { overview: TripOverview; budgetSyncStatus: SyncStatus; onCreate: () => void };
 
 // Home screen with a trip (D4, A5): the hero, then flights, travellers and budget — data only.
 // Rendered inside DarkThemeScope: the photo fades into ink and the content continues on it (A4).
-export function NearestTrip({ overview, onCreate }: Props) {
+export function NearestTrip({ overview, budgetSyncStatus, onCreate }: Props) {
   const { t } = useTranslation();
   const theme = useTheme();
   const insets = useSafeAreaInsets();
@@ -31,6 +37,7 @@ export function NearestTrip({ overview, onCreate }: Props) {
   const { trip, members, segments } = overview;
   // The screen stays mounted under the wizard; only the focused screen may keep the bar light.
   const focused = useIsFocused();
+  const offline = useIsOffline();
 
   return (
     <View testID="home-screen" style={{ flex: 1, backgroundColor: colors.hero.background }}>
@@ -48,7 +55,7 @@ export function NearestTrip({ overview, onCreate }: Props) {
               <Body key={member.id}>{member.displayName}</Body>
             ))}
           </Section>
-          <Budget trip={trip} />
+          <Budget trip={trip} syncStatus={budgetSyncStatus} />
         </View>
       </ScrollView>
       <View
@@ -60,15 +67,17 @@ export function NearestTrip({ overview, onCreate }: Props) {
           paddingHorizontal: side,
           paddingTop: spacing[3],
           paddingBottom: insets.bottom + spacing[4],
+          gap: spacing[3],
         }}
       >
+        {offline && <OfflineBanner />}
         <PrimaryButton label={t('trips.create')} icon={Plus} onPress={onCreate} />
       </View>
     </View>
   );
 }
 
-function Section({ title, testID, children }: { title: string; testID: string; children: ReactNode }) {
+function Section({ title, testID, action, children }: { title: string; testID: string; action?: ReactNode; children: ReactNode }) {
   const theme = useTheme();
   // Secondary surface: the default dark surface is the ink background itself.
   return (
@@ -76,9 +85,12 @@ function Section({ title, testID, children }: { title: string; testID: string; c
       testID={testID}
       style={{ backgroundColor: theme.colors.surface.secondary, borderRadius: theme.radius.lg, padding: theme.spacing[4], gap: theme.spacing[3] }}
     >
-      <Text accessibilityRole="header" style={[theme.typography.heading3, { color: theme.colors.text.primary }]}>
-        {title}
-      </Text>
+      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: theme.spacing[2] }}>
+        <Text accessibilityRole="header" style={[theme.typography.heading3, { color: theme.colors.text.primary, flexShrink: 1 }]}>
+          {title}
+        </Text>
+        {action}
+      </View>
       {children}
     </View>
   );
@@ -119,14 +131,27 @@ function Direction({ label, segments }: { label: string; segments: FlightSegment
   );
 }
 
-function Budget({ trip }: { trip: TripOverview['trip'] }) {
+function Budget({ trip, syncStatus }: { trip: TripOverview['trip']; syncStatus: SyncStatus }) {
   const { t, i18n } = useTranslation();
   const theme = useTheme();
+  const requestSync = useRequestBudgetSync();
+  const [changing, setChanging] = useState(false);
   const locale = i18n.language;
   const perPerson = trip.budgetPerPerson;
   const perDay = formatMoney(perPersonPerDay(perPerson, tripDayCount(trip.startDate, trip.endDate)), locale);
   return (
-    <Section testID="home-budget" title={t('newTrip.summary.budgetTitle')}>
+    <Section
+      testID="home-budget"
+      title={t('newTrip.summary.budgetTitle')}
+      action={
+        <TextButton
+          variant="ghost"
+          label={t('newTrip.summary.change')}
+          accessibilityLabel={t('home.changeBudget')}
+          onPress={() => setChanging(true)}
+        />
+      }
+    >
       <View style={{ flexDirection: 'row', alignItems: 'baseline', flexWrap: 'wrap', gap: theme.spacing[2] }}>
         <Text style={[theme.typography.numericL, { color: theme.colors.text.primary }]}>{formatMoney(perPerson, locale)}</Text>
         <Body tone="secondary">{t('newTrip.summary.perPerson')}</Body>
@@ -139,6 +164,8 @@ function Budget({ trip }: { trip: TripOverview['trip'] }) {
             })
           : t('newTrip.summary.perDay', { perDay })}
       </Body>
+      <SyncIndicator status={syncStatus} onRetry={requestSync} />
+      {changing && <BudgetSheet trip={trip} onClose={() => setChanging(false)} />}
     </Section>
   );
 }

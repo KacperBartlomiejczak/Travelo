@@ -5,7 +5,8 @@ import { AccessibilityInfo } from 'react-native';
 import RootLayout from '@/app/_layout';
 import TripsScreen from '@/app/index';
 import i18n from '@/i18n';
-import type { TripOverview } from '@/schemas';
+import type { SyncStatus, TripOverview } from '@/schemas';
+import { setNetwork } from '@/test/mock-network';
 import { darkTheme, lightTheme } from '@/theme/theme';
 
 jest.mock('expo-font', () => ({ ...jest.requireActual('expo-font'), useFonts: jest.fn() }));
@@ -25,9 +26,20 @@ jest.mock('expo-status-bar', () => ({
 
 // The screen reads the nearest trip through the repository; tests decide what `nearest` returns.
 let mockNearest: () => Promise<TripOverview | null> = () => Promise.resolve(null);
-jest.mock('@/data/trip-repository', () => ({
-  ...jest.requireActual('@/data/trip-repository'),
-  createInMemoryTripRepository: () => ({ nearest: () => mockNearest(), create: () => Promise.reject(new Error('unused')) }),
+let mockSyncStatus: SyncStatus = 'synced';
+let mockFromCache = false;
+const mockSetBudget = jest.fn(async (_trip: { id: string; baseCurrency: string }, _amountMinor: number) => {});
+const mockSyncBudgets = jest.fn(async () => ({ nextAttemptAt: null }));
+jest.mock('@/data/app-trip-repository', () => ({
+  createAppTripRepository: () => ({
+    nearest: async () => {
+      const overview = await mockNearest();
+      return overview && { overview, budgetSyncStatus: mockSyncStatus, fromCache: mockFromCache };
+    },
+    create: () => Promise.reject(new Error('unused')),
+    setBudget: (trip: { id: string; baseCurrency: string }, amountMinor: number) => mockSetBudget(trip, amountMinor),
+    syncBudgets: () => mockSyncBudgets(),
+  }),
 }));
 
 const TRIP_ID = '0b9e7c4e-6a43-4c4b-9a55-2f6f0f7e1a01';
@@ -51,6 +63,7 @@ function overview(patch: Partial<TripOverview['trip']> = {}): TripOverview {
       baseCurrency: 'THB',
       budgetPerPerson: { amountMinor: 300000, currency: 'THB' },
       createdAt: '2026-10-04T12:00:00.000Z',
+      budgetUpdatedAt: '2026-10-04T12:00:00.000Z',
       travellerCount: 3,
       ...patch,
     },
@@ -72,6 +85,10 @@ function renderHome() {
 
 beforeEach(async () => {
   mockNearest = () => Promise.resolve(null);
+  mockSyncStatus = 'synced';
+  mockFromCache = false;
+  mockSetBudget.mockReset();
+  mockSyncBudgets.mockClear();
   mockStatusBarStyle = undefined;
   await i18n.changeLanguage('pl');
 });
@@ -220,5 +237,182 @@ describe('Home screen — nearest trip (D4)', () => {
     fail = false;
     await fireEvent.press(screen.getByRole('button', { name: 'Spróbuj ponownie' }));
     expect(await screen.findByRole('header', { name: 'Warsaw → Bangkok' })).toBeTruthy();
+  });
+});
+
+describe('Home screen — changing the budget (trips-supabase D5, D10–D13)', () => {
+  async function openSheet() {
+    const budget = within(await screen.findByTestId('home-budget'));
+    await fireEvent.press(budget.getByRole('button', { name: 'Zmień budżet' }));
+  }
+
+  it('opens a sheet with the current amount per person in the trip\'s currency', async () => {
+    mockNearest = () => Promise.resolve(overview());
+    await renderHome();
+    await openSheet();
+    expect(screen.getByRole('header', { name: 'Ile chcecie wydać na osobę?' })).toBeTruthy();
+    expect(screen.getByText('Na cały wyjazd, bez lotów: noclegi, jedzenie, atrakcje, transport na miejscu.')).toBeTruthy();
+    expect(screen.getByLabelText('Kwota na osobę').props.value).toBe('3000');
+    expect(within(screen.getByTestId('amount-field-box')).getByText('THB')).toBeTruthy();
+  });
+
+  it('asks "Ile chcesz wydać?" on a solo trip', async () => {
+    mockNearest = () => Promise.resolve({ ...overview({ travellerCount: 1 }), members: [] });
+    await renderHome();
+    await openSheet();
+    expect(screen.getByRole('header', { name: 'Ile chcesz wydać?' })).toBeTruthy();
+    expect(screen.getByLabelText('Kwota')).toBeTruthy();
+  });
+
+  it.each([
+    ['0', 'Kwota musi być większa od zera'],
+    ['', 'Wpisz kwotę'],
+    ['dużo', 'Wpisz kwotę liczbą, np. 2500 lub 2500,50'],
+  ])('does not save "%s" and says why', async (typed, message) => {
+    mockNearest = () => Promise.resolve(overview());
+    await renderHome();
+    await openSheet();
+    await fireEvent.changeText(screen.getByLabelText('Kwota na osobę'), typed);
+    await fireEvent.press(screen.getByRole('button', { name: 'Zapisz' }));
+    expect(screen.getByText(message)).toBeTruthy();
+    expect(mockSetBudget).not.toHaveBeenCalled();
+  });
+
+  it('saves the new amount on the device, closes, and shows it on the card', async () => {
+    let amountMinor = 300000;
+    mockNearest = () => Promise.resolve(overview({ budgetPerPerson: { amountMinor, currency: 'THB' } }));
+    mockSetBudget.mockImplementation(async (_trip, next) => {
+      amountMinor = next;
+      mockSyncStatus = 'pending';
+    });
+    await renderHome();
+    await openSheet();
+    await fireEvent.changeText(screen.getByLabelText('Kwota na osobę'), '2500,50');
+    await fireEvent.press(screen.getByRole('button', { name: 'Zapisz' }));
+
+    expect(mockSetBudget).toHaveBeenCalledWith(expect.objectContaining({ id: TRIP_ID, baseCurrency: 'THB' }), 250050);
+    expect(screen.queryByRole('header', { name: 'Ile chcecie wydać na osobę?' })).toBeNull();
+    const budget = within(screen.getByTestId('home-budget'));
+    expect(await budget.findByText('2500,50 THB')).toBeTruthy();
+    expect(budget.getByText('Czeka na wysłanie')).toBeTruthy();
+    expect(mockSyncBudgets).toHaveBeenCalled();
+  });
+
+  it('closes right after saving on the device, without waiting for Supabase (weak connection)', async () => {
+    mockNearest = () => Promise.resolve(overview());
+    await renderHome();
+    await openSheet();
+    // From now on reading the trip never answers, like a request hanging on a captive portal.
+    mockNearest = () => new Promise(() => {});
+    await fireEvent.changeText(screen.getByLabelText('Kwota na osobę'), '2500');
+    await fireEvent.press(screen.getByRole('button', { name: 'Zapisz' }));
+    expect(screen.queryByRole('header', { name: 'Ile chcecie wydać na osobę?' })).toBeNull();
+    expect(mockSyncBudgets).toHaveBeenCalled();
+  });
+
+  it('keeps the sheet open with an error when saving on the device fails', async () => {
+    const announce = jest.spyOn(AccessibilityInfo, 'announceForAccessibility');
+    mockNearest = () => Promise.resolve(overview());
+    mockSetBudget.mockRejectedValue(new Error('disk full'));
+    await renderHome();
+    await openSheet();
+    await fireEvent.changeText(screen.getByLabelText('Kwota na osobę'), '2500');
+    await fireEvent.press(screen.getByRole('button', { name: 'Zapisz' }));
+    expect(await screen.findByText('Nie udało się zapisać. Spróbuj ponownie.')).toBeTruthy();
+    expect(announce).toHaveBeenCalledWith('Nie udało się zapisać. Spróbuj ponownie.');
+    expect(screen.getByRole('header', { name: 'Ile chcecie wydać na osobę?' })).toBeTruthy();
+  });
+
+  it('closes without saving from the backdrop', async () => {
+    mockNearest = () => Promise.resolve(overview());
+    await renderHome();
+    await openSheet();
+    await fireEvent.press(screen.getByRole('button', { name: 'Zamknij' }));
+    expect(screen.queryByRole('header', { name: 'Ile chcecie wydać na osobę?' })).toBeNull();
+    expect(mockSetBudget).not.toHaveBeenCalled();
+  });
+
+  it('shows a waiting change on the card', async () => {
+    mockSyncStatus = 'pending';
+    mockNearest = () => Promise.resolve(overview());
+    await renderHome();
+    expect(within(await screen.findByTestId('home-budget')).getByText('Czeka na wysłanie')).toBeTruthy();
+  });
+
+  it('shows a failed change with a retry that sends it again', async () => {
+    mockSyncStatus = 'failed';
+    mockNearest = () => Promise.resolve(overview());
+    await renderHome();
+    const budget = within(await screen.findByTestId('home-budget'));
+    expect(budget.getByText('Nie udało się wysłać')).toBeTruthy();
+    mockSyncBudgets.mockClear();
+    await fireEvent.press(budget.getByRole('button', { name: 'Spróbuj ponownie' }));
+    expect(mockSyncBudgets).toHaveBeenCalled();
+  });
+
+  it('shows nothing extra once the budget is synced', async () => {
+    mockNearest = () => Promise.resolve(overview());
+    await renderHome();
+    const budget = within(await screen.findByTestId('home-budget'));
+    expect(budget.queryByText('Czeka na wysłanie')).toBeNull();
+    expect(budget.queryByText('Nie udało się wysłać')).toBeNull();
+  });
+
+  it('reads in English', async () => {
+    await i18n.changeLanguage('en');
+    mockNearest = () => Promise.resolve(overview());
+    await renderHome();
+    const budget = within(await screen.findByTestId('home-budget'));
+    await fireEvent.press(budget.getByRole('button', { name: 'Change budget' }));
+    expect(screen.getByRole('button', { name: 'Save' })).toBeTruthy();
+  });
+});
+
+describe('Home screen — offline (D6, D11)', () => {
+  it('shows the trip from the device copy with the offline banner above the button', async () => {
+    setNetwork({ isConnected: false, isInternetReachable: false });
+    mockFromCache = true;
+    mockNearest = () => Promise.resolve(overview());
+    await renderHome();
+    expect(await screen.findByRole('header', { name: 'Warsaw → Bangkok' })).toBeTruthy();
+    const action = within(screen.getByTestId('home-action'));
+    expect(action.getByText('Jesteś offline. Zmiany zapiszą się po połączeniu.')).toBeTruthy();
+    expect(action.getByRole('button', { name: 'Utwórz podróż' })).toBeTruthy();
+  });
+
+  it('still lets the budget be changed offline', async () => {
+    setNetwork({ isConnected: false, isInternetReachable: false });
+    mockNearest = () => Promise.resolve(overview());
+    await renderHome();
+    await fireEvent.press(within(await screen.findByTestId('home-budget')).getByRole('button', { name: 'Zmień budżet' }));
+    await fireEvent.changeText(screen.getByLabelText('Kwota na osobę'), '2500');
+    await fireEvent.press(screen.getByRole('button', { name: 'Zapisz' }));
+    expect(mockSetBudget).toHaveBeenCalledWith(expect.objectContaining({ id: TRIP_ID }), 250000);
+  });
+
+  it('shows the banner on the empty screen too', async () => {
+    setNetwork({ isConnected: false, isInternetReachable: false });
+    await renderHome();
+    expect(await screen.findByText('Nie masz jeszcze żadnej podróży.')).toBeTruthy();
+    expect(screen.getByText('Jesteś offline. Zmiany zapiszą się po połączeniu.')).toBeTruthy();
+  });
+
+  it('shows the banner on the error screen (offline, no copy on the device)', async () => {
+    jest.useFakeTimers({ advanceTimers: true });
+    setNetwork({ isConnected: false, isInternetReachable: false });
+    mockNearest = () => Promise.reject(new Error('Network request failed'));
+    await renderHome();
+    await act(async () => {
+      await jest.runAllTimersAsync();
+    });
+    expect(await screen.findByText('Nie udało się wczytać podróży.')).toBeTruthy();
+    expect(screen.getByText('Jesteś offline. Zmiany zapiszą się po połączeniu.')).toBeTruthy();
+  });
+
+  it('has no banner online', async () => {
+    mockNearest = () => Promise.resolve(overview());
+    await renderHome();
+    await screen.findByTestId('home-screen');
+    expect(screen.queryByTestId('offline-banner')).toBeNull();
   });
 });

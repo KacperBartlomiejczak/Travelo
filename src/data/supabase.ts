@@ -1,8 +1,11 @@
+import 'react-native-url-polyfill/auto';
 import 'expo-sqlite/localStorage/install';
 
 import { createClient } from '@supabase/supabase-js';
 
 import { SupabaseConfigSchema, type SupabaseConfig } from '@/schemas';
+
+import { REQUEST_TIMEOUT_MS, withTimeout } from './fetch-timeout';
 
 const ENV_NAMES: Record<keyof SupabaseConfig, string> = {
   url: 'EXPO_PUBLIC_SUPABASE_URL',
@@ -20,7 +23,10 @@ if (!config.success) {
   throw new Error(`Invalid Supabase env variables: ${names.join(', ')}`);
 }
 
-/** The app's only Supabase client. The auth session is kept in SQLite-backed localStorage. */
+/**
+ * The app's only Supabase client. The auth session is kept in SQLite-backed localStorage. Every request
+ * (database, RPC, auth) gives up after 20 s, so a silent network ends as "unreachable" instead of hanging.
+ */
 export const supabase = createClient(config.data.url, config.data.key, {
   auth: {
     storage: localStorage,
@@ -28,4 +34,5 @@ export const supabase = createClient(config.data.url, config.data.key, {
     persistSession: true,
     detectSessionInUrl: false,
   },
+  global: { fetch: withTimeout(fetch, REQUEST_TIMEOUT_MS) },
 });

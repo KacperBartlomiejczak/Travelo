@@ -126,6 +126,7 @@ describe('Trip', () => {
     baseCurrency: 'EUR',
     budgetPerPerson: { amountMinor: 300000, currency: 'EUR' },
     createdAt: '2026-10-04T12:00:00+02:00',
+    budgetUpdatedAt: '2026-10-04T12:00:00+02:00',
   };
 
   it('accepts a trip, including a one-day trip', () => {
@@ -144,6 +145,12 @@ describe('Trip', () => {
   it('rejects a trip without a budget per person', () => {
     const { budgetPerPerson: _omit, ...withoutBudget } = trip;
     expect(TripSchema.safeParse(withoutBudget).success).toBe(false);
+  });
+
+  it('requires when the budget last changed, as an ISO date-time with offset (last write wins)', () => {
+    const { budgetUpdatedAt: _omit, ...withoutTimestamp } = trip;
+    expect(TripSchema.safeParse(withoutTimestamp).success).toBe(false);
+    expect(TripSchema.safeParse({ ...trip, budgetUpdatedAt: '2026-10-04T12:00:00' }).success).toBe(false);
   });
 
   it('accepts a cover photo URI, which is optional', () => {

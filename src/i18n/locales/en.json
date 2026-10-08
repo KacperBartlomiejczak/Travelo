@@ -90,7 +90,8 @@
   "common": {
     "optional": "(optional)",
     "increase": "Increase",
-    "decrease": "Decrease"
+    "decrease": "Decrease",
+    "close": "Close"
   },
   "airportField": {
     "placeholder": "City or airport code",
@@ -156,6 +157,17 @@
     "error": "Couldn't open your photos. Try again."
   },
   "home": {
-    "flights": "Flights"
+    "flights": "Flights",
+    "changeBudget": "Change budget",
+    "saveBudget": "Save",
+    "saveBudgetError": "Couldn't save this. Try again."
+  },
+  "sync": {
+    "pending": "Waiting to sync",
+    "failed": "Couldn't sync",
+    "retry": "Try again"
+  },
+  "offline": {
+    "banner": "You're offline. Changes will sync when you're connected."
   }
 }

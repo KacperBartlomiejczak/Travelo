@@ -21,6 +21,8 @@ const tripShape = {
   baseCurrency: CurrencyCodeSchema,
   budgetPerPerson: MoneySchema,
   createdAt: IsoDateTimeSchema,
+  /** When budgetPerPerson last changed; on sync the newer change wins (trips-supabase D1). */
+  budgetUpdatedAt: IsoDateTimeSchema,
 };
 
 type TripShape = z.infer<z.ZodObject<typeof tripShape>>;

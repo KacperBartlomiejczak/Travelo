@@ -186,3 +186,12 @@ describe('useTheme', () => {
     },
   );
 });
+
+describe('overlay roles (trips-supabase D12)', () => {
+  it.each([
+    ['light', lightTheme],
+    ['dark', darkTheme],
+  ])('dims the screen behind a bottom sheet with ink at 50 %% in %s mode', (_, theme) => {
+    expect(theme.colors.overlay.scrim).toBe('rgba(23, 33, 27, 0.5)');
+  });
+});

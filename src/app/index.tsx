@@ -5,12 +5,14 @@ import { useTranslation } from 'react-i18next';
 import { AccessibilityInfo, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { OfflineBanner } from '@/components/OfflineBanner';
 import { PrimaryButton } from '@/components/PrimaryButton';
 import { TextButton } from '@/components/TextButton';
 import { TripHeroSkeleton } from '@/components/TripHeroSkeleton';
 import { TripsEmptyIllustration } from '@/components/TripsEmptyIllustration';
 import { NearestTrip } from '@/features/home/NearestTrip';
 import { useNearestTrip } from '@/hooks/useTrips';
+import { useIsOffline } from '@/providers/BudgetSync';
 import { DarkThemeScope, useTheme } from '@/theme/useTheme';
 
 // Home screen: loading, error, empty, or only the nearest trip (trip-flight-tabs-name-cover D4).
@@ -23,6 +25,7 @@ export default function TripsScreen() {
   const { spacing, colors, typography } = theme;
   const isCompact = width < theme.breakpoints.compact;
   const trips = useNearestTrip();
+  const offline = useIsOffline();
   const create = () => router.push('/trips/new');
 
   // The error replaces the skeleton without focus moving; VoiceOver needs it announced.
@@ -33,7 +36,7 @@ export default function TripsScreen() {
   if (trips.data) {
     return (
       <DarkThemeScope>
-        <NearestTrip overview={trips.data} onCreate={create} />
+        <NearestTrip overview={trips.data.overview} budgetSyncStatus={trips.data.budgetSyncStatus} onCreate={create} />
       </DarkThemeScope>
     );
   }
@@ -111,6 +114,11 @@ export default function TripsScreen() {
 
         {body}
 
+        {offline && (
+          <View style={{ marginBottom: spacing[3] }}>
+            <OfflineBanner />
+          </View>
+        )}
         <PrimaryButton label={t('trips.create')} icon={Plus} onPress={create} />
       </View>
     </View>

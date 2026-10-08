@@ -30,7 +30,7 @@ A mobile app for the person who organizes a trip for a group of friends. **Only 
 - Settlements ("who owes whom") — not in MVP.
 
 ### Decisions made
-- **Offline scope (MVP):** only **expenses** work offline, stored locally in SQLite and synced to Supabase. Everything else (trips, members, flights, plans) is server-first, cached by TanStack Query for reading. Extending offline to other entities is a new decision for Kacper, not something to do on your own.
+- **Offline scope (MVP):** **expenses** and **changes to a trip's budget per person** work offline, stored locally in SQLite and synced to Supabase (last write wins by `budgetUpdatedAt`; decided 2026-10-06, `prompts/trips-supabase/plan.md` D1). Everything else (trips, members, flights, plans) is server-first; creating a trip needs internet. The nearest trip is also kept as a read-only copy in SQLite so the home screen works offline after a restart (D6). Extending offline to other entities is a new decision for Kacper, not something to do on your own.
 - **LLM:** Google Gemini via the **Gemini API with a Google AI Studio key**.
 
 ### Open decisions — ask before assuming
@@ -149,9 +149,10 @@ CostEstimate   { minMinor: int, maxMinor: int, currency: ISO4217, perPerson: boo
 
 Trip           { id, ownerId, name, destination: IATA,     // destination = outbound's final airport
                                                            // name: organizer's, default "<from city> → <destination city>", ≤ 60 chars
-                 coverImageUri?,                           // optional cover photo (device-local URI while trips are in memory)
+                 coverImageUri?,                           // optional cover photo (device-local URI, stored as-is in Supabase)
                  startDate, endDate,                       // derived from flights
                  baseCurrency, budgetPerPerson: Money,     // whole trip, without flights; daily budget is derived
+                 budgetUpdatedAt,                          // last budget change; last write wins on sync
                  createdAt }
 
 TripMember     { id, tripId, userId: string | null,      // null = friend without an account
@@ -183,6 +184,11 @@ Expense        { id, tripId, dayId?, activityId?,         // activityId links pl
 
 LocalExpense   // device only (SQLite), never sent as-is
                Expense & { syncStatus: 'synced' | 'pending' | 'failed', syncError?: string }
+
+TripBudgetChange // a budget change made on the device, possibly offline
+               { tripId, budgetPerPerson: Money, updatedAt }
+LocalTripBudgetChange // device only (SQLite), the change is its own outbox row
+               TripBudgetChange & { syncStatus, syncError?, attempts: int, lastAttemptAt? }
 
 OutboxEntry    // device only (SQLite)
                { id, entity: 'expense', entityId, op: 'upsert' | 'delete',

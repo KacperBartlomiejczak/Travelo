@@ -90,7 +90,8 @@
   "common": {
     "optional": "(opcjonalnie)",
     "increase": "Zwiększ",
-    "decrease": "Zmniejsz"
+    "decrease": "Zmniejsz",
+    "close": "Zamknij"
   },
   "airportField": {
     "placeholder": "Miasto lub kod lotniska",
@@ -156,6 +157,17 @@
     "error": "Nie udało się otworzyć galerii. Spróbuj ponownie."
   },
   "home": {
-    "flights": "Loty"
+    "flights": "Loty",
+    "changeBudget": "Zmień budżet",
+    "saveBudget": "Zapisz",
+    "saveBudgetError": "Nie udało się zapisać. Spróbuj ponownie."
+  },
+  "sync": {
+    "pending": "Czeka na wysłanie",
+    "failed": "Nie udało się wysłać",
+    "retry": "Spróbuj ponownie"
+  },
+  "offline": {
+    "banner": "Jesteś offline. Zmiany zapiszą się po połączeniu."
   }
 }

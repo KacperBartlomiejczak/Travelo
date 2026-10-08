@@ -6,31 +6,38 @@ import { deriveTripDates } from '@/lib/trip-dates';
 import {
   CreateTripInputSchema,
   FlightSegmentSchema,
+  NearestTripSchema,
   TripMemberSchema,
   TripSchema,
-  TripOverviewSchema,
+  TripBudgetFormSchema,
   TripSummarySchema,
   type CreateTripInput,
   type FlightSegment,
+  type NearestTrip,
   type SegmentInput,
   type Trip,
   type TripMember,
-  type TripOverview,
 } from '@/schemas';
 
-/** Owner of every trip until Supabase Auth exists (plan A3). */
+import type { SyncResult } from './budget-sync';
+
+/** Owner of every trip in the in-memory repository, which only tests use now (trips-supabase D8). */
 export const LOCAL_OWNER_ID = 'local-user';
 
 export type CreatedTrip = { trip: Trip; members: TripMember[]; segments: FlightSegment[] };
 
-/** Where trips live. In memory now (D1); Supabase replaces the implementation later. */
+/** Where trips live: Supabase in the app (trips-supabase), in memory in tests. */
 export interface TripRepository {
   /** The soonest trip with its members and flights, or null when there are none. */
-  nearest(): Promise<TripOverview | null>;
+  nearest(): Promise<NearestTrip | null>;
   create(input: z.input<typeof CreateTripInputSchema>): Promise<Trip>;
+  /** Saves a new budget per person (whole amount in minor units, the trip's base currency) on the device. */
+  setBudget(trip: Pick<Trip, 'id' | 'baseCurrency'>, amountMinor: number): Promise<void>;
+  /** Sends budget changes still on the device; says when the next retry is due. */
+  syncBudgets(): Promise<SyncResult>;
 }
 
-type Deps = { now: Date; newId: () => string };
+type Deps = { now: Date; newId: () => string; ownerId: string };
 
 function toSegments(
   segments: SegmentInput[],
@@ -54,7 +61,7 @@ function toSegments(
 }
 
 /** Turns the wizard's input into the entities that get stored. */
-export function buildTrip(input: CreateTripInput, { now, newId }: Deps): CreatedTrip {
+export function buildTrip(input: CreateTripInput, { now, newId, ownerId }: Deps): CreatedTrip {
   const tripId = newId();
   const { outbound } = input.flights;
   const destination = outbound[outbound.length - 1].toIata;
@@ -63,7 +70,7 @@ export function buildTrip(input: CreateTripInput, { now, newId }: Deps): Created
 
   const trip = TripSchema.parse({
     id: tripId,
-    ownerId: LOCAL_OWNER_ID,
+    ownerId,
     name,
     ...(coverImageUri ? { coverImageUri } : {}),
     destination,
@@ -71,6 +78,7 @@ export function buildTrip(input: CreateTripInput, { now, newId }: Deps): Created
     baseCurrency: budgetPerPerson.currency,
     budgetPerPerson,
     createdAt: now.toISOString(),
+    budgetUpdatedAt: now.toISOString(),
   });
   const members = input.friends.friends.map((friend) =>
     TripMemberSchema.parse({
@@ -90,26 +98,35 @@ export function buildTrip(input: CreateTripInput, { now, newId }: Deps): Created
   return { trip, members, segments };
 }
 
+/** Trips in memory, lost on restart. Tests only (trips-supabase D8). */
 export function createInMemoryTripRepository(
   deps: { now: () => Date; newId: () => string } = { now: () => new Date(), newId: randomUUID },
-  /** Trips it starts with, e.g. the example trips in development builds (D8). */
-  initial: z.input<typeof CreateTripInputSchema>[] = [],
 ): TripRepository {
   const build = (input: z.input<typeof CreateTripInputSchema>) =>
-    buildTrip(CreateTripInputSchema.parse(input), { now: deps.now(), newId: deps.newId });
-  const stored: CreatedTrip[] = initial.map(build);
+    buildTrip(CreateTripInputSchema.parse(input), { now: deps.now(), newId: deps.newId, ownerId: LOCAL_OWNER_ID });
+  const stored: CreatedTrip[] = [];
   const summary = ({ trip, members }: CreatedTrip) => TripSummarySchema.parse({ ...trip, travellerCount: members.length + 1 });
   const soonestFirst = () =>
     [...stored].sort((a, b) => a.trip.startDate.localeCompare(b.trip.startDate) || a.trip.createdAt.localeCompare(b.trip.createdAt));
   return {
     async nearest() {
       const [first] = soonestFirst();
-      return first ? TripOverviewSchema.parse({ trip: summary(first), members: first.members, segments: first.segments }) : null;
+      if (!first) return null;
+      const overview = { trip: summary(first), members: first.members, segments: first.segments };
+      return NearestTripSchema.parse({ overview, budgetSyncStatus: 'synced', fromCache: false });
     },
     async create(input) {
       const created = build(input);
       stored.push(created);
       return created.trip;
+    },
+    async setBudget(trip, amountMinor) {
+      const { budgetPerPerson } = TripBudgetFormSchema.parse({ budgetPerPerson: { amountMinor, currency: trip.baseCurrency } });
+      const found = stored.find((entry) => entry.trip.id === trip.id);
+      if (found) found.trip = TripSchema.parse({ ...found.trip, budgetPerPerson, budgetUpdatedAt: deps.now().toISOString() });
+    },
+    async syncBudgets() {
+      return { nextAttemptAt: null };
     },
   };
 }

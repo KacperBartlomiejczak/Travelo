@@ -43,6 +43,15 @@ export function parseAmountToMinor(text: string, currency: string, locale: strin
   return Number.isSafeInteger(minor) ? minor : null;
 }
 
+/** Minor units as the user would type them in an amount field: "2500,50" (pl), "2500.50" (en), no grouping. */
+export function formatAmountInput(amountMinor: number, currency: string, locale: string): string {
+  const digits = currencyMinorDigits(currency);
+  const scale = 10 ** digits;
+  const whole = String(Math.floor(amountMinor / scale));
+  const fraction = amountMinor % scale;
+  return fraction === 0 ? whole : `${whole}${decimalSeparator(locale)}${String(fraction).padStart(digits, '0')}`;
+}
+
 /** "120 PLN", "120,50 PLN" — amount, then currency code, joined by a no-break space (design-context §4.3). */
 export function formatMoney(money: Money, locale: string): string {
   const digits = currencyMinorDigits(money.currency);
