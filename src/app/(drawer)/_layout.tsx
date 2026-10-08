@@ -36,7 +36,9 @@ export default function DrawerLayout() {
   );
 }
 
-// Hidden from screen readers as soon as the panel is closed; the drawer library does it only once the slide ends.
+// Hidden from screen readers while the panel is closed, from the navigation state. On a device the drawer library
+// does the same through animated props; Jest's Reanimated mock does not apply those, so without this the closed
+// panel's content would count as visible in tests.
 function Panel({ navigation }: DrawerContentComponentProps) {
   const open = useDrawerStatus() === 'open';
   return (

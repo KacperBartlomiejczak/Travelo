@@ -1,5 +1,5 @@
 import { QueryClient } from '@tanstack/react-query';
-import { fireEvent, isHiddenFromAccessibility, render, screen, waitFor, within } from '@testing-library/react-native';
+import { act, fireEvent, isHiddenFromAccessibility, render, screen, waitFor, within } from '@testing-library/react-native';
 import type { ReactNode } from 'react';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
@@ -79,7 +79,7 @@ function setup({ list = async () => [BANGKOK, LISBON, ROME, OSLO], currentId = R
     </SafeAreaProvider>
   );
   const rendered = render(<TripsDrawer onClose={onClose} onCreate={onCreate} />, { wrapper });
-  return { repository, onClose, onCreate, rendered };
+  return { repository, queryClient, onClose, onCreate, rendered };
 }
 
 beforeEach(async () => {
@@ -90,6 +90,13 @@ beforeEach(async () => {
 afterEach(() => {
   jest.useRealTimers();
 });
+
+/** Every text in the panel, top to bottom. */
+function textsInOrder(): string[] {
+  return within(screen.getByTestId('trips-drawer'))
+    .getAllByText(/.+/)
+    .map((node) => [node.props.children].flat().join(''));
+}
 
 describe('TripsDrawer (trips-drawer D4)', () => {
   it('lists upcoming trips soonest first and past trips most recently ended first, under their headers', async () => {
@@ -133,9 +140,13 @@ describe('TripsDrawer (trips-drawer D4)', () => {
     expect(placeholder).toHaveStyle({ width: lightTheme.size.thumbnail, height: lightTheme.size.thumbnail, backgroundColor: lightTheme.colors.surface.secondary });
   });
 
-  it('rows are list rows: at least 64dp high with 16dp side padding (§10.8)', async () => {
+  it('rows are list rows: at least 64dp high with 16dp side padding, secondary surface while pressed (§10.8)', async () => {
     await setup().rendered;
     expect(await screen.findByRole('button', { name: 'Rzym, 5 paź – 12 paź 2026' })).toHaveStyle({ minHeight: 64, paddingHorizontal: lightTheme.spacing[4] });
+    const oslo = screen.getByRole('button', { name: 'Oslo, 10 sie – 14 sie 2026' });
+    expect(oslo).not.toHaveStyle({ backgroundColor: lightTheme.colors.surface.secondary });
+    await fireEvent(oslo, 'responderGrant', { nativeEvent: { timestamp: Date.now() }, persist: jest.fn() });
+    expect(oslo).toHaveStyle({ backgroundColor: lightTheme.colors.surface.secondary });
   });
 
   it('marks the open trip with a background and a check, never colour alone, and no other row (§15)', async () => {
@@ -194,13 +205,28 @@ describe('TripsDrawer (trips-drawer D4)', () => {
     expect(await screen.findByRole('button', { name: 'Warsaw → Bangkok, 3 lis – 15 lis 2026' })).toBeTruthy();
   });
 
+  it('keeps the list on screen when a later read fails (§12: keep what is there)', async () => {
+    let fail = false;
+    const { queryClient, rendered } = setup({ list: async () => (fail ? Promise.reject(new Error('offline')) : [BANGKOK]) });
+    await rendered;
+    await screen.findByRole('button', { name: 'Warsaw → Bangkok, 3 lis – 15 lis 2026' });
+    fail = true;
+    await act(async () => {
+      await queryClient.refetchQueries({ queryKey: ['trips', 'list'] });
+      // Query updates reach the component through a setTimeout(0); let it re-render.
+      await jest.runOnlyPendingTimersAsync();
+    });
+    expect(queryClient.getQueryState(['trips', 'list'])?.status).toBe('error');
+    expect(screen.getByRole('button', { name: 'Warsaw → Bangkok, 3 lis – 15 lis 2026' })).toBeTruthy();
+    expect(screen.queryByText('Nie udało się wczytać podróży.')).toBeNull();
+  });
+
   it('offline: shows the list from the phone with the banner above "Nowa podróż"', async () => {
     setNetwork({ isConnected: false, isInternetReachable: false });
     await setup().rendered;
     expect(await screen.findByRole('button', { name: 'Rzym, 5 paź – 12 paź 2026' })).toBeTruthy();
-    const footer = within(screen.getByTestId('drawer-footer'));
-    expect(footer.getByText('Jesteś offline. Zmiany zapiszą się po połączeniu.')).toBeTruthy();
-    expect(footer.getByRole('button', { name: 'Nowa podróż' })).toBeTruthy();
+    expect(textsInOrder()).toEqual(expect.arrayContaining(['Jesteś offline. Zmiany zapiszą się po połączeniu.', 'Nowa podróż']));
+    expect(textsInOrder().indexOf('Jesteś offline. Zmiany zapiszą się po połączeniu.')).toBeLessThan(textsInOrder().indexOf('Nowa podróż'));
   });
 
   it('reads in English', async () => {
@@ -217,10 +243,10 @@ describe('TripsDrawer — no trips (trips-drawer D5)', () => {
   it('says there are no trips yet above "Nowa podróż", never an empty panel', async () => {
     await setup({ list: async () => [], currentId: null }).rendered;
     expect(await screen.findByText('Nie masz jeszcze żadnej podróży.')).toBeTruthy();
-    expect(screen.getByText('Zaplanuj pierwszą i zaproś znajomych.')).toBeTruthy();
     expect(screen.queryByText('Nadchodzące')).toBeNull();
     expect(screen.queryByText('Minione')).toBeNull();
     expect(screen.getByRole('button', { name: 'Nowa podróż' })).toBeTruthy();
+    expect(textsInOrder()).toEqual(['Twoje podróże', 'Nie masz jeszcze żadnej podróży.', 'Zaplanuj pierwszą i zaproś znajomych.', 'Nowa podróż']);
   });
 
   it('says the same offline with an empty copy of the list, with the banner', async () => {

@@ -36,14 +36,23 @@ export function TripsDrawer({ onClose, onCreate }: Props) {
     onClose();
   }
 
+  // A list already shown stays when a later read fails (§12); the error shows only when there is nothing to show.
   let body;
-  if (trips.isPending) {
+  if (trips.data && trips.data.length === 0) {
+    // No trips is never an empty panel (D5).
     body = (
-      <View testID="drawer-loading" accessible accessibilityLabel={t('trips.loading')} accessibilityState={{ busy: true }}>
-        {Array.from({ length: SKELETON_ROWS }, (_, index) => (
-          <SkeletonRow key={index} />
-        ))}
+      <View style={{ paddingHorizontal: spacing[4], paddingTop: spacing[4], gap: spacing[1] }}>
+        <Text style={[typography.bodyMMedium, { color: colors.text.primary }]}>{t('trips.empty.heading')}</Text>
+        <Text style={[typography.bodyS, { color: colors.text.secondary }]}>{t('trips.empty.description')}</Text>
       </View>
+    );
+  } else if (trips.data) {
+    const { upcoming, past } = tripSections(trips.data, deviceToday(new Date()));
+    body = (
+      <>
+        <Section id="upcoming" title={t('drawer.upcoming')} trips={upcoming} currentId={currentId} onOpen={open} />
+        <Section id="past" title={t('drawer.past')} trips={past} currentId={currentId} onOpen={open} />
+      </>
     );
   } else if (trips.isError) {
     body = (
@@ -55,21 +64,13 @@ export function TripsDrawer({ onClose, onCreate }: Props) {
         <TextButton variant="secondary" label={t('trips.retry')} onPress={() => trips.refetch()} />
       </View>
     );
-  } else if (trips.data.length === 0) {
-    // No trips is never an empty panel (D5).
-    body = (
-      <View style={{ paddingHorizontal: spacing[4], paddingTop: spacing[4], gap: spacing[1] }}>
-        <Text style={[typography.bodyMMedium, { color: colors.text.primary }]}>{t('trips.empty.heading')}</Text>
-        <Text style={[typography.bodyS, { color: colors.text.secondary }]}>{t('trips.empty.description')}</Text>
-      </View>
-    );
   } else {
-    const { upcoming, past } = tripSections(trips.data, deviceToday(new Date()));
     body = (
-      <>
-        <Section id="upcoming" title={t('drawer.upcoming')} trips={upcoming} currentId={currentId} onOpen={open} />
-        <Section id="past" title={t('drawer.past')} trips={past} currentId={currentId} onOpen={open} />
-      </>
+      <View testID="drawer-loading" accessible accessibilityLabel={t('trips.loading')} accessibilityState={{ busy: true }}>
+        {Array.from({ length: SKELETON_ROWS }, (_, index) => (
+          <SkeletonRow key={index} />
+        ))}
+      </View>
     );
   }
 

@@ -1,4 +1,5 @@
 import { useFonts } from 'expo-font';
+import { StyleSheet } from 'react-native';
 import { act, fireEvent, isHiddenFromAccessibility, renderRouter, screen, waitFor, within } from 'expo-router/testing-library';
 
 import DrawerLayout from '@/app/(drawer)/_layout';
@@ -85,6 +86,13 @@ async function openPanel() {
   return { rendered };
 }
 
+/** The nearest view at or above `node` that paints a background (the scrim's colour sits on its container). */
+function coloured(node: ReturnType<typeof screen.getByRole> | null) {
+  let current = node;
+  while (current && StyleSheet.flatten(current.props.style)?.backgroundColor === undefined) current = current.parent;
+  return current;
+}
+
 /** The panel's own view: the drawer library's styled container around the panel content. */
 function panel() {
   let node = screen.getByTestId('drawer-panel').parent;
@@ -122,9 +130,11 @@ describe('Side panel on the home screen (trips-drawer D2, D4)', () => {
     await waitFor(() => expect(drawerStatus(rendered)).toBe('closed'));
   });
 
-  it('closes from the scrim, labelled "Zamknij"', async () => {
+  it('closes from the scrim, labelled "Zamknij", ink at 50 % like behind a bottom sheet', async () => {
     const { rendered } = await openPanel();
-    await fireEvent.press(screen.getByRole('button', { name: 'Zamknij' }));
+    const scrim = screen.getByRole('button', { name: 'Zamknij' });
+    expect(coloured(scrim)).toHaveStyle({ backgroundColor: lightTheme.colors.overlay.scrim });
+    await fireEvent.press(scrim);
     expect(drawerStatus(rendered)).toBe('closed');
   });
 
