@@ -1,6 +1,6 @@
 import { migrateLocalDb } from '@/data/local-db';
 import { createLocalStore } from '@/data/local-store';
-import type { TripOverview } from '@/schemas';
+import type { TripList, TripOverview } from '@/schemas';
 import { openTestDb } from '@/test/node-sqlite';
 
 const TRIP_ID = '0b9e7c4e-6a43-4c4b-9a55-2f6f0f7e1a01';
@@ -63,6 +63,109 @@ describe('nearest trip cache (D6)', () => {
   });
 });
 
+describe('trip list copy (trips-drawer D3)', () => {
+  const list: TripList = [
+    { id: TRIP_ID, name: 'Barcelona', startDate: '2026-11-02', endDate: '2026-11-09' },
+    { id: OTHER_TRIP_ID, name: 'Rome', coverImageUri: 'file:///cache/rome.jpg', startDate: '2026-12-01', endDate: '2026-12-05' },
+  ];
+
+  it('is empty at first', async () => {
+    const { local } = await store();
+    await expect(local.cachedList()).resolves.toBeNull();
+  });
+
+  it('gives back the last list read from the server, also an empty one', async () => {
+    const { local } = await store();
+    await local.cacheList(list, '2026-10-08T09:00:00.000Z');
+    await expect(local.cachedList()).resolves.toEqual(list);
+    await local.cacheList([], '2026-10-08T09:05:00.000Z');
+    await expect(local.cachedList()).resolves.toEqual([]);
+  });
+
+  it('treats a corrupt or outdated copy as no copy instead of crashing', async () => {
+    const { db, local } = await store();
+    await db.runAsync("insert into trip_list_cache (id, list_json, cached_at) values (1, '{not json', 'x')", []);
+    await expect(local.cachedList()).resolves.toBeNull();
+    await db.runAsync('update trip_list_cache set list_json = ?', [JSON.stringify([{ id: TRIP_ID }])]);
+    await expect(local.cachedList()).resolves.toBeNull();
+  });
+
+  it('deletes the copies of trips that are no longer on the list and keeps the others (A5)', async () => {
+    const { local } = await store();
+    const other = { ...overview, trip: { ...overview.trip, id: OTHER_TRIP_ID, name: 'Rome' } };
+    await local.cacheOverview(overview, '2026-10-08T09:00:00.000Z');
+    await local.cacheOverview(other, '2026-10-08T09:00:00.000Z');
+    await local.cacheList([list[1]], '2026-10-08T09:05:00.000Z');
+    await expect(local.cachedOverview(TRIP_ID)).resolves.toBeNull();
+    await expect(local.cachedOverview(OTHER_TRIP_ID)).resolves.toEqual(other);
+    await local.cacheList([], '2026-10-08T09:10:00.000Z');
+    await expect(local.cachedOverview(OTHER_TRIP_ID)).resolves.toBeNull();
+  });
+
+  it('never deletes a budget change that is still waiting', async () => {
+    const { local } = await store();
+    await local.saveBudgetChange(change);
+    await local.cacheList([], '2026-10-08T09:00:00.000Z');
+    await expect(local.budgetChange(TRIP_ID)).resolves.toEqual(expect.objectContaining({ syncStatus: 'pending' }));
+  });
+});
+
+describe('trip copies, one per trip opened on this phone (A5)', () => {
+  const other = { ...overview, trip: { ...overview.trip, id: OTHER_TRIP_ID, name: 'Rome' } };
+
+  it('has no copy of a trip never opened', async () => {
+    const { local } = await store();
+    await expect(local.cachedOverview(TRIP_ID)).resolves.toBeNull();
+  });
+
+  it('keeps a copy of each trip, and a newer read replaces only that trip\'s copy', async () => {
+    const { local } = await store();
+    await local.cacheOverview(overview, '2026-10-08T09:00:00.000Z');
+    await local.cacheOverview(other, '2026-10-08T09:00:00.000Z');
+    const renamed = { ...overview, trip: { ...overview.trip, name: 'Barcelona 2026' } };
+    await local.cacheOverview(renamed, '2026-10-08T09:05:00.000Z');
+    await expect(local.cachedOverview(TRIP_ID)).resolves.toEqual(renamed);
+    await expect(local.cachedOverview(OTHER_TRIP_ID)).resolves.toEqual(other);
+  });
+
+  it('treats a corrupt or outdated copy as no copy instead of crashing', async () => {
+    const { db, local } = await store();
+    await db.runAsync("insert into trip_overview_cache (trip_id, overview_json, cached_at) values (?, '{not json', 'x')", [TRIP_ID]);
+    await expect(local.cachedOverview(TRIP_ID)).resolves.toBeNull();
+    await db.runAsync('update trip_overview_cache set overview_json = ?', [JSON.stringify({ trip: { id: TRIP_ID } })]);
+    await expect(local.cachedOverview(TRIP_ID)).resolves.toBeNull();
+  });
+});
+
+describe('chosen trip (trips-drawer D2)', () => {
+  it('is none at first', async () => {
+    const { local } = await store();
+    await expect(local.selectedTripId()).resolves.toBeNull();
+  });
+
+  it('remembers the latest choice until it is cleared', async () => {
+    const { local } = await store();
+    await local.selectTrip(TRIP_ID);
+    await expect(local.selectedTripId()).resolves.toBe(TRIP_ID);
+    await local.selectTrip(OTHER_TRIP_ID);
+    await expect(local.selectedTripId()).resolves.toBe(OTHER_TRIP_ID);
+    await local.clearSelectedTrip();
+    await expect(local.selectedTripId()).resolves.toBeNull();
+  });
+
+  it('refuses to store an id that is not a UUID', async () => {
+    const { local } = await store();
+    await expect(local.selectTrip('trip-1')).rejects.toThrow();
+    await expect(local.selectedTripId()).resolves.toBeNull();
+  });
+
+  it('reads a stored id that is not a UUID as no choice', async () => {
+    const { db, local } = await store();
+    await db.runAsync("insert into selected_trip (id, trip_id) values (1, 'trip-1')", []);
+    await expect(local.selectedTripId()).resolves.toBeNull();
+  });
+});
+
 describe('budget changes', () => {
   it('saves a change as pending, with no attempts yet', async () => {
     const { local } = await store();
@@ -110,6 +213,17 @@ describe('budget changes', () => {
     const cached = await local.cachedNearest();
     expect(cached?.trip.budgetPerPerson).toEqual(change.budgetPerPerson);
     expect(cached?.trip.budgetUpdatedAt).toBe(change.updatedAt);
+  });
+
+  it('writes the synced amount into the copy of that trip only, when several trips are copied', async () => {
+    const { local } = await store();
+    const other = { ...overview, trip: { ...overview.trip, id: OTHER_TRIP_ID, name: 'Rome' } };
+    await local.cacheOverview(other, '2026-10-08T09:00:00.000Z');
+    await local.cacheOverview(overview, '2026-10-08T09:00:00.000Z');
+    await local.saveBudgetChange(change);
+    await local.markBudgetSynced(change);
+    expect((await local.cachedOverview(TRIP_ID))?.trip.budgetPerPerson).toEqual(change.budgetPerPerson);
+    await expect(local.cachedOverview(OTHER_TRIP_ID)).resolves.toEqual(other);
   });
 
   it('leaves the copy alone when it is another trip or already has a newer budget', async () => {
