@@ -1,5 +1,5 @@
 # Architecture
-Last updated: 2026-10-08 · after task: trips-drawer (side panel with all trips)
+Last updated: 2026-10-10 · after task: trips-drawer (side panel with all trips; step 9, D8)
 
 ## Overview
 Traveling is a mobile app for the person who organizes a trip for a group of friends: trip setup, members, flights and layovers, AI day plans built from real places, offline expenses, and a plan-vs-reality budget summary. The product scope and rules are defined in `CLAUDE.md`; the visual system ("Sunline") is defined in `context/design-context.md`.
