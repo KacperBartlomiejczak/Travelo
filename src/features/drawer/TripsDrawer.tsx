@@ -133,7 +133,13 @@ function TripRow({ trip, selected, divider, onPress }: RowProps) {
   const { spacing, colors, size } = theme;
   const dates = formatDateRange(trip.startDate, trip.endDate, i18n.language);
   // The placeholder's surface also sits behind a cover, so a photo the phone has since cleared is not a hole.
-  const thumbnail = { width: size.thumbnail, height: size.thumbnail, borderRadius: theme.radius.sm, backgroundColor: colors.surface.secondary };
+  // On the selected row (secondary surface) it takes the panel's surface instead, so it stays visible (D8).
+  const thumbnail = {
+    width: size.thumbnail,
+    height: size.thumbnail,
+    borderRadius: theme.radius.sm,
+    backgroundColor: selected ? colors.surface.elevated : colors.surface.secondary,
+  };
   return (
     <Pressable
       accessibilityRole="button"

@@ -9,7 +9,11 @@ import i18n from '@/i18n';
 import { AppProviders } from '@/providers/AppProviders';
 import type { CurrentTrip, TripListItem } from '@/schemas';
 import { setNetwork } from '@/test/mock-network';
-import { lightTheme } from '@/theme/theme';
+import { darkTheme, lightTheme } from '@/theme/theme';
+
+let mockScheme: 'light' | 'dark' = 'light';
+// useColorScheme reads Appearance through an internal import, so it is mocked at its module path.
+jest.mock('react-native/Libraries/Utilities/useColorScheme', () => ({ __esModule: true, default: () => mockScheme }));
 
 const METRICS = { frame: { x: 0, y: 0, width: 320, height: 640 }, insets: { top: 47, left: 0, right: 0, bottom: 34 } };
 
@@ -83,6 +87,7 @@ function setup({ list = async () => [BANGKOK, LISBON, ROME, OSLO], currentId = R
 }
 
 beforeEach(async () => {
+  mockScheme = 'light';
   jest.useFakeTimers({ now: NOW, advanceTimers: true });
   await i18n.changeLanguage('pl');
 });
@@ -124,7 +129,9 @@ describe('TripsDrawer (trips-drawer D4)', () => {
   });
 
   it('shows each row\'s name and dates, and the cover photo or a placeholder', async () => {
-    await setup().rendered;
+    // Oslo is open, so the rows checked here are not the selected one (that one is D8, below).
+    await setup({ currentId: OSLO.id }).rendered;
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Oslo, 10 sie – 14 sie 2026' })).toBeSelected());
     const rome = await screen.findByRole('button', { name: 'Rzym, 5 paź – 12 paź 2026' });
     expect(within(rome).getByText('Rzym')).toBeTruthy();
     expect(within(rome).getByText('5 paź – 12 paź 2026')).toBeTruthy();
@@ -236,6 +243,35 @@ describe('TripsDrawer (trips-drawer D4)', () => {
     expect(await screen.findByRole('header', { name: 'Upcoming' })).toBeTruthy();
     expect(screen.getByRole('header', { name: 'Past' })).toBeTruthy();
     expect(screen.getByRole('button', { name: 'New trip' })).toBeTruthy();
+  });
+});
+
+describe('TripsDrawer — thumbnail on the open trip\'s row (trips-drawer D8)', () => {
+  it.each([
+    ['light', lightTheme],
+    ['dark', darkTheme],
+  ] as const)('puts the open trip\'s placeholder on the panel surface, the others on the secondary surface (%s)', async (scheme, theme) => {
+    mockScheme = scheme;
+    await setup({ currentId: BANGKOK.id }).rendered;
+    const bangkok = await screen.findByRole('button', { name: 'Warsaw → Bangkok, 3 lis – 15 lis 2026' });
+    await waitFor(() => expect(bangkok).toBeSelected());
+    expect(bangkok).toHaveStyle({ backgroundColor: theme.colors.surface.secondary });
+    expect(within(bangkok).getByTestId('trip-row-placeholder', { includeHiddenElements: true })).toHaveStyle({
+      backgroundColor: theme.colors.surface.elevated,
+    });
+    const oslo = screen.getByRole('button', { name: 'Oslo, 10 sie – 14 sie 2026' });
+    expect(within(oslo).getByTestId('trip-row-placeholder', { includeHiddenElements: true })).toHaveStyle({
+      backgroundColor: theme.colors.surface.secondary,
+    });
+  });
+
+  it('puts a cover on the open trip\'s row on the panel surface too', async () => {
+    await setup({ currentId: ROME.id }).rendered;
+    const rome = await screen.findByRole('button', { name: 'Rzym, 5 paź – 12 paź 2026' });
+    await waitFor(() => expect(rome).toBeSelected());
+    expect(within(rome).getByTestId('trip-row-cover', { includeHiddenElements: true })).toHaveStyle({
+      backgroundColor: lightTheme.colors.surface.elevated,
+    });
   });
 });
 
