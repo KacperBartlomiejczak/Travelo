@@ -1,7 +1,8 @@
 import { useRouter } from 'expo-router';
+import { useHeaderHeight } from 'expo-router/react-navigation';
 import { CircleX, type LucideIcon } from 'lucide-react-native';
 import type { ReactNode, RefObject } from 'react';
-import { ScrollView, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
+import { KeyboardAvoidingView, ScrollView, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { PrimaryButton } from '@/components/PrimaryButton';
@@ -21,19 +22,30 @@ type Props = {
 };
 
 // Shared frame of every wizard step: step indicator, scrollable content, primary action at the bottom.
+// The keyboard pushes the whole frame up, so the focused field and the action stay above it (wizard-keyboard D2).
 export function WizardScreen({ step, children, action, scrollRef }: Props) {
   const theme = useTheme();
   const insets = useSafeAreaInsets();
+  // The frame sits under the stack header; the keyboard's position is measured from the top of the window.
+  const headerHeight = useHeaderHeight();
   const { width } = useWindowDimensions();
   const { draft } = useTripDraft();
   const steps = wizardSteps(draft.companionCount);
   const horizontal = width < theme.breakpoints.compact ? theme.spacing[4] : theme.spacing[5];
 
   return (
-    <View style={[styles.screen, { backgroundColor: theme.colors.background }]}>
+    // `padding` on Android too: with edge-to-edge the window is not resized for the keyboard (D3).
+    <KeyboardAvoidingView
+      testID="wizard-screen"
+      behavior="padding"
+      keyboardVerticalOffset={headerHeight}
+      style={[styles.screen, { backgroundColor: theme.colors.background }]}
+    >
       <ScrollView
         ref={scrollRef}
+        testID="wizard-scroll"
         keyboardShouldPersistTaps="handled"
+        automaticallyAdjustKeyboardInsets
         contentContainerStyle={[
           styles.content,
           { maxWidth: theme.size.maxContentWidth, paddingHorizontal: horizontal, paddingTop: theme.spacing[4], gap: theme.spacing[6] },
@@ -68,7 +80,7 @@ export function WizardScreen({ step, children, action, scrollRef }: Props) {
           <PrimaryButton label={action.label} icon={action.icon} onPress={action.onPress} loading={action.loading} />
         </View>
       )}
-    </View>
+    </KeyboardAvoidingView>
   );
 }
 
