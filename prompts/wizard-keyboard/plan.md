@@ -1,5 +1,5 @@
 # Task: Keyboard must not cover the field being typed in (trip wizard)
-Status: done
+Status: in progress (code done; Android checked; waiting for Q5 and the iOS check, D3)
 
 ## Understanding & assumptions
 - **Problem (Kacper, 2026-10-13):** on the wizard's first step (`src/app/trips/new/index.tsx`, "Loty"), tapping
@@ -65,7 +65,7 @@ Not touched: the uncommitted work already in the tree (`src/schemas/trip-details
 - `frontend-ui-engineering` — step 1 — keyboard + focus behavior on a form screen, accessibility unchanged.
 
 ## Steps
-- [x] 1. [frontend] `WizardScreen` avoids the keyboard — skill: test-driven-development, source-driven-development,
+- [ ] 1. [frontend] `WizardScreen` avoids the keyboard — skill: test-driven-development, source-driven-development,
   frontend-ui-engineering — tests first: `WizardScreen.test.tsx` (above) — verify: full `pnpm test`,
   `pnpm typecheck`, `pnpm lint` green; verifier PASS; manual check on the iOS simulator (steps below).
 
@@ -107,6 +107,13 @@ Manual (iOS simulator, then Android if available), for Kacper:
   keyboard, so `undefined` would most likely leave it covered. Proposal: `padding` on both platforms + a Jest
   test for Android (`Platform.OS = 'android'`, `keyboardDidShow` → bottom padding), confirmed on an Android
   device by Kacper.
+- **Q5 (iOS, open — CodeRabbit on PR #6):** on iOS the `ScrollView`'s `automaticallyAdjustKeyboardInsets` and the
+  `KeyboardAvoidingView` both react to the keyboard. RN 0.86 `RCTScrollViewComponentView.mm`
+  `_keyboardWillChangeFrame` computes the bottom inset (and the scroll to the focused field) from the scroll
+  view's frame when the keyboard notification arrives, before the `KeyboardAvoidingView` padding shrinks it, and
+  does not recompute after that. Result on iOS: a blank space about the keyboard's height at the end of the form,
+  and a field scrolled to just above the keyboard can end up behind "Dalej" (cut off by the shrunken scroll
+  view). Android is not affected (the prop is iOS only). Fix needs a decision (beyond the approved step).
 - **Risk:** tests check only the wiring; the real result is confirmed by the manual steps.
 
 ## Progress log
@@ -129,3 +136,6 @@ Manual (iOS simulator, then Android if available), for Kacper:
   FAIL was about the missing approval and the obsolete Android test, both resolved by D4. Verifier's own run on
   this code: typecheck ✓, lint ✓, full suite 790/790 ✓. Manual iOS check (Verification 1–6) not reported
   yet. `Architecture.md` updated.
+- 2026-10-13, CodeRabbit review on PR #6: (1) `Status: done` before the iOS check breaks D3 — valid; status set
+  back to in progress and step 1 unchecked until the iOS check is recorded. (2) double keyboard adjustment on
+  iOS — valid (checked in the RN source), recorded as Q5, waiting for Kacper.
