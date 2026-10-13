@@ -1,5 +1,5 @@
 # Architecture
-Last updated: 2026-10-10 · after task: trips-drawer (side panel with all trips; step 9, D8)
+Last updated: 2026-10-13 · after task: wizard-keyboard (the keyboard no longer covers the wizard's fields)
 
 ## Overview
 Traveling is a mobile app for the person who organizes a trip for a group of friends: trip setup, members, flights and layovers, AI day plans built from real places, offline expenses, and a plan-vs-reality budget summary. The product scope and rules are defined in `CLAUDE.md`; the visual system ("Sunline") is defined in `context/design-context.md`.
@@ -26,6 +26,7 @@ Travelo/
 │   ├── supabase-client/plan.md     Supabase client and configuration
 │   ├── trips-supabase/plan.md      Trips in Supabase, offline budget: D1–D13, progress log, manual steps
 │   ├── trips-drawer/plan.md        Side panel with all trips: D0–D5, P1–P6, progress log, manual steps
+│   ├── wizard-keyboard/plan.md     Keyboard avoiding in the create-trip wizard: D1–D4, progress log, manual steps
 │   ├── trip-edit-menu/plan.md      ⋮ menu for editing a trip (drafting)
 │   ├── trip-photos/plan.md         Trip photos in Supabase Storage (drafting)
 │   └── expenses/plan.md            Expenses screen + pill nav (drafting)
@@ -151,7 +152,7 @@ The airport list is a static bundled file, validated row by row in its test (not
 
 ### Shared components / hooks
 - `Field` (label + error frame, input border/box/text styles), `TextField`, `AirportField` (search over the bundled list), `DateTimeField` (`.tsx` iOS wheel in UTC, `.android.tsx` date→time dialogs, `.web.tsx` browser input; shared `DateTimeFieldBase`), `AmountField` (§10.5), `TextButton` (secondary / ghost), `IconButton`, `Stepper` (adjustable for screen readers), `SegmentedControl`, `Chip` (checkbox), `Card`, `StepIndicator` ("Krok 2 z 4" + bar), `LayoverLabel`, `CoverPicker` (optional cover photo from the gallery via `expo-image-picker`, crop 16:9 on Android, preview + change / remove, error message), `TripHero` + `TripHeroSkeleton`.
-- Wizard pieces in `src/features/trip-create/`: `WizardScreen` (step indicator, scroll, pinned action with optional error) + `useGoToNextStep`, `SegmentCard`, `FriendCard`, `TripDraftProvider` / `useTripDraft`, `draft.ts` (types incl. `name: string | null` and `coverImageUri?`, `withCompanionCount`, `addLayover`, `withOutbound`, `budgetCurrency*`, `tripName`, `toCreateTripInput`), `steps.ts`, `field-errors.ts`, `confirm-discard.ts`.
+- Wizard pieces in `src/features/trip-create/`: `WizardScreen` (step indicator, scroll, pinned action with optional error; the whole frame is a `KeyboardAvoidingView` with `behavior="padding"` on iOS and Android and `keyboardVerticalOffset` = the stack header height (`useHeaderHeight`), so the keyboard pushes the content and "Dalej" up; the `ScrollView` has `automaticallyAdjustKeyboardInsets` so a field lower down scrolls above the keyboard on iOS) + `useGoToNextStep`, `SegmentCard`, `FriendCard`, `TripDraftProvider` / `useTripDraft`, `draft.ts` (types incl. `name: string | null` and `coverImageUri?`, `withCompanionCount`, `addLayover`, `withOutbound`, `budgetCurrency*`, `tripName`, `toCreateTripInput`), `steps.ts`, `field-errors.ts`, `confirm-discard.ts`.
 - `useTripList`, `useCurrentTrip`, `useSelectTrip`, `useCreateTrip`, `useSetTripBudget` (`src/hooks/useTrips.ts`); `useTripRepository` (`src/providers/AppProviders.tsx`); `useRequestBudgetSync`, `useIsOffline` (`src/providers/BudgetSync.tsx`).
 - `BottomSheet` (§10.12: RN `Modal`, scrim backdrop "Zamknij", 36×4 handle, swipe down on the handle area, system back, 24dp top corners, ≤ 90 %, safe-area padding, keyboard avoiding on iOS, no slide with reduced motion), `SyncIndicator` (D10: `Clock` + "Czeka na wysłanie" in info / `CircleX` + "Nie udało się wysłać" in error + ghost "Spróbuj ponownie"; nothing when synced), `OfflineBanner` (D11: `WifiOff` + design-context copy, polite live region), `BudgetSheet` (`src/features/home/`: the wizard's heading / hint / amount label, amount pre-filled with `formatAmountInput`, the wizard's validation rules, "Zapisz", device-save error announced).
 - `PrimaryButton` (`src/components/PrimaryButton.tsx`) — design-context §10.1: min height 52dp (grows with Dynamic Type), 16dp horizontal padding, 12dp radius; states default / pressed / focused (2dp brand ring, 4dp offset) / disabled / loading (spinner, `busy`); optional leading lucide icon (20dp, stroke 2, hidden from screen readers).
@@ -175,7 +176,8 @@ The airport list is a static bundled file, validated row by row in its test (not
 - Data-layer tests use a real SQLite (`node:sqlite`, Node 22) behind the `LocalDb` interface (`src/test/node-sqlite.ts`) and a fake Supabase client that records every query chain (`src/test/fake-supabase.ts`). The request-timeout tests in `supabase-trip-repository.test.ts` use the real `createClient` over a stub server that never answers (session pre-stored, fake timers, no network).
 - Database tests: `supabase/tests/trips_rls.sql` (RLS for owner / stranger / linked viewer / anon, constraints, idempotent `create_trip`, last write wins) — `pnpm test:db`, not part of `pnpm test`. aria-hidden elements need `includeHiddenElements: true`. Some date/time tests set `process.env.TZ` inside the test, which does not change Node's time zone under Jest (next point); device-time-zone independence is checked by running the whole suite under `TZ=…`.
 - Jest cannot switch the time zone inside a test (`process.env.TZ` set in a test does not reach Node); time-zone checks need the whole run under `TZ=…`.
-- Current suite: 64 suites, 747 tests (also green with `TZ=Pacific/Auckland`).
+- Current suite: 64 suites, 747 tests (also green with `TZ=Pacific/Auckland`). On 2026-10-13 the working tree (incl. uncommitted work of other features) ran 66 suites, 790 tests.
+- `WizardScreen.test.tsx` spies on `Keyboard.addListener` and fires `keyboardWillShow` / `keyboardWillHide` itself, with a fake `layout` event (it needs `persist()`), to check the bottom padding; the iOS path only (jest-expo runs as iOS).
 
 ## Tooling
 | Area | Setup |
@@ -226,6 +228,7 @@ The airport list is a static bundled file, validated row by row in its test (not
 | OurAirports, mwgg/Airports, datasets/country-codes | Airport list (generated once at dev time, bundled) | `scripts/build-airports.mjs` only | — |
 
 ## Key decisions
+- 2026-10-13 — The create-trip wizard avoids the keyboard with React Native's `KeyboardAvoidingView` in `WizardScreen` (all four steps), `padding` on Android too because Android runs edge-to-edge and the window is not resized for the keyboard; "Dalej" moves up with the keyboard. `react-native-keyboard-controller` was rejected (new native dependency) (`prompts/wizard-keyboard/plan.md` D1–D4).
 - 2026-10-10 — On the open trip's row the panel's thumbnail takes the panel's surface (`surface.elevated`), the other rows keep `surface.secondary`, so the placeholder never blends into the selected background (`prompts/trips-drawer/plan.md` D8). P2 (a) and the step 7 deviations confirmed by Kacper (D6, D7).
 - 2026-10-08 — Side panel (expo-router Drawer, no new dependency) with all trips in "Nadchodzące" / "Minione"; the home screen shows the current trip — the one chosen there (remembered in SQLite on the phone, never sent to Supabase), else the default trip (soonest upcoming or ongoing, else the most recently ended); a new trip becomes the chosen one; offline copies of the list and of every trip opened on the phone; the pinned "Utwórz podróż" leaves the trip view; the menu button sits over the photo on ink at 50 %; the panel follows the system theme; its slide does not follow reduced motion (accepted, P2 (a)) (`prompts/trips-drawer/plan.md` D0–D5, A1–A8, P1–P6).
 - 2026-10-07 — Every Supabase request gives up after 20 s (shared client's `global.fetch`), so a silent network (captive portal; RN Android fetch has no default timeout) ends as "unreachable": the budget sync queue is never stuck and the home screen falls back to the device copy (`prompts/trips-supabase/plan.md` D14, CodeRabbit review on PR #5).
@@ -250,6 +253,7 @@ The airport list is a static bundled file, validated row by row in its test (not
 - 2026-10-03 — Design-context gaps decided by Kacper: back button label (D7), native header style (D8), dark disabled button colours (D9), focus ring offset (D10), screen spacing (D11), empty-state illustration (D12) — see `prompts/trips-empty-state/plan.md`.
 
 ## Known limitations & tech debt
+- Wizard keyboard (`prompts/wizard-keyboard/plan.md`): checked on Android by Kacper; the iOS device check (manual steps 1–6) is not reported yet. While the keyboard is open, "Dalej" keeps its safe-area bottom padding above the keyboard. `BottomSheet` still avoids the keyboard on iOS only.
 - The migration is not pushed to the project yet and the app has not talked to Supabase from a device yet (manual steps in `prompts/trips-supabase/plan.md`). Anonymous sign-ins must be enabled in the dashboard.
 - Anonymous users only: deleting the app or its data loses the session and with it access to the trips (no e-mail / Apple linking yet). A refresh token the server rejects makes every request fail until the app data is cleared.
 - Retrying "Utwórz podróż" after a lost response can create a second trip (new ids per attempt); `create_trip` itself is idempotent per id.
@@ -279,6 +283,7 @@ The airport list is a static bundled file, validated row by row in its test (not
 - Template images in `assets/images/` (React/Expo logos, `tabIcons/`, `tutorial-web.png`) are not referenced by any code.
 
 ## Changelog
+- 2026-10-13 — wizard-keyboard — `WizardScreen` root is a `KeyboardAvoidingView` (`padding`, header-height offset) and its `ScrollView` adjusts keyboard insets; new `src/features/trip-create/__tests__/WizardScreen.test.tsx`. No schema, data or dependency change.
 - 2026-10-10 — trips-drawer step 9 (D8) — on the open trip's row the side panel's thumbnail sits on `surface.elevated` instead of `surface.secondary`; no architectural change.
 - 2026-10-08 — trips-drawer — schemas `TripListItemSchema`, `TripListSchema`, `SelectedTripSchema`, `NearestTripSchema` → `CurrentTripSchema`; `src/lib/trip-sections.ts`; SQLite migration v2 (`trip_list_cache`, `selected_trip`), a copy per opened trip, list pruning; `TripRepository.list` / `current` (replaces `nearest`) / `select`, create selects; hooks `useTripList`, `useCurrentTrip` (replaces `useNearestTrip`), `useSelectTrip`; home route moved to `src/app/(drawer)/` with an expo-router Drawer; `TripsDrawer`, `HeroIconButton`, `HeroMenuButton`; `NearestTrip` → `CurrentTrip`; pinned "Utwórz podróż" removed from the trip view and loading; theme `hero.control`, `size.drawerMaxWidth`, `size.thumbnail`; i18n `trips.openList`, `drawer.*`; Jest mocks for gesture-handler / worklets / Reanimated; `GLOSSARY.md` (current / default / upcoming / past trip); `CLAUDE.md` offline scope. No new dependency, no server change.
 - 2026-10-08 — skills — installed `addyosmani/agent-skills` (25 skills, `skills-lock.json`), added to `CLAUDE.md` with usage rules; `CLAUDE.md` now says when to use the explorer agent (step 0 of the step flow) and lists each agent's model. No change to the app.
