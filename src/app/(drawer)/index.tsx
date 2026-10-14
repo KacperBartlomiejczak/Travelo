@@ -1,7 +1,7 @@
 import { useNavigation, useRouter } from 'expo-router';
 import type { DrawerNavigationProp } from 'expo-router/drawer';
 import { CircleX, Menu, Plus } from 'lucide-react-native';
-import { useEffect, type ReactNode } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { AccessibilityInfo, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -9,6 +9,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { IconButton } from '@/components/IconButton';
 import { OfflineBanner } from '@/components/OfflineBanner';
 import { PrimaryButton } from '@/components/PrimaryButton';
+import { Snackbar } from '@/components/Snackbar';
 import { TextButton } from '@/components/TextButton';
 import { TripHeroSkeleton } from '@/components/TripHeroSkeleton';
 import { TripsEmptyIllustration } from '@/components/TripsEmptyIllustration';
@@ -20,6 +21,9 @@ import { DarkThemeScope, useTheme } from '@/theme/useTheme';
 
 // Home screen: loading, error, empty, or the current trip (trip-flight-tabs-name-cover D4, trips-drawer).
 // Every state has the menu button that opens the side panel with all trips (trips-drawer P5).
+// The "trip deleted" message lives here, not in CurrentTrip: that unmounts when the last trip is gone and while the next
+// one loads, and the message has to survive both (trip-edit-menu D9). The snackbar is drawn in every state, in the theme
+// of the screen behind it (D11).
 export default function HomeScreen() {
   const { t } = useTranslation();
   const theme = useTheme();
@@ -31,6 +35,7 @@ export default function HomeScreen() {
   const isCompact = width < theme.breakpoints.compact;
   const trips = useCurrentTrip();
   const offline = useIsOffline();
+  const [snackbar, setSnackbar] = useState<string | null>(null);
   const create = () => router.push('/trips/new');
   const openMenu = () => navigation.openDrawer();
 
@@ -39,10 +44,28 @@ export default function HomeScreen() {
     if (trips.isError) AccessibilityInfo.announceForAccessibility(t('trips.loadError'));
   }, [trips.isError, t]);
 
+  // The owner clears the message in `onHide`, so the same text can show again after a later delete.
+  // `aboveButton`: the empty and error states pin "Utwórz podróż" at the bottom; the snackbar sits above it, not over it
+  // (§10.16 "above bottom navigation if present", D21): the button's height and a spacing[3] gap.
+  const toast = (aboveButton = false) => (
+    <Snackbar
+      message={snackbar}
+      onHide={() => setSnackbar(null)}
+      bottomOffset={aboveButton ? theme.size.buttonPrimary + spacing[3] : 0}
+    />
+  );
+
   if (trips.data) {
+    // The trip view is always dark (A4), so its snackbar is too: the inverse colours must contrast with this screen.
     return (
       <DarkThemeScope>
-        <CurrentTrip overview={trips.data.overview} budgetSyncStatus={trips.data.budgetSyncStatus} onOpenMenu={openMenu} />
+        <CurrentTrip
+          overview={trips.data.overview}
+          budgetSyncStatus={trips.data.budgetSyncStatus}
+          onOpenMenu={openMenu}
+          onDeleted={() => setSnackbar(t('deleteTrip.deleted'))}
+        />
+        {toast()}
       </DarkThemeScope>
     );
   }
@@ -61,6 +84,7 @@ export default function HomeScreen() {
         >
           <TripHeroSkeleton />
         </View>
+        {toast()}
       </View>
     );
   }
@@ -118,6 +142,7 @@ export default function HomeScreen() {
         )}
         <PrimaryButton label={t('trips.create')} icon={Plus} onPress={create} />
       </View>
+      {toast(true)}
     </View>
   );
 }

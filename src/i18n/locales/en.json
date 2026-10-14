@@ -169,6 +169,27 @@
     "saveBudget": "Save",
     "saveBudgetError": "Couldn't save this. Try again."
   },
+  "tripMenu": {
+    "open": "Trip options",
+    "title": "Trip",
+    "editDetails": "Name and photo",
+    "changeBudget": "Change budget",
+    "delete": "Delete trip",
+    "offlineHint": "You need internet to rename or delete the trip."
+  },
+  "tripDetails": {
+    "title": "Name and photo",
+    "save": "Save",
+    "saveError": "Couldn't save. Try again."
+  },
+  "deleteTrip": {
+    "title": "Delete trip “{{name}}”?",
+    "body": "Flights, members and budget will be gone. This can't be undone.",
+    "confirm": "Delete trip",
+    "cancel": "Cancel",
+    "error": "Couldn't delete the trip. Try again.",
+    "deleted": "Trip deleted."
+  },
   "sync": {
     "pending": "Waiting to sync",
     "failed": "Couldn't sync",

@@ -169,6 +169,27 @@
     "saveBudget": "Zapisz",
     "saveBudgetError": "Nie udało się zapisać. Spróbuj ponownie."
   },
+  "tripMenu": {
+    "open": "Opcje podróży",
+    "title": "Podróż",
+    "editDetails": "Nazwa i zdjęcie",
+    "changeBudget": "Zmień budżet",
+    "delete": "Usuń podróż",
+    "offlineHint": "Bez internetu nie zmienisz nazwy ani nie usuniesz podróży."
+  },
+  "tripDetails": {
+    "title": "Nazwa i zdjęcie",
+    "save": "Zapisz",
+    "saveError": "Nie udało się zapisać. Spróbuj ponownie."
+  },
+  "deleteTrip": {
+    "title": "Usunąć podróż „{{name}}”?",
+    "body": "Znikną loty, uczestnicy i budżet. Tego nie da się cofnąć.",
+    "confirm": "Usuń podróż",
+    "cancel": "Anuluj",
+    "error": "Nie udało się usunąć podróży. Spróbuj ponownie.",
+    "deleted": "Podróż usunięta."
+  },
   "sync": {
     "pending": "Czeka na wysłanie",
     "failed": "Nie udało się wysłać",
