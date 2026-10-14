@@ -142,8 +142,8 @@ If a task is L or larger, it should be broken into smaller tasks. An agent perfo
 
 ## Output Files
 
-- **Plan document:** Save the implementation plan to `tasks/plan.md`. This is always a markdown file — design decisions, risks, and open questions don't map cleanly onto individual tracker issues.
-- **Task list:** Record each task in the **task list target** (defined below).
+- **Plan document:** Save the implementation plan to the repository's designated plan location. In Travelo, this is `prompts/<feature-name>/plan.md`; follow the project's agent rules when another repository defines a different location.
+- **Task list:** Record the ordered steps and checkpoints in that feature plan unless the project's agent rules designate an external tracker.
 
 Create the `tasks/` directory if it does not exist.
 
