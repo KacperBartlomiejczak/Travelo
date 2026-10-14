@@ -1,5 +1,5 @@
-import { fireEvent, render, screen } from '@testing-library/react-native';
-import { AccessibilityInfo, Text } from 'react-native';
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react-native';
+import { AccessibilityInfo, Keyboard, Platform, StyleSheet, Text, type EmitterSubscription, type KeyboardEvent } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import { BottomSheet } from '@/components/BottomSheet';
@@ -71,5 +71,77 @@ describe('BottomSheet (design-context §10.12)', () => {
     const onClose = await renderSheet();
     await fireEvent(screen.getByTestId('bottom-sheet-modal'), 'requestClose');
     expect(onClose).toHaveBeenCalledTimes(1);
+  });
+});
+
+// wizard-keyboard D5: the sheet sits right above the keyboard, on both platforms. Keyboard events have no native side
+// in Jest: the test captures the listeners and fires them itself.
+describe('BottomSheet and the keyboard (wizard-keyboard D5)', () => {
+  const SCREEN_HEIGHT = 844;
+  const KEYBOARD_HEIGHT = 300;
+  let keyboardListeners: Record<string, ((event: KeyboardEvent) => void)[]> = {};
+
+  beforeEach(() => {
+    keyboardListeners = {};
+    jest.spyOn(Keyboard, 'addListener').mockImplementation((name, listener) => {
+      const keyboardListener = listener as (event: KeyboardEvent) => void;
+      (keyboardListeners[name] ??= []).push(keyboardListener);
+      return { remove: () => {} } as EmitterSubscription;
+    });
+  });
+
+  async function emitKeyboard(name: string, height: number) {
+    const event = { endCoordinates: { screenX: 0, screenY: SCREEN_HEIGHT - height, width: 390, height } } as KeyboardEvent;
+    await act(async () => {
+      for (const listener of keyboardListeners[name] ?? []) listener(event);
+    });
+  }
+
+  // The modal is translucent: the part that makes room for the keyboard fills the window from its top edge, like the
+  // keyboard's own coordinates, so the sheet needs no vertical offset.
+  async function layoutWindow() {
+    await fireEvent(screen.getByTestId('bottom-sheet-keyboard'), 'layout', {
+      persist: () => {},
+      nativeEvent: { layout: { x: 0, y: 0, width: 390, height: SCREEN_HEIGHT } },
+    });
+  }
+
+  function paddingBottom() {
+    return StyleSheet.flatten(screen.getByTestId('bottom-sheet-keyboard').props.style).paddingBottom ?? 0;
+  }
+
+  function expectWholeSheetInside() {
+    const frame = within(screen.getByTestId('bottom-sheet-keyboard'));
+    expect(frame.getByRole('header', { name: 'Ile chcecie wydać na osobę?' })).toBeTruthy();
+    expect(frame.getByText('content')).toBeTruthy();
+    expect(frame.getByTestId('bottom-sheet')).toBeTruthy();
+  }
+
+  it('on Android, lifts the whole sheet by the keyboard height and puts it back when the keyboard hides', async () => {
+    jest.replaceProperty(Platform, 'OS', 'android');
+    await renderSheet();
+    await layoutWindow();
+    expect(paddingBottom()).toBe(0);
+    expectWholeSheetInside();
+
+    await emitKeyboard('keyboardDidShow', KEYBOARD_HEIGHT);
+    await waitFor(() => expect(paddingBottom()).toBe(KEYBOARD_HEIGHT));
+
+    await emitKeyboard('keyboardDidHide', 0);
+    await waitFor(() => expect(paddingBottom()).toBe(0));
+  });
+
+  it('on iOS, lifts the whole sheet by the keyboard height and puts it back when the keyboard hides', async () => {
+    expect(Platform.OS).toBe('ios');
+    await renderSheet();
+    await layoutWindow();
+    expect(paddingBottom()).toBe(0);
+    expectWholeSheetInside();
+
+    await emitKeyboard('keyboardWillShow', KEYBOARD_HEIGHT);
+    await waitFor(() => expect(paddingBottom()).toBe(KEYBOARD_HEIGHT));
+
+    await emitKeyboard('keyboardWillHide', 0);
+    await waitFor(() => expect(paddingBottom()).toBe(0));
   });
 });

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
-import { AccessibilityInfo, KeyboardAvoidingView, Modal, PanResponder, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
+import { AccessibilityInfo, KeyboardAvoidingView, Modal, PanResponder, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useTheme } from '@/theme/useTheme';
@@ -46,7 +46,9 @@ export function BottomSheet({ visible, title, onClose, children }: Props) {
 
   return (
     <Modal testID="bottom-sheet-modal" visible={visible} transparent animationType={reduceMotion ? 'none' : 'slide'} onRequestClose={onClose} statusBarTranslucent>
-      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.fill}>
+      {/* wizard-keyboard D5: `padding` on both platforms. Android's window resize does not reach an edge-to-edge dialog, and
+          the translucent modal starts at the top of the window like the keyboard's coordinates, so no offset is needed. */}
+      <KeyboardAvoidingView testID="bottom-sheet-keyboard" behavior="padding" style={styles.fill}>
         <Pressable
           accessibilityRole="button"
           accessibilityLabel={t('common.close')}

@@ -3,8 +3,9 @@ import { router, useRouter } from 'expo-router';
 import { act, fireEvent, renderRouter, screen, within } from 'expo-router/testing-library';
 import { AccessibilityInfo, Pressable, Text } from 'react-native';
 
+import DrawerLayout from '@/app/(drawer)/_layout';
+import HomeScreen from '@/app/(drawer)/index';
 import RootLayout from '@/app/_layout';
-import TripsScreen from '@/app/index';
 import BudgetStep from '@/app/trips/new/budget';
 import NewTripLayout from '@/app/trips/new/_layout';
 import { emptySegment, withCompanionCount } from '@/features/trip-create/draft';
@@ -54,7 +55,8 @@ async function openBudget(companions = 2, destination: Destination = BKK) {
   const rendered = renderRouter(
     {
       _layout: RootLayout,
-      index: TripsScreen,
+      '(drawer)/_layout': DrawerLayout,
+      '(drawer)/index': HomeScreen,
       'trips/new/_layout': NewTripLayout,
       'trips/new/index': filledSteps(companions, destination),
       'trips/new/budget': BudgetStep,
@@ -63,7 +65,7 @@ async function openBudget(companions = 2, destination: Destination = BKK) {
     { initialUrl: '/' },
   );
   await rendered;
-  await fireEvent.press(screen.getByText('Utwórz podróż'));
+  await fireEvent.press(await screen.findByText('Utwórz podróż'));
   await fireEvent.press(screen.getByText('test: fill and go to budget'));
   return { getPathname: () => rendered.getPathname() };
 }

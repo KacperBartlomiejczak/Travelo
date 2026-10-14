@@ -25,6 +25,16 @@ const MIGRATIONS = [
      attempts integer not null default 0,
      last_attempt_at text
    );`,
+  // trips-drawer: the side panel's list copy (one row) and the trip the organizer chose (one row).
+  `create table trip_list_cache (
+     id integer primary key not null check (id = 1),
+     list_json text not null,
+     cached_at text not null
+   );
+   create table selected_trip (
+     id integer primary key not null check (id = 1),
+     trip_id text not null
+   );`,
 ];
 
 export async function migrateLocalDb(db: LocalDb): Promise<void> {
@@ -39,7 +49,7 @@ export async function migrateLocalDb(db: LocalDb): Promise<void> {
   }
 }
 
-/** The app's SQLite database (budget changes and the nearest-trip copy, trips-supabase D1, D6). */
+/** The app's SQLite database (budget changes and trip copies, trips-supabase D1, D6; the chosen trip, trips-drawer D2, D3). */
 export async function openLocalDb(): Promise<LocalDb> {
   const db = await openDatabaseAsync('travelo.db');
   await migrateLocalDb(db);

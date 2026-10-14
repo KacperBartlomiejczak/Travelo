@@ -2,8 +2,9 @@ import { useFonts } from 'expo-font';
 import { fireEvent, renderRouter, screen, within } from 'expo-router/testing-library';
 import { AccessibilityInfo, ScrollView } from 'react-native';
 
+import DrawerLayout from '@/app/(drawer)/_layout';
+import HomeScreen from '@/app/(drawer)/index';
 import RootLayout from '@/app/_layout';
-import TripsScreen from '@/app/index';
 import BudgetStep from '@/app/trips/new/budget';
 import FriendsStep from '@/app/trips/new/friends';
 import FlightsStep from '@/app/trips/new/index';
@@ -32,7 +33,8 @@ async function openFlights() {
   const rendered = renderRouter(
     {
       _layout: RootLayout,
-      index: TripsScreen,
+      '(drawer)/_layout': DrawerLayout,
+      '(drawer)/index': HomeScreen,
       'trips/new/_layout': NewTripLayout,
       'trips/new/index': FlightsStep,
       'trips/new/friends': FriendsStep,
@@ -42,7 +44,7 @@ async function openFlights() {
     { initialUrl: '/' },
   );
   await rendered;
-  await fireEvent.press(screen.getByText('Utwórz podróż'));
+  await fireEvent.press(await screen.findByText('Utwórz podróż'));
   return { getPathname: () => rendered.getPathname() };
 }
 

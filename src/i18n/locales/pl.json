@@ -8,7 +8,14 @@
     "create": "Utwórz podróż",
     "loadError": "Nie udało się wczytać podróży.",
     "retry": "Spróbuj ponownie",
-    "loading": "Wczytywanie podróży"
+    "loading": "Wczytywanie podróży",
+    "openList": "Otwórz listę podróży"
+  },
+  "drawer": {
+    "upcoming": "Nadchodzące",
+    "past": "Minione",
+    "newTrip": "Nowa podróż",
+    "trip": "{{name}}, {{dates}}"
   },
   "newTrip": {
     "title": "Nowa podróż",

@@ -4,6 +4,7 @@ import { act, fireEvent, renderRouter, screen, within } from 'expo-router/testin
 import { launchImageLibraryAsync } from 'expo-image-picker';
 import { AccessibilityInfo, Alert, Pressable, Text } from 'react-native';
 
+import DrawerLayout from '@/app/(drawer)/_layout';
 import RootLayout from '@/app/_layout';
 import BudgetStep from '@/app/trips/new/budget';
 import FriendsStep from '@/app/trips/new/friends';
@@ -11,7 +12,7 @@ import NewTripLayout from '@/app/trips/new/_layout';
 import SummaryStep from '@/app/trips/new/summary';
 import { emptySegment, withCompanionCount } from '@/features/trip-create/draft';
 import { useTripDraft } from '@/features/trip-create/TripDraftContext';
-import { useNearestTrip } from '@/hooks/useTrips';
+import { useCurrentTrip } from '@/hooks/useTrips';
 import i18n from '@/i18n';
 
 jest.mock('expo-font', () => ({ ...jest.requireActual('expo-font'), useFonts: jest.fn() }));
@@ -43,7 +44,7 @@ jest.mock('@/data/app-trip-repository', () => {
 
 // Home screen stand-in: the saved trip's name and cover.
 function TripsProbe() {
-  const trip = useNearestTrip().data?.overview.trip;
+  const trip = useCurrentTrip().data?.overview.trip;
   return (
     <>
       <Text>{`trips: ${trip ? trip.name + (trip.coverImageUri ? ` [${trip.coverImageUri}]` : '') : ''}`}</Text>
@@ -89,7 +90,8 @@ async function openSummary(companions = 2) {
   const rendered = renderRouter(
     {
       _layout: RootLayout,
-      index: TripsProbe,
+      '(drawer)/_layout': DrawerLayout,
+      '(drawer)/index': TripsProbe,
       'trips/new/_layout': NewTripLayout,
       'trips/new/index': filledSteps(companions),
       'trips/new/friends': FriendsStep,
@@ -266,7 +268,8 @@ describe('Summary step', () => {
     const rendered = renderRouter(
       {
         _layout: RootLayout,
-        index: TripsProbe,
+        '(drawer)/_layout': DrawerLayout,
+        '(drawer)/index': TripsProbe,
         'trips/new/_layout': NewTripLayout,
         'trips/new/index': LongNameFlights,
         'trips/new/summary': SummaryStep,
@@ -287,7 +290,8 @@ describe('Summary step', () => {
     const rendered = renderRouter(
       {
         _layout: RootLayout,
-        index: TripsProbe,
+        '(drawer)/_layout': DrawerLayout,
+        '(drawer)/index': TripsProbe,
         'trips/new/_layout': NewTripLayout,
         'trips/new/index': filledSteps(2),
         'trips/new/summary': SummaryStep,

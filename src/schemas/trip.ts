@@ -52,3 +52,23 @@ export const TripOverviewSchema = z.object({
   segments: z.array(FlightSegmentSchema),
 });
 export type TripOverview = z.infer<typeof TripOverviewSchema>;
+
+/** One trip in the side panel (trips-drawer D4): enough to show and sort it. */
+export const TripListItemSchema = z
+  .object({
+    id: tripShape.id,
+    name: tripShape.name,
+    coverImageUri: tripShape.coverImageUri,
+    startDate: tripShape.startDate,
+    endDate: tripShape.endDate,
+  })
+  .refine((trip) => trip.endDate >= trip.startDate, { path: ['endDate'], message: 'End date is before start date' });
+export type TripListItem = z.infer<typeof TripListItemSchema>;
+
+/** The side panel's list, also what the device keeps as its copy (trips-drawer D3). */
+export const TripListSchema = z.array(TripListItemSchema);
+export type TripList = z.infer<typeof TripListSchema>;
+
+/** Device only: the trip the organizer chose in the side panel (trips-drawer D2). Row of SQLite `selected_trip`. */
+export const SelectedTripSchema = z.object({ tripId: z.uuid() });
+export type SelectedTrip = z.infer<typeof SelectedTripSchema>;

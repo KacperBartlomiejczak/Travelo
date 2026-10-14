@@ -1,9 +1,12 @@
 import {
   LocalTripBudgetChangeSchema,
+  SelectedTripSchema,
+  TripListSchema,
   TripOverviewSchema,
   type LocalTripBudgetChange,
   type SyncStatus,
   type TripBudgetChange,
+  type TripList,
   type TripOverview,
 } from '@/schemas';
 
@@ -34,11 +37,14 @@ function budgetChangeFromRow(row: BudgetChangeRow): LocalTripBudgetChange {
 
 export type BudgetAttempt = { syncStatus: Exclude<SyncStatus, 'synced'>; error?: string; at: string };
 
-/** What the device keeps in SQLite: the last nearest trip read from Supabase and budget changes not yet synced. */
+/**
+ * What the device keeps in SQLite: copies of the trip list and of each trip opened here, the chosen trip
+ * (trips-drawer D2, D3), and budget changes not yet synced (trips-supabase D1).
+ */
 export function createLocalStore(db: LocalDb) {
-  /** The copy, or null when there is none or it cannot be read any more. */
-  async function cachedNearest(): Promise<TripOverview | null> {
-    const row = await db.getFirstAsync<{ overview_json: string }>('select overview_json from trip_overview_cache limit 1', []);
+  /** The copy of one trip, or null when it was never opened here or cannot be read any more. */
+  async function cachedOverview(tripId: string): Promise<TripOverview | null> {
+    const row = await db.getFirstAsync<{ overview_json: string }>('select overview_json from trip_overview_cache where trip_id = ?', [tripId]);
     if (!row) return null;
     try {
       return TripOverviewSchema.parse(JSON.parse(row.overview_json));
@@ -48,19 +54,64 @@ export function createLocalStore(db: LocalDb) {
   }
 
   return {
-    /** Replaces the copy with the trip the server just returned as nearest (null: the server has none). */
-    async cacheNearest(overview: TripOverview | null, cachedAt: string): Promise<void> {
-      await db.runAsync('delete from trip_overview_cache', []);
-      if (overview) {
-        await db.runAsync('insert into trip_overview_cache (trip_id, overview_json, cached_at) values (?, ?, ?)', [
-          overview.trip.id,
-          JSON.stringify(overview),
-          cachedAt,
-        ]);
+    /**
+     * Replaces the list copy with the list the server just returned (trips-drawer D3). Trips no longer on it are
+     * gone: their copies are deleted (A5) and a choice of one is forgotten (D2). Budget changes stay: one waiting
+     * for a gone trip must stay visible.
+     */
+    async cacheList(list: TripList, cachedAt: string): Promise<void> {
+      const json = JSON.stringify(TripListSchema.parse(list));
+      const listedIds = "select json_extract(value, '$.id') from json_each(?)";
+      await db.runAsync(
+        `insert into trip_list_cache (id, list_json, cached_at) values (1, ?, ?)
+         on conflict (id) do update set list_json = excluded.list_json, cached_at = excluded.cached_at`,
+        [json, cachedAt],
+      );
+      await db.runAsync(`delete from trip_overview_cache where trip_id not in (${listedIds})`, [json]);
+      await db.runAsync(`delete from selected_trip where trip_id not in (${listedIds})`, [json]);
+    },
+
+    /** The list copy, or null when there is none or it cannot be read any more. */
+    async cachedList(): Promise<TripList | null> {
+      const row = await db.getFirstAsync<{ list_json: string }>('select list_json from trip_list_cache where id = 1', []);
+      if (!row) return null;
+      try {
+        return TripListSchema.parse(JSON.parse(row.list_json));
+      } catch {
+        return null;
       }
     },
 
-    cachedNearest,
+    /** Keeps (or replaces) the copy of one trip; copies of other trips stay (trips-drawer A5). */
+    async cacheOverview(overview: TripOverview, cachedAt: string): Promise<void> {
+      await db.runAsync(
+        `insert into trip_overview_cache (trip_id, overview_json, cached_at) values (?, ?, ?)
+         on conflict (trip_id) do update set overview_json = excluded.overview_json, cached_at = excluded.cached_at`,
+        [overview.trip.id, JSON.stringify(TripOverviewSchema.parse(overview)), cachedAt],
+      );
+    },
+
+    cachedOverview,
+
+    /** Remembers the trip the organizer chose (trips-drawer D2); a newer choice replaces the older one. */
+    async selectTrip(tripId: string): Promise<void> {
+      const selected = SelectedTripSchema.parse({ tripId });
+      await db.runAsync(
+        'insert into selected_trip (id, trip_id) values (1, ?) on conflict (id) do update set trip_id = excluded.trip_id',
+        [selected.tripId],
+      );
+    },
+
+    /** The chosen trip's id, or null when there is no (readable) choice. */
+    async selectedTripId(): Promise<string | null> {
+      const row = await db.getFirstAsync<{ trip_id: string }>('select trip_id from selected_trip where id = 1', []);
+      const parsed = SelectedTripSchema.safeParse({ tripId: row?.trip_id });
+      return parsed.success ? parsed.data.tripId : null;
+    },
+
+    async clearSelectedTrip(): Promise<void> {
+      await db.runAsync('delete from selected_trip', []);
+    },
 
     /** Saves the change as pending; a newer change for the same trip replaces the older one (A7). */
     async saveBudgetChange(change: TripBudgetChange): Promise<void> {
@@ -89,8 +140,8 @@ export function createLocalStore(db: LocalDb) {
      * then the change is forgotten. A newer change saved meanwhile stays.
      */
     async markBudgetSynced(change: TripBudgetChange): Promise<void> {
-      const cached = await cachedNearest();
-      if (cached?.trip.id === change.tripId && Date.parse(cached.trip.budgetUpdatedAt) < Date.parse(change.updatedAt)) {
+      const cached = await cachedOverview(change.tripId);
+      if (cached && Date.parse(cached.trip.budgetUpdatedAt) < Date.parse(change.updatedAt)) {
         const trip = { ...cached.trip, budgetPerPerson: change.budgetPerPerson, budgetUpdatedAt: change.updatedAt };
         await db.runAsync('update trip_overview_cache set overview_json = ? where trip_id = ?', [
           JSON.stringify(TripOverviewSchema.parse({ ...cached, trip })),

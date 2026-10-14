@@ -1,5 +1,5 @@
 # Task: resolve-pr-merge-conflicts
-Status: awaiting approval
+Status: abandoned (Kacper, 2026-10-14) — never approved, no step started
 
 ## Understanding & assumptions
 - The request is to resolve merge conflicts in the current PR branch `feature/supabase-client`.
@@ -36,6 +36,9 @@ Status: awaiting approval
 
 ## Progress log
 - Plan created. Waiting for approval before merge actions.
+- 2026-10-14: abandoned by Kacper. The premise was stale: `feature/supabase-client` no longer exists (PR #3 was
+  merged 2026-10-06, PR #5 too), and the plan named a `merge-branch` skill and `parallel_validation` that do not
+  exist in this repo. Nothing was merged or changed.
 
 ## Risks & open questions
 - If conflicts touch unclear behavior, I will stop and ask for decision before choosing a resolution.

@@ -1,6 +1,6 @@
 import {
+  CurrentTripSchema,
   LocalTripBudgetChangeSchema,
-  NearestTripSchema,
   SyncStatusSchema,
   TripBudgetChangeSchema,
   TripBudgetFormSchema,
@@ -77,8 +77,8 @@ describe('TripBudgetForm', () => {
   });
 });
 
-describe('NearestTrip', () => {
-  const nearest = {
+describe('CurrentTrip', () => {
+  const current = {
     overview: {
       trip: {
         id: TRIP_ID,
@@ -101,15 +101,15 @@ describe('NearestTrip', () => {
   };
 
   it('accepts the overview with its budget sync status and source', () => {
-    expect(NearestTripSchema.safeParse(nearest).success).toBe(true);
-    expect(NearestTripSchema.safeParse({ ...nearest, budgetSyncStatus: 'pending', fromCache: true }).success).toBe(true);
+    expect(CurrentTripSchema.safeParse(current).success).toBe(true);
+    expect(CurrentTripSchema.safeParse({ ...current, budgetSyncStatus: 'pending', fromCache: true }).success).toBe(true);
   });
 
   it.each([
     ['an unknown sync status', { budgetSyncStatus: 'unknown' }],
     ['a missing source flag', { fromCache: undefined }],
-    ['an invalid overview', { overview: { ...nearest.overview, trip: { ...nearest.overview.trip, travellerCount: 0 } } }],
+    ['an invalid overview', { overview: { ...current.overview, trip: { ...current.overview.trip, travellerCount: 0 } } }],
   ])('rejects %s', (_, patch) => {
-    expect(NearestTripSchema.safeParse({ ...nearest, ...patch }).success).toBe(false);
+    expect(CurrentTripSchema.safeParse({ ...current, ...patch }).success).toBe(false);
   });
 });

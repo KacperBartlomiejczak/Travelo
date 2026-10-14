@@ -2,7 +2,7 @@
 name: explorer
 description: Read-only codebase scout. Use to find existing code, patterns, Zod schemas, migrations, components or tests before planning or implementing. Returns locations and conclusions, never edits.
 tools: Read, Grep, Glob
-model: haiku
+model: claude-haiku-5-5
 ---
 
 You are the **Explorer** for the group trip planner app. You are read-only.

@@ -4,7 +4,7 @@ import type { ReactNode } from 'react';
 import { AppState, Text, type AppStateStatus } from 'react-native';
 
 import { createInMemoryTripRepository, type TripRepository } from '@/data/trip-repository';
-import { useNearestTrip } from '@/hooks/useTrips';
+import { useCurrentTrip } from '@/hooks/useTrips';
 import { AppProviders } from '@/providers/AppProviders';
 import { useIsOffline } from '@/providers/BudgetSync';
 import { setNetwork } from '@/test/mock-network';
@@ -14,8 +14,8 @@ const NOW = new Date('2026-10-06T09:30:00.000Z');
 function repositoryWithSync(results: { nextAttemptAt: Date | null }[] = []) {
   const repository = createInMemoryTripRepository();
   const syncBudgets = jest.fn(async () => results.shift() ?? { nextAttemptAt: null });
-  const nearest = jest.fn(() => repository.nearest());
-  return { repository: { ...repository, nearest, syncBudgets } satisfies TripRepository, syncBudgets, nearest };
+  const current = jest.fn(() => repository.current());
+  return { repository: { ...repository, current, syncBudgets } satisfies TripRepository, syncBudgets, current };
 }
 
 function wrapper(repository: TripRepository) {
@@ -82,13 +82,13 @@ describe('budget sync triggers', () => {
   });
 
   it('refreshes the trip after a sync so the indicator follows', async () => {
-    const { repository, nearest } = repositoryWithSync();
+    const { repository, current } = repositoryWithSync();
     function Probe() {
-      useNearestTrip();
+      useCurrentTrip();
       return null;
     }
     await render(<Probe />, { wrapper: wrapper(repository) });
-    await waitFor(() => expect(nearest.mock.calls.length).toBeGreaterThanOrEqual(2));
+    await waitFor(() => expect(current.mock.calls.length).toBeGreaterThanOrEqual(2));
   });
 
   it('a failing sync leaves the change on the device and does not crash', async () => {

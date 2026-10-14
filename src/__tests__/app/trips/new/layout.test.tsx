@@ -3,8 +3,9 @@ import { router } from 'expo-router';
 import { act, fireEvent, renderRouter, screen } from 'expo-router/testing-library';
 import { Alert, Pressable, Text } from 'react-native';
 
+import DrawerLayout from '@/app/(drawer)/_layout';
+import HomeScreen from '@/app/(drawer)/index';
 import RootLayout from '@/app/_layout';
-import TripsScreen from '@/app/index';
 import NewTripLayout from '@/app/trips/new/_layout';
 import { useTripDraft } from '@/features/trip-create/TripDraftContext';
 import { useGoToNextStep, WizardScreen } from '@/features/trip-create/WizardScreen';
@@ -54,7 +55,8 @@ function renderWizard(flights: () => React.JSX.Element = ShellFlights) {
   return renderRouter(
     {
       _layout: RootLayout,
-      index: TripsScreen,
+      '(drawer)/_layout': DrawerLayout,
+      '(drawer)/index': HomeScreen,
       'trips/new/_layout': NewTripLayout,
       'trips/new/index': flights,
       'trips/new/friends': ShellFriends,
@@ -69,7 +71,7 @@ async function openWizard(flights: () => React.JSX.Element = ShellFlights) {
   // renderRouter attaches getPathname to the returned promise, not to the awaited result.
   const rendered = renderWizard(flights);
   const { container } = await rendered;
-  await fireEvent.press(screen.getByText('Utwórz podróż'));
+  await fireEvent.press(await screen.findByText('Utwórz podróż'));
   return { container, getPathname: () => rendered.getPathname() };
 }
 
@@ -107,7 +109,7 @@ describe('Create trip wizard', () => {
     await i18n.changeLanguage('en');
     const renderedApp = renderWizard();
     const { container } = await renderedApp;
-    await fireEvent.press(screen.getByText('Create trip'));
+    await fireEvent.press(await screen.findByText('Create trip'));
     expect(headerTitles(container)).toContain('New trip');
   });
 
@@ -183,7 +185,7 @@ describe('Create trip wizard', () => {
     expect(app.getPathname()).toBe('/');
 
     // A new wizard starts empty again.
-    await fireEvent.press(screen.getByText('Utwórz podróż'));
+    await fireEvent.press(await screen.findByText('Utwórz podróż'));
     expect(screen.getByRole('progressbar', { name: 'Krok 1 z 3' })).toBeTruthy();
   });
 });

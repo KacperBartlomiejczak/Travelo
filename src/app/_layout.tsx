@@ -41,7 +41,7 @@ export default function RootLayout() {
   return (
     <AppProviders>
       <Stack>
-        <Stack.Screen name="index" options={{ headerShown: false }} />
+        <Stack.Screen name="(drawer)" options={{ headerShown: false }} />
         <Stack.Screen name="trips/new" options={{ headerShown: false }} />
       </Stack>
     </AppProviders>
