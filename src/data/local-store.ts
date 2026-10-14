@@ -53,6 +53,17 @@ export function createLocalStore(db: LocalDb) {
     }
   }
 
+  /** The list copy, or null when there is none or it cannot be read any more. */
+  async function cachedList(): Promise<TripList | null> {
+    const row = await db.getFirstAsync<{ list_json: string }>('select list_json from trip_list_cache where id = 1', []);
+    if (!row) return null;
+    try {
+      return TripListSchema.parse(JSON.parse(row.list_json));
+    } catch {
+      return null;
+    }
+  }
+
   return {
     /**
      * Replaces the list copy with the list the server just returned (trips-drawer D3). Trips no longer on it are
@@ -71,16 +82,7 @@ export function createLocalStore(db: LocalDb) {
       await db.runAsync(`delete from selected_trip where trip_id not in (${listedIds})`, [json]);
     },
 
-    /** The list copy, or null when there is none or it cannot be read any more. */
-    async cachedList(): Promise<TripList | null> {
-      const row = await db.getFirstAsync<{ list_json: string }>('select list_json from trip_list_cache where id = 1', []);
-      if (!row) return null;
-      try {
-        return TripListSchema.parse(JSON.parse(row.list_json));
-      } catch {
-        return null;
-      }
-    },
+    cachedList,
 
     /** Keeps (or replaces) the copy of one trip; copies of other trips stay (trips-drawer A5). */
     async cacheOverview(overview: TripOverview, cachedAt: string): Promise<void> {
@@ -111,6 +113,29 @@ export function createLocalStore(db: LocalDb) {
 
     async clearSelectedTrip(): Promise<void> {
       await db.runAsync('delete from selected_trip', []);
+    },
+
+    /**
+     * The trip is gone from the server: forgets everything kept for it, in one transaction (trip-edit-menu A5) —
+     * its copy, the choice of it, its entry in the list copy and a budget change still waiting (dropped on purpose:
+     * syncing it would only fail). Other trips are untouched; an unknown id changes nothing.
+     */
+    async forgetTrip(tripId: string): Promise<void> {
+      await db.runAsync('begin', []);
+      try {
+        await db.runAsync('delete from trip_overview_cache where trip_id = ?', [tripId]);
+        await db.runAsync('delete from selected_trip where trip_id = ?', [tripId]);
+        await db.runAsync('delete from trip_budget_changes where trip_id = ?', [tripId]);
+        const list = await cachedList();
+        if (list) {
+          const rest = list.filter((item) => item.id !== tripId);
+          await db.runAsync('update trip_list_cache set list_json = ? where id = 1', [JSON.stringify(TripListSchema.parse(rest))]);
+        }
+        await db.runAsync('commit', []);
+      } catch (error) {
+        await db.runAsync('rollback', []).catch(() => {});
+        throw error;
+      }
     },
 
     /** Saves the change as pending; a newer change for the same trip replaces the older one (A7). */

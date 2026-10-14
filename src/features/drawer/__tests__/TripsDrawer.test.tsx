@@ -71,6 +71,8 @@ function setup({ list = async () => [BANGKOK, LISBON, ROME, OSLO], currentId = R
     }),
     setBudget: jest.fn(async () => {}),
     syncBudgets: jest.fn(async () => ({ nextAttemptAt: null })),
+    updateDetails: jest.fn(async () => {}),
+    delete: jest.fn(async () => {}),
   };
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   const onClose = jest.fn();

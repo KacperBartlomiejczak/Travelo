@@ -13,6 +13,7 @@ import {
   TripMemberSchema,
   TripSchema,
   TripBudgetFormSchema,
+  TripDetailsInputSchema,
   TripSummarySchema,
   type CreateTripInput,
   type CurrentTrip,
@@ -44,6 +45,10 @@ export interface TripRepository {
   setBudget(trip: Pick<Trip, 'id' | 'baseCurrency'>, amountMinor: number): Promise<void>;
   /** Sends budget changes still on the device; says when the next retry is due. */
   syncBudgets(): Promise<SyncResult>;
+  /** Changes the trip's name and cover on the server; online only (trip-edit-menu D5). */
+  updateDetails(tripId: string, input: z.input<typeof TripDetailsInputSchema>): Promise<void>;
+  /** Deletes the trip on the server, then forgets the phone's copies of it (A5); online only (D8). A trip already gone counts as deleted (D13). */
+  delete(tripId: string): Promise<void>;
 }
 
 type Deps = { now: Date; newId: () => string; ownerId: string };
@@ -150,6 +155,18 @@ export function createInMemoryTripRepository(
     },
     async syncBudgets() {
       return { nextAttemptAt: null };
+    },
+    async updateDetails(tripId, input) {
+      const { name, coverImageUri } = TripDetailsInputSchema.parse(input);
+      const found = stored.find((entry) => entry.trip.id === tripId);
+      if (!found) throw new Error('trip-not-found');
+      const { coverImageUri: _removed, ...rest } = found.trip;
+      found.trip = TripSchema.parse({ ...rest, name, ...(coverImageUri ? { coverImageUri } : {}) });
+    },
+    async delete(tripId) {
+      // An unknown id is already gone: success, like the Supabase repository (trip-edit-menu D13).
+      const index = stored.findIndex((entry) => entry.trip.id === tripId);
+      if (index >= 0) stored.splice(index, 1);
     },
   };
 }
