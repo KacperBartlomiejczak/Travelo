@@ -5,7 +5,7 @@ import { Pressable, StyleSheet, Text } from 'react-native';
 import { useTheme } from '@/theme/useTheme';
 
 type Props = {
-  variant: 'secondary' | 'ghost';
+  variant: 'secondary' | 'ghost' | 'destructive';
   label: string;
   onPress: () => void;
   icon?: LucideIcon;
@@ -14,13 +14,19 @@ type Props = {
   accessibilityLabel?: string;
 };
 
-// Secondary and ghost buttons from §10.1, colours per D28.
+// Secondary and ghost buttons from §10.1, colours per D28. Destructive is secondary with the error colour (trip-edit-menu D10).
 export function TextButton({ variant, label, onPress, icon: Icon, disabled = false, accessibilityLabel }: Props) {
   const theme = useTheme();
   const [focused, setFocused] = useState(false);
   const { colors } = theme;
-  const secondary = variant === 'secondary';
-  const contentColor = disabled ? colors.text.tertiary : secondary ? colors.text.primary : colors.action.link;
+  const secondary = variant !== 'ghost';
+  const contentColor = disabled
+    ? colors.text.tertiary
+    : variant === 'destructive'
+      ? colors.status.error
+      : secondary
+        ? colors.text.primary
+        : colors.action.link;
 
   return (
     <Pressable

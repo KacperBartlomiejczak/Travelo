@@ -196,6 +196,24 @@ describe('overlay roles (trips-supabase D12)', () => {
   });
 });
 
+describe('snackbar roles (trip-edit-menu D11)', () => {
+  it('is ink with light text in light mode', () => {
+    expect(lightTheme.colors.snackbar).toEqual({ background: '#17211B', text: '#F7F3EA' });
+  });
+
+  it('is inverse in dark mode: light surface with ink text', () => {
+    expect(darkTheme.colors.snackbar).toEqual({ background: '#F7F3EA', text: '#17211B' });
+  });
+
+  it('has the design-context §10.16 size and the §9.1 small transition as tokens', () => {
+    expect(lightTheme.size.snackbarMinHeight).toBe(48);
+    expect(lightTheme.size.snackbarMaxWidth).toBe(360);
+    expect(lightTheme.duration.small).toBe(180);
+    expect(lightTheme.duration.snackbarAutoDismiss).toBe(3500);
+    expect(darkTheme.duration).toBe(lightTheme.duration);
+  });
+});
+
 describe('side panel and hero menu button (trips-drawer P1, P5)', () => {
   it.each([
     ['light', lightTheme],

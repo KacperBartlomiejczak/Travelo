@@ -2,7 +2,8 @@ import { fireEvent, render, screen } from '@testing-library/react-native';
 import { Plus } from 'lucide-react-native';
 
 import { TextButton } from '@/components/TextButton';
-import { lightTheme } from '@/theme/theme';
+import { darkTheme, lightTheme } from '@/theme/theme';
+import { DarkThemeScope } from '@/theme/useTheme';
 
 describe('TextButton', () => {
   it('is a labelled button that calls onPress', async () => {
@@ -39,5 +40,42 @@ describe('TextButton', () => {
     expect(screen.getByText('Wyślij bilet')).toHaveStyle({ color: lightTheme.colors.text.tertiary });
     await fireEvent.press(button);
     expect(onPress).not.toHaveBeenCalled();
+  });
+
+  describe('destructive (trip-edit-menu D10)', () => {
+    it('looks like secondary, with the error colour on the label', async () => {
+      await render(<TextButton variant="destructive" label="Usuń podróż" icon={Plus} onPress={() => {}} />);
+      expect(screen.getByRole('button')).toHaveStyle({
+        borderWidth: 1,
+        borderColor: lightTheme.colors.input.border,
+        minHeight: 52,
+        paddingHorizontal: 16,
+        backgroundColor: 'transparent',
+      });
+      expect(screen.getByText('Usuń podróż')).toHaveStyle({ color: lightTheme.colors.status.error });
+    });
+
+    it('uses the dark error colour in dark mode', async () => {
+      await render(<TextButton variant="destructive" label="Usuń podróż" onPress={() => {}} />, { wrapper: DarkThemeScope });
+      expect(screen.getByText('Usuń podróż')).toHaveStyle({ color: darkTheme.colors.status.error });
+      expect(screen.getByRole('button')).toHaveStyle({ borderColor: darkTheme.colors.input.border });
+    });
+
+    it('is pressed on the secondary surface, like secondary', async () => {
+      await render(<TextButton variant="destructive" label="Usuń podróż" onPress={() => {}} />);
+      await fireEvent(screen.getByRole('button'), 'responderGrant', { nativeEvent: { timestamp: Date.now() }, persist: jest.fn() });
+      expect(screen.getByRole('button')).toHaveStyle({ backgroundColor: lightTheme.colors.surface.secondary });
+    });
+
+    it('disabled: not pressable, secondary surface and tertiary text instead of the error colour', async () => {
+      const onPress = jest.fn();
+      await render(<TextButton variant="destructive" label="Usuń podróż" disabled onPress={onPress} />);
+      const button = screen.getByRole('button');
+      expect(button).toBeDisabled();
+      expect(button).toHaveStyle({ backgroundColor: lightTheme.colors.surface.secondary });
+      expect(screen.getByText('Usuń podróż')).toHaveStyle({ color: lightTheme.colors.text.tertiary });
+      await fireEvent.press(button);
+      expect(onPress).not.toHaveBeenCalled();
+    });
   });
 });
