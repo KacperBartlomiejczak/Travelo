@@ -461,3 +461,8 @@ If instructions conflict, this order wins: **Kacper's current message → `CLAUD
 3. **Day plan** — timeline; when the group splits, show parallel lanes with member avatars.
 4. **Add expense** — bottom sheet, minimal fields.
 5. **Trip summary** — totals, by category, plan vs reality, shareable card.
+
+<!-- claude-reflect: learned rules (saved from the band; edit freely) -->
+## Learned rules
+- Delegate frontend work, including its tests, to frontend sub-agents and backend work to backend sub-agents, rather than implementing it directly.
+<!-- end claude-reflect -->
