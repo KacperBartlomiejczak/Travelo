@@ -1,5 +1,5 @@
 # Task: Keyboard must not cover the field being typed in (trip wizard)
-Status: in progress — steps 1–3 code done and verified (verifier PASS for 2 and 3); waiting for Kacper's device checks (iPhone 1–8, Android 8–9, D3) before `[x]`
+Status: done (2026-10-14) — steps 1–3 verified; Kacper checked all manual steps on the iPhone and Android ("wszystko sprawdziłem i działa")
 
 ## Understanding & assumptions
 - **Problem (Kacper, 2026-10-13):** on the wizard's first step (`src/app/trips/new/index.tsx`, "Loty"), tapping
@@ -89,15 +89,15 @@ Not touched: the uncommitted work already in the tree (`src/schemas/trip-details
 - `frontend-ui-engineering` — step 1 — keyboard + focus behavior on a form screen, accessibility unchanged.
 
 ## Steps
-- [ ] 1. [frontend] `WizardScreen` avoids the keyboard — skill: test-driven-development, source-driven-development,
+- [x] 1. [frontend] `WizardScreen` avoids the keyboard — skill: test-driven-development, source-driven-development,
   frontend-ui-engineering — tests first: `WizardScreen.test.tsx` (above) — verify: full `pnpm test`,
   `pnpm typecheck`, `pnpm lint` green; verifier PASS; manual check on the iOS simulator (steps below).
-- [ ] 2. [frontend] iOS: one keyboard adjustment instead of two (Q5, option B, proposed) — skill:
+- [x] 2. [frontend] iOS: one keyboard adjustment instead of two (Q5, option B, proposed) — skill:
   test-driven-development, source-driven-development — tests first: step 2 tests (above) — verify: full
   `pnpm test`, `pnpm typecheck`, `pnpm lint` green; verifier PASS; manual check 1–7 on Kacper's iPhone (this
   machine is Windows, no iOS simulator), which also closes step 1's iOS check (D3); Android check 1–5 repeated
   once to confirm nothing changed there.
-- [ ] 3. [frontend] The budget sheet (and every `BottomSheet`) moves above the keyboard on Android (D5, proposed)
+- [x] 3. [frontend] The budget sheet (and every `BottomSheet`) moves above the keyboard on Android (D5, proposed)
   — skill: test-driven-development, source-driven-development — tests first: step 3 tests (above) — verify:
   full `pnpm test`, `pnpm typecheck`, `pnpm lint` green; verifier PASS; manual check 8–9 on Kacper's Android
   phone and 8 once on the iPhone.
@@ -269,3 +269,7 @@ Manual (iOS simulator, then Android if available), for Kacper:
   (`BottomSheet.tsx:69`, same as iOS today) — keep, or drop the safe-area part while the keyboard is open.
   Noted, outside this step: `WizardScreen.test.tsx` `emitKeyboard` fires listeners without `act` (one act()
   warning in the full run, from step 1's harness).
+- 2026-10-14: Kacper reported the device checks done: "wszystko sprawdziłem i działa" (Verification 1–9 on the
+  iPhone and Android, D3). Steps 1–3 marked `[x]`, status done. D7 and D8 stand as recorded (D8's reading of
+  "q5: nic" as Q8 not contradicted). Last full suite on this code: 760/760, typecheck ✓, lint ✓ (verifier
+  audit 2026-10-14). `Architecture.md` updated.
