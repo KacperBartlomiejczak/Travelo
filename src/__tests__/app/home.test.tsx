@@ -1,7 +1,7 @@
 import { useFonts } from 'expo-font';
 import { router } from 'expo-router';
 import { act, fireEvent, renderRouter, screen, within } from 'expo-router/testing-library';
-import { AccessibilityInfo, AppState, type AppStateStatus } from 'react-native';
+import { AccessibilityInfo, AppState, StyleSheet, type AppStateStatus } from 'react-native';
 
 import DrawerLayout from '@/app/(drawer)/_layout';
 import HomeScreen from '@/app/(drawer)/index';
@@ -33,6 +33,8 @@ let mockSyncStatus: SyncStatus = 'synced';
 let mockFromCache = false;
 const mockSetBudget = jest.fn(async (_trip: { id: string; baseCurrency: string }, _amountMinor: number) => {});
 const mockSyncBudgets = jest.fn(async () => ({ nextAttemptAt: null }));
+const mockUpdateDetails = jest.fn(async (_tripId: string, _input: { name: string; coverImageUri?: string }) => {});
+const mockDelete = jest.fn(async (_tripId: string) => {});
 jest.mock('@/data/app-trip-repository', () => ({
   createAppTripRepository: () => ({
     list: async () => [],
@@ -43,6 +45,8 @@ jest.mock('@/data/app-trip-repository', () => ({
     create: () => Promise.reject(new Error('unused')),
     setBudget: (trip: { id: string; baseCurrency: string }, amountMinor: number) => mockSetBudget(trip, amountMinor),
     syncBudgets: () => mockSyncBudgets(),
+    updateDetails: (tripId: string, input: { name: string; coverImageUri?: string }) => mockUpdateDetails(tripId, input),
+    delete: (tripId: string) => mockDelete(tripId),
   }),
 }));
 
@@ -95,6 +99,8 @@ beforeEach(async () => {
   mockFromCache = false;
   mockSetBudget.mockReset();
   mockSyncBudgets.mockClear();
+  mockUpdateDetails.mockReset();
+  mockDelete.mockReset();
   mockStatusBarStyle = undefined;
   await i18n.changeLanguage('pl');
 });
@@ -476,6 +482,317 @@ describe('Home screen — menu button (trips-drawer P5)', () => {
     await i18n.changeLanguage('en');
     await showState('trip');
     expect(screen.getByRole('button', { name: 'Open trips list' })).toBeTruthy();
+  });
+});
+
+describe('Home screen — trip menu ⋮ (trip-edit-menu D3, D4, D6, D8, D15)', () => {
+  const OPEN = 'Opcje podróży';
+  const sheet = () => within(screen.getByTestId('bottom-sheet'));
+
+  async function openMenu() {
+    mockCurrent = () => Promise.resolve(overview());
+    await renderHome();
+    await screen.findByTestId('home-screen');
+    await fireEvent.press(screen.getByRole('button', { name: OPEN }));
+  }
+
+  it('shows the button on the trip view, pinned top right like the side panel button, second for screen readers', async () => {
+    mockCurrent = () => Promise.resolve(overview());
+    await renderHome();
+    await screen.findByTestId('home-screen');
+    expect(screen.getByRole('button', { name: OPEN })).toHaveStyle({ backgroundColor: lightTheme.colors.hero.control });
+    expect(within(screen.getByTestId('home-scroll')).queryByRole('button', { name: OPEN })).toBeNull();
+    // The mirror image of ☰ (D4): same top, the same side inset, but on the right.
+    const menu = screen.getByRole('button', { name: MENU }).parent;
+    const options = screen.getByRole('button', { name: OPEN }).parent;
+    expect(options).toHaveStyle({ position: 'absolute', right: lightTheme.spacing[5] });
+    expect(menu).toHaveStyle({ position: 'absolute', left: lightTheme.spacing[5] });
+    expect(StyleSheet.flatten(options?.props.style).top).toBe(StyleSheet.flatten(menu?.props.style).top);
+    expect(StyleSheet.flatten(options?.props.style).top).toBeGreaterThanOrEqual(lightTheme.spacing[2]);
+    expect(StyleSheet.flatten(options?.props.style).left).toBeUndefined();
+    const labels = screen.getAllByRole('button').map((button) => button.props.accessibilityLabel);
+    expect(labels.slice(0, 2)).toEqual([MENU, OPEN]);
+  });
+
+  it.each(['loading', 'empty', 'error'] as const)('has no button in the %s state (A1)', async (state) => {
+    if (state === 'error') {
+      jest.useFakeTimers({ advanceTimers: true });
+      mockCurrent = () => Promise.reject(new Error('offline'));
+      await renderHome();
+      await act(async () => {
+        await jest.runAllTimersAsync();
+      });
+      await screen.findByText('Nie udało się wczytać podróży.');
+    } else {
+      mockCurrent = state === 'loading' ? () => new Promise(() => {}) : () => Promise.resolve(null);
+      await renderHome();
+      if (state === 'empty') await screen.findByText('Nie masz jeszcze żadnej podróży.');
+    }
+    expect(screen.queryByRole('button', { name: OPEN })).toBeNull();
+  });
+
+  it('opens a sheet with name and photo, budget and delete, and nothing about trip photos (D6)', async () => {
+    await openMenu();
+    expect(screen.getByRole('header', { name: 'Podróż' })).toBeTruthy();
+    expect(sheet().getByRole('button', { name: 'Nazwa i zdjęcie' })).toBeTruthy();
+    expect(sheet().getByRole('button', { name: 'Zmień budżet' })).toBeTruthy();
+    expect(sheet().getByRole('button', { name: 'Usuń podróż' })).toBeTruthy();
+    expect(screen.queryByText(/zdjęcia podróży/i)).toBeNull();
+  });
+
+  it('closes from the backdrop', async () => {
+    await openMenu();
+    await fireEvent.press(within(screen.getByTestId('bottom-sheet-modal')).getByRole('button', { name: 'Zamknij' }));
+    expect(screen.queryByRole('header', { name: 'Podróż' })).toBeNull();
+  });
+
+  it('"Zmień budżet" closes the menu and opens the budget sheet (A6)', async () => {
+    await openMenu();
+    await fireEvent.press(sheet().getByRole('button', { name: 'Zmień budżet' }));
+    expect(screen.queryByRole('header', { name: 'Podróż' })).toBeNull();
+    expect(screen.getByRole('header', { name: 'Ile chcecie wydać na osobę?' })).toBeTruthy();
+    expect(screen.getAllByTestId('bottom-sheet')).toHaveLength(1);
+  });
+
+  it('keeps the budget section\'s own button working (A7)', async () => {
+    mockCurrent = () => Promise.resolve(overview());
+    await renderHome();
+    await fireEvent.press(within(await screen.findByTestId('home-budget')).getByRole('button', { name: 'Zmień budżet' }));
+    expect(screen.getByRole('header', { name: 'Ile chcecie wydać na osobę?' })).toBeTruthy();
+    expect(screen.queryByRole('header', { name: 'Podróż' })).toBeNull();
+  });
+
+  // Step 7 replaced the interim "Usuń podróż closes the menu (its sheet comes in a later step)" (step 5, kept by step 6):
+  // the plan gives the delete row its confirmation sheet (D7); the whole flow is in "deleting the trip" below.
+  it('online: "Usuń podróż" closes the menu and opens the confirmation (D7)', async () => {
+    await openMenu();
+    await fireEvent.press(sheet().getByRole('button', { name: 'Usuń podróż' }));
+    expect(screen.queryByRole('header', { name: 'Podróż' })).toBeNull();
+    expect(screen.getByRole('header', { name: 'Usunąć podróż „Warsaw → Bangkok”?' })).toBeTruthy();
+    expect(screen.getAllByTestId('bottom-sheet')).toHaveLength(1);
+  });
+
+  it('online: "Nazwa i zdjęcie" closes the menu and opens the details sheet with the current name (step 6)', async () => {
+    await openMenu();
+    await fireEvent.press(sheet().getByRole('button', { name: 'Nazwa i zdjęcie' }));
+    expect(screen.queryByRole('header', { name: 'Podróż' })).toBeNull();
+    expect(screen.getByRole('header', { name: 'Nazwa i zdjęcie' })).toBeTruthy();
+    expect(screen.getAllByTestId('bottom-sheet')).toHaveLength(1);
+    expect(screen.getByLabelText('Nazwa podróży').props.value).toBe('Warsaw → Bangkok');
+  });
+
+  it('saving a new name closes the details sheet and the hero shows it (step 6)', async () => {
+    let name = 'Warsaw → Bangkok';
+    mockCurrent = () => Promise.resolve(overview({ name }));
+    mockUpdateDetails.mockImplementation(async (_tripId, input) => {
+      name = input.name;
+    });
+    await renderHome();
+    await screen.findByTestId('home-screen');
+    await fireEvent.press(screen.getByRole('button', { name: OPEN }));
+    await fireEvent.press(sheet().getByRole('button', { name: 'Nazwa i zdjęcie' }));
+    await fireEvent.changeText(screen.getByLabelText('Nazwa podróży'), '  Bangkok z Kasią ');
+    await fireEvent.press(sheet().getByRole('button', { name: 'Zapisz' }));
+
+    expect(mockUpdateDetails).toHaveBeenCalledWith(TRIP_ID, { name: 'Bangkok z Kasią' });
+    expect(await screen.findByRole('header', { name: 'Bangkok z Kasią' })).toBeTruthy();
+    expect(screen.queryByTestId('bottom-sheet')).toBeNull();
+  });
+
+  it('online: no offline hint', async () => {
+    await openMenu();
+    expect(screen.queryByText('Bez internetu nie zmienisz nazwy ani nie usuniesz podróży.')).toBeNull();
+    expect(sheet().getByRole('button', { name: 'Nazwa i zdjęcie' })).toBeEnabled();
+    expect(sheet().getByRole('button', { name: 'Usuń podróż' })).toBeEnabled();
+  });
+
+  it('offline: name and delete are disabled with the hint, budget stays enabled and opens its sheet (D5, D8)', async () => {
+    setNetwork({ isConnected: false, isInternetReachable: false });
+    await openMenu();
+    expect(sheet().getByRole('button', { name: 'Nazwa i zdjęcie' })).toBeDisabled();
+    expect(sheet().getByRole('button', { name: 'Usuń podróż' })).toBeDisabled();
+    expect(screen.getByText('Bez internetu nie zmienisz nazwy ani nie usuniesz podróży.')).toBeTruthy();
+    expect(sheet().getByRole('button', { name: 'Zmień budżet' })).toBeEnabled();
+    await fireEvent.press(sheet().getByRole('button', { name: 'Zmień budżet' }));
+    expect(screen.getByRole('header', { name: 'Ile chcecie wydać na osobę?' })).toBeTruthy();
+  });
+
+  it('reads in English', async () => {
+    await i18n.changeLanguage('en');
+    mockCurrent = () => Promise.resolve(overview());
+    await renderHome();
+    await screen.findByTestId('home-screen');
+    await fireEvent.press(screen.getByRole('button', { name: 'Trip options' }));
+    expect(screen.getByRole('header', { name: 'Trip' })).toBeTruthy();
+    expect(sheet().getByRole('button', { name: 'Name and photo' })).toBeTruthy();
+    expect(sheet().getByRole('button', { name: 'Delete trip' })).toBeTruthy();
+  });
+});
+
+describe('Home screen — deleting the trip (trip-edit-menu D7, D8, D9, D11, D19)', () => {
+  const OPEN = 'Opcje podróży';
+  const OTHER_ID = '5d8f6a0e-2b1c-4e7d-9f3a-8c4b1e6d2a02';
+  const SNACKBAR = 'Podróż usunięta.';
+  const sheet = () => within(screen.getByTestId('bottom-sheet'));
+  const other = () => overview({ id: OTHER_ID, name: 'Kraków → Rome' });
+
+  async function openConfirmation(name = 'Warsaw → Bangkok') {
+    await fireEvent.press(await screen.findByRole('button', { name: OPEN }));
+    await fireEvent.press(sheet().getByRole('button', { name: 'Usuń podróż' }));
+    expect(screen.getByRole('header', { name: `Usunąć podróż „${name}”?` })).toBeTruthy();
+  }
+  const confirm = () => fireEvent.press(sheet().getByRole('button', { name: 'Usuń podróż' }));
+  // The server keeps the trips that are left: once the delete has run, `current` answers with `next` (null = none left).
+  const deletingLeaves = (next: (() => TripOverview) | null) =>
+    mockDelete.mockImplementation(async () => {
+      mockCurrent = () => Promise.resolve(next ? next() : null);
+    });
+
+  it('"Anuluj" keeps the trip: nothing is deleted, no snackbar', async () => {
+    mockCurrent = () => Promise.resolve(overview());
+    await renderHome();
+    await openConfirmation();
+    await fireEvent.press(sheet().getByRole('button', { name: 'Anuluj' }));
+    expect(mockDelete).not.toHaveBeenCalled();
+    expect(screen.queryByTestId('bottom-sheet')).toBeNull();
+    expect(screen.getByRole('header', { name: 'Warsaw → Bangkok' })).toBeTruthy();
+    expect(screen.queryByText(SNACKBAR)).toBeNull();
+  });
+
+  it('shows the default trip and the snackbar after a delete, though the trip view unmounted meanwhile', async () => {
+    mockCurrent = () => Promise.resolve(overview());
+    await renderHome();
+    await openConfirmation();
+    // The next trip takes a moment to load: the home screen goes to its skeleton, so CurrentTrip (and the sheet) unmount
+    // before the delete settles. The message must not depend on a callback of the unmounted sheet (TanStack Query v5
+    // skips per-call `mutate` callbacks then).
+    let load: () => void = () => {};
+    mockDelete.mockImplementation(async () => {
+      mockCurrent = () => new Promise((resolve) => (load = () => resolve(other())));
+    });
+    await confirm();
+    expect(mockDelete).toHaveBeenCalledTimes(1);
+    expect(mockDelete).toHaveBeenCalledWith(TRIP_ID);
+    expect(await screen.findByTestId('trips-loading')).toBeTruthy();
+    expect(screen.queryByTestId('bottom-sheet')).toBeNull();
+    expect(screen.queryByText(SNACKBAR)).toBeNull();
+    await act(async () => load());
+    expect(await screen.findByRole('header', { name: 'Kraków → Rome' })).toBeTruthy();
+    expect(await screen.findByText(SNACKBAR)).toBeTruthy();
+    expect(screen.queryByRole('header', { name: 'Warsaw → Bangkok' })).toBeNull();
+  });
+
+  it('deleting the last trip shows the empty state and the snackbar', async () => {
+    mockCurrent = () => Promise.resolve(overview());
+    await renderHome();
+    await openConfirmation();
+    deletingLeaves(null);
+    await confirm();
+    expect(await screen.findByText('Nie masz jeszcze żadnej podróży.')).toBeTruthy();
+    expect(screen.queryByTestId('home-screen')).toBeNull();
+    expect(await screen.findByText(SNACKBAR)).toBeTruthy();
+  });
+
+  it('the snackbar goes away after its time, cleared by the screen, and shows again after a second delete', async () => {
+    jest.useFakeTimers({ advanceTimers: true });
+    const { snackbarAutoDismiss, small } = lightTheme.duration;
+    // The screen clears the message at 3500 ms (onHide); the fade-out then runs for 180 ms and removes the snackbar.
+    const hideSnackbar = async () => {
+      await act(async () => {
+        await jest.advanceTimersByTimeAsync(snackbarAutoDismiss);
+      });
+      await act(async () => {
+        await jest.advanceTimersByTimeAsync(small + 50);
+      });
+      expect(screen.queryByText(SNACKBAR)).toBeNull();
+    };
+    mockCurrent = () => Promise.resolve(overview());
+    await renderHome();
+    await openConfirmation();
+    deletingLeaves(other);
+    await confirm();
+    expect(await screen.findByText(SNACKBAR)).toBeTruthy();
+
+    await hideSnackbar();
+
+    // The same text again, later: it shows again, because the screen cleared it the first time.
+    await openConfirmation('Kraków → Rome');
+    deletingLeaves(null);
+    await confirm();
+    expect(await screen.findByText(SNACKBAR)).toBeTruthy();
+    expect(await screen.findByText('Nie masz jeszcze żadnej podróży.')).toBeTruthy();
+    await hideSnackbar();
+  });
+
+  it('keeps the trip and shows an inline error when deleting fails, with no snackbar', async () => {
+    mockCurrent = () => Promise.resolve(overview());
+    mockDelete.mockRejectedValue(new Error('trip-not-deletable'));
+    await renderHome();
+    await openConfirmation();
+    await confirm();
+    expect(await screen.findByText('Nie udało się usunąć podróży. Spróbuj ponownie.')).toBeTruthy();
+    expect(screen.getByRole('header', { name: 'Usunąć podróż „Warsaw → Bangkok”?' })).toBeTruthy();
+    expect(screen.getByTestId('home-screen')).toBeTruthy();
+    expect(screen.queryByText(SNACKBAR)).toBeNull();
+  });
+
+  it('offline while the confirmation is open: delete is disabled with the hint (D8)', async () => {
+    mockCurrent = () => Promise.resolve(overview());
+    await renderHome();
+    await openConfirmation();
+    await act(async () => setNetwork({ isConnected: false, isInternetReachable: false }));
+    expect(sheet().getByRole('button', { name: 'Usuń podróż' })).toBeDisabled();
+    expect(screen.getByText('Bez internetu nie zmienisz nazwy ani nie usuniesz podróży.')).toBeTruthy();
+  });
+
+  it('sits above the pinned "Utwórz podróż" button on the empty state, at the usual place on the trip view (D21, §10.16)', async () => {
+    mockCurrent = () => Promise.resolve(overview());
+    await renderHome();
+    await openConfirmation();
+    deletingLeaves(other);
+    await confirm();
+    const tripBottom = StyleSheet.flatten((await screen.findByTestId('snackbar-container')).props.style).bottom;
+    expect(screen.queryByRole('button', { name: 'Utwórz podróż' })).toBeNull();
+
+    await openConfirmation('Kraków → Rome');
+    deletingLeaves(null);
+    await confirm();
+    expect(await screen.findByText('Nie masz jeszcze żadnej podróży.')).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Utwórz podróż' })).toBeTruthy();
+    // Clear of the button: its height and a spacing[3] gap above the usual place.
+    const emptyBottom = StyleSheet.flatten(screen.getByTestId('snackbar-container').props.style).bottom;
+    expect(emptyBottom - tripBottom).toBe(lightTheme.size.buttonPrimary + lightTheme.spacing[3]);
+  });
+
+  it('draws the snackbar in the theme of the screen behind it: dark over the trip view, the system theme over the empty state (D11)', async () => {
+    mockCurrent = () => Promise.resolve(overview());
+    await renderHome();
+    await openConfirmation();
+    deletingLeaves(other);
+    await confirm();
+    // The trip view is always dark (A4), also on this light device: the inverse snackbar is then the dark one.
+    expect(await screen.findByRole('header', { name: 'Kraków → Rome' })).toBeTruthy();
+    expect(await screen.findByTestId('snackbar')).toHaveStyle({ backgroundColor: darkTheme.colors.snackbar.background });
+    expect(screen.getByText(SNACKBAR)).toHaveStyle({ color: darkTheme.colors.snackbar.text });
+
+    await openConfirmation('Kraków → Rome');
+    deletingLeaves(null);
+    await confirm();
+    expect(await screen.findByText('Nie masz jeszcze żadnej podróży.')).toBeTruthy();
+    expect(await screen.findByTestId('snackbar')).toHaveStyle({ backgroundColor: lightTheme.colors.snackbar.background });
+    expect(screen.getByText(SNACKBAR)).toHaveStyle({ color: lightTheme.colors.snackbar.text });
+  });
+
+  it('reads in English', async () => {
+    await i18n.changeLanguage('en');
+    mockCurrent = () => Promise.resolve(overview());
+    await renderHome();
+    await fireEvent.press(await screen.findByRole('button', { name: 'Trip options' }));
+    await fireEvent.press(sheet().getByRole('button', { name: 'Delete trip' }));
+    expect(screen.getByRole('header', { name: 'Delete trip “Warsaw → Bangkok”?' })).toBeTruthy();
+    deletingLeaves(other);
+    await fireEvent.press(sheet().getByRole('button', { name: 'Delete trip' }));
+    expect(await screen.findByText('Trip deleted.')).toBeTruthy();
   });
 });
 

@@ -7,6 +7,7 @@ import {
   CurrentTripSchema,
   TripBudgetChangeSchema,
   TripBudgetFormSchema,
+  TripDetailsInputSchema,
   type CurrentTrip,
   type LocalTripBudgetChange,
   type TripList,
@@ -161,6 +162,33 @@ export function createSupabaseTripRepository({ supabase, local: localStore, now 
       const { budgetPerPerson } = TripBudgetFormSchema.parse({ budgetPerPerson: { amountMinor, currency: trip.baseCurrency } });
       const change = TripBudgetChangeSchema.parse({ tripId: trip.id, budgetPerPerson, updatedAt: now().toISOString() });
       await (await localStore).saveBudgetChange(change);
+    },
+
+    async updateDetails(tripId, input) {
+      const { name, coverImageUri } = TripDetailsInputSchema.parse(input);
+      await signedIn();
+      // Asking the row back: RLS hides a trip that is not ours (or gone) by changing no row, not by an error.
+      const { data, error, status } = await supabase
+        .from('trips')
+        .update({ name, cover_image_uri: coverImageUri ?? null })
+        .eq('id', tripId)
+        .select('id');
+      if (error) throw failure(error, status);
+      if (data.length === 0) throw new Error('trip-not-found');
+    },
+
+    async delete(tripId) {
+      await signedIn();
+      const { data, error, status } = await supabase.from('trips').delete().eq('id', tripId).select('id');
+      if (error) throw failure(error, status);
+      if (data.length === 0) {
+        // No deleted row: the trip is already gone (success, D13) or RLS hides it from this delete because we
+        // are not its owner. Only a trip we can still see is an error; the phone then keeps its copies.
+        const check = await supabase.from('trips').select('id').eq('id', tripId).maybeSingle();
+        if (check.error) throw failure(check.error, check.status);
+        if (check.data) throw new Error('trip-not-deletable');
+      }
+      await (await localStore).forgetTrip(tripId);
     },
 
     syncBudgets() {

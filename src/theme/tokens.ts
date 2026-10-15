@@ -114,6 +114,16 @@ export const size = {
   // trips-drawer P1: the side panel is 85 % of the screen up to this width; trip thumbnails in it.
   drawerMaxWidth: 360,
   thumbnail: 48,
+  // §10.16 snackbar: at least 48dp high, at most 360dp wide.
+  snackbarMinHeight: 48,
+  snackbarMaxWidth: 360,
+} as const;
+
+// §9.1 durations in ms (only the ones in use).
+export const duration = {
+  small: 180,
+  // §10.16: a snackbar hides itself after 3500 ms.
+  snackbarAutoDismiss: 3500,
 } as const;
 
 // design-context §18: below this width the screen uses compact horizontal padding.

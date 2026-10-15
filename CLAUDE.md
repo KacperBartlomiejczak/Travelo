@@ -362,6 +362,7 @@ Definitions live in `.claude/agents/`.
 | **backend** | sonnet | Executes **one approved backend step**: tests first (red), then code (green) | `packages/schemas/`, `supabase/migrations/`, `supabase/functions/` | Touch `apps/mobile/`, return with any failing test |
 | **frontend** | sonnet | Executes **one approved frontend step** following `context/design-context.md`: tests first, then code | `apps/mobile/` | Change Zod schemas or `supabase/` (stop and report instead), return with any failing test |
 | **verifier** (fresh context) | Haiku 5.5 (`claude-haiku-5-5`) | Checks a finished step against the plan, Rules, design context and Verification loop; runs the checks itself | nothing | Fix things itself — it reports PASS / FAIL |
+| **tester** (device, via `mobile-mcp`) | Haiku 5.5 (`claude-haiku-5-5`), effort high | Drives the app on a connected phone/emulator and walks the plan's manual test steps; checks the screens match the plan | nothing | Fix things itself, guess undefined behavior, use real personal data — it reports PASS / FAIL per scenario |
 
 The model column mirrors the `model:` field in `.claude/agents/*.md`; change both together.
 
@@ -376,6 +377,7 @@ The model column mirrors the `model:` field in `.claude/agents/*.md`; change bot
 1. Planner (or orchestrator) drafts the plan → Kacper approves.
 2. Orchestrator sends each step to **backend** or **frontend** by its tag. Order: schemas → backend → frontend.
 3. **verifier** checks every finished step. FAIL → back to the same implementer with the verifier's issues.
+   For frontend steps, when a device or emulator is connected, **tester** then runs the plan's manual test steps on it (MCP server `mobile-mcp`, `.mcp.json`). FAIL → back to the implementer the same way.
 4. Only after PASS does the orchestrator mark the step `[x]` in the feature's `plan.md`.
 5. After the last step, the orchestrator updates `Architecture.md`, then reports the task as done.
 
@@ -461,3 +463,8 @@ If instructions conflict, this order wins: **Kacper's current message → `CLAUD
 3. **Day plan** — timeline; when the group splits, show parallel lanes with member avatars.
 4. **Add expense** — bottom sheet, minimal fields.
 5. **Trip summary** — totals, by category, plan vs reality, shareable card.
+
+<!-- claude-reflect: learned rules (saved from the band; edit freely) -->
+## Learned rules
+- Delegate frontend work, including its tests, to frontend sub-agents and backend work to backend sub-agents, rather than implementing it directly.
+<!-- end claude-reflect -->

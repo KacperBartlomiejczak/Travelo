@@ -355,6 +355,238 @@ describe('select (trips-drawer D2)', () => {
   });
 });
 
+describe('updateDetails (trip-edit-menu D5)', () => {
+  it('signs in, then changes the name and cover of that trip on the server', async () => {
+    const { supabase, repository } = await setup();
+    supabase.respond('trips', { data: [{ id: PAST_ID }] });
+
+    await repository.updateDetails(PAST_ID, { name: 'Lisbon 2026', coverImageUri: 'file:///cache/lisbon.jpg' });
+
+    expect(supabase.auth.getSession).toHaveBeenCalled();
+    expect(supabase.queries).toEqual([
+      {
+        table: 'trips',
+        ops: [
+          ['update', [{ name: 'Lisbon 2026', cover_image_uri: 'file:///cache/lisbon.jpg' }]],
+          ['eq', ['id', PAST_ID]],
+          ['select', ['id']],
+        ],
+      },
+    ]);
+  });
+
+  it('trims the name', async () => {
+    const { supabase, repository } = await setup();
+    supabase.respond('trips', { data: [{ id: PAST_ID }] });
+    await repository.updateDetails(PAST_ID, { name: '  Lisbon 2026  ' });
+    expect(supabase.queries[0].ops[0]).toEqual(['update', [expect.objectContaining({ name: 'Lisbon 2026' })]]);
+  });
+
+  it('removes the cover on the server (null) when the input has none (A3)', async () => {
+    const { supabase, repository } = await setup();
+    supabase.respond('trips', { data: [{ id: PAST_ID }] });
+    await repository.updateDetails(PAST_ID, { name: 'Lisbon' });
+    expect(supabase.queries[0].ops[0]).toEqual(['update', [{ name: 'Lisbon', cover_image_uri: null }]]);
+  });
+
+  it.each([
+    ['empty', ''],
+    ['blank', '   '],
+    ['61 characters', 'x'.repeat(61)],
+  ])('rejects a name that is %s with a validation error, and sends nothing', async (_label, name) => {
+    const { supabase, repository } = await setup();
+    await expect(repository.updateDetails(PAST_ID, { name })).rejects.toMatchObject({ name: 'ZodError' });
+    expect(supabase.queries).toHaveLength(0);
+    expect(supabase.auth.getSession).not.toHaveBeenCalled();
+  });
+
+  it('rejects when the server changed no row (deleted elsewhere, or not the owner), never a silent success', async () => {
+    const { supabase, repository } = await setup();
+    supabase.respond('trips', { data: [] });
+    await expect(repository.updateDetails(PAST_ID, { name: 'Lisbon' })).rejects.toThrow();
+  });
+
+  it('rejects with the server\'s message when it refuses', async () => {
+    const { supabase, repository } = await setup();
+    supabase.respond('trips', { error: { message: 'permission denied for table trips' }, status: 401 });
+    await expect(repository.updateDetails(PAST_ID, { name: 'Lisbon' })).rejects.toThrow('permission denied');
+  });
+
+  it('offline: rejects as unreachable, and never writes to the phone', async () => {
+    const { supabase, local, repository } = await setup();
+    const lisbon = past();
+    supabase.respond('trips', { data: lisbon.row }, { data: [listRow(lisbon)] }, NETWORK_FAILURE);
+    await repository.select(PAST_ID);
+    await repository.current();
+    await repository.list();
+    const listCopy = await local.cachedList();
+    const overviewCopy = await local.cachedOverview(PAST_ID);
+    expect(listCopy).toEqual([expect.objectContaining({ id: PAST_ID, name: 'Lisbon' })]);
+    expect(overviewCopy).not.toBeNull();
+
+    const rejected = repository.updateDetails(PAST_ID, { name: 'Lisbon 2026' });
+    await expect(rejected).rejects.toThrow('Network request failed');
+    await expect(rejected).rejects.toMatchObject({ constructor: expect.objectContaining({ name: 'ServerUnreachableError' }) });
+    await expect(local.cachedList()).resolves.toEqual(listCopy);
+    await expect(local.cachedOverview(PAST_ID)).resolves.toEqual(overviewCopy);
+  });
+
+  it('offline: signing in fails for lack of connection, so it rejects as unreachable', async () => {
+    const { supabase, repository } = await setup();
+    const { AuthRetryableFetchError } = jest.requireActual('@supabase/supabase-js');
+    supabase.auth.getSession.mockResolvedValueOnce({ data: { session: null as never }, error: null });
+    supabase.auth.signInAnonymously.mockResolvedValueOnce({ data: { session: null as never, user: null as never }, error: new AuthRetryableFetchError('Network request failed', 0) });
+    const rejected = repository.updateDetails(PAST_ID, { name: 'Lisbon' });
+    await expect(rejected).rejects.toMatchObject({ constructor: expect.objectContaining({ name: 'ServerUnreachableError' }) });
+    expect(supabase.queries).toHaveLength(0);
+  });
+});
+
+describe('delete (trip-edit-menu D8, A5)', () => {
+  /** Lisbon and Rome were both opened on this phone; Lisbon is chosen and both have a budget change waiting. */
+  async function withTwoCopies() {
+    const ctx = await setup();
+    const lisbon = past();
+    const rome = ongoing();
+    ctx.supabase.respond('trips', { data: lisbon.row }, { data: rome.row }, { data: [listRow(lisbon), listRow(rome)] });
+    await ctx.repository.select(PAST_ID);
+    await ctx.repository.current();
+    await ctx.repository.select(ONGOING_ID);
+    await ctx.repository.current();
+    await ctx.repository.list();
+    await ctx.repository.select(PAST_ID);
+    await ctx.repository.setBudget({ id: PAST_ID, baseCurrency: 'THB' }, 250000);
+    await ctx.repository.setBudget({ id: ONGOING_ID, baseCurrency: 'THB' }, 260000);
+    ctx.supabase.queries.length = 0;
+    return ctx;
+  }
+
+  it('signs in, then deletes that trip on the server', async () => {
+    const { supabase, repository } = await withTwoCopies();
+    supabase.respond('trips', { data: [{ id: PAST_ID }] });
+
+    await repository.delete(PAST_ID);
+
+    expect(supabase.auth.getSession).toHaveBeenCalled();
+    expect(supabase.queries).toEqual([
+      {
+        table: 'trips',
+        ops: [
+          ['delete', []],
+          ['eq', ['id', PAST_ID]],
+          ['select', ['id']],
+        ],
+      },
+    ]);
+  });
+
+  it('afterwards the phone has forgotten the trip: its copy, the choice, the budget change and its list entry', async () => {
+    const { supabase, local, repository } = await withTwoCopies();
+    supabase.respond('trips', { data: [{ id: PAST_ID }] });
+
+    await repository.delete(PAST_ID);
+
+    await expect(local.cachedOverview(PAST_ID)).resolves.toBeNull();
+    await expect(local.selectedTripId()).resolves.toBeNull();
+    await expect(local.budgetChange(PAST_ID)).resolves.toBeNull();
+    await expect(local.cachedList()).resolves.toEqual([expect.objectContaining({ id: ONGOING_ID })]);
+  });
+
+  it('leaves the copies of the other trips alone', async () => {
+    const { supabase, local, repository } = await withTwoCopies();
+    supabase.respond('trips', { data: [{ id: PAST_ID }] });
+
+    await repository.delete(PAST_ID);
+
+    await expect(local.cachedOverview(ONGOING_ID)).resolves.toEqual(expect.objectContaining({ trip: expect.objectContaining({ id: ONGOING_ID }) }));
+    await expect(local.budgetChange(ONGOING_ID)).resolves.not.toBeNull();
+  });
+
+  it('rejects with the server\'s message when it refuses, and keeps everything on the phone', async () => {
+    const { supabase, local, repository } = await withTwoCopies();
+    supabase.respond('trips', { error: { message: 'permission denied for table trips' }, status: 401 });
+
+    await expect(repository.delete(PAST_ID)).rejects.toThrow('permission denied');
+
+    await expect(local.cachedOverview(PAST_ID)).resolves.not.toBeNull();
+    await expect(local.selectedTripId()).resolves.toBe(PAST_ID);
+    await expect(local.budgetChange(PAST_ID)).resolves.not.toBeNull();
+    await expect(local.cachedList()).resolves.toHaveLength(2);
+  });
+
+  it('offline: rejects as unreachable and keeps everything on the phone', async () => {
+    const { supabase, local, repository } = await withTwoCopies();
+    supabase.respond('trips', NETWORK_FAILURE);
+
+    const rejected = repository.delete(PAST_ID);
+    await expect(rejected).rejects.toThrow('Network request failed');
+    await expect(rejected).rejects.toMatchObject({ constructor: expect.objectContaining({ name: 'ServerUnreachableError' }) });
+
+    await expect(local.cachedOverview(PAST_ID)).resolves.not.toBeNull();
+    await expect(local.selectedTripId()).resolves.toBe(PAST_ID);
+  });
+
+  // D13: this used to be one test, "rejects when the server deleted no row". A delete that finds the trip already
+  // gone is now a success, so the case is split by what the follow-up visibility check says.
+  describe('when the server deleted no row (D13)', () => {
+    it('and the trip is gone: resolves, the phone forgets it, after a delete and then a visibility check', async () => {
+      const { supabase, local, repository } = await withTwoCopies();
+      supabase.respond('trips', { data: [] }, { data: null });
+
+      await expect(repository.delete(PAST_ID)).resolves.toBeUndefined();
+
+      expect(supabase.queries).toEqual([
+        {
+          table: 'trips',
+          ops: [
+            ['delete', []],
+            ['eq', ['id', PAST_ID]],
+            ['select', ['id']],
+          ],
+        },
+        {
+          table: 'trips',
+          ops: [
+            ['select', ['id']],
+            ['eq', ['id', PAST_ID]],
+            ['maybeSingle', []],
+          ],
+        },
+      ]);
+      await expect(local.cachedOverview(PAST_ID)).resolves.toBeNull();
+      await expect(local.selectedTripId()).resolves.toBeNull();
+      await expect(local.budgetChange(PAST_ID)).resolves.toBeNull();
+      await expect(local.cachedList()).resolves.toEqual([expect.objectContaining({ id: ONGOING_ID })]);
+    });
+
+    it('and the trip is still visible (not the owner): rejects as not deletable, the copies stay', async () => {
+      const { supabase, local, repository } = await withTwoCopies();
+      supabase.respond('trips', { data: [] }, { data: { id: PAST_ID } });
+
+      await expect(repository.delete(PAST_ID)).rejects.toThrow('trip-not-deletable');
+
+      await expect(local.cachedOverview(PAST_ID)).resolves.not.toBeNull();
+      await expect(local.selectedTripId()).resolves.toBe(PAST_ID);
+      await expect(local.budgetChange(PAST_ID)).resolves.not.toBeNull();
+      await expect(local.cachedList()).resolves.toHaveLength(2);
+    });
+
+    it('and the visibility check fails offline: rejects as unreachable, the copies stay', async () => {
+      const { supabase, local, repository } = await withTwoCopies();
+      supabase.respond('trips', { data: [] }, NETWORK_FAILURE);
+
+      const rejected = repository.delete(PAST_ID);
+      await expect(rejected).rejects.toThrow('Network request failed');
+      await expect(rejected).rejects.toMatchObject({ constructor: expect.objectContaining({ name: 'ServerUnreachableError' }) });
+
+      await expect(local.cachedOverview(PAST_ID)).resolves.not.toBeNull();
+      await expect(local.selectedTripId()).resolves.toBe(PAST_ID);
+      await expect(local.budgetChange(PAST_ID)).resolves.not.toBeNull();
+      await expect(local.cachedList()).resolves.toHaveLength(2);
+    });
+  });
+});
+
 describe('budget changes (offline-first)', () => {
   /** The trip is the chosen one and has been read once, so every `current()` reads it by id. */
   async function withCurrent(changes: Partial<TripRow> = {}) {

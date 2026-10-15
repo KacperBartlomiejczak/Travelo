@@ -1,5 +1,5 @@
 # Architecture
-Last updated: 2026-10-14 · after task: wizard-keyboard steps 2–3 (one keyboard adjustment on iOS, the bottom sheet above the keyboard on Android)
+Last updated: 2026-10-14 · after task: wizard-keyboard (done; device checks on iPhone and Android passed)
 
 ## Overview
 Traveling is a mobile app for the person who organizes a trip for a group of friends: trip setup, members, flights and layovers, AI day plans built from real places, offline expenses, and a plan-vs-reality budget summary. The product scope and rules are defined in `CLAUDE.md`; the visual system ("Sunline") is defined in `context/design-context.md`.
@@ -254,7 +254,7 @@ The airport list is a static bundled file, validated row by row in its test (not
 - 2026-10-03 — Design-context gaps decided by Kacper: back button label (D7), native header style (D8), dark disabled button colours (D9), focus ring offset (D10), screen spacing (D11), empty-state illustration (D12) — see `prompts/trips-empty-state/plan.md`.
 
 ## Known limitations & tech debt
-- Wizard keyboard (`prompts/wizard-keyboard/plan.md`): step 1 checked on Android by Kacper; the iPhone check (manual steps 1–8) and the Android check of the bottom sheet (8–9) are not reported yet. While the keyboard is open, "Dalej" and the bottom sheet keep their safe-area bottom padding above the keyboard (kept, D8). On iOS the wizard scrolls to the focused field only when the keyboard shows, not when focus moves to another field while it stays open (left as is, D7). On Android the sheet relies on RN's `keyboardDidShow` reaching JS while the `Modal` dialog has focus; not confirmed on a device yet.
+- Wizard keyboard (`prompts/wizard-keyboard/plan.md`, checked by Kacper on iPhone and Android): while the keyboard is open, "Dalej" and the bottom sheet keep their safe-area bottom padding above the keyboard (kept, D8). On iOS the wizard scrolls to the focused field only when the keyboard shows, not when focus moves to another field while it stays open (left as is, D7). If the sheet's `Modal` ever loses `statusBarTranslucent`, the sheet needs a status-bar `keyboardVerticalOffset` on Android.
 - The migration is not pushed to the project yet and the app has not talked to Supabase from a device yet (manual steps in `prompts/trips-supabase/plan.md`). Anonymous sign-ins must be enabled in the dashboard.
 - Anonymous users only: deleting the app or its data loses the session and with it access to the trips (no e-mail / Apple linking yet). A refresh token the server rejects makes every request fail until the app data is cleared.
 - Retrying "Utwórz podróż" after a lost response can create a second trip (new ids per attempt); `create_trip` itself is idempotent per id.
@@ -284,6 +284,7 @@ The airport list is a static bundled file, validated row by row in its test (not
 - Template images in `assets/images/` (React/Expo logos, `tabIcons/`, `tutorial-web.png`) are not referenced by any code.
 
 ## Changelog
+- 2026-10-14 — wizard-keyboard done — Kacper's device checks passed; no architectural change.
 - 2026-10-14 — wizard-keyboard steps 2–3 — `WizardScreen`: `automaticallyAdjustKeyboardInsets` removed, internal iOS-only `useScrollFocusedFieldIntoView`; `BottomSheet`: `KeyboardAvoidingView` `padding` on both platforms, `testID="bottom-sheet-keyboard"`; new tests in `WizardScreen.test.tsx` and `BottomSheet.test.tsx`. No schema, data or dependency change.
 - 2026-10-13 — wizard-keyboard — `WizardScreen` root is a `KeyboardAvoidingView` (`padding`, header-height offset) and its `ScrollView` adjusts keyboard insets; new `src/features/trip-create/__tests__/WizardScreen.test.tsx`. No schema, data or dependency change.
 - 2026-10-10 — trips-drawer step 9 (D8) — on the open trip's row the side panel's thumbnail sits on `surface.elevated` instead of `surface.secondary`; no architectural change.

@@ -295,6 +295,55 @@ select test_helpers.ok(
 );
 
 -- ---------------------------------------------------------------------------
+-- Owner A edits and deletes a trip (trip-edit-menu, step 2)
+-- Uses its own trip, so the fixture trip above and the checks around it are not affected.
+-- ---------------------------------------------------------------------------
+select public.create_trip(
+  test_helpers.trip_payload('10000000-0000-4000-8000-0000000000e1', '{"name": "Old name", "cover_image_uri": "file:///old.jpg"}'),
+  jsonb_build_array(
+    jsonb_build_object('id', '20000000-0000-4000-8000-0000000000e1', 'trip_id', '10000000-0000-4000-8000-0000000000e1',
+      'user_id', null, 'display_name', 'Basia', 'role', 'viewer', 'interests', jsonb_build_array('museums'))),
+  jsonb_build_array(
+    jsonb_build_object('id', '30000000-0000-4000-8000-0000000000e1', 'trip_id', '10000000-0000-4000-8000-0000000000e1',
+      'direction', 'outbound', 'position', 0, 'flight_number', null, 'from_iata', 'WAW', 'to_iata', 'BKK',
+      'depart_at', '2026-11-02T10:00:00+01:00', 'depart_tz', 'Europe/Warsaw',
+      'arrive_at', '2026-11-03T12:45:00+07:00', 'arrive_tz', 'Asia/Bangkok'))
+);
+
+update public.trips set name = 'Thailand 2026', cover_image_uri = 'file:///new.jpg'
+where id = '10000000-0000-4000-8000-0000000000e1';
+select test_helpers.ok(
+  (select name from public.trips where id = '10000000-0000-4000-8000-0000000000e1') = 'Thailand 2026'
+    and (select cover_image_uri from public.trips where id = '10000000-0000-4000-8000-0000000000e1') = 'file:///new.jpg',
+  'A can change the name and the cover of their trip'
+);
+
+update public.trips set cover_image_uri = null where id = '10000000-0000-4000-8000-0000000000e1';
+select test_helpers.ok(
+  (select count(*) from public.trips where id = '10000000-0000-4000-8000-0000000000e1') = 1
+    and (select cover_image_uri from public.trips where id = '10000000-0000-4000-8000-0000000000e1') is null
+    and (select name from public.trips where id = '10000000-0000-4000-8000-0000000000e1') = 'Thailand 2026',
+  'A can remove the cover (null) and the name stays'
+);
+
+delete from public.trips where id = '10000000-0000-4000-8000-0000000000e1';
+
+-- Counted without RLS (back to the connecting role), so "gone" cannot be a side effect of the policies hiding rows.
+reset role;
+select test_helpers.ok(
+  (select count(*) from public.trips where id = '10000000-0000-4000-8000-0000000000e1') = 0
+    and (select count(*) from public.trip_members where trip_id = '10000000-0000-4000-8000-0000000000e1') = 0
+    and (select count(*) from public.flight_segments where trip_id = '10000000-0000-4000-8000-0000000000e1') = 0,
+  'deleting a trip also deletes its members and segments (cascade)'
+);
+select test_helpers.ok(
+  (select count(*) from public.trips where id = '10000000-0000-4000-8000-000000000001') = 1
+    and (select count(*) from public.trip_members where trip_id = '10000000-0000-4000-8000-000000000001') = 3
+    and (select count(*) from public.flight_segments where trip_id = '10000000-0000-4000-8000-000000000001') = 3,
+  'deleting one trip leaves the owner''s other trip, its members and segments alone'
+);
+
+-- ---------------------------------------------------------------------------
 -- Requests without a session get nothing
 -- ---------------------------------------------------------------------------
 select test_helpers.logout();

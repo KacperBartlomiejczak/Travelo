@@ -21,14 +21,22 @@ import type { FlightSegment, SyncStatus, TripOverview } from '@/schemas';
 import { useTheme } from '@/theme/useTheme';
 
 import { BudgetSheet } from './BudgetSheet';
+import { DeleteTripSheet } from './DeleteTripSheet';
 import { HeroMenuButton } from './HeroMenuButton';
+import { TripDetailsSheet } from './TripDetailsSheet';
+import { TripMenuButton } from './TripMenuButton';
+import { TripMenuSheet } from './TripMenuSheet';
 
-type Props = { overview: TripOverview; budgetSyncStatus: SyncStatus; onOpenMenu: () => void };
+type Props = { overview: TripOverview; budgetSyncStatus: SyncStatus; onOpenMenu: () => void; onDeleted: () => void };
+
+// One sheet at a time (trip-edit-menu A6): choosing a menu item swaps the menu's Modal for the next sheet's in one
+// render (D16; the device check decides if that is enough).
+type Sheet = 'menu' | 'details' | 'budget' | 'delete';
 
 // Home screen with a trip (D4, A5): the hero, then flights, travellers and budget — data only.
 // Rendered inside DarkThemeScope: the photo fades into ink and the content continues on it (A4).
 // A new trip starts from the side panel; the menu button stays over the photo (trips-drawer D4, P5).
-export function CurrentTrip({ overview, budgetSyncStatus, onOpenMenu }: Props) {
+export function CurrentTrip({ overview, budgetSyncStatus, onOpenMenu, onDeleted }: Props) {
   const { t } = useTranslation();
   const theme = useTheme();
   const insets = useSafeAreaInsets();
@@ -41,12 +49,15 @@ export function CurrentTrip({ overview, budgetSyncStatus, onOpenMenu }: Props) {
   const focused = useIsFocused();
   const panelOpen = useDrawerStatus() === 'open';
   const offline = useIsOffline();
+  const [sheet, setSheet] = useState<Sheet | null>(null);
+  const closeSheet = () => setSheet(null);
 
   return (
     <View testID="home-screen" style={{ flex: 1, backgroundColor: colors.hero.background }}>
       <StatusBar style={focused && !panelOpen ? 'light' : 'auto'} />
       {/* First, so screen readers reach the navigation before the trip (§15); drawn above the photo. */}
       <HeroMenuButton onPress={onOpenMenu} />
+      <TripMenuButton onPress={() => setSheet('menu')} />
       <ScrollView testID="home-scroll" contentContainerStyle={{ paddingBottom: spacing[6] }}>
         <TripHero trip={trip} />
         <View style={{ gap: spacing[4], paddingHorizontal: side, width: '100%', maxWidth: theme.size.maxContentWidth, alignSelf: 'center' }}>
@@ -60,9 +71,21 @@ export function CurrentTrip({ overview, budgetSyncStatus, onOpenMenu }: Props) {
               <Body key={member.id}>{member.displayName}</Body>
             ))}
           </Section>
-          <Budget trip={trip} syncStatus={budgetSyncStatus} />
+          <Budget trip={trip} syncStatus={budgetSyncStatus} onChangeBudget={() => setSheet('budget')} />
         </View>
       </ScrollView>
+      {sheet === 'menu' && (
+        <TripMenuSheet
+          offline={offline}
+          onEditDetails={() => setSheet('details')}
+          onChangeBudget={() => setSheet('budget')}
+          onDelete={() => setSheet('delete')}
+          onClose={closeSheet}
+        />
+      )}
+      {sheet === 'details' && <TripDetailsSheet trip={trip} onClose={closeSheet} />}
+      {sheet === 'budget' && <BudgetSheet trip={trip} onClose={closeSheet} />}
+      {sheet === 'delete' && <DeleteTripSheet trip={trip} onClose={closeSheet} onDeleted={onDeleted} />}
       {offline && (
         <View
           testID="home-action"
@@ -136,11 +159,10 @@ function Direction({ label, segments }: { label: string; segments: FlightSegment
   );
 }
 
-function Budget({ trip, syncStatus }: { trip: TripOverview['trip']; syncStatus: SyncStatus }) {
+function Budget({ trip, syncStatus, onChangeBudget }: { trip: TripOverview['trip']; syncStatus: SyncStatus; onChangeBudget: () => void }) {
   const { t, i18n } = useTranslation();
   const theme = useTheme();
   const requestSync = useRequestBudgetSync();
-  const [changing, setChanging] = useState(false);
   const locale = i18n.language;
   const perPerson = trip.budgetPerPerson;
   const perDay = formatMoney(perPersonPerDay(perPerson, tripDayCount(trip.startDate, trip.endDate)), locale);
@@ -153,7 +175,7 @@ function Budget({ trip, syncStatus }: { trip: TripOverview['trip']; syncStatus: 
           variant="ghost"
           label={t('newTrip.summary.change')}
           accessibilityLabel={t('home.changeBudget')}
-          onPress={() => setChanging(true)}
+          onPress={onChangeBudget}
         />
       }
     >
@@ -170,7 +192,6 @@ function Budget({ trip, syncStatus }: { trip: TripOverview['trip']; syncStatus: 
           : t('newTrip.summary.perDay', { perDay })}
       </Body>
       <SyncIndicator status={syncStatus} onRetry={requestSync} />
-      {changing && <BudgetSheet trip={trip} onClose={() => setChanging(false)} />}
     </Section>
   );
 }

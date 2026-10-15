@@ -223,6 +223,69 @@ describe('in-memory trip repository', () => {
     await expect(repo.syncBudgets()).resolves.toEqual({ nextAttemptAt: null });
   });
 
+  describe('updateDetails and delete (trip-edit-menu)', () => {
+    const UNKNOWN_ID = '1c0f8d5f-7b54-4d5c-8b66-3a7f1f8f2b02';
+
+    it('changes the name and cover, seen by current() and list(); the name is trimmed', async () => {
+      const repo = repository();
+      const created = await repo.create(createTripInputFixture());
+      await repo.updateDetails(created.id, { name: '  Bangkok 2026  ', coverImageUri: 'file:///cache/bkk.jpg' });
+      const current = await repo.current();
+      expect(current?.overview.trip).toEqual(expect.objectContaining({ id: created.id, name: 'Bangkok 2026', coverImageUri: 'file:///cache/bkk.jpg' }));
+      expect(await repo.list()).toEqual([expect.objectContaining({ id: created.id, name: 'Bangkok 2026', coverImageUri: 'file:///cache/bkk.jpg' })]);
+    });
+
+    it('removes the cover when the input has none', async () => {
+      const repo = repository();
+      const input = createTripInputFixture();
+      input.details.coverImageUri = 'file:///cache/bkk.jpg';
+      const created = await repo.create(input);
+      await repo.updateDetails(created.id, { name: 'Bangkok' });
+      expect((await repo.current())?.overview.trip).not.toHaveProperty('coverImageUri');
+      expect((await repo.list())[0]).not.toHaveProperty('coverImageUri');
+    });
+
+    it('rejects an invalid name and changes nothing', async () => {
+      const repo = repository();
+      const created = await repo.create(createTripInputFixture());
+      await expect(repo.updateDetails(created.id, { name: '' })).rejects.toThrow();
+      await expect(repo.updateDetails(created.id, { name: 'x'.repeat(61) })).rejects.toThrow();
+      expect((await repo.current())?.overview.trip.name).toBe('Warsaw → Bangkok');
+    });
+
+    it('rejects an unknown trip, like the server changing no row', async () => {
+      await expect(repository().updateDetails(UNKNOWN_ID, { name: 'Rome' })).rejects.toThrow();
+    });
+
+    it('delete removes the trip; the next current() is the default trip', async () => {
+      const repo = repository();
+      const kept = await repo.create(createTripInputFixture());
+      const chosen = await repo.create(createTripInputFixture());
+      expect((await repo.current())?.overview.trip.id).toBe(chosen.id);
+
+      await repo.delete(chosen.id);
+
+      expect((await repo.list()).map((trip) => trip.id)).toEqual([kept.id]);
+      expect((await repo.current())?.overview.trip.id).toBe(kept.id);
+    });
+
+    it('delete of the last trip leaves no current trip', async () => {
+      const repo = repository();
+      const created = await repo.create(createTripInputFixture());
+      await repo.delete(created.id);
+      await expect(repo.current()).resolves.toBeNull();
+      await expect(repo.list()).resolves.toEqual([]);
+    });
+
+    it('deleting an unknown trip resolves and changes nothing: already gone is a success (D13)', async () => {
+      const repo = repository();
+      const kept = await repo.create(createTripInputFixture());
+      await expect(repo.delete(UNKNOWN_ID)).resolves.toBeUndefined();
+      expect((await repo.list()).map((trip) => trip.id)).toEqual([kept.id]);
+      expect((await repo.current())?.overview.trip.id).toBe(kept.id);
+    });
+  });
+
   it('counts a solo trip as one traveller', async () => {
     const repo = repository();
     const solo = createTripInputFixture();

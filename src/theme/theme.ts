@@ -1,6 +1,6 @@
 import type { ViewStyle } from 'react-native';
 
-import { breakpoints, elevation, gradient, palette, radius, size, spacing } from './tokens';
+import { breakpoints, duration, elevation, gradient, palette, radius, size, spacing } from './tokens';
 import { typography } from './typography';
 
 // §6.1: shadows in light mode; dark mode relies on surface contrast.
@@ -48,12 +48,15 @@ const light = {
     category: palette.category.light,
     hero,
     overlay: palette.overlay,
+    // Snackbar is inverse: ink on light, light on dark (trip-edit-menu D11).
+    snackbar: { background: palette.neutral[900], text: palette.neutral[50] },
   },
   elevation: lightElevation,
   gradient,
   spacing,
   radius,
   size,
+  duration,
   breakpoints,
   typography,
 } as const;
@@ -95,12 +98,14 @@ export const darkTheme: Theme = {
     category: palette.category.dark,
     hero,
     overlay: palette.overlay,
+    snackbar: { background: palette.neutral[50], text: palette.neutral[900] },
   },
   elevation: darkElevation,
   gradient,
   spacing,
   radius,
   size,
+  duration,
   breakpoints,
   typography,
 };

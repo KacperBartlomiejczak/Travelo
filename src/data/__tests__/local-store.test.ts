@@ -253,3 +253,90 @@ describe('budget changes', () => {
     await expect(local.budgetChange(TRIP_ID)).rejects.toThrow();
   });
 });
+
+describe('forgetTrip (trip-edit-menu A5)', () => {
+  const list: TripList = [
+    { id: TRIP_ID, name: 'Barcelona', startDate: '2026-11-02', endDate: '2026-11-09' },
+    { id: OTHER_TRIP_ID, name: 'Rome', startDate: '2026-12-01', endDate: '2026-12-05' },
+  ];
+  const other = { ...overview, trip: { ...overview.trip, id: OTHER_TRIP_ID, name: 'Rome' } };
+
+  it('removes the trip\'s copy, its chosen-trip row, its pending budget change and its entry in the list copy', async () => {
+    const { local } = await store();
+    await local.cacheList(list, '2026-10-08T09:00:00.000Z');
+    await local.cacheOverview(overview, '2026-10-08T09:00:00.000Z');
+    await local.selectTrip(TRIP_ID);
+    await local.saveBudgetChange(change);
+
+    await local.forgetTrip(TRIP_ID);
+
+    await expect(local.cachedOverview(TRIP_ID)).resolves.toBeNull();
+    await expect(local.selectedTripId()).resolves.toBeNull();
+    await expect(local.budgetChange(TRIP_ID)).resolves.toBeNull();
+    await expect(local.cachedList()).resolves.toEqual([list[1]]);
+  });
+
+  it('leaves every other trip alone: its copy, its budget change and a choice of it', async () => {
+    const { local } = await store();
+    await local.cacheList(list, '2026-10-08T09:00:00.000Z');
+    await local.cacheOverview(overview, '2026-10-08T09:00:00.000Z');
+    await local.cacheOverview(other, '2026-10-08T09:00:00.000Z');
+    await local.selectTrip(OTHER_TRIP_ID);
+    await local.saveBudgetChange({ ...change, tripId: OTHER_TRIP_ID });
+
+    await local.forgetTrip(TRIP_ID);
+
+    await expect(local.cachedOverview(OTHER_TRIP_ID)).resolves.toEqual(other);
+    await expect(local.selectedTripId()).resolves.toBe(OTHER_TRIP_ID);
+    await expect(local.budgetChange(OTHER_TRIP_ID)).resolves.toEqual(expect.objectContaining({ syncStatus: 'pending' }));
+    await expect(local.cachedList()).resolves.toEqual([list[1]]);
+  });
+
+  it('does nothing for a trip the phone never kept anything of', async () => {
+    const { local } = await store();
+    await local.cacheList(list, '2026-10-08T09:00:00.000Z');
+    await local.cacheOverview(other, '2026-10-08T09:00:00.000Z');
+    await local.selectTrip(OTHER_TRIP_ID);
+    await local.saveBudgetChange({ ...change, tripId: OTHER_TRIP_ID });
+
+    await local.forgetTrip('2d1a9e6a-8c65-4e6d-9c77-4b8a2a9a3c03');
+
+    await expect(local.cachedList()).resolves.toEqual(list);
+    await expect(local.cachedOverview(OTHER_TRIP_ID)).resolves.toEqual(other);
+    await expect(local.selectedTripId()).resolves.toBe(OTHER_TRIP_ID);
+    await expect(local.budgetChange(OTHER_TRIP_ID)).resolves.not.toBeNull();
+  });
+
+  it('works when there is no list copy yet', async () => {
+    const { local } = await store();
+    await local.cacheOverview(overview, '2026-10-08T09:00:00.000Z');
+    await local.forgetTrip(TRIP_ID);
+    await expect(local.cachedOverview(TRIP_ID)).resolves.toBeNull();
+    await expect(local.cachedList()).resolves.toBeNull();
+  });
+
+  it('keeps the time the list copy was read', async () => {
+    const { db, local } = await store();
+    await local.cacheList(list, '2026-10-08T09:00:00.000Z');
+    await local.forgetTrip(TRIP_ID);
+    await expect(db.getFirstAsync('select cached_at from trip_list_cache', [])).resolves.toEqual({ cached_at: '2026-10-08T09:00:00.000Z' });
+  });
+
+  it('is all or nothing: when a step fails, nothing is removed', async () => {
+    const { db, local } = await store();
+    await local.cacheOverview(overview, '2026-10-08T09:00:00.000Z');
+    await local.selectTrip(TRIP_ID);
+    await local.saveBudgetChange(change);
+    const run = db.runAsync.bind(db);
+    jest.spyOn(db, 'runAsync').mockImplementation((sql, params) => {
+      if (sql.startsWith('delete from trip_budget_changes')) return Promise.reject(new Error('disk full'));
+      return run(sql, params);
+    });
+
+    await expect(local.forgetTrip(TRIP_ID)).rejects.toThrow('disk full');
+
+    await expect(local.cachedOverview(TRIP_ID)).resolves.not.toBeNull();
+    await expect(local.selectedTripId()).resolves.toBe(TRIP_ID);
+    await expect(local.budgetChange(TRIP_ID)).resolves.not.toBeNull();
+  });
+});
