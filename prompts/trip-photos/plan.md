@@ -296,7 +296,7 @@ export type PickedPhoto = z.infer<typeof PickedPhotoSchema>;
 - [x] 3. [backend] Pure logic `src/lib/trip-photos.ts` — skill: test-driven-development — tests first: step 3 list — verify: as above; verifier.
 - [x] 4. [backend] Migration `trip_photos` + RLS, SQL tests, types, row mapping — skill: supabase, supabase-postgres-best-practices, security-and-hardening, doubt-driven-development — tests first: step 4 list — verify: `pnpm test:db` red → green, `pnpm db:types`, parity (typecheck), full suite, lint; verifier.
 - [x] 5. [backend] Migration Storage bucket + policies, SQL tests — skill: supabase, security-and-hardening, doubt-driven-development — tests first: step 5 list — verify: `pnpm test:db` against a local Supabase (R1); verifier.
-- [ ] 6. [backend] SQLite v3 + `LocalStore` photo copy — skill: test-driven-development — tests first: step 6 list — verify: red → green, full suite, typecheck, lint; verifier.
+- [x] 6. [backend] SQLite v3 + `LocalStore` photo copy — skill: test-driven-development — tests first: step 6 list — verify: red → green, full suite, typecheck, lint; verifier.
 - [ ] 7. [backend] `photo-files.ts` (downscale, thumbnail, bytes) — skill: source-driven-development, test-driven-development — tests first: step 7 list — verify: as above; verifier.
 - [ ] 8. [backend] Repository `photos` / `addPhoto` / `deletePhoto`, trip delete removes files (P7), fake Storage — skill: api-and-interface-design, source-driven-development, security-and-hardening, doubt-driven-development — tests first: step 8 list — verify: as above; verifier.
 - [ ] 9. [frontend] Hooks `useTripPhotos`, `usePhotoUploads`, `useDeleteTripPhoto` — skill: test-driven-development — tests first: step 9 list — verify: as above; verifier.
@@ -424,6 +424,20 @@ export type PickedPhoto = z.infer<typeof PickedPhotoSchema>;
     - `list(folder)` returns 100 entries by default; P7 must page it (`limit: 1000` + offset until a short page; checked with 130 files);
     - ids in paths must be lowercase (they are: `randomUUID()` and Postgres uuids).
   - **Skill used:** supabase, supabase-postgres-best-practices, security-and-hardening, test-driven-development; verifier: doubt-driven-development.
+- Step 6 (2026-10-15, backend agent).
+  - **What changed:**
+    - `src/data/local-db.ts`: migration v3 adds `trip_photos_cache` (v1 and v2 untouched).
+    - `src/data/local-store.ts`:
+      - `cachePhotos` validates with `TripPhotoListSchema`, so an invalid list writes nothing and the old copy stays;
+      - `cachedPhotos` returns null for no row, corrupt JSON or a Zod failure;
+      - `cacheList` prunes the photo copies of trips no longer listed;
+      - `forgetTrip` drops the trip's photo copy inside its transaction.
+  - **Tests:** 14 new (3 in `local-db.test.ts`, 11 in `local-store.test.ts`). red ✓ (`cachePhotos is not a function`, `no such table: trip_photos_cache`, `user_version` stayed 2) → green ✓.
+    - Two existing local-db tests now expect version 3 and the new table, as the migration intends (nothing else changed).
+    - The all-or-nothing `forgetTrip` test also checks that the photo copy survives a failed transaction.
+  - **Checks:** suite 72 / 994 ✓, typecheck ✓, lint ✓.
+  - **Verifier:** PASS. Its note for step 9: the copy holds signed URLs that expire after 1 h, which is fine because offline the strip relies on expo-image's disk cache (`cacheKey`); an expired URL must not be treated as an error.
+  - **Skill used:** test-driven-development.
 
 ## Risks & open questions
 - **Q1 — How the date taken is stored.** Cameras write their own clock without a time zone, and we strip GPS, so the zone is unknown. Recommendation: keep the camera's clock as is (`LocalDateTimeSchema`, Postgres `timestamp without time zone`). This is a written exception to "timestamps with offset", like flights keep the airport's clock. *Alternative:* convert it with the trip destination's time zone (a guess: wrong for layovers or other places).
