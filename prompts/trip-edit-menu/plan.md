@@ -1,5 +1,5 @@
 # Task: Trip edit menu (⋮)
-Status: in progress — steps 1, 3, 4, 5, 5b, 7 done; step 2 waits for `pnpm test:db`, step 6 for Kacper's phone check (cover, keyboard); step 8 (device run) next; step 7b (PR #10 review fix) done, its manual 12 waits for step 8's device run
+Status: done (2026-10-15) — all steps `[x]`; steps 2, 6, 8 and manual 12 on Kacper's confirmation (see the last progress entry)
 
 ## Understanding & assumptions
 Kacper wants a **three-vertical-dots button** (lucide `EllipsisVertical`, from `lucide-react-native` 1.50, checked in
@@ -212,7 +212,7 @@ Written first in every step, run, seen failing for the missing behavior.
 - [x] 1. [backend] Repository: `updateDetails`, `delete`, `LocalStore.forgetTrip` (Supabase + in-memory) — skill:
   test-driven-development, api-and-interface-design, security-and-hardening, doubt-driven-development,
   source-driven-development — tests first: step 1 — verify: full `pnpm test`, `pnpm typecheck`, `pnpm lint`; verifier.
-- [ ] 2. [backend] SQL tests for the owner's update and delete (cascade) — skill: doubt-driven-development — tests:
+- [x] 2. [backend] SQL tests for the owner's update and delete (cascade) — skill: doubt-driven-development — tests:
   step 2 (characterization + mutation check) — verify: `pnpm test:db` if a local Supabase is running, otherwise the
   run is a manual step for Kacper; verifier.
 - [x] 3. [frontend] Hooks `useUpdateTripDetails`, `useDeleteTrip` — skill: test-driven-development,
@@ -231,14 +231,14 @@ Written first in every step, run, seen failing for the missing behavior.
   reduce motion the sheet still follows the finger but goes back without animation; the cause found on the device is
   covered by a regression test where Jest can express it — verify: full suite, typecheck, lint; verifier; tester on
   the emulator (Verification 2, both the menu and the budget sheet); Kacper on his phone.
-- [ ] 6. [frontend] Edit name and cover sheet — skill: test-driven-development, frontend-ui-engineering — tests
+- [x] 6. [frontend] Edit name and cover sheet — skill: test-driven-development, frontend-ui-engineering — tests
   first: step 6 — verify: full suite, typecheck, lint; verifier; tester (manual 5–7).
 - [x] 7. [frontend] Delete confirmation, snackbar after delete — skill: test-driven-development,
   frontend-ui-engineering — tests first: step 7 — verify: full suite, typecheck, lint; verifier; tester (manual 8–11).
 - [x] 7b. [frontend] The delete sheet cannot be dismissed while the delete runs (PR #10 review, 2026-10-15; approved
   by Kacper 2026-10-15, without TripDetailsSheet) — skill: test-driven-development, frontend-ui-engineering — tests first: see "PR #10 review" below —
   verify: full suite, typecheck, lint; verifier; tester (manual 12) if the emulator is connected.
-- [ ] 8. [tester] Device run of the whole feature (Kacper, 2026-10-14) — the `tester` agent drives the app on the
+- [x] 8. [tester] Device run of the whole feature (Kacper, 2026-10-14) — the `tester` agent drives the app on the
   connected Android emulator (`Medium_Phone_API_37.0`, via the `mobile-mcp` server in `.mcp.json`) and walks manual
   steps 1–12 below (12 added by step 7b) plus the snackbar checks from step 4 (look in light / dark, ~3.5 s auto-hide, reduced motion);
   only test data, no real personal data — skill: none (no code; the tester reports PASS / FAIL per scenario with
@@ -591,3 +591,8 @@ decided to leave it out (D22).
   B behave the same in old and new code). Test data: the tester created and deleted "Warsaw → Barcelona"; the emulator
   now has no trips. Screenshot: `screens/7b-c-after-batch-empty-state.png`. Manual 12 stays open for step 8: Kacper checks it on
   his phone on a slow network (decided 2026-10-15), together with the cover and keyboard checks.
+- Closing (2026-10-15): Kacper confirmed that the remaining checks are done ("Tak, wszystko sprawdziłem"):
+  `pnpm test:db` green (step 2), the cover and keyboard on his phone (step 6, step 8) and manual 12 on a slow network
+  (step 7b). Those runs were his, not repeated here; their output is not in this log. Steps 2, 6, 8 marked `[x]` on his
+  word. Before closing, the orchestrator ran `pnpm test` (69 suites, 896 tests), `pnpm typecheck` and `pnpm lint`: all
+  green. `Architecture.md` updated for the whole feature (incl. `BottomSheet` `dismissible` and the stale swipe line).
