@@ -42,6 +42,10 @@ _Avoid_: Title, label
 An optional picture the organizer chooses to represent a trip.
 _Avoid_: Thumbnail, background, banner
 
+**Trip photo**:
+A photo the organizer adds to a trip from the phone's gallery. It is kept with the date it was taken (the camera's clock) and the date it was added; GPS and other photo data are not kept. Shown in the strip under the trip's title, and full screen when tapped. Not the cover photo.
+_Avoid_: Picture, image, gallery photo
+
 **Upcoming trip** / **Past trip**:
 A trip that has not ended yet, ongoing trips included / a trip whose last day is before today.
 _Avoid_: Future trip, active trip / old trip, finished trip, archived trip
