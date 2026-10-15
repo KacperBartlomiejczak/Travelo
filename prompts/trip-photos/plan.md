@@ -298,7 +298,7 @@ export type PickedPhoto = z.infer<typeof PickedPhotoSchema>;
 - [x] 5. [backend] Migration Storage bucket + policies, SQL tests — skill: supabase, security-and-hardening, doubt-driven-development — tests first: step 5 list — verify: `pnpm test:db` against a local Supabase (R1); verifier.
 - [x] 6. [backend] SQLite v3 + `LocalStore` photo copy — skill: test-driven-development — tests first: step 6 list — verify: red → green, full suite, typecheck, lint; verifier.
 - [x] 7. [backend] `photo-files.ts` (downscale, thumbnail, bytes) — skill: source-driven-development, test-driven-development — tests first: step 7 list — verify: as above; verifier.
-- [ ] 8. [backend] Repository `photos` / `addPhoto` / `deletePhoto`, trip delete removes files (P7), fake Storage — skill: api-and-interface-design, source-driven-development, security-and-hardening, doubt-driven-development — tests first: step 8 list — verify: as above; verifier.
+- [x] 8. [backend] Repository `photos` / `addPhoto` / `deletePhoto`, trip delete removes files (P7), fake Storage — skill: api-and-interface-design, source-driven-development, security-and-hardening, doubt-driven-development — tests first: step 8 list — verify: as above; verifier.
 - [ ] 9. [frontend] Hooks `useTripPhotos`, `usePhotoUploads`, `useDeleteTripPhoto` — skill: test-driven-development — tests first: step 9 list — verify: as above; verifier.
 - [ ] 10. [frontend] `size.photoTile`, i18n (P8), `PhotoStrip` + `PhotoTile` + `pickTripPhotos` — skill: frontend-ui-engineering, source-driven-development — tests first: step 10 list — verify: as above; verifier (+ ui-taste).
 - [ ] 11. [frontend] Strip in `CurrentTrip` (P1), `deleteTrip.body` (P7) — skill: frontend-ui-engineering — tests first: step 11 list — verify: as above; verifier.
@@ -458,8 +458,43 @@ export type PickedPhoto = z.infer<typeof PickedPhotoSchema>;
   - **Verifier:** PASS. It checked that the tests catch a skipped re-encode, a read of the original, a wrong resize side, and a missing, early or double release.
   - **Deviation:** the agent downloaded a Glide sources jar to read one file (R10).
   - **Skill used:** source-driven-development, test-driven-development.
+- Step 8 (2026-10-15, backend agent; type stubs by the frontend agent).
+  - **`TripRepository` gets three methods** (Supabase and in-memory):
+    - `photos(tripId)`:
+      - rows paged 1000 at a time (`order('id').range()`, PostgREST `max_rows = 1000`);
+      - signed URLs valid 1 h, in chunks of ≤ 1000 paths; a photo without both URLs is left out;
+      - `TripPhotoListSchema` → `sortTripPhotos` → `cachePhotos`;
+      - unreachable (DB status 0, retryable auth error, or a Storage error without `status`) → the copy; no copy → reject; other errors reject.
+    - `addPhoto(tripId, photoId, picked)`:
+      - inputs are validated before any network call;
+      - `preparePhoto`, then upload the thumbnail, then the file (`image/jpeg`, `upsert: true`);
+      - then the row with `ignoreDuplicates`;
+      - then expo-image's cache is seeded under the key `<trip>/<id>_thumb.jpg` (a failing seed is ignored).
+    - `deletePhoto(photo)`:
+      - the row delete (by id **and** trip);
+      - 0 rows → visibility check (`photo-not-deletable` while still visible);
+      - then both files are removed best effort (R6).
+  - **`delete(tripId)` (P7):**
+    - the trip's folder is listed in pages of 1000 and removed in chunks of ≤ 1000 **before** the trip row; any error rejects and keeps the trip and the phone's copies;
+    - after the row is gone, the folder is checked **once more**, best effort, which catches a file uploaded meanwhile (Storage refuses uploads once the row is gone).
+  - Ids that become Storage paths must be lowercase UUIDs, checked before any network call.
+  - `src/test/fake-supabase.ts` has a recorded fake Storage (`storage.from(bucket)` with `upload`, `createSignedUrls`, `list`, `remove`; `respondStorage`, `storageCalls`, `sequence`).
+  - Two typed repository stubs (`TripsDrawer.test.tsx`, `useTrips.test.tsx`) got the three new members, type only, by the frontend agent, because the backend agent may not edit frontend tests.
+  - **Tests:** 80 new across `supabase-trip-repository.test.ts` and `trip-repository.test.ts`.
+    - red ✓ ("… is not a function", missing Storage calls, `toEqual` mismatches, promises resolving instead of rejecting) → green ✓.
+    - Typecheck was red with 2 TS2739 errors until the stubs.
+    - Mutations: 36 / 38, then 19 / 19 in the follow-up. The two survivors were redundant code (removed) and a parse also done by `cachePhotos`.
+  - **Storage-js findings** (2.117.2): every method returns `{ data, error }`; a network failure is `StorageUnknownError` without `status`; `createSignedUrls` gives per-item `signedUrl` / `error`; signing refuses 0 or more than 1000 paths (checked on the local API).
+  - **Deviations from the plan text:**
+    - signing is chunked (the plan said "one call"; it still is one call for up to 500 photos);
+    - row paging, the lowercase-id guard, the second folder check and the `trip_id` filter on `deletePhoto` were added after the verifier's review.
+  - **Checks:** suite 73 / 1094 ✓, typecheck ✓, lint ✓.
+  - **Verifier:** PASS, then PASS again on the follow-up. Its accepted gap is R11.
+  - **Skill used:** api-and-interface-design, source-driven-development, security-and-hardening, test-driven-development; verifier: doubt-driven-development.
 
 ## Risks & open questions
+- **R11 (step 8, accepted by the orchestrator as consistent with P7; Kacper can overrule).** If the trip's files are removed and then the trip row delete itself fails (e.g. the connection drops between the two calls), the trip stays without its photos. The user had already confirmed deleting the trip, and a retry finishes it. The error text does not mention photos.
+- **R12 (step 8).** The photo list is paged by 1000 rows because PostgREST's `max_rows` is 1000 (local `config.toml`, and Supabase's default). If the hosted project's `max_rows` is ever set lower, paging stops early. The page size and `max_rows` must stay equal.
 - **R10 (step 7) — the agent downloaded a file outside its brief.** It fetched `glide-5.0.5-sources.jar` from Maven Central into the session scratchpad and read only `Downsampler.java` (never ran it, nothing in the repo). It was told not to download anything outside a brief again.
 - **Q1 — How the date taken is stored.** Cameras write their own clock without a time zone, and we strip GPS, so the zone is unknown. Recommendation: keep the camera's clock as is (`LocalDateTimeSchema`, Postgres `timestamp without time zone`). This is a written exception to "timestamps with offset", like flights keep the airport's clock. *Alternative:* convert it with the trip destination's time zone (a guess: wrong for layovers or other places).
 - **Q2 — Photos without a date taken** (screenshots, WhatsApp photos). Recommendation: at the end of the strip, in the order they were added. *Alternative:* use the date added in their place (they then mix in with the trip's photos).
