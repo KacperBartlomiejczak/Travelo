@@ -132,6 +132,27 @@ describe('DeleteTripSheet (trip-edit-menu D7, D8, D10, D19)', () => {
     expect(onDeleted).toHaveBeenCalledTimes(1);
   });
 
+  it('while deleting, a backdrop tap and the back button do not dismiss the sheet', async () => {
+    let finish: () => void = () => {};
+    const { onClose } = await setup(remove(() => new Promise<void>((resolve) => (finish = resolve))));
+    await fireEvent.press(confirm());
+    await waitFor(() => expect(confirm()).toBeDisabled());
+    await fireEvent.press(screen.getByRole('button', { name: 'Zamknij' }));
+    await fireEvent(screen.getByTestId('bottom-sheet-modal'), 'requestClose');
+    expect(onClose).not.toHaveBeenCalled();
+    await act(async () => finish());
+  });
+
+  it('after deleting fails, the error stays visible and a backdrop tap closes the sheet again', async () => {
+    const deleteTrip = remove();
+    deleteTrip.mockRejectedValueOnce(new Error('trip-not-deletable'));
+    const { onClose } = await setup(deleteTrip);
+    await fireEvent.press(confirm());
+    expect(await screen.findByText('Nie udało się usunąć podróży. Spróbuj ponownie.')).toBeTruthy();
+    await fireEvent.press(screen.getByRole('button', { name: 'Zamknij' }));
+    expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
   it('offline while open: delete is disabled with the offline hint, nothing is sent (D8)', async () => {
     const { deleteTrip } = await setup();
     expect(screen.queryByText(OFFLINE_HINT)).toBeNull();

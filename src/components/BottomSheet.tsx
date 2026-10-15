@@ -9,6 +9,7 @@ type Props = {
   visible: boolean;
   title: string;
   onClose: () => void;
+  dismissible?: boolean;
   children: ReactNode;
 };
 
@@ -20,8 +21,9 @@ const pulled = (gesture: PanResponderGestureState) => (gesture.dy > 0 && gesture
 
 // Bottom sheet (design-context §10.12): 24dp top corners, at most 90 % of the screen, a handle,
 // closed by a swipe down, a backdrop tap or the system back button. The sheet follows a finger dragged down from its
-// header (trip-edit-menu D18) and springs back when released before SWIPE_TO_CLOSE.
-export function BottomSheet({ visible, title, onClose, children }: Props) {
+// header (trip-edit-menu D18) and springs back when released before SWIPE_TO_CLOSE. With `dismissible={false}` (a delete
+// is in flight) none of the three closes it: the backdrop and back button do nothing and a swipe always springs back.
+export function BottomSheet({ visible, title, onClose, dismissible = true, children }: Props) {
   const { t } = useTranslation();
   const theme = useTheme();
   const insets = useSafeAreaInsets();
@@ -40,10 +42,13 @@ export function BottomSheet({ visible, title, onClose, children }: Props) {
   // The gesture lives as long as the sheet: callers pass new inline lambdas, and a PanResponder rebuilt on every render
   // would lose its state in the middle of a drag. So it is created once, after the first render (the handlers read the
   // latest values from a ref when they run, which React only allows outside of render).
-  const latest = useRef({ onClose, reduceMotion, duration: theme.duration.small });
+  const latest = useRef({ onClose, dismissible, reduceMotion, duration: theme.duration.small });
   useEffect(() => {
-    latest.current = { onClose, reduceMotion, duration: theme.duration.small };
-  }, [onClose, reduceMotion, theme.duration.small]);
+    latest.current = { onClose, dismissible, reduceMotion, duration: theme.duration.small };
+  }, [onClose, dismissible, reduceMotion, theme.duration.small]);
+  const dismiss = () => {
+    if (dismissible) onClose();
+  };
   useEffect(() => {
     if (visible) offset.setValue(0); // a sheet that was swiped closed opens at its resting place
   }, [visible, offset]);
@@ -60,21 +65,21 @@ export function BottomSheet({ visible, title, onClose, children }: Props) {
         // and once it is the responder, the responder system never asks its descendants about a move.
         onStartShouldSetPanResponder: () => true,
         onPanResponderMove: (_, gesture) => offset.setValue(pulled(gesture)),
-        onPanResponderRelease: (_, gesture) => (pulled(gesture) > SWIPE_TO_CLOSE ? latest.current.onClose() : settle()),
+        onPanResponderRelease: (_, gesture) => (latest.current.dismissible && pulled(gesture) > SWIPE_TO_CLOSE ? latest.current.onClose() : settle()),
         onPanResponderTerminate: settle,
       }),
     );
   }, [offset]);
 
   return (
-    <Modal testID="bottom-sheet-modal" visible={visible} transparent animationType={reduceMotion ? 'none' : 'slide'} onRequestClose={onClose} statusBarTranslucent>
+    <Modal testID="bottom-sheet-modal" visible={visible} transparent animationType={reduceMotion ? 'none' : 'slide'} onRequestClose={dismiss} statusBarTranslucent>
       {/* wizard-keyboard D5: `padding` on both platforms. Android's window resize does not reach an edge-to-edge dialog, and
           the translucent modal starts at the top of the window like the keyboard's coordinates, so no offset is needed. */}
       <KeyboardAvoidingView testID="bottom-sheet-keyboard" behavior="padding" style={styles.fill}>
         <Pressable
           accessibilityRole="button"
           accessibilityLabel={t('common.close')}
-          onPress={onClose}
+          onPress={dismiss}
           style={[styles.fill, { backgroundColor: theme.colors.overlay.scrim }]}
         />
         <Animated.View

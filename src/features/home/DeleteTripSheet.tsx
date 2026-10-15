@@ -29,7 +29,7 @@ export function DeleteTripSheet({ trip, onClose, onDeleted }: Props) {
   }
 
   return (
-    <BottomSheet visible title={t('deleteTrip.title', { name: trip.name })} onClose={onClose}>
+    <BottomSheet visible title={t('deleteTrip.title', { name: trip.name })} onClose={onClose} dismissible={!pending}>
       <Text style={[theme.typography.bodyM, { color: theme.colors.text.secondary }]}>{t('deleteTrip.body')}</Text>
       {remove.isError && (
         // Announced by the call in `confirm`; a live region as well would read it twice.

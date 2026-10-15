@@ -169,10 +169,10 @@ describe('BottomSheet swipe down (trip-edit-menu D18)', () => {
   // RN's <Modal> gives its host view `onStartShouldSetResponder={() => true}` (Libraries/Modal/Modal.js), "so that no
   // responder events bubble out of the modal". Jest's Modal has no such handler, so this View stands in for it: it
   // claims every touch that nothing below it claims first.
-  const sheetWith = (visible: boolean, onClose: () => void, content: ReactNode = <Text>content</Text>) => (
+  const sheetWith = (visible: boolean, onClose: () => void, content: ReactNode = <Text>content</Text>, dismissible?: boolean) => (
     <SafeAreaProvider initialMetrics={metrics}>
       <View testID="modal-host" onStartShouldSetResponder={() => true}>
-        <BottomSheet visible={visible} title={TITLE} onClose={onClose}>
+        <BottomSheet visible={visible} title={TITLE} onClose={onClose} dismissible={dismissible}>
           {content}
         </BottomSheet>
       </View>
@@ -438,5 +438,70 @@ describe('BottomSheet swipe down (trip-edit-menu D18)', () => {
     expect(within(header()).queryByText('row')).toBeNull(); // the drag area is only the header
     await fireEvent.press(screen.getByText('row'));
     expect(onPress).toHaveBeenCalledTimes(1);
+  });
+
+  // pr10-review step 7b: a sheet that must not be dismissed (a delete is in flight) ignores every way of closing it.
+  describe('when not dismissible', () => {
+    const openLocked = async () => {
+      const onClose = jest.fn();
+      await render(sheetWith(true, onClose, <Text>content</Text>, false));
+      return onClose;
+    };
+
+    it('ignores a backdrop tap', async () => {
+      const onClose = await openLocked();
+      await fireEvent.press(screen.getByRole('button', { name: 'Zamknij' }));
+      expect(onClose).not.toHaveBeenCalled();
+    });
+
+    it('ignores the system back button', async () => {
+      const onClose = await openLocked();
+      await fireEvent(screen.getByTestId('bottom-sheet-modal'), 'requestClose');
+      expect(onClose).not.toHaveBeenCalled();
+    });
+
+    it('follows the finger past 60dp but springs back when released, without closing', async () => {
+      const onClose = await openLocked();
+      const f = await drag(title, 80);
+      expect(translateY()).toBe(80);
+      await f.up();
+      expect(onClose).not.toHaveBeenCalled();
+      await act(async () => {
+        jest.advanceTimersByTime(lightTheme.duration.small + 50);
+      });
+      expect(translateY()).toBe(0);
+      expect(onClose).not.toHaveBeenCalled();
+    });
+
+    it('springs back at once with reduce motion', async () => {
+      jest.spyOn(AccessibilityInfo, 'isReduceMotionEnabled').mockResolvedValue(true);
+      const onClose = await openLocked();
+      const f = await drag(title, 80);
+      await f.up();
+      expect(translateY()).toBe(0);
+      expect(onClose).not.toHaveBeenCalled();
+    });
+
+    it('closes by swipe, backdrop and back button again once it becomes dismissible during its life', async () => {
+      const onClose = jest.fn();
+      const view = await render(sheetWith(true, onClose, <Text>content</Text>, false));
+      await view.rerender(sheetWith(true, onClose, <Text>content</Text>, true));
+      const f = await drag(title, 80);
+      await f.up();
+      expect(onClose).toHaveBeenCalledTimes(1);
+      await fireEvent.press(screen.getByRole('button', { name: 'Zamknij' }));
+      expect(onClose).toHaveBeenCalledTimes(2);
+      await fireEvent(screen.getByTestId('bottom-sheet-modal'), 'requestClose');
+      expect(onClose).toHaveBeenCalledTimes(3);
+    });
+
+    it('is locked again when it becomes non-dismissible during its life', async () => {
+      const onClose = jest.fn();
+      const view = await render(sheetWith(true, onClose));
+      await view.rerender(sheetWith(true, onClose, <Text>content</Text>, false));
+      const f = await drag(title, 80);
+      await f.up();
+      expect(onClose).not.toHaveBeenCalled();
+    });
   });
 });
