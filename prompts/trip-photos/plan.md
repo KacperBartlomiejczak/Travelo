@@ -295,7 +295,7 @@ export type PickedPhoto = z.infer<typeof PickedPhotoSchema>;
 - [x] 2. [backend] Zod: `trip-photo.ts` + `GLOSSARY.md` — skill: domain-modeling, test-driven-development — tests first: step 2 list — verify: red → green, full suite, typecheck, lint; verifier.
 - [x] 3. [backend] Pure logic `src/lib/trip-photos.ts` — skill: test-driven-development — tests first: step 3 list — verify: as above; verifier.
 - [x] 4. [backend] Migration `trip_photos` + RLS, SQL tests, types, row mapping — skill: supabase, supabase-postgres-best-practices, security-and-hardening, doubt-driven-development — tests first: step 4 list — verify: `pnpm test:db` red → green, `pnpm db:types`, parity (typecheck), full suite, lint; verifier.
-- [ ] 5. [backend] Migration Storage bucket + policies, SQL tests — skill: supabase, security-and-hardening, doubt-driven-development — tests first: step 5 list — verify: `pnpm test:db` against a local Supabase (R1); verifier.
+- [x] 5. [backend] Migration Storage bucket + policies, SQL tests — skill: supabase, security-and-hardening, doubt-driven-development — tests first: step 5 list — verify: `pnpm test:db` against a local Supabase (R1); verifier.
 - [ ] 6. [backend] SQLite v3 + `LocalStore` photo copy — skill: test-driven-development — tests first: step 6 list — verify: red → green, full suite, typecheck, lint; verifier.
 - [ ] 7. [backend] `photo-files.ts` (downscale, thumbnail, bytes) — skill: source-driven-development, test-driven-development — tests first: step 7 list — verify: as above; verifier.
 - [ ] 8. [backend] Repository `photos` / `addPhoto` / `deletePhoto`, trip delete removes files (P7), fake Storage — skill: api-and-interface-design, source-driven-development, security-and-hardening, doubt-driven-development — tests first: step 8 list — verify: as above; verifier.
@@ -382,6 +382,47 @@ export type PickedPhoto = z.infer<typeof PickedPhotoSchema>;
     - Its note that B owned no trip (so "owner of any trip" policies slipped through) was fixed before `[x]`.
     - Its notes, not changed: `created_at` is client-supplied (owner only, affects order only); reusing another trip's photo id with `on conflict do nothing` is a silent no-op that leaks nothing.
   - **Finding:** a delete with `WHERE` is filtered by the select policy, so only an unqualified delete tests the delete policy on its own; the test has one.
+  - **Skill used:** supabase, supabase-postgres-best-practices, security-and-hardening, test-driven-development; verifier: doubt-driven-development.
+- Step 5 (2026-10-15, backend agent, local Supabase per D21).
+  - **What changed:** `supabase/migrations/20261015184306_trip_photos_storage.sql`, applied locally (not pushed). It adds:
+    - **Bucket** `trip-photos`: private, 10 MiB, `image/jpeg` only. It is a plain insert, so it fails loudly if the bucket already exists.
+    - **Helper** `private.trip_id_of_object(name)` (immutable, `search_path = ''`, execute for `authenticated` only): returns the trip id only for `^<lowercase uuid>/<lowercase uuid>(_thumb)?\.jpg$`, else null; it never raises.
+    - **Policies** on `storage.objects`, all `to authenticated` and scoped to the bucket:
+      - insert: own `owner_id` + `is_trip_owner(folder)`;
+      - select: own `owner_id` or `is_trip_viewer(folder)`;
+      - update: using own `owner_id`; with check own `owner_id` + bucket + `is_trip_owner(folder)`;
+      - delete: own `owner_id`.
+      - Owner-based select / delete is deliberate: the organizer can clean up files even of a trip already gone (P7, R6). A linked member reads by trip.
+  - **Findings:**
+    - The Storage server writes the JWT `sub` into `owner_id` (text) and `owner` (uuid).
+    - Supabase blocks direct SQL deletes unless `storage.allow_delete_query = 'true'` (the server sets it per transaction), so only the Storage API deletes files.
+    - `storage` is not exposed over REST.
+  - **SQL tests:** `supabase/tests/trip_photos_storage.sql` covers:
+    - the bucket row;
+    - the helper on 31 malformed names;
+    - owner A: own uploads, upsert, update, delete; refused into B's folder, a missing trip, bad names (uppercase ids included), another owner, another bucket, moves out of the folder;
+    - stranger B, who owns another trip;
+    - linked member C;
+    - anon;
+    - other buckets untouched.
+    - Unqualified update / delete statements are included (the step 4 finding).
+  - **Red / green:** red ✓ (`ERROR: FAILED: the trip-photos bucket exists`; the verifier reproduced it in a rolled-back transaction) → first green attempt had one test-side failure (default collation sorts `_thumb.jpg` first; fixed with `collate "C"`, no assertion weakened) → green ✓. `trips_rls.sql` and `trip_photos_rls.sql` are still green.
+  - **Mutation checks:** 51 (bucket, helper, every policy), all caught. Five slipped through the first round (four masked by the select policy, one unescaped-dot helper); tests were added, then 51/51. `supabase db advisors --local`: no issues.
+  - **Live Storage API probe** (scratchpad script only, local API, three anonymous users): 49/49 as expected.
+    - upload, 409 without upsert, upsert, signed URLs → 200, list, download;
+    - PNG → 415, over 10 MiB → 413;
+    - bad paths, B's folder and moves → 403;
+    - B and anon get nothing; C reads but cannot write;
+    - cleaned up.
+  - **Checks:** parity: types regenerated into a scratch file, no diff (`storage` is not in `--schema public`). Jest 72 / 980, typecheck, lint ✓.
+  - **Verifier:**
+    - first FAIL only because the red run was not in its brief (the orchestrator's omission);
+    - after the evidence, PASS;
+    - it ran its own 6 mutations and a 27-check API probe.
+    - Non-blocking notes: copy / `createSignedUploadUrl` are untested (the app does not use them); the MIME limit is by Content-Type header; an upload during a trip delete can leave an orphan (R6 family); account deletion (not built) will need a cleanup path.
+  - **For step 8:**
+    - `list(folder)` returns 100 entries by default; P7 must page it (`limit: 1000` + offset until a short page; checked with 130 files);
+    - ids in paths must be lowercase (they are: `randomUUID()` and Postgres uuids).
   - **Skill used:** supabase, supabase-postgres-best-practices, security-and-hardening, test-driven-development; verifier: doubt-driven-development.
 
 ## Risks & open questions
