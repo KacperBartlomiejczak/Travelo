@@ -6,9 +6,10 @@ import { migrateLocalDb } from '@/data/local-db';
 import { createLocalStore } from '@/data/local-store';
 import { createSupabaseTripRepository } from '@/data/supabase-trip-repository';
 import { buildTrip } from '@/data/trip-repository';
-import { toCreateTripArgs, type MemberRow, type SegmentRow, type TripRow } from '@/data/trip-rows';
-import { CreateTripInputSchema, CurrentTripSchema } from '@/schemas';
-import { fakeSupabase, NETWORK_FAILURE, SIGNED_IN_USER_ID } from '@/test/fake-supabase';
+import { toCreateTripArgs, type MemberRow, type PhotoRow, type SegmentRow, type TripRow } from '@/data/trip-rows';
+import { photoPaths } from '@/lib/trip-photos';
+import { CreateTripInputSchema, CurrentTripSchema, TripPhotoListSchema, type ShownTripPhoto, type TripPhoto } from '@/schemas';
+import { fakeSignedUrl, fakeSupabase, NETWORK_FAILURE, SIGNED_IN_USER_ID, STORAGE_NETWORK_FAILURE, type FakeResponse } from '@/test/fake-supabase';
 import { createTripInputFixture } from '@/test/fixtures';
 import { openTestDb } from '@/test/node-sqlite';
 
@@ -39,7 +40,7 @@ function serverTrip(patch: Partial<TripRow> = {}) {
   return { row, trip: built.trip };
 }
 
-async function setup() {
+async function setup(extra: Partial<Parameters<typeof createSupabaseTripRepository>[0]> = {}) {
   const supabase = fakeSupabase();
   const db = openTestDb();
   await migrateLocalDb(db);
@@ -50,6 +51,7 @@ async function setup() {
     local: Promise.resolve(local),
     now: () => now,
     newId: sequentialIds(),
+    ...extra,
   });
   return { supabase, local, repository, setNow: (next: Date) => (now = next) };
 }
@@ -584,6 +586,760 @@ describe('delete (trip-edit-menu D8, A5)', () => {
       await expect(local.budgetChange(PAST_ID)).resolves.not.toBeNull();
       await expect(local.cachedList()).resolves.toHaveLength(2);
     });
+  });
+  // trip-photos P7: the trip's photos are personal, so none may stay on the server behind a deleted trip.
+  describe("removes the trip's files from Storage before the trip (trip-photos P7)", () => {
+    type Context = Awaited<ReturnType<typeof withTwoCopies>>;
+    const fileNames = (count: number, from = 0) => Array.from({ length: count }, (_, i) => ({ name: `${String(from + i).padStart(4, '0')}.jpg` }));
+    const folderPaths = (count: number, from = 0) => fileNames(count, from).map(({ name }) => `${PAST_ID}/${name}`);
+    const calls = (supabase: Context['supabase'], method: 'list' | 'remove') => supabase.storageCalls.filter((call) => call.method === method);
+    const tripDeletes = (supabase: Context['supabase']) => supabase.queries.filter((query) => query.table === 'trips');
+
+    async function withFolder() {
+      const ctx = await withTwoCopies();
+      ctx.supabase.sequence.length = 0;
+      ctx.supabase.auth.getSession.mockClear();
+      return ctx;
+    }
+
+    function expectCopiesKept({ local }: Pick<Context, 'local'>) {
+      return Promise.all([
+        expect(local.cachedOverview(PAST_ID)).resolves.not.toBeNull(),
+        expect(local.selectedTripId()).resolves.toBe(PAST_ID),
+        expect(local.budgetChange(PAST_ID)).resolves.not.toBeNull(),
+        expect(local.cachedList()).resolves.toHaveLength(2),
+      ]);
+    }
+
+    it('lists the trip\'s folder, removes what is in it, and only then deletes the trip', async () => {
+      const { supabase, repository } = await withFolder();
+      const files = [`${photoUuid(1)}.jpg`, `${photoUuid(1)}_thumb.jpg`];
+      supabase.respondStorage('list', { data: files.map((name) => ({ name })) });
+      supabase.respond('trips', { data: [{ id: PAST_ID }] });
+
+      await repository.delete(PAST_ID);
+
+      // The last listing is the second look after the trip row is gone (below); it finds nothing here.
+      expect(supabase.storageCalls).toEqual([
+        { bucket: BUCKET, method: 'list', args: [PAST_ID, { limit: 1000, offset: 0 }] },
+        { bucket: BUCKET, method: 'remove', args: [files.map((name) => `${PAST_ID}/${name}`)] },
+        { bucket: BUCKET, method: 'list', args: [PAST_ID, { limit: 1000, offset: 0 }] },
+      ]);
+      expect(supabase.sequence).toEqual(['storage.list', 'storage.remove', 'from:trips', 'storage.list']);
+    });
+
+    it('an empty folder: nothing to remove, and the trip is deleted as before', async () => {
+      const { supabase, repository } = await withFolder();
+      supabase.respond('trips', { data: [{ id: PAST_ID }] });
+
+      await repository.delete(PAST_ID);
+
+      expect(calls(supabase, 'remove')).toEqual([]);
+      expect(tripDeletes(supabase)).toHaveLength(1);
+      // One listing before the trip row is deleted and one after it (the second look, below).
+      expect(supabase.sequence).toEqual(['storage.list', 'from:trips', 'storage.list']);
+    });
+
+    it('reads the folder page by page while a page is full, then removes everything in chunks of at most 1000', async () => {
+      const { supabase, repository } = await withFolder();
+      supabase.respondStorage('list', { data: fileNames(1000) }, { data: fileNames(30, 1000) });
+      supabase.respond('trips', { data: [{ id: PAST_ID }] });
+
+      await repository.delete(PAST_ID);
+
+      expect(supabase.storageCalls.slice(0, 4)).toEqual([
+        { bucket: BUCKET, method: 'list', args: [PAST_ID, { limit: 1000, offset: 0 }] },
+        { bucket: BUCKET, method: 'list', args: [PAST_ID, { limit: 1000, offset: 1000 }] },
+        { bucket: BUCKET, method: 'remove', args: [folderPaths(1000)] },
+        { bucket: BUCKET, method: 'remove', args: [folderPaths(30, 1000)] },
+      ]);
+      expect(supabase.sequence).toEqual(['storage.list', 'storage.list', 'storage.remove', 'storage.remove', 'from:trips', 'storage.list']);
+    });
+
+    it('a folder with exactly 1000 files takes one more page to know it is over', async () => {
+      const { supabase, repository } = await withFolder();
+      supabase.respondStorage('list', { data: fileNames(1000) });
+      supabase.respond('trips', { data: [{ id: PAST_ID }] });
+
+      await repository.delete(PAST_ID);
+
+      // The first two listings are the folder (a full page, then an empty one); the third is the second look.
+      expect(calls(supabase, 'list').map((call) => call.args[1])).toEqual([
+        { limit: 1000, offset: 0 },
+        { limit: 1000, offset: 1000 },
+        { limit: 1000, offset: 0 },
+      ]);
+      expect(calls(supabase, 'remove').map((call) => call.args[0])).toEqual([folderPaths(1000)]);
+    });
+
+    const FAILURES: [string, (supabase: Context['supabase']) => void, string, string][] = [
+      ['the server refuses to list', (s) => s.respondStorage('list', { error: { message: 'permission denied', status: 403 } }), 'permission denied', 'Error'],
+      ['it is offline when listing', (s) => s.respondStorage('list', STORAGE_NETWORK_FAILURE), 'Network request failed', 'ServerUnreachableError'],
+      [
+        'the server refuses to remove',
+        (s) => {
+          s.respondStorage('list', { data: fileNames(3) });
+          s.respondStorage('remove', { error: { message: 'boom', status: 500 } });
+        },
+        'boom',
+        'Error',
+      ],
+      [
+        'it is offline when removing',
+        (s) => {
+          s.respondStorage('list', { data: fileNames(3) });
+          s.respondStorage('remove', STORAGE_NETWORK_FAILURE);
+        },
+        'Network request failed',
+        'ServerUnreachableError',
+      ],
+    ];
+
+    it.each(FAILURES)('when %s: rejects, the trip is not deleted, and the phone keeps everything', async (_label, queueFailure, message, errorName) => {
+      const ctx = await withFolder();
+      queueFailure(ctx.supabase);
+
+      const rejected = ctx.repository.delete(PAST_ID);
+
+      await expect(rejected).rejects.toThrow(message);
+      await expect(rejected).rejects.toMatchObject({ constructor: expect.objectContaining({ name: errorName }) });
+      expect(tripDeletes(ctx.supabase)).toEqual([]);
+      await expectCopiesKept(ctx);
+    });
+
+    // An upload can land between the first listing and the row delete. Once the row is gone the Storage insert policy
+    // refuses new uploads (it needs the trip), and the owner can still list and remove their files, so one more look closes it.
+    describe('looks at the folder once more after the trip row is gone', () => {
+      const expectCopiesForgotten = ({ local }: Pick<Context, 'local'>) =>
+        Promise.all([
+          expect(local.cachedOverview(PAST_ID)).resolves.toBeNull(),
+          expect(local.selectedTripId()).resolves.toBeNull(),
+          expect(local.budgetChange(PAST_ID)).resolves.toBeNull(),
+          expect(local.cachedList()).resolves.toEqual([expect.objectContaining({ id: ONGOING_ID })]),
+        ]);
+
+      it('removes a file that was uploaded meanwhile', async () => {
+        const { supabase, repository } = await withFolder();
+        supabase.respondStorage('list', { data: [{ name: 'before.jpg' }] }, { data: [{ name: 'meanwhile.jpg' }] });
+        supabase.respond('trips', { data: [{ id: PAST_ID }] });
+
+        await repository.delete(PAST_ID);
+
+        expect(supabase.sequence).toEqual(['storage.list', 'storage.remove', 'from:trips', 'storage.list', 'storage.remove']);
+        expect(calls(supabase, 'remove').map((call) => call.args[0])).toEqual([[`${PAST_ID}/before.jpg`], [`${PAST_ID}/meanwhile.jpg`]]);
+      });
+
+      it('also when the server deleted no row because the trip is already gone', async () => {
+        const { supabase, repository } = await withFolder();
+        supabase.respondStorage('list', { data: [] }, { data: [{ name: 'meanwhile.jpg' }] });
+        supabase.respond('trips', { data: [] }, { data: null });
+
+        await repository.delete(PAST_ID);
+
+        expect(supabase.sequence).toEqual(['storage.list', 'from:trips', 'from:trips', 'storage.list', 'storage.remove']);
+        expect(calls(supabase, 'remove').map((call) => call.args[0])).toEqual([[`${PAST_ID}/meanwhile.jpg`]]);
+      });
+
+      const SECOND_LOOK_FAILURES: [string, (supabase: Context['supabase']) => void][] = [
+        ['the server refuses to list', (s) => s.respondStorage('list', { data: [] }, { error: { message: 'permission denied', status: 403 } })],
+        ['it is offline when listing', (s) => s.respondStorage('list', { data: [] }, STORAGE_NETWORK_FAILURE)],
+        [
+          'the server refuses to remove',
+          (s) => {
+            s.respondStorage('list', { data: [] }, { data: fileNames(2) });
+            s.respondStorage('remove', { error: { message: 'boom', status: 500 } });
+          },
+        ],
+        [
+          'it is offline when removing',
+          (s) => {
+            s.respondStorage('list', { data: [] }, { data: fileNames(2) });
+            s.respondStorage('remove', STORAGE_NETWORK_FAILURE);
+          },
+        ],
+      ];
+
+      it.each(SECOND_LOOK_FAILURES)('when %s: still resolves, because the trip is gone, and the phone forgets its copies', async (_label, queueFailure) => {
+        const ctx = await withFolder();
+        ctx.supabase.respond('trips', { data: [{ id: PAST_ID }] });
+        queueFailure(ctx.supabase);
+
+        await expect(ctx.repository.delete(PAST_ID)).resolves.toBeUndefined();
+
+        await expectCopiesForgotten(ctx);
+      });
+
+      const TRIP_MAY_STILL_EXIST: [string, FakeResponse[], string][] = [
+        ['the server refuses to delete the trip', [{ error: { message: 'permission denied for table trips' }, status: 401 }], 'permission denied'],
+        ['it is offline when deleting the trip', [NETWORK_FAILURE], 'Network request failed'],
+        ['the trip is still visible (not the owner)', [{ data: [] }, { data: { id: PAST_ID } }], 'trip-not-deletable'],
+      ];
+
+      it.each(TRIP_MAY_STILL_EXIST)('is skipped when %s: the trip may still exist, so its files are not touched again', async (_label, responses, message) => {
+        const { supabase, repository } = await withFolder();
+        supabase.respond('trips', ...responses);
+
+        await expect(repository.delete(PAST_ID)).rejects.toThrow(message);
+
+        expect(calls(supabase, 'list')).toHaveLength(1);
+      });
+    });
+
+    it('afterwards the phone has forgotten the trip\'s photo copy too, and kept the other trips\'', async () => {
+      const { supabase, local, repository } = await withFolder();
+      supabase.respond('trip_photos', { data: [photoRow(1)] }, { data: [photoRow(2, { trip_id: ONGOING_ID })] });
+      await repository.photos(PAST_ID);
+      await repository.photos(ONGOING_ID);
+      supabase.respond('trips', { data: [{ id: PAST_ID }] });
+
+      await repository.delete(PAST_ID);
+
+      await expect(local.cachedPhotos(PAST_ID)).resolves.toBeNull();
+      await expect(local.cachedPhotos(ONGOING_ID)).resolves.not.toBeNull();
+    });
+
+    it('rejects an id that is not a lowercase UUID before any network call (it becomes a folder to empty)', async () => {
+      const { supabase, repository } = await withFolder();
+      await expect(repository.delete('')).rejects.toThrow();
+      await expect(repository.delete('../other')).rejects.toThrow();
+      // Storage paths are lowercase; a folder named with capitals would never match the trip's files.
+      await expect(repository.delete(PAST_ID.toUpperCase())).rejects.toThrow();
+      expect(supabase.auth.getSession).not.toHaveBeenCalled();
+      expect(supabase.storageCalls).toEqual([]);
+      expect(supabase.queries).toEqual([]);
+    });
+  });
+});
+
+const BUCKET = 'trip-photos';
+const photoUuid = (n: number) => `5a1c0000-0000-4000-8000-${String(n).padStart(12, '0')}`;
+const photoPathsOf = (n: number, tripId = PAST_ID) => photoPaths({ id: photoUuid(n), tripId });
+
+/** A trip_photos row as PostgREST returns it. */
+function photoRow(n: number, patch: Partial<PhotoRow> = {}): PhotoRow {
+  return { id: photoUuid(n), trip_id: PAST_ID, taken_at: null, created_at: '2026-10-05T10:00:00+00:00', ...patch };
+}
+
+/** The same photo as the repository returns it, with the fake's signed urls. */
+function shownPhoto(n: number, patch: Partial<ShownTripPhoto> = {}): ShownTripPhoto {
+  const paths = photoPathsOf(n);
+  return {
+    id: photoUuid(n),
+    tripId: PAST_ID,
+    createdAt: '2026-10-05T10:00:00+00:00',
+    url: fakeSignedUrl(BUCKET, paths.file),
+    thumbnailUrl: fakeSignedUrl(BUCKET, paths.thumbnail),
+    ...patch,
+  };
+}
+
+/** One item of storage-js's `createSignedUrls` answer: a URL, or the per-item error for an object it cannot sign. */
+const signedItem = (path: string) => ({ error: null, path, signedURL: `/object/sign/${BUCKET}/${path}`, signedUrl: fakeSignedUrl(BUCKET, path) });
+const refusedItem = (path: string) => ({
+  error: 'Either the object does not exist or you do not have access to it',
+  path,
+  signedURL: null,
+  signedUrl: null,
+});
+
+/** One page of the photo rows: PostgREST answers at most `max_rows` (1000, supabase/config.toml), so the select pages. */
+const photosQuery = (from: number) => ({
+  table: 'trip_photos',
+  ops: [
+    ['select', ['*']],
+    ['eq', ['trip_id', PAST_ID]],
+    ['order', ['id']],
+    ['range', [from, from + 999]],
+  ],
+});
+const PHOTOS_QUERY = photosQuery(0);
+
+describe('photos (trip-photos A2, D8, D10, D13)', () => {
+  it('reads the rows of that trip, signs every file and thumbnail in one call for an hour, and returns the photos shown', async () => {
+    const { supabase, repository } = await setup();
+    supabase.respond('trip_photos', { data: [photoRow(1), photoRow(2)] });
+
+    const list = await repository.photos(PAST_ID);
+
+    expect(supabase.auth.getSession).toHaveBeenCalled();
+    expect(supabase.queries).toEqual([PHOTOS_QUERY]);
+    expect(supabase.storageCalls).toEqual([
+      {
+        bucket: BUCKET,
+        method: 'createSignedUrls',
+        args: [[photoPathsOf(1).file, photoPathsOf(2).file, photoPathsOf(1).thumbnail, photoPathsOf(2).thumbnail], 3600],
+      },
+    ]);
+    expect(TripPhotoListSchema.safeParse(list).success).toBe(true);
+    expect(list).toEqual([shownPhoto(1), shownPhoto(2)]);
+  });
+
+  it('sorts by date taken, oldest first, with undated photos last (D10, D13)', async () => {
+    const { supabase, repository } = await setup();
+    supabase.respond('trip_photos', {
+      data: [
+        photoRow(3, { created_at: '2026-10-05T10:01:00+00:00' }),
+        photoRow(1, { taken_at: '2026-10-14T18:03:00' }),
+        photoRow(2, { taken_at: '2026-10-13T09:00:00' }),
+      ],
+    });
+
+    const list = await repository.photos(PAST_ID);
+
+    expect(list.map((photo) => photo.id)).toEqual([photoUuid(2), photoUuid(1), photoUuid(3)]);
+    // PostgREST adds seconds to a timestamp without time zone; the date taken keeps its minute precision.
+    expect(list[1].takenAt).toBe('2026-10-14T18:03');
+    expect(list[2]).not.toHaveProperty('takenAt');
+  });
+
+  it("keeps the list as the phone's copy", async () => {
+    const { supabase, local, repository } = await setup();
+    supabase.respond('trip_photos', { data: [photoRow(1, { taken_at: '2026-10-14T18:03:00' }), photoRow(2)] });
+    const list = await repository.photos(PAST_ID);
+    await expect(local.cachedPhotos(PAST_ID)).resolves.toEqual(list);
+  });
+
+  it('with no photos returns an empty list without asking Storage to sign anything, and keeps that as the copy', async () => {
+    const { supabase, local, repository } = await setup();
+    supabase.respond('trip_photos', { data: [] });
+    await expect(repository.photos(PAST_ID)).resolves.toEqual([]);
+    expect(supabase.storageCalls).toEqual([]);
+    await expect(local.cachedPhotos(PAST_ID)).resolves.toEqual([]);
+  });
+
+  const SECOND_PHOTO_ANSWERS: [string, () => unknown[]][] = [
+    ['its file gets no url', () => [refusedItem(photoPathsOf(2).file), signedItem(photoPathsOf(2).thumbnail)]],
+    ['its thumbnail gets no url', () => [signedItem(photoPathsOf(2).file), refusedItem(photoPathsOf(2).thumbnail)]],
+    ['its thumbnail is missing from the answer', () => [signedItem(photoPathsOf(2).file)]],
+  ];
+
+  it.each(SECOND_PHOTO_ANSWERS)('leaves out a photo when %s, since it cannot be shown', async (_label, answerForSecond) => {
+    const { supabase, local, repository } = await setup();
+    supabase.respond('trip_photos', { data: [photoRow(1), photoRow(2)] });
+    supabase.respondStorage('createSignedUrls', {
+      data: [signedItem(photoPathsOf(1).file), signedItem(photoPathsOf(1).thumbnail), ...answerForSecond()],
+    });
+
+    const list = await repository.photos(PAST_ID);
+
+    expect(list).toEqual([shownPhoto(1)]);
+    await expect(local.cachedPhotos(PAST_ID)).resolves.toEqual([shownPhoto(1)]);
+  });
+
+  it('signs at most 1000 paths per call (the server refuses more), so a big trip needs more calls', async () => {
+    const { supabase, repository } = await setup();
+    const numbers = Array.from({ length: 501 }, (_, i) => i + 1);
+    supabase.respond('trip_photos', { data: numbers.map((n) => photoRow(n)) });
+
+    const list = await repository.photos(PAST_ID);
+
+    const paths = [...numbers.map((n) => photoPathsOf(n).file), ...numbers.map((n) => photoPathsOf(n).thumbnail)];
+    expect(supabase.storageCalls).toEqual([
+      { bucket: BUCKET, method: 'createSignedUrls', args: [paths.slice(0, 1000), 3600] },
+      { bucket: BUCKET, method: 'createSignedUrls', args: [paths.slice(1000), 3600] },
+    ]);
+    expect(list).toHaveLength(501);
+  });
+
+  it('pages the rows by id while a page is full (PostgREST caps an answer at 1000 rows, D7: no limit per trip)', async () => {
+    const { supabase, local, repository } = await setup();
+    const numbers = (count: number, from = 1) => Array.from({ length: count }, (_, i) => from + i);
+    supabase.respond('trip_photos', { data: numbers(1000).map((n) => photoRow(n)) }, { data: numbers(5, 1001).map((n) => photoRow(n)) });
+
+    const list = await repository.photos(PAST_ID);
+
+    expect(supabase.queries).toEqual([photosQuery(0), photosQuery(1000)]);
+    expect(list).toHaveLength(1005);
+    expect(new Set(list.map((photo) => photo.id)).size).toBe(1005);
+    // 2010 paths to sign: two full batches and the rest.
+    expect(supabase.storageCalls.map((call) => (call.args[0] as string[]).length)).toEqual([1000, 1000, 10]);
+    await expect(local.cachedPhotos(PAST_ID)).resolves.toEqual(list);
+  });
+
+  it('a page with fewer than 1000 rows is the last: one query', async () => {
+    const { supabase, repository } = await setup();
+    supabase.respond('trip_photos', { data: Array.from({ length: 999 }, (_, i) => photoRow(i + 1)) });
+    await expect(repository.photos(PAST_ID)).resolves.toHaveLength(999);
+    expect(supabase.queries).toEqual([photosQuery(0)]);
+  });
+
+  it('exactly 1000 rows takes one more (empty) page to know it is over', async () => {
+    const { supabase, repository } = await setup();
+    supabase.respond('trip_photos', { data: Array.from({ length: 1000 }, (_, i) => photoRow(i + 1)) }, { data: [] });
+    await expect(repository.photos(PAST_ID)).resolves.toHaveLength(1000);
+    expect(supabase.queries).toEqual([photosQuery(0), photosQuery(1000)]);
+  });
+
+  it("offline halfway through the pages: shows the phone's copy, never a partial list", async () => {
+    const { supabase, local, repository } = await setup();
+    supabase.respond('trip_photos', { data: [photoRow(1)] });
+    const online = await repository.photos(PAST_ID);
+    supabase.respond('trip_photos', { data: Array.from({ length: 1000 }, (_, i) => photoRow(i + 1)) }, NETWORK_FAILURE);
+
+    await expect(repository.photos(PAST_ID)).resolves.toEqual(online);
+    await expect(local.cachedPhotos(PAST_ID)).resolves.toEqual(online);
+  });
+
+  it("offline: shows the phone's copy when the database cannot be reached, without signing anything", async () => {
+    const { supabase, repository } = await setup();
+    supabase.respond('trip_photos', { data: [photoRow(1)] }, NETWORK_FAILURE);
+    const online = await repository.photos(PAST_ID);
+    const signed = supabase.storageCalls.length;
+
+    await expect(repository.photos(PAST_ID)).resolves.toEqual(online);
+    expect(supabase.storageCalls).toHaveLength(signed);
+  });
+
+  it("offline: shows the phone's copy when Storage cannot be reached", async () => {
+    const { supabase, repository } = await setup();
+    supabase.respond('trip_photos', { data: [photoRow(1)] }, { data: [photoRow(1), photoRow(2)] });
+    const online = await repository.photos(PAST_ID);
+    supabase.respondStorage('createSignedUrls', STORAGE_NETWORK_FAILURE);
+
+    await expect(repository.photos(PAST_ID)).resolves.toEqual(online);
+  });
+
+  it("offline: shows the phone's copy when signing in fails for lack of connection", async () => {
+    const { supabase, repository } = await setup();
+    supabase.respond('trip_photos', { data: [photoRow(1)] });
+    const online = await repository.photos(PAST_ID);
+    const { AuthRetryableFetchError } = jest.requireActual('@supabase/supabase-js');
+    supabase.auth.getSession.mockResolvedValueOnce({ data: { session: null as never }, error: null });
+    supabase.auth.signInAnonymously.mockResolvedValueOnce({ data: { session: null as never, user: null as never }, error: new AuthRetryableFetchError('Network request failed', 0) });
+    await expect(repository.photos(PAST_ID)).resolves.toEqual(online);
+  });
+
+  it("offline with no copy of this trip: rejects (another trip's copy does not count)", async () => {
+    const { supabase, repository } = await setup();
+    supabase.respond('trip_photos', { data: [photoRow(1, { trip_id: ONGOING_ID })] }, NETWORK_FAILURE);
+    await repository.photos(ONGOING_ID);
+    await expect(repository.photos(PAST_ID)).rejects.toThrow('Network request failed');
+  });
+
+  it('with Storage unreachable and no copy: rejects', async () => {
+    const { supabase, repository } = await setup();
+    supabase.respond('trip_photos', { data: [photoRow(1)] });
+    supabase.respondStorage('createSignedUrls', STORAGE_NETWORK_FAILURE);
+    await expect(repository.photos(PAST_ID)).rejects.toThrow('Network request failed');
+  });
+
+  it('rejects on a database error instead of hiding it behind the copy', async () => {
+    const { supabase, repository } = await setup();
+    supabase.respond('trip_photos', { data: [photoRow(1)] }, { error: { message: 'permission denied for table trip_photos' }, status: 401 });
+    await repository.photos(PAST_ID);
+    await expect(repository.photos(PAST_ID)).rejects.toThrow('permission denied');
+  });
+
+  it('rejects on a Storage error that is not a lost connection, instead of hiding it behind the copy', async () => {
+    const { supabase, repository } = await setup();
+    supabase.respond('trip_photos', { data: [photoRow(1)] }, { data: [photoRow(1)] });
+    await repository.photos(PAST_ID);
+    supabase.respondStorage('createSignedUrls', { error: { message: 'Bucket not found', status: 404 } });
+    await expect(repository.photos(PAST_ID)).rejects.toThrow('Bucket not found');
+  });
+
+  it('rejects a row that does not match the schema, signs nothing and keeps the old copy', async () => {
+    const { supabase, local, repository } = await setup();
+    supabase.respond('trip_photos', { data: [photoRow(1)] }, { data: [photoRow(2, { id: 'not-a-uuid' })] });
+    const online = await repository.photos(PAST_ID);
+    const signed = supabase.storageCalls.length;
+
+    await expect(repository.photos(PAST_ID)).rejects.toThrow();
+
+    expect(supabase.storageCalls).toHaveLength(signed);
+    await expect(local.cachedPhotos(PAST_ID)).resolves.toEqual(online);
+  });
+
+  it('rejects a signed url that is not http(s), also from the server', async () => {
+    const { supabase, repository } = await setup();
+    supabase.respond('trip_photos', { data: [photoRow(1)] });
+    supabase.respondStorage('createSignedUrls', {
+      data: [{ ...signedItem(photoPathsOf(1).file), signedUrl: 'javascript:alert(1)' }, signedItem(photoPathsOf(1).thumbnail)],
+    });
+    await expect(repository.photos(PAST_ID)).rejects.toThrow();
+  });
+
+  it('rejects a trip id that is not a lowercase UUID before any network call (Storage paths are lowercase)', async () => {
+    const { supabase, repository } = await setup();
+    await expect(repository.photos('trip-1')).rejects.toThrow();
+    await expect(repository.photos(PAST_ID.toUpperCase())).rejects.toThrow();
+    expect(supabase.queries).toHaveLength(0);
+    expect(supabase.storageCalls).toHaveLength(0);
+  });
+});
+
+describe('addPhoto (trip-photos A5, D2, D7, D14)', () => {
+  const PICKED = { uri: 'file:///gallery/IMG_1.jpg', takenAt: '2026-10-14T18:03' };
+  const PREPARED = { file: new Uint8Array([1, 2, 3]), thumbnail: new Uint8Array([4, 5]), thumbnailUri: 'file:///cache/thumb-1.jpg' };
+  const uploadCalls = (supabase: Awaited<ReturnType<typeof setup>>['supabase']) => supabase.storageCalls.filter((call) => call.method === 'upload');
+
+  async function setupAdd() {
+    const prepare = jest.fn(async (_uri: string) => PREPARED);
+    const seed = jest.fn(async (_uri: string, _cacheKey: string) => {});
+    const ctx = await setup({ preparePhoto: prepare, seedImageCache: seed });
+    return { ...ctx, prepare, seed };
+  }
+
+  it('signs in, then prepares the picked photo', async () => {
+    const { supabase, repository, prepare } = await setupAdd();
+    await repository.addPhoto(PAST_ID, photoUuid(1), PICKED);
+    expect(supabase.auth.getSession).toHaveBeenCalled();
+    expect(prepare).toHaveBeenCalledTimes(1);
+    expect(prepare).toHaveBeenCalledWith('file:///gallery/IMG_1.jpg');
+  });
+
+  it('uploads the thumbnail, then the file, as JPEG that may overwrite (A5), and only then inserts the row', async () => {
+    const { supabase, repository } = await setupAdd();
+    await repository.addPhoto(PAST_ID, photoUuid(1), PICKED);
+
+    expect(supabase.storageCalls).toEqual([
+      { bucket: BUCKET, method: 'upload', args: [photoPathsOf(1).thumbnail, PREPARED.thumbnail, { contentType: 'image/jpeg', upsert: true }] },
+      { bucket: BUCKET, method: 'upload', args: [photoPathsOf(1).file, PREPARED.file, { contentType: 'image/jpeg', upsert: true }] },
+    ]);
+    expect(supabase.sequence).toEqual(['storage.upload', 'storage.upload', 'from:trip_photos']);
+  });
+
+  it('inserts the row with its date taken and time added, ignoring an id that already exists (no update grant, A5)', async () => {
+    const { supabase, repository } = await setupAdd();
+    await repository.addPhoto(PAST_ID, photoUuid(1), PICKED);
+
+    expect(supabase.queries).toEqual([
+      {
+        table: 'trip_photos',
+        ops: [
+          [
+            'upsert',
+            [
+              { id: photoUuid(1), trip_id: PAST_ID, taken_at: '2026-10-14T18:03', created_at: NOW.toISOString() },
+              { onConflict: 'id', ignoreDuplicates: true },
+            ],
+          ],
+        ],
+      },
+    ]);
+  });
+
+  it('sends a null date taken for a photo without one', async () => {
+    const { supabase, repository } = await setupAdd();
+    await repository.addPhoto(PAST_ID, photoUuid(1), { uri: PICKED.uri });
+    expect(supabase.queries[0].ops[0]).toEqual(['upsert', [expect.objectContaining({ taken_at: null }), expect.anything()]]);
+  });
+
+  it('seeds the image cache with the thumbnail under its Storage path, after the row is in', async () => {
+    const { supabase, repository, seed } = await setupAdd();
+    seed.mockImplementation(async () => void supabase.sequence.push('seed'));
+
+    await repository.addPhoto(PAST_ID, photoUuid(1), PICKED);
+
+    expect(seed).toHaveBeenCalledTimes(1);
+    expect(seed).toHaveBeenCalledWith(PREPARED.thumbnailUri, photoPathsOf(1).thumbnail);
+    expect(supabase.sequence.at(-1)).toBe('seed');
+  });
+
+  it('still resolves when seeding the image cache fails (it only saves a download)', async () => {
+    const { repository, seed } = await setupAdd();
+    seed.mockRejectedValueOnce(new Error('disk full'));
+    await expect(repository.addPhoto(PAST_ID, photoUuid(1), PICKED)).resolves.toBeUndefined();
+  });
+
+  it('retrying the same photo sends the same paths and id (A5)', async () => {
+    const { supabase, repository } = await setupAdd();
+    await repository.addPhoto(PAST_ID, photoUuid(1), PICKED);
+    await repository.addPhoto(PAST_ID, photoUuid(1), PICKED);
+
+    const uploads = uploadCalls(supabase);
+    expect(uploads).toHaveLength(4);
+    expect(uploads.slice(0, 2).map((call) => call.args[0])).toEqual(uploads.slice(2).map((call) => call.args[0]));
+    const [first, second] = supabase.queries;
+    expect(first.ops[0][1]).toEqual(second.ops[0][1]);
+  });
+
+  it('an upload the server refuses rejects with its message, and no row is inserted', async () => {
+    const { supabase, repository, seed } = await setupAdd();
+    supabase.respondStorage('upload', { error: { message: 'new row violates row-level security policy', status: 403 } });
+
+    await expect(repository.addPhoto(PAST_ID, photoUuid(1), PICKED)).rejects.toThrow('row-level security');
+
+    expect(supabase.queries).toEqual([]);
+    expect(uploadCalls(supabase)).toHaveLength(1);
+    expect(seed).not.toHaveBeenCalled();
+  });
+
+  it('a failed file upload (after the thumbnail went) rejects and no row is inserted', async () => {
+    const { supabase, repository, seed } = await setupAdd();
+    supabase.respondStorage('upload', {}, { error: { message: 'The object exceeded the maximum allowed size', status: 413 } });
+
+    await expect(repository.addPhoto(PAST_ID, photoUuid(1), PICKED)).rejects.toThrow('maximum allowed size');
+
+    expect(uploadCalls(supabase)).toHaveLength(2);
+    expect(supabase.queries).toEqual([]);
+    expect(seed).not.toHaveBeenCalled();
+  });
+
+  it('offline during the upload: rejects as unreachable, and no row is inserted', async () => {
+    const { supabase, repository } = await setupAdd();
+    supabase.respondStorage('upload', STORAGE_NETWORK_FAILURE);
+
+    const rejected = repository.addPhoto(PAST_ID, photoUuid(1), PICKED);
+    await expect(rejected).rejects.toThrow('Network request failed');
+    await expect(rejected).rejects.toMatchObject({ constructor: expect.objectContaining({ name: 'ServerUnreachableError' }) });
+    expect(supabase.queries).toEqual([]);
+  });
+
+  it('offline when signing in: rejects as unreachable before preparing or sending anything', async () => {
+    const { supabase, repository, prepare } = await setupAdd();
+    const { AuthRetryableFetchError } = jest.requireActual('@supabase/supabase-js');
+    supabase.auth.getSession.mockResolvedValueOnce({ data: { session: null as never }, error: null });
+    supabase.auth.signInAnonymously.mockResolvedValueOnce({ data: { session: null as never, user: null as never }, error: new AuthRetryableFetchError('Network request failed', 0) });
+
+    await expect(repository.addPhoto(PAST_ID, photoUuid(1), PICKED)).rejects.toMatchObject({
+      constructor: expect.objectContaining({ name: 'ServerUnreachableError' }),
+    });
+    expect(prepare).not.toHaveBeenCalled();
+    expect(supabase.storageCalls).toEqual([]);
+  });
+
+  it('offline when inserting the row: rejects as unreachable, and the cache is not seeded', async () => {
+    const { supabase, repository, seed } = await setupAdd();
+    supabase.respond('trip_photos', NETWORK_FAILURE);
+
+    await expect(repository.addPhoto(PAST_ID, photoUuid(1), PICKED)).rejects.toMatchObject({
+      constructor: expect.objectContaining({ name: 'ServerUnreachableError' }),
+    });
+    expect(seed).not.toHaveBeenCalled();
+  });
+
+  it('a row the server refuses rejects with its message, and the cache is not seeded', async () => {
+    const { supabase, repository, seed } = await setupAdd();
+    supabase.respond('trip_photos', { error: { message: 'new row violates row-level security policy for table "trip_photos"' }, status: 403 });
+
+    await expect(repository.addPhoto(PAST_ID, photoUuid(1), PICKED)).rejects.toThrow('row-level security');
+    expect(seed).not.toHaveBeenCalled();
+  });
+
+  it('a photo that cannot be prepared rejects and sends nothing', async () => {
+    const { supabase, repository, prepare } = await setupAdd();
+    prepare.mockRejectedValueOnce(new Error('could not read the image'));
+
+    await expect(repository.addPhoto(PAST_ID, photoUuid(1), PICKED)).rejects.toThrow('could not read the image');
+    expect(supabase.storageCalls).toEqual([]);
+    expect(supabase.queries).toEqual([]);
+  });
+
+  it.each([
+    ['an empty uri', PAST_ID, photoUuid(1), { uri: '' }],
+    ['a date taken with seconds', PAST_ID, photoUuid(1), { uri: PICKED.uri, takenAt: '2026-10-14T18:03:22' }],
+    ['a photo id that is not a UUID', PAST_ID, '../photo', PICKED],
+    ['a trip id that is not a UUID', 'trip-1', photoUuid(1), PICKED],
+    ['a photo id in capitals (Storage paths are lowercase)', PAST_ID, photoUuid(1).toUpperCase(), PICKED],
+    ['a trip id in capitals (Storage paths are lowercase)', PAST_ID.toUpperCase(), photoUuid(1), PICKED],
+  ])('rejects %s before any network call', async (_label, tripId, photoId, picked) => {
+    const { supabase, repository, prepare } = await setupAdd();
+    await expect(repository.addPhoto(tripId, photoId, picked)).rejects.toThrow();
+    expect(supabase.auth.getSession).not.toHaveBeenCalled();
+    expect(prepare).not.toHaveBeenCalled();
+    expect(supabase.storageCalls).toEqual([]);
+    expect(supabase.queries).toEqual([]);
+  });
+});
+
+describe('deletePhoto (trip-photos R6)', () => {
+  const photo: TripPhoto = { id: photoUuid(1), tripId: PAST_ID, createdAt: '2026-10-05T10:00:00+00:00' };
+  // The row is matched by its trip too, so the row and the Storage folder that gets cleaned always agree.
+  const DELETE_ROW = {
+    table: 'trip_photos',
+    ops: [
+      ['delete', []],
+      ['eq', ['id', photoUuid(1)]],
+      ['eq', ['trip_id', PAST_ID]],
+      ['select', ['id']],
+    ],
+  };
+  const VISIBLE_CHECK = {
+    table: 'trip_photos',
+    ops: [
+      ['select', ['id']],
+      ['eq', ['id', photoUuid(1)]],
+      ['eq', ['trip_id', PAST_ID]],
+      ['maybeSingle', []],
+    ],
+  };
+  const removeCalls = (supabase: Awaited<ReturnType<typeof setup>>['supabase']) => supabase.storageCalls.filter((call) => call.method === 'remove');
+
+  it("signs in, deletes the row, then removes the photo's file and thumbnail", async () => {
+    const { supabase, repository } = await setup();
+    supabase.respond('trip_photos', { data: [{ id: photoUuid(1) }] });
+
+    await repository.deletePhoto(shownPhoto(1));
+
+    expect(supabase.auth.getSession).toHaveBeenCalled();
+    expect(supabase.queries).toEqual([DELETE_ROW]);
+    expect(supabase.storageCalls).toEqual([{ bucket: BUCKET, method: 'remove', args: [[photoPathsOf(1).file, photoPathsOf(1).thumbnail]] }]);
+    expect(supabase.sequence).toEqual(['from:trip_photos', 'storage.remove']);
+  });
+
+  it('when the server deleted no row and the photo is still visible (not the owner): rejects and removes no file', async () => {
+    const { supabase, repository } = await setup();
+    supabase.respond('trip_photos', { data: [] }, { data: { id: photoUuid(1) } });
+
+    await expect(repository.deletePhoto(photo)).rejects.toThrow('photo-not-deletable');
+
+    expect(supabase.queries).toEqual([DELETE_ROW, VISIBLE_CHECK]);
+    expect(removeCalls(supabase)).toEqual([]);
+  });
+
+  it('when the server deleted no row and the photo is gone: resolves and still removes the files (already deleted counts as deleted)', async () => {
+    const { supabase, repository } = await setup();
+    supabase.respond('trip_photos', { data: [] }, { data: null });
+
+    await expect(repository.deletePhoto(photo)).resolves.toBeUndefined();
+
+    expect(supabase.queries).toEqual([DELETE_ROW, VISIBLE_CHECK]);
+    expect(removeCalls(supabase)).toEqual([{ bucket: BUCKET, method: 'remove', args: [[photoPathsOf(1).file, photoPathsOf(1).thumbnail]] }]);
+  });
+
+  it('the visibility check failing offline rejects as unreachable and removes no file', async () => {
+    const { supabase, repository } = await setup();
+    supabase.respond('trip_photos', { data: [] }, NETWORK_FAILURE);
+
+    await expect(repository.deletePhoto(photo)).rejects.toMatchObject({ constructor: expect.objectContaining({ name: 'ServerUnreachableError' }) });
+    expect(removeCalls(supabase)).toEqual([]);
+  });
+
+  it.each([
+    ['the server refuses it', { error: { message: 'permission denied for table trip_photos' }, status: 401 }, 'permission denied', 'Error'],
+    ['it is offline', NETWORK_FAILURE, 'Network request failed', 'ServerUnreachableError'],
+  ])('when deleting the row fails because %s: rejects and removes no file', async (_label, response, message, errorName) => {
+    const { supabase, repository } = await setup();
+    supabase.respond('trip_photos', response);
+
+    const rejected = repository.deletePhoto(photo);
+    await expect(rejected).rejects.toThrow(message);
+    await expect(rejected).rejects.toMatchObject({ constructor: expect.objectContaining({ name: errorName }) });
+    expect(removeCalls(supabase)).toEqual([]);
+  });
+
+  it.each([
+    ['the server refuses it', { error: { message: 'boom', status: 500 } }],
+    ['it is offline', STORAGE_NETWORK_FAILURE],
+  ])('still resolves when removing the files fails because %s: the photo is gone for the user, the files stay behind (R6)', async (_label, response) => {
+    const { supabase, repository } = await setup();
+    supabase.respond('trip_photos', { data: [{ id: photoUuid(1) }] });
+    supabase.respondStorage('remove', response);
+
+    await expect(repository.deletePhoto(photo)).resolves.toBeUndefined();
+    expect(removeCalls(supabase)).toHaveLength(1);
+  });
+
+  it('rejects a photo whose ids are not lowercase UUIDs before any network call (they become Storage paths)', async () => {
+    const { supabase, repository } = await setup();
+    await expect(repository.deletePhoto({ ...photo, id: '../../other/file' })).rejects.toThrow();
+    await expect(repository.deletePhoto({ ...photo, tripId: 'trip-1' })).rejects.toThrow();
+    await expect(repository.deletePhoto({ ...photo, id: photoUuid(1).toUpperCase() })).rejects.toThrow();
+    await expect(repository.deletePhoto({ ...photo, tripId: PAST_ID.toUpperCase() })).rejects.toThrow();
+    expect(supabase.auth.getSession).not.toHaveBeenCalled();
+    expect(supabase.queries).toEqual([]);
+    expect(supabase.storageCalls).toEqual([]);
   });
 });
 

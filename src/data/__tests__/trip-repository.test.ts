@@ -5,6 +5,7 @@ import {
   FlightSegmentSchema,
   TripMemberSchema,
   TripListSchema,
+  TripPhotoListSchema,
   TripSchema,
   TripSummarySchema,
 } from '@/schemas';
@@ -283,6 +284,127 @@ describe('in-memory trip repository', () => {
       await expect(repo.delete(UNKNOWN_ID)).resolves.toBeUndefined();
       expect((await repo.list()).map((trip) => trip.id)).toEqual([kept.id]);
       expect((await repo.current())?.overview.trip.id).toBe(kept.id);
+    });
+  });
+
+  describe('photos (trip-photos)', () => {
+    const UNKNOWN_ID = '1c0f8d5f-7b54-4d5c-8b66-3a7f1f8f2b02';
+    const photoId = (n: number) => `5a1c0000-0000-4000-8000-${String(n).padStart(12, '0')}`;
+    const url = (path: string) => `https://photos.invalid/${path}`;
+
+    /** A repository whose clock the test moves, with one trip. */
+    async function withTrip() {
+      let now = NOW;
+      const repo = createInMemoryTripRepository({ now: () => now, newId: sequentialIds() });
+      const trip = await repo.create(createTripInputFixture());
+      return { repo, trip, setNow: (next: Date) => (now = next) };
+    }
+
+    it('has no photos yet, also for a trip it does not know', async () => {
+      const { repo, trip } = await withTrip();
+      await expect(repo.photos(trip.id)).resolves.toEqual([]);
+      await expect(repo.photos(UNKNOWN_ID)).resolves.toEqual([]);
+    });
+
+    it('keeps an added photo with its date taken and the time it was added, shown with fake http(s) urls and no files', async () => {
+      const { repo, trip } = await withTrip();
+      await repo.addPhoto(trip.id, photoId(1), { uri: 'file:///gallery/1.jpg', takenAt: '2026-10-14T18:03' });
+
+      const photos = await repo.photos(trip.id);
+
+      expect(TripPhotoListSchema.safeParse(photos).success).toBe(true);
+      expect(photos).toEqual([
+        {
+          id: photoId(1),
+          tripId: trip.id,
+          takenAt: '2026-10-14T18:03',
+          createdAt: NOW.toISOString(),
+          url: url(`${trip.id}/${photoId(1)}.jpg`),
+          thumbnailUrl: url(`${trip.id}/${photoId(1)}_thumb.jpg`),
+        },
+      ]);
+    });
+
+    it('has no takenAt for a photo without a date taken', async () => {
+      const { repo, trip } = await withTrip();
+      await repo.addPhoto(trip.id, photoId(1), { uri: 'file:///gallery/1.jpg' });
+      expect((await repo.photos(trip.id))[0]).not.toHaveProperty('takenAt');
+    });
+
+    it('lists photos by date taken, oldest first; undated ones last, in the order they were added (D10, D13)', async () => {
+      const { repo, trip, setNow } = await withTrip();
+      const at = (minutes: number) => new Date(NOW.getTime() + minutes * 60_000);
+      setNow(at(1));
+      await repo.addPhoto(trip.id, photoId(1), { uri: 'file:///1.jpg' });
+      setNow(at(2));
+      await repo.addPhoto(trip.id, photoId(2), { uri: 'file:///2.jpg', takenAt: '2026-10-14T18:03' });
+      setNow(at(3));
+      await repo.addPhoto(trip.id, photoId(3), { uri: 'file:///3.jpg', takenAt: '2026-10-13T09:00' });
+      setNow(at(4));
+      await repo.addPhoto(trip.id, photoId(4), { uri: 'file:///4.jpg' });
+
+      const photos = await repo.photos(trip.id);
+
+      expect(photos.map((photo) => photo.id)).toEqual([photoId(3), photoId(2), photoId(1), photoId(4)]);
+    });
+
+    it('lists only the photos of the asked trip', async () => {
+      const { repo, trip } = await withTrip();
+      const other = await repo.create(createTripInputFixture());
+      await repo.addPhoto(trip.id, photoId(1), { uri: 'file:///1.jpg' });
+      await repo.addPhoto(other.id, photoId(2), { uri: 'file:///2.jpg' });
+      expect((await repo.photos(trip.id)).map((photo) => photo.id)).toEqual([photoId(1)]);
+      expect((await repo.photos(other.id)).map((photo) => photo.id)).toEqual([photoId(2)]);
+    });
+
+    it('adding the same photo id again adds nothing and keeps the first one (A5)', async () => {
+      const { repo, trip, setNow } = await withTrip();
+      await repo.addPhoto(trip.id, photoId(1), { uri: 'file:///1.jpg', takenAt: '2026-10-14T18:03' });
+      setNow(new Date(NOW.getTime() + 60_000));
+      await repo.addPhoto(trip.id, photoId(1), { uri: 'file:///1.jpg', takenAt: '2026-10-14T18:03' });
+
+      const photos = await repo.photos(trip.id);
+
+      expect(photos).toHaveLength(1);
+      expect(photos[0].createdAt).toBe(NOW.toISOString());
+    });
+
+    it('rejects a photo for a trip it does not know, like the server refusing the insert', async () => {
+      const { repo } = await withTrip();
+      await expect(repo.addPhoto(UNKNOWN_ID, photoId(1), { uri: 'file:///1.jpg' })).rejects.toThrow('trip-not-found');
+      await expect(repo.photos(UNKNOWN_ID)).resolves.toEqual([]);
+    });
+
+    it('rejects an invalid photo and stores nothing', async () => {
+      const { repo, trip } = await withTrip();
+      await expect(repo.addPhoto(trip.id, photoId(1), { uri: '' })).rejects.toThrow();
+      await expect(repo.addPhoto(trip.id, photoId(1), { uri: 'file:///1.jpg', takenAt: '2026-10-14T18:03:22' })).rejects.toThrow();
+      await expect(repo.addPhoto(trip.id, 'photo-1', { uri: 'file:///1.jpg' })).rejects.toThrow();
+      await expect(repo.photos(trip.id)).resolves.toEqual([]);
+    });
+
+    it('deletes a photo and keeps the others; an unknown photo is already gone, so it resolves', async () => {
+      const { repo, trip } = await withTrip();
+      await repo.addPhoto(trip.id, photoId(1), { uri: 'file:///1.jpg' });
+      await repo.addPhoto(trip.id, photoId(2), { uri: 'file:///2.jpg' });
+      const [first] = await repo.photos(trip.id);
+
+      await repo.deletePhoto(first);
+      await expect(repo.deletePhoto(first)).resolves.toBeUndefined();
+
+      expect((await repo.photos(trip.id)).map((photo) => photo.id)).toEqual([photoId(2)]);
+    });
+
+    it('deleting a trip drops its photos and keeps those of other trips', async () => {
+      const { repo, trip } = await withTrip();
+      const other = await repo.create(createTripInputFixture());
+      await repo.addPhoto(trip.id, photoId(1), { uri: 'file:///1.jpg' });
+      await repo.addPhoto(other.id, photoId(2), { uri: 'file:///2.jpg' });
+
+      await repo.delete(trip.id);
+
+      await expect(repo.photos(trip.id)).resolves.toEqual([]);
+      expect((await repo.photos(other.id)).map((photo) => photo.id)).toEqual([photoId(2)]);
     });
   });
 
