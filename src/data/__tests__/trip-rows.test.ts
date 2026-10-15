@@ -1,9 +1,21 @@
 import { readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
+import { ZodError } from 'zod';
+
 import { buildTrip } from '@/data/trip-repository';
-import { listItemFromRow, overviewFromRows, toCreateTripArgs, type MemberRow, type SegmentRow, type TripRow } from '@/data/trip-rows';
-import { CreateTripInputSchema, InterestTagSchema, TripOverviewSchema } from '@/schemas';
+import {
+  listItemFromRow,
+  overviewFromRows,
+  photoFromRow,
+  toCreateTripArgs,
+  toPhotoRow,
+  type MemberRow,
+  type PhotoRow,
+  type SegmentRow,
+  type TripRow,
+} from '@/data/trip-rows';
+import { CreateTripInputSchema, InterestTagSchema, TripOverviewSchema, TripPhotoSchema, type TripPhoto } from '@/schemas';
 import { createTripInputFixture } from '@/test/fixtures';
 
 const NOW = new Date('2026-10-04T12:00:00Z');
@@ -161,6 +173,74 @@ describe('listItemFromRow (trips-drawer D4)', () => {
     ['an id that is not a UUID', { id: 'trip-1' }],
   ])('rejects a row with %s', (_, patch) => {
     expect(() => listItemFromRow({ ...row, ...patch })).toThrow();
+  });
+});
+
+describe('photoFromRow / toPhotoRow (trip-photos step 4)', () => {
+  const photo: TripPhoto = {
+    id: '5b1d0f3e-7a64-4c2f-9d18-3e4a5b6c7d01',
+    tripId: '0b9e7c4e-6a43-4c4b-9a55-2f6f0f7e1a01',
+    takenAt: '2026-10-14T18:03',
+    createdAt: '2026-10-15T09:00:00.000Z',
+  };
+  const undated: TripPhoto = { id: photo.id, tripId: photo.tripId, createdAt: photo.createdAt };
+  const row: PhotoRow = {
+    id: photo.id,
+    trip_id: photo.tripId,
+    taken_at: '2026-10-14T18:03:00',
+    created_at: '2026-10-15T09:00:00+00:00',
+  };
+
+  describe('toPhotoRow', () => {
+    it('sends all four columns, with the camera clock as is', () => {
+      expect(toPhotoRow(photo)).toEqual({
+        id: photo.id,
+        trip_id: photo.tripId,
+        taken_at: '2026-10-14T18:03',
+        created_at: '2026-10-15T09:00:00.000Z',
+      });
+    });
+
+    it('sends a missing date taken as null', () => {
+      expect(toPhotoRow(undated)).toEqual(expect.objectContaining({ taken_at: null }));
+    });
+  });
+
+  describe('photoFromRow', () => {
+    it('turns a row into a photo that passes TripPhotoSchema', () => {
+      const parsed = photoFromRow(row);
+      expect(parsed).toEqual({ ...photo, createdAt: '2026-10-15T09:00:00+00:00' });
+      expect(TripPhotoSchema.safeParse(parsed).success).toBe(true);
+    });
+
+    it('gives back what was sent (round trip), with and without a date taken', () => {
+      // toPhotoRow always sets all four columns, so what it sends is what the server stores (a Row).
+      expect(photoFromRow(toPhotoRow(photo) as PhotoRow)).toEqual(photo);
+      expect(photoFromRow(toPhotoRow(undated) as PhotoRow)).toEqual(undated);
+    });
+
+    it('leaves a null taken_at out instead of passing null to an optional field', () => {
+      expect(photoFromRow({ ...row, taken_at: null })).not.toHaveProperty('takenAt');
+    });
+
+    it('drops the seconds PostgREST adds to a timestamp without time zone (T18:03:00 → T18:03)', () => {
+      expect(photoFromRow({ ...row, taken_at: '2026-10-14T18:03:00' }).takenAt).toBe('2026-10-14T18:03');
+    });
+
+    it('accepts created_at the way Postgres returns it (UTC with +00:00, with or without fractions)', () => {
+      expect(photoFromRow({ ...row, created_at: '2026-10-15T09:00:00+00:00' }).createdAt).toBe('2026-10-15T09:00:00+00:00');
+      expect(photoFromRow({ ...row, created_at: '2026-10-15T09:00:01.123+00:00' }).createdAt).toBe('2026-10-15T09:00:01.123+00:00');
+    });
+
+    it.each([
+      ['an id that is not a UUID', { id: 'photo-1' }],
+      ['a trip id that is not a UUID', { trip_id: 'trip-1' }],
+      ['a garbage date taken', { taken_at: 'yesterday evening' }],
+      ['an impossible date taken', { taken_at: '2026-02-30T18:03:00' }],
+      ['a timestamp added without an offset', { created_at: '2026-10-15T09:00:00' }],
+    ])('rejects a row with %s', (_, patch) => {
+      expect(() => photoFromRow({ ...row, ...patch })).toThrow(ZodError);
+    });
   });
 });
 

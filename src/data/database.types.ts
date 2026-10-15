@@ -43,6 +43,25 @@ isOneToOne: false
       referencedColumns: ["id"]
     }
                   ]
+                },"trip_photos": {
+                  Row: {
+                    "created_at": string,"id": string,"taken_at": string | null,"trip_id": string
+                  }
+                  Insert: {
+                    "created_at": string,"id": string,"taken_at"?: string | null,"trip_id": string
+                  }
+                  Update: {
+                    "created_at"?: string,"id"?: string,"taken_at"?: string | null,"trip_id"?: string
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "trip_photos_trip_id_fkey"
+      columns: ["trip_id"]
+isOneToOne: false
+      referencedRelation: "trips"
+      referencedColumns: ["id"]
+    }
+                  ]
                 },"trips": {
                   Row: {
                     "base_currency": string,"budget_per_person_minor": number,"budget_updated_at": string,"cover_image_uri": string | null,"created_at": string,"destination": string,"end_date": string,"id": string,"name": string,"owner_id": string,"start_date": string
