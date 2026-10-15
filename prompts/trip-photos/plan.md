@@ -299,7 +299,7 @@ export type PickedPhoto = z.infer<typeof PickedPhotoSchema>;
 - [x] 6. [backend] SQLite v3 + `LocalStore` photo copy — skill: test-driven-development — tests first: step 6 list — verify: red → green, full suite, typecheck, lint; verifier.
 - [x] 7. [backend] `photo-files.ts` (downscale, thumbnail, bytes) — skill: source-driven-development, test-driven-development — tests first: step 7 list — verify: as above; verifier.
 - [x] 8. [backend] Repository `photos` / `addPhoto` / `deletePhoto`, trip delete removes files (P7), fake Storage — skill: api-and-interface-design, source-driven-development, security-and-hardening, doubt-driven-development — tests first: step 8 list — verify: as above; verifier.
-- [ ] 9. [frontend] Hooks `useTripPhotos`, `usePhotoUploads`, `useDeleteTripPhoto` — skill: test-driven-development — tests first: step 9 list — verify: as above; verifier.
+- [x] 9. [frontend] Hooks `useTripPhotos`, `usePhotoUploads`, `useDeleteTripPhoto(tripId)` — skill: test-driven-development — tests first: step 9 list — verify: as above; verifier.
 - [ ] 10. [frontend] `size.photoTile`, i18n (P8), `PhotoStrip` + `PhotoTile` + `pickTripPhotos` — skill: frontend-ui-engineering, source-driven-development — tests first: step 10 list — verify: as above; verifier (+ ui-taste).
 - [ ] 11. [frontend] Strip in `CurrentTrip` (P1), `deleteTrip.body` (P7) — skill: frontend-ui-engineering — tests first: step 11 list — verify: as above; verifier.
 - [ ] 12. [frontend] Viewer route + `DeletePhotoSheet` (P4, P5) — skill: frontend-ui-engineering, source-driven-development — tests first: step 12 list — verify: as above; verifier (+ ui-taste).
@@ -315,6 +315,7 @@ export type PickedPhoto = z.infer<typeof PickedPhotoSchema>;
 6. „Usuń zdjęcie” → the sheet → „Usuń zdjęcie” → the next photo shows; deleting the last one closes the viewer.
 7. Airplane mode → the photos already seen show in the strip and the viewer; „+” and delete are disabled with the hint; a photo never opened full screen shows „Nie udało się wczytać zdjęcia.”
 8. Pick 5 photos, then turn off Wi-Fi mid-way → the rest fail with „Nie udało się wysłać …” → back online → „Spróbuj ponownie” sends them, without duplicates.
+8b. Slow network (e.g. the phone's developer option or a weak signal): pick 3 photos. They are sent, or they fail visibly and „Spróbuj ponownie” works (R13).
 9. Delete the trip → its folder in Storage is empty.
 10. Screen reader: „Dodaj zdjęcia”, „Zdjęcie 2 z 7”, the viewer's buttons and counter.
 11. Largest font size: the strip still works and the hint wraps.
@@ -491,10 +492,35 @@ export type PickedPhoto = z.infer<typeof PickedPhotoSchema>;
   - **Checks:** suite 73 / 1094 ✓, typecheck ✓, lint ✓.
   - **Verifier:** PASS, then PASS again on the follow-up. Its accepted gap is R11.
   - **Skill used:** api-and-interface-design, source-driven-development, security-and-hardening, test-driven-development; verifier: doubt-driven-development.
+- Step 9 (2026-10-15, frontend agent).
+  - **What changed:** `src/hooks/useTripPhotos.ts` adds:
+    - `tripPhotosKey(tripId)` = `['trip-photos', tripId]`, outside `['trips']`;
+    - `useTripPhotos(tripId)`, a query with `networkMode: 'always'`;
+    - `usePhotoUploads(tripId)` → `{ items, add, retry, retryFailed, progress, failedCount }`, the item type `PhotoUpload` (= `PickedPhoto` + id + status);
+    - `useDeleteTripPhoto(tripId)`, online, awaits invalidating the photos key.
+  - **How the queue works:**
+    - **Order:** one upload at a time, in add order. An item is removed only after the photos key's refetch resolved, so the tile does not blink. A failure → `failed`, and the queue goes on.
+    - **Offline:** waiting items become `failed` without a network call; an upload already running finishes.
+    - **Retry:** sends the same id (A5).
+    - **`progress`:** `{ done, total }` per batch, or null when idle.
+    - **Trip switch:** the queue is empty for the new trip, and a late result of the old trip only invalidates the old trip's key.
+    - **Design:** state transitions run during render through a pure `advance()`, the pattern `Snackbar.tsx` uses, because the lint rule `react-hooks/set-state-in-effect` forbids setState in an effect. The one effect starts `addPhoto`.
+  - **Tests:** `src/hooks/__tests__/useTripPhotos.test.tsx`, 33 tests, stable over repeated runs. red ✓ ("Could not locate module @/hooks/useTripPhotos") → green ✓. 18 mutations, 17 caught; the survivor is a redundant guard.
+  - **Checks:** suite 74 / 1127 ✓, typecheck ✓, lint ✓.
+  - **Verifier:** PASS.
+  - **Deviations:**
+    - "One upload at a time" holds per trip: after a trip switch, the new trip's first upload may start while the old trip's last one still runs. This is harmless (its result cannot touch the new queue) and accepted by the orchestrator.
+    - The plan text said `useDeleteTripPhoto()`; it takes `tripId`.
+  - **Notes for steps 10–12:**
+    - if the refetch after a successful send fails, the tile goes and the strip shows its error state with „Spróbuj ponownie”;
+    - the strip must stay mounted while the viewer is open (a pushed route keeps the home screen mounted), or waiting photos are lost (A4);
+    - an upload has the shared Supabase client's 20 s request timeout (R13).
+  - **Skill used:** test-driven-development.
 
 ## Risks & open questions
 - **R11 (step 8, accepted by the orchestrator as consistent with P7; Kacper can overrule).** If the trip's files are removed and then the trip row delete itself fails (e.g. the connection drops between the two calls), the trip stays without its photos. The user had already confirmed deleting the trip, and a retry finishes it. The error text does not mention photos.
 - **R12 (step 8).** The photo list is paged by 1000 rows because PostgREST's `max_rows` is 1000 (local `config.toml`, and Supabase's default). If the hosted project's `max_rows` is ever set lower, paging stops early. The page size and `max_rows` must stay equal.
+- **R13 (step 9) — upload timeout on a slow network.** Every Supabase request, Storage uploads included, is aborted after 20 s (`src/data/fetch-timeout.ts`, trips-supabase D14). A ~600 KB photo needs about 240 kbit/s to make it, so on a weak roaming connection an upload can keep failing. Checked on a device with a slow network (manual step 8b); if it fails there, a longer timeout for uploads is a decision for Kacper.
 - **R10 (step 7) — the agent downloaded a file outside its brief.** It fetched `glide-5.0.5-sources.jar` from Maven Central into the session scratchpad and read only `Downsampler.java` (never ran it, nothing in the repo). It was told not to download anything outside a brief again.
 - **Q1 — How the date taken is stored.** Cameras write their own clock without a time zone, and we strip GPS, so the zone is unknown. Recommendation: keep the camera's clock as is (`LocalDateTimeSchema`, Postgres `timestamp without time zone`). This is a written exception to "timestamps with offset", like flights keep the airport's clock. *Alternative:* convert it with the trip destination's time zone (a guess: wrong for layovers or other places).
 - **Q2 — Photos without a date taken** (screenshots, WhatsApp photos). Recommendation: at the end of the strip, in the order they were added. *Alternative:* use the date added in their place (they then mix in with the trip's photos).
