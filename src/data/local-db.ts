@@ -35,6 +35,12 @@ const MIGRATIONS = [
      id integer primary key not null check (id = 1),
      trip_id text not null
    );`,
+  // trip-photos: the phone's copy of each trip's photo list (signed URLs included), so the strip shows offline.
+  `create table trip_photos_cache (
+     trip_id text primary key not null,
+     photos_json text not null,
+     cached_at text not null
+   );`,
 ];
 
 export async function migrateLocalDb(db: LocalDb): Promise<void> {
@@ -49,7 +55,10 @@ export async function migrateLocalDb(db: LocalDb): Promise<void> {
   }
 }
 
-/** The app's SQLite database (budget changes and trip copies, trips-supabase D1, D6; the chosen trip, trips-drawer D2, D3). */
+/**
+ * The app's SQLite database (budget changes and trip copies, trips-supabase D1, D6; the chosen trip, trips-drawer D2, D3;
+ * photo list copies, trip-photos D8).
+ */
 export async function openLocalDb(): Promise<LocalDb> {
   const db = await openDatabaseAsync('travelo.db');
   await migrateLocalDb(db);
