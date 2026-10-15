@@ -49,6 +49,11 @@ Assumptions (to confirm with the plan):
   - **D18 (P9)** — the iOS `photosPermission` text becomes „Travelo uses your photos so you can add them to a trip and choose its cover.” (step 10, `app.json`).
   - **D19** — one commit per step (conventional, English), not pushed until Kacper says so.
   - **D20** — `.env` is added to `.gitignore`; `.env.example` goes back to empty values (the real ones stay in `.env`).
+- **D21 (Kacper, 2026-10-15, replaces D17)** — Docker Desktop is running on this machine ("doker jest odpalony mozesz sprawdzic teraz").
+  - Local Supabase is started here with `pnpm supabase start`; migrations are applied with `pnpm supabase migration up`; types come from `pnpm db:types`. Nothing is written by hand.
+  - There is no `psql` on the host, so `pnpm test:db` runs the same files through the database container's `psql` (`docker exec -i <db container> psql …`). `scripts/test-db.sh` is unchanged.
+  - Steps 4–5 therefore get a real red → green.
+  - The first try at step 4 (under D17) ended when the session stopped, before any file was written.
 
 ## Proposals (design-context has no carousel or photo viewer — Kacper approves or changes them with the plan)
 - **P1 — Where the strip sits:** directly **under the hero** (the photo has faded into ink there, so it reads as "under the title"), as the first element of the content column, before „Loty”. It scrolls sideways; its first tile lines up with the cards' side padding (20dp, 16dp below 360dp). *Alternative:* inside the hero, under the date line. Rejected because a 2-line name at large Dynamic Type would not fit in half the screen.
@@ -289,7 +294,7 @@ export type PickedPhoto = z.infer<typeof PickedPhotoSchema>;
 - [x] 1. [frontend] Install `expo-image-manipulator` and `expo-file-system` (Q5) and add their Jest mocks — skill: source-driven-development — **no tests first: pure setup**, named here so it is approved; no behaviour, the mocks are exercised by steps 7–8 — verify: `npx expo install` versions match `bundledNativeModules.json` (both `~57.0.x`), full suite, typecheck, lint.
 - [x] 2. [backend] Zod: `trip-photo.ts` + `GLOSSARY.md` — skill: domain-modeling, test-driven-development — tests first: step 2 list — verify: red → green, full suite, typecheck, lint; verifier.
 - [x] 3. [backend] Pure logic `src/lib/trip-photos.ts` — skill: test-driven-development — tests first: step 3 list — verify: as above; verifier.
-- [ ] 4. [backend] Migration `trip_photos` + RLS, SQL tests, types, row mapping — skill: supabase, supabase-postgres-best-practices, security-and-hardening, doubt-driven-development — tests first: step 4 list — verify: `pnpm test:db` red → green, `pnpm db:types`, parity (typecheck), full suite, lint; verifier.
+- [x] 4. [backend] Migration `trip_photos` + RLS, SQL tests, types, row mapping — skill: supabase, supabase-postgres-best-practices, security-and-hardening, doubt-driven-development — tests first: step 4 list — verify: `pnpm test:db` red → green, `pnpm db:types`, parity (typecheck), full suite, lint; verifier.
 - [ ] 5. [backend] Migration Storage bucket + policies, SQL tests — skill: supabase, security-and-hardening, doubt-driven-development — tests first: step 5 list — verify: `pnpm test:db` against a local Supabase (R1); verifier.
 - [ ] 6. [backend] SQLite v3 + `LocalStore` photo copy — skill: test-driven-development — tests first: step 6 list — verify: red → green, full suite, typecheck, lint; verifier.
 - [ ] 7. [backend] `photo-files.ts` (downscale, thumbnail, bytes) — skill: source-driven-development, test-driven-development — tests first: step 7 list — verify: as above; verifier.
@@ -352,6 +357,32 @@ export type PickedPhoto = z.infer<typeof PickedPhotoSchema>;
     - `compareTakenAt` uses a nested ternary;
     - an EXIF value with trailing characters is treated as unusable (a `.trim()` could be added if a device shows that).
   - **Skill used:** test-driven-development.
+- Step 4 (2026-10-15, backend agent, local Supabase per D21).
+  - **What changed:**
+    - `supabase/migrations/20261015182337_trip_photos.sql`: table `trip_photos` (FK with cascade, `taken_at timestamp without time zone`, `created_at timestamptz not null`), index on `trip_id`.
+    - RLS: select = owner or linked member, insert / delete = owner, no update policy.
+    - Grants: authenticated select / insert / delete, `service_role` all, nothing for anon.
+    - Applied locally with `pnpm supabase migration up` (not pushed).
+    - `src/data/database.types.ts` regenerated with `pnpm db:types` (only the new table; plain UTF-8, LF).
+    - `src/data/trip-rows.ts`: `PhotoRow`, `photoFromRow` (keeps `YYYY-MM-DDTHH:mm`; PostgREST returns `taken_at` as `2026-10-14T18:03:00`), `toPhotoRow`.
+  - **SQL tests:** `supabase/tests/trip_photos_rls.sql` covers:
+    - owner A: insert / read / delete; idempotent `on conflict do nothing`; `created_at` required; no update;
+    - stranger B, **owner of another trip**: reads none of A's photos, cannot insert into A's trip, cannot take A's photo id; deletes by id, by trip and without `WHERE` remove none of A's photos;
+    - linked member C: reads, cannot write;
+    - anon: nothing;
+    - deleting a trip cascades.
+  - **Red / green:** red ✓ (`relation "public.trip_photos" does not exist`) → green ✓ ("trip_photos_rls: all checks passed"); `trips_rls.sql` still green.
+  - **Mutation checks** (live DB only, each restored), every one caught:
+    - RLS off; select / insert / delete open; select owner only; update granted; select granted to anon; FK without cascade; `created_at` nullable;
+    - after the verifier's note, also the three "owner of ANY trip" variants of select / insert / delete.
+  - **Jest:** 12 new tests in `trip-rows.test.ts`. red ✓ (`toPhotoRow is not a function`) → green ✓.
+  - **Checks:** suite 72 / 980 ✓, typecheck (= parity with the regenerated types) ✓, lint ✓. The orchestrator re-ran both SQL files: green.
+  - **Verifier:** PASS.
+    - It ran both SQL files and regenerated the types into a scratch file (identical).
+    - Its note that B owned no trip (so "owner of any trip" policies slipped through) was fixed before `[x]`.
+    - Its notes, not changed: `created_at` is client-supplied (owner only, affects order only); reusing another trip's photo id with `on conflict do nothing` is a silent no-op that leaks nothing.
+  - **Finding:** a delete with `WHERE` is filtered by the select policy, so only an unqualified delete tests the delete policy on its own; the test has one.
+  - **Skill used:** supabase, supabase-postgres-best-practices, security-and-hardening, test-driven-development; verifier: doubt-driven-development.
 
 ## Risks & open questions
 - **Q1 — How the date taken is stored.** Cameras write their own clock without a time zone, and we strip GPS, so the zone is unknown. Recommendation: keep the camera's clock as is (`LocalDateTimeSchema`, Postgres `timestamp without time zone`). This is a written exception to "timestamps with offset", like flights keep the airport's clock. *Alternative:* convert it with the trip destination's time zone (a guess: wrong for layovers or other places).
