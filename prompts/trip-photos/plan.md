@@ -297,7 +297,7 @@ export type PickedPhoto = z.infer<typeof PickedPhotoSchema>;
 - [x] 4. [backend] Migration `trip_photos` + RLS, SQL tests, types, row mapping — skill: supabase, supabase-postgres-best-practices, security-and-hardening, doubt-driven-development — tests first: step 4 list — verify: `pnpm test:db` red → green, `pnpm db:types`, parity (typecheck), full suite, lint; verifier.
 - [x] 5. [backend] Migration Storage bucket + policies, SQL tests — skill: supabase, security-and-hardening, doubt-driven-development — tests first: step 5 list — verify: `pnpm test:db` against a local Supabase (R1); verifier.
 - [x] 6. [backend] SQLite v3 + `LocalStore` photo copy — skill: test-driven-development — tests first: step 6 list — verify: red → green, full suite, typecheck, lint; verifier.
-- [ ] 7. [backend] `photo-files.ts` (downscale, thumbnail, bytes) — skill: source-driven-development, test-driven-development — tests first: step 7 list — verify: as above; verifier.
+- [x] 7. [backend] `photo-files.ts` (downscale, thumbnail, bytes) — skill: source-driven-development, test-driven-development — tests first: step 7 list — verify: as above; verifier.
 - [ ] 8. [backend] Repository `photos` / `addPhoto` / `deletePhoto`, trip delete removes files (P7), fake Storage — skill: api-and-interface-design, source-driven-development, security-and-hardening, doubt-driven-development — tests first: step 8 list — verify: as above; verifier.
 - [ ] 9. [frontend] Hooks `useTripPhotos`, `usePhotoUploads`, `useDeleteTripPhoto` — skill: test-driven-development — tests first: step 9 list — verify: as above; verifier.
 - [ ] 10. [frontend] `size.photoTile`, i18n (P8), `PhotoStrip` + `PhotoTile` + `pickTripPhotos` — skill: frontend-ui-engineering, source-driven-development — tests first: step 10 list — verify: as above; verifier (+ ui-taste).
@@ -309,7 +309,8 @@ export type PickedPhoto = z.infer<typeof PickedPhotoSchema>;
 1. Trip view → right under the hero: the „+” tile and „Dodaj zdjęcia z tej podróży.”; without and with a cover photo.
 2. „+” → the gallery lets you pick several, at most 20 → pick 5. They show at once with spinners; „Wysyłam zdjęcia: 1 z 5” counts up; then the thumbnails show, ordered by date taken.
 3. Restart the app → the photos are still there.
-4. Supabase dashboard → Storage → `trip-photos/<tripId>/` → download a photo. It has **no GPS / EXIF** (photo info on the phone or `exiftool`), its longer side is ≤ 2048 px, and the `_thumb` is ≤ 480 px.
+4. Supabase dashboard → Storage → `trip-photos/<tripId>/` → download a photo. It has **no GPS / EXIF** (photo info on the phone or `exiftool`), its longer side is ≤ 2048 px, and the `_thumb` is ≤ 480 px. A **portrait** photo, taken upright on an iPhone and on an Android phone, is upright in the strip, in the viewer and in the downloaded file (EXIF orientation is applied before the EXIF is dropped; step 7 finding).
+4b. Android: pick 20 large photos (~12 MP) at once. All are sent one after another without the app closing or slowing down badly, and there is no "native object already released" error (step 7 releases native memory explicitly).
 5. Tap a photo → full screen, swipe left / right, the counter changes; „Zamknij” and the system back close it.
 6. „Usuń zdjęcie” → the sheet → „Usuń zdjęcie” → the next photo shows; deleting the last one closes the viewer.
 7. Airplane mode → the photos already seen show in the strip and the viewer; „+” and delete are disabled with the hint; a photo never opened full screen shows „Nie udało się wczytać zdjęcia.”
@@ -436,10 +437,11 @@ export type PickedPhoto = z.infer<typeof PickedPhotoSchema>;
     - Two existing local-db tests now expect version 3 and the new table, as the migration intends (nothing else changed).
     - The all-or-nothing `forgetTrip` test also checks that the photo copy survives a failed transaction.
   - **Checks:** suite 72 / 994 ✓, typecheck ✓, lint ✓.
-  - **Verifier:** PASS. Its note for step 9: the copy holds signed URLs that expire after 1 h, which is fine because offline the strip relies on expo-image's disk cache (`cacheKey`); an expired URL must not be treated as an error.
+  - **Verifier:** PASS. Its note for step 9: the photo copy holds signed URLs that expire after 1 h, which is fine because offline the strip relies on expo-image's disk cache (`cacheKey`); an expired URL must not be treated as an error.
   - **Skill used:** test-driven-development.
 
 ## Risks & open questions
+- **R10 (step 7) — the agent downloaded a file outside its brief.** It fetched `glide-5.0.5-sources.jar` from Maven Central into the session scratchpad and read only `Downsampler.java` (never ran it, nothing in the repo). It was told not to download anything outside a brief again.
 - **Q1 — How the date taken is stored.** Cameras write their own clock without a time zone, and we strip GPS, so the zone is unknown. Recommendation: keep the camera's clock as is (`LocalDateTimeSchema`, Postgres `timestamp without time zone`). This is a written exception to "timestamps with offset", like flights keep the airport's clock. *Alternative:* convert it with the trip destination's time zone (a guess: wrong for layovers or other places).
 - **Q2 — Photos without a date taken** (screenshots, WhatsApp photos). Recommendation: at the end of the strip, in the order they were added. *Alternative:* use the date added in their place (they then mix in with the trip's photos).
 - **Q3 — Thumbnails.** Recommendation: upload a small copy (longer side 480 px, a few dozen KB) next to each photo, so the strip downloads ~40 KB per photo instead of ~600 KB (roaming!). The full photo downloads only in the viewer. It costs a second file per photo. *Alternative:* the full photo everywhere (simpler, much more data).
