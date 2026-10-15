@@ -439,6 +439,25 @@ export type PickedPhoto = z.infer<typeof PickedPhotoSchema>;
   - **Checks:** suite 72 / 994 ✓, typecheck ✓, lint ✓.
   - **Verifier:** PASS. Its note for step 9: the photo copy holds signed URLs that expire after 1 h, which is fine because offline the strip relies on expo-image's disk cache (`cacheKey`); an expired URL must not be treated as an error.
   - **Skill used:** test-driven-development.
+- Step 7 (2026-10-15, backend agent).
+  - **What changed:** `src/data/photo-files.ts` adds `preparePhoto(uri)` → `{ file, thumbnail, thumbnailUri }`.
+    - It renders the picked file once, then derives both outputs from that ref: the file at most 2048 px, the thumbnail at most 480 px, never upscaled.
+    - It **always** re-encodes as JPEG 0.8, even when no resize is needed (D2), and reads the bytes with `new File(saved.uri).bytes()`. The picked file is never read.
+  - **Follow-up (orchestrator):** every manipulator context and rendered ref is `release()`d exactly once in `finally`, after its last use. Up to 20 photos of 12 MP go through this one after another, so relying on GC risks running out of memory on Android.
+    - `jest.setup.ts` mocks got `release: jest.fn()`.
+    - `native-mocks.test.ts` got one test for `release`.
+  - **Tests:** `src/data/__tests__/photo-files.test.ts`, 19 tests.
+    - red ✓ ("Could not locate module @/data/photo-files"; later release counts `[0,0,0]`, `context.release is not a function`) → green ✓.
+    - Mutation: releasing the rendered ref too early made 15 tests fail ("used after release").
+  - **Source findings** (installed packages):
+    - `manipulate` accepts an `ImageRef`.
+    - EXIF orientation is applied before re-encoding: iOS `ImageFixOrientationTransformer`; Android through `expo-image-loader` → Glide `Downsampler`.
+    - The JPEG is written fresh, without the source metadata.
+    - All of this still needs the device check (manual 4, 4b).
+  - **Checks:** suite 73 / 1014 ✓, typecheck ✓, lint ✓.
+  - **Verifier:** PASS. It checked that the tests catch a skipped re-encode, a read of the original, a wrong resize side, and a missing, early or double release.
+  - **Deviation:** the agent downloaded a Glide sources jar to read one file (R10).
+  - **Skill used:** source-driven-development, test-driven-development.
 
 ## Risks & open questions
 - **R10 (step 7) — the agent downloaded a file outside its brief.** It fetched `glide-5.0.5-sources.jar` from Maven Central into the session scratchpad and read only `Downsampler.java` (never ran it, nothing in the repo). It was told not to download anything outside a brief again.
