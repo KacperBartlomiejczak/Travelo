@@ -1,5 +1,5 @@
 # Task: Trip edit menu (⋮)
-Status: in progress — steps 1, 3, 4, 5, 5b, 7 done; step 2 waits for `pnpm test:db`, step 6 for Kacper's phone check (cover, keyboard); step 8 (device run) next
+Status: in progress — steps 1, 3, 4, 5, 5b, 7 done; step 2 waits for `pnpm test:db`, step 6 for Kacper's phone check (cover, keyboard); step 8 (device run) next; step 7b (PR #10 review fix) done, its manual 12 waits for step 8's device run
 
 ## Understanding & assumptions
 Kacper wants a **three-vertical-dots button** (lucide `EllipsisVertical`, from `lucide-react-native` 1.50, checked in
@@ -235,9 +235,12 @@ Written first in every step, run, seen failing for the missing behavior.
   first: step 6 — verify: full suite, typecheck, lint; verifier; tester (manual 5–7).
 - [x] 7. [frontend] Delete confirmation, snackbar after delete — skill: test-driven-development,
   frontend-ui-engineering — tests first: step 7 — verify: full suite, typecheck, lint; verifier; tester (manual 8–11).
+- [x] 7b. [frontend] The delete sheet cannot be dismissed while the delete runs (PR #10 review, 2026-10-15; approved
+  by Kacper 2026-10-15, without TripDetailsSheet) — skill: test-driven-development, frontend-ui-engineering — tests first: see "PR #10 review" below —
+  verify: full suite, typecheck, lint; verifier; tester (manual 12) if the emulator is connected.
 - [ ] 8. [tester] Device run of the whole feature (Kacper, 2026-10-14) — the `tester` agent drives the app on the
   connected Android emulator (`Medium_Phone_API_37.0`, via the `mobile-mcp` server in `.mcp.json`) and walks manual
-  steps 1–11 below plus the snackbar checks from step 4 (look in light / dark, ~3.5 s auto-hide, reduced motion);
+  steps 1–12 below (12 added by step 7b) plus the snackbar checks from step 4 (look in light / dark, ~3.5 s auto-hide, reduced motion);
   only test data, no real personal data — skill: none (no code; the tester reports PASS / FAIL per scenario with
   screenshots) — verify: every scenario PASS; a FAIL goes back to the step's implementer, then the tester re-runs
   the failed scenarios. iPhone checks stay with Kacper (no iOS device here).
@@ -259,6 +262,8 @@ Manual (device, Kacper or the tester agent):
    bottom edge.
 10. Delete the last trip → the empty state „Utwórz podróż” and the snackbar.
 11. Snackbar in dark mode: light background, dark text.
+12. (step 7b) „Usuń podróż” → right after tapping it, while the buttons are greyed: tap the scrim, press back, swipe
+    the header down past 60dp → the sheet stays (a swipe springs back). Needs a slow network to have time for it.
 
 ## Risks & open questions
 - **Modal hand-off (A6):** opening a sheet right after closing another can fail on iOS (one Modal still dismissing).
@@ -282,6 +287,57 @@ Manual (device, Kacper or the tester agent):
   disk error) → the user sees „Nie udało się usunąć podróży”, and a retry finds no row on the server. Options:
   (A, recommended) a retry that finds the trip already gone counts as success: the phone forgets its copies, the
   snackbar shows; (B) keep the error; the copies disappear by themselves on the next list refresh.
+
+## PR #10 review (CodeRabbit, 2026-10-15) — step 7b
+**Decision (Kacper, 2026-10-15) — D22:** approved with the `dismissible` prop; `TripDetailsSheet` stays out of scope.
+
+**Comment** (`src/features/home/DeleteTripSheet.tsx:32`, Minor): `pending` disables both buttons, but the backdrop,
+the swipe and the Android back button still call `onClose`. Dismissed during the delete, a failed delete is only
+announced to a screen reader; no inline error stays. Proposed code, as attached to the comment:
+
+```diff
+-    <BottomSheet visible title={t('deleteTrip.title', { name: trip.name })} onClose={onClose}>
++    <BottomSheet visible title={t('deleteTrip.title', { name: trip.name })} onClose={pending ? () => {} : onClose}>
+```
+
+**Verdict: valid.** Checked in the code: `BottomSheet` calls `onClose` from the backdrop (`BottomSheet.tsx:77`),
+`onRequestClose` (`:70`) and the swipe release (`:63`), none of them knows about `pending`. Closing unmounts
+`DeleteTripSheet` (`CurrentTrip.tsx:88`); on failure only `announceForAccessibility` runs (`DeleteTripSheet.tsx:28`),
+so a sighted user sees the trip still there and no message. The step 7 verifier already logged it as non-blocking.
+
+**Why not the attached code as-is:** with a no-op `onClose`, a swipe past 60dp while pending calls the no-op instead
+of `settle()` (`BottomSheet.tsx:63`), so the sheet stays pulled down where the finger let go until the next touch.
+Backdrop and back would be fixed; the swipe would leave a stuck sheet.
+
+**Approach (recommended):** `BottomSheet` gets an optional `dismissible` prop (default `true`, so every other sheet
+is unchanged). When `false`: backdrop and back do nothing, a swipe still follows the finger but always springs back
+like a short drag (release → `settle()`). `DeleteTripSheet` passes `dismissible={!pending}`. Rejected: the no-op
+`onClose` (stuck swipe, above); calling `settle()` after every `onClose` (changes the device-checked D18 close for
+every sheet).
+
+Sketch:
+```tsx
+// BottomSheet.tsx
+type Props = { visible: boolean; title: string; onClose: () => void; dismissible?: boolean; children: ReactNode };
+const close = dismissible ? onClose : () => {};             // backdrop + onRequestClose
+onPanResponderRelease: (_, g) => (latest.current.dismissible && pulled(g) > SWIPE_TO_CLOSE ? latest.current.onClose() : settle()),
+// DeleteTripSheet.tsx
+<BottomSheet visible dismissible={!pending} title={...} onClose={onClose}>
+```
+
+**Tests first (red before code):**
+- `src/components/__tests__/BottomSheet.test.tsx` (new cases, existing ones unedited): `dismissible={false}` → a
+  backdrop tap does not call `onClose`; the back button does not call `onClose`; a swipe released past 60dp does not
+  call `onClose` and the sheet goes back to 0; switching `dismissible` back to `true` during the life of the sheet
+  closes again through the latest value (the gesture is created once, so it must read it from `latest`).
+- `src/features/home/__tests__/DeleteTripSheet.test.tsx`: while the delete is pending, backdrop and back do not call
+  `onClose`; after the delete fails, the inline error is visible and backdrop closes again.
+
+**Files:** `src/components/BottomSheet.tsx`, `src/features/home/DeleteTripSheet.tsx`, the two test files; after the
+step `Architecture.md` (BottomSheet entry) if it lists the component's behavior.
+
+**Out of scope (noted, not fixed):** `TripDetailsSheet` (`:47`, `:65`) has the same pattern while saving; Kacper
+decided to leave it out (D22).
 
 ## Progress log
 - Step 1 (2026-10-14), by the `backend` agent: tests written first (red ✓: 29 failing, all "is not a function"
@@ -511,3 +567,27 @@ Manual (device, Kacper or the tester agent):
   copied to `prompts/trip-edit-menu/screens/` (`delete-sheet`, `snackbar-dark-trip-view`, `snackbar-empty-light`,
   `snackbar-empty-dark`). Test data: the tester also deleted and recreated the test trip "Warsaw → Barcelona" (new
   id, same data) to reach the empty state. Step 8 stays `[ ]` until Kacper's phone check of the cover and keyboard.
+- Step 7b (2026-10-15), by the `frontend` agent (PR #10 review, D22): `BottomSheet` optional `dismissible` (default
+  `true`): when `false`, a local `dismiss()` ignores the backdrop and `onRequestClose` (still passed, so Android's Modal
+  keeps a handler), and the swipe release reads `latest.current.dismissible` and `settle()`s instead of closing.
+  `DeleteTripSheet` passes `dismissible={!pending}`. Tests: `BottomSheet.test.tsx` nested "when not dismissible" (6:
+  backdrop, back, swipe past 60dp springs back, same with reduce motion, true → false locks, false → true closes
+  again), `sheetWith` gained an optional 4th argument; `DeleteTripSheet.test.tsx` 2 (pending: backdrop and back do not
+  close; after a failure the error shows and the backdrop closes). Red ✓: 6 failed, all "Expected number of calls: 0";
+  the 2 tests of today's behavior (false → true, close after failure) passed before, as regression guards. Green:
+  69 suites / 896 tests, typecheck ✓, lint ✓ (implementer and verifier). Verifier: PASS. Non-blocking: (1) while
+  locked the backdrop still reads as a "Zamknij" button that does nothing (brief, only during a delete); (2) true →
+  false is asserted for the swipe only; (3) an `act()` warning in `DeleteTripSheet.test` (baseline not checked).
+  Tester: blocked — Expo Go on the emulator had no dev server (Metro not running), so manual 12 did not run; it joins
+  step 8's remaining device checks. Deviation: none in code; the device check moved to step 8. For the final
+  `Architecture.md` update: `BottomSheet` `dismissible`, and drop the stale "Swipe-to-close … not covered by an
+  automated test" line (covered since step 5b). Step 7b marked `[x]`. Skill used: test-driven-development,
+  frontend-ui-engineering.
+- Step 7b device re-run (2026-10-15, `tester`, Android emulator, Travelo started by Kacper from Metro
+  `exp://192.168.5.179:8081`): A (menu and budget sheets close by backdrop, back, swipe) PASS; B (delete sheet, not
+  pending, closes by all three) PASS; C (manual 12, dismiss while the delete is pending) NOT TESTABLE — the delete
+  finished inside one command batch, faster than the tools can act, so the lock could not be observed. Caveat: Expo
+  showed "Cannot connect to Expo CLI" toasts, so the tester could not confirm the working-tree bundle was loaded (A and
+  B behave the same in old and new code). Test data: the tester created and deleted "Warsaw → Barcelona"; the emulator
+  now has no trips. Screenshot: `screens/7b-c-after-batch-empty-state.png`. Manual 12 stays open for step 8: Kacper checks it on
+  his phone on a slow network (decided 2026-10-15), together with the cover and keyboard checks.
