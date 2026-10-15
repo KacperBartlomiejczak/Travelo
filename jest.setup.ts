@@ -12,16 +12,19 @@ jest.mock('react-native-worklets', () => jest.requireActual('react-native-workle
 jest.mock('react-native-reanimated', () => jest.requireActual('react-native-reanimated/mock'));
 
 // Trip photos (trip-photos): the image manipulator and the file system have no native side in Jest. These are minimal
-// stand-ins of the API the photo code uses (`ImageManipulator.manipulate(uri).resize().renderAsync()` then
-// `.saveAsync()`, and `new File(uri).bytes()`); tests override them per test with `mockResolvedValue` / `mockReturnValue`.
+// stand-ins of the API the photo code uses (`ImageManipulator.manipulate(uri | image).resize().renderAsync()`, then
+// `.saveAsync()` and `.release()` on the context and the image, and `new File(uri).bytes()`); tests override them per
+// test with `mockResolvedValue` / `mockReturnValue`.
 // What the real modules do to a file (re-encoding, dropping EXIF) is checked on a device.
 jest.mock('expo-image-manipulator', () => {
   const createContext = () => {
     const context = {
+      release: jest.fn(),
       resize: jest.fn(),
       renderAsync: jest.fn(async () => ({
         width: 1024,
         height: 768,
+        release: jest.fn(),
         saveAsync: jest.fn(async () => ({ uri: 'file:///mock/manipulated.jpg', width: 1024, height: 768 })),
       })),
     };

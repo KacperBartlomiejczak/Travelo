@@ -13,6 +13,18 @@ describe('native module mocks', () => {
     expect(SaveFormat).toMatchObject({ JPEG: 'jpeg', PNG: 'png', WEBP: 'webp' });
   });
 
+  // Up to 20 photos of 12 MP go through one after another, so their decoded images are released by hand.
+  it('lets a context and a rendered image be released', async () => {
+    const context = ImageManipulator.manipulate('file:///photo.heic');
+    const image = await context.renderAsync();
+    const shrunk = await ImageManipulator.manipulate(image).resize({ width: 480 }).renderAsync();
+    expect(() => {
+      context.release();
+      image.release();
+      shrunk.release();
+    }).not.toThrow();
+  });
+
   it('lets the bytes of a file be read', async () => {
     const bytes = await new File('file:///photo.jpg').bytes();
     expect(bytes).toBeInstanceOf(Uint8Array);
