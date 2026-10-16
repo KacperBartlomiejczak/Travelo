@@ -29,7 +29,7 @@ export function takenAtFromExif(exif: Record<string, unknown> | null | undefined
 const compare = <V extends string | number>(a: V, b: V) => (a < b ? -1 : a > b ? 1 : 0);
 
 /** A date taken is before no date at all; two dates compare as text, since they share one fixed format. */
-function compareTakenAt(a: string | undefined, b: string | undefined): number {
+export function compareTakenAt(a: string | undefined, b: string | undefined): number {
   if (a === undefined || b === undefined) return a === b ? 0 : a === undefined ? 1 : -1;
   return compare(a, b);
 }

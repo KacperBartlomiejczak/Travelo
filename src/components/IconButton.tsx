@@ -5,8 +5,6 @@ import { useTheme } from '@/theme/useTheme';
 
 type Props = { icon: LucideIcon; label: string; onPress: () => void; disabled?: boolean };
 
-const DISABLED_OPACITY = 0.4; // §10.2
-
 // 44×44 icon button (§10.2, D28). Icons never replace text for critical actions, so it always has a label.
 export function IconButton({ icon: Icon, label, onPress, disabled = false }: Props) {
   const theme = useTheme();
@@ -23,7 +21,7 @@ export function IconButton({ icon: Icon, label, onPress, disabled = false }: Pro
         alignItems: 'center',
         justifyContent: 'center',
         borderRadius: theme.radius.md,
-        opacity: disabled ? DISABLED_OPACITY : 1,
+        opacity: disabled ? theme.opacity.disabled : 1,
         backgroundColor: pressed ? theme.colors.surface.secondary : undefined,
       })}
     >

@@ -190,6 +190,24 @@
     "error": "Couldn't delete the trip. Try again.",
     "deleted": "Trip deleted."
   },
+  "tripPhotos": {
+    "title": "Trip photos",
+    "add": "Add photos",
+    "emptyHint": "Add photos from this trip.",
+    "photo": "Photo {{index}} of {{count}}",
+    "photoSending": "Photo {{index}} of {{count}}, sending",
+    "photoFailed": "Photo {{index}} of {{count}}, not sent. Tap to try again.",
+    "photoFailedOffline": "Photo {{index}} of {{count}}, not sent",
+    "sending": "Sending photos: {{done}} of {{total}}",
+    "failed_one": "{{count}} photo couldn't be sent",
+    "failed_few": "{{count}} photos couldn't be sent",
+    "failed_many": "{{count}} photos couldn't be sent",
+    "failed_other": "{{count}} photos couldn't be sent",
+    "retry": "Try again",
+    "loadError": "Couldn't load the photos.",
+    "offlineHint": "You need internet to add or delete photos.",
+    "pickError": "Couldn't open the gallery."
+  },
   "sync": {
     "pending": "Waiting to sync",
     "failed": "Couldn't sync",

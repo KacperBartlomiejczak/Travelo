@@ -190,6 +190,24 @@
     "error": "Nie udało się usunąć podróży. Spróbuj ponownie.",
     "deleted": "Podróż usunięta."
   },
+  "tripPhotos": {
+    "title": "Zdjęcia z podróży",
+    "add": "Dodaj zdjęcia",
+    "emptyHint": "Dodaj zdjęcia z tej podróży.",
+    "photo": "Zdjęcie {{index}} z {{count}}",
+    "photoSending": "Zdjęcie {{index}} z {{count}}, wysyłanie",
+    "photoFailed": "Zdjęcie {{index}} z {{count}}, nie wysłane. Stuknij, aby spróbować ponownie.",
+    "photoFailedOffline": "Zdjęcie {{index}} z {{count}}, nie wysłane",
+    "sending": "Wysyłam zdjęcia: {{done}} z {{total}}",
+    "failed_one": "Nie udało się wysłać {{count}} zdjęcia",
+    "failed_few": "Nie udało się wysłać {{count}} zdjęć",
+    "failed_many": "Nie udało się wysłać {{count}} zdjęć",
+    "failed_other": "Nie udało się wysłać {{count}} zdjęć",
+    "retry": "Spróbuj ponownie",
+    "loadError": "Nie udało się wczytać zdjęć.",
+    "offlineHint": "Bez internetu nie dodasz ani nie usuniesz zdjęć.",
+    "pickError": "Nie udało się otworzyć galerii."
+  },
   "sync": {
     "pending": "Czeka na wysłanie",
     "failed": "Nie udało się wysłać",

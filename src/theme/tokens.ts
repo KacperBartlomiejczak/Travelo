@@ -114,9 +114,16 @@ export const size = {
   // trips-drawer P1: the side panel is 85 % of the screen up to this width; trip thumbnails in it.
   drawerMaxWidth: 360,
   thumbnail: 48,
+  // trip-photos P2: the square tiles of the photo strip on the trip view (the add tile, photos, skeletons).
+  photoTile: 80,
   // §10.16 snackbar: at least 48dp high, at most 360dp wide.
   snackbarMinHeight: 48,
   snackbarMaxWidth: 360,
+} as const;
+
+// §10.2: a disabled control is drawn at this opacity (trip-photos D25).
+export const opacity = {
+  disabled: 0.4,
 } as const;
 
 // §9.1 durations in ms (only the ones in use).
