@@ -54,6 +54,29 @@ Assumptions (to confirm with the plan):
   - There is no `psql` on the host, so `pnpm test:db` runs the same files through the database container's `psql` (`docker exec -i <db container> psql …`). `scripts/test-db.sh` is unchanged.
   - Steps 4–5 therefore get a real red → green.
   - The first try at step 4 (under D17) ended when the session stopped, before any file was written.
+- **D22 (Kacper, 2026-10-15) — screen reader text on sending / failed tiles** (not in P8):
+
+  | key | PL | EN |
+  |---|---|---|
+  | `tripPhotos.photoSending` | Zdjęcie {{index}} z {{count}}, wysyłanie | Photo {{index}} of {{count}}, sending |
+  | `tripPhotos.photoFailed` | Zdjęcie {{index}} z {{count}}, nie wysłane. Stuknij, aby spróbować ponownie. | Photo {{index}} of {{count}}, not sent. Tap to try again. |
+- **D23 (orchestrator, 2026-10-15) — where opening the viewer is wired.** Typed routes (`app.json`) refuse a `router.push` to a route that does not exist yet.
+  - Step 10's `PhotoStrip` therefore takes an `onOpenPhoto(photoId)` prop: a photo tile is a button only when the prop is given.
+  - Step 11 places the strip without it.
+  - Step 12 creates the viewer route and passes the handler from `CurrentTrip`.
+  - The step 10 test "pressing a tile navigates to the viewer" becomes "pressing a tile calls `onOpenPhoto` with its id"; the navigation itself is tested in step 12.
+
+## Decisions (Kacper, 2026-10-16, step 10 verification)
+- **D24 — Retry is offline-disabled.** Offline, a failed tile and the „Spróbuj ponownie” button under the strip are disabled like „+” (opacity, `accessibilityState.disabled`, no call). The existing offline hint explains why. Back online, they work again.
+- **D25 — Disabled opacity is a token.** `opacity.disabled = 0.4` (§10.2) goes in `src/theme/tokens.ts` and is used by `PhotoTile` and `IconButton`, so the value has one source. This is a one-line change in `IconButton`, approved in this step.
+- **D26 — „+” pressed look:** the background goes from `surface.secondary` to `surface.elevated`, as built.
+- **D27 — Loading skeleton copy:** no separate "loading" text. The screen reader hears the strip's title marked busy, as built.
+- **D28 (amends D24) — The failed line's „Spróbuj ponownie” keeps `TextButton`'s own disabled look** (muted text, §10.1), the same as every disabled text button in the app. Only the tiles dim with `opacity.disabled`.
+- **D29 — Offline label of a failed tile.** Offline, a failed tile (disabled by D24) is read without the instruction it cannot follow. The reason is in the offline hint under the strip.
+
+  | key | PL | EN |
+  |---|---|---|
+  | `tripPhotos.photoFailedOffline` | Zdjęcie {{index}} z {{count}}, nie wysłane | Photo {{index}} of {{count}}, not sent |
 
 ## Proposals (design-context has no carousel or photo viewer — Kacper approves or changes them with the plan)
 - **P1 — Where the strip sits:** directly **under the hero** (the photo has faded into ink there, so it reads as "under the title"), as the first element of the content column, before „Loty”. It scrolls sideways; its first tile lines up with the cards' side padding (20dp, 16dp below 360dp). *Alternative:* inside the hero, under the date line. Rejected because a 2-line name at large Dynamic Type would not fit in half the screen.
@@ -300,7 +323,7 @@ export type PickedPhoto = z.infer<typeof PickedPhotoSchema>;
 - [x] 7. [backend] `photo-files.ts` (downscale, thumbnail, bytes) — skill: source-driven-development, test-driven-development — tests first: step 7 list — verify: as above; verifier.
 - [x] 8. [backend] Repository `photos` / `addPhoto` / `deletePhoto`, trip delete removes files (P7), fake Storage — skill: api-and-interface-design, source-driven-development, security-and-hardening, doubt-driven-development — tests first: step 8 list — verify: as above; verifier.
 - [x] 9. [frontend] Hooks `useTripPhotos`, `usePhotoUploads`, `useDeleteTripPhoto(tripId)` — skill: test-driven-development — tests first: step 9 list — verify: as above; verifier.
-- [ ] 10. [frontend] `size.photoTile`, i18n (P8), `PhotoStrip` + `PhotoTile` + `pickTripPhotos` — skill: frontend-ui-engineering, source-driven-development — tests first: step 10 list — verify: as above; verifier (+ ui-taste).
+- [x] 10. [frontend] `size.photoTile`, i18n (P8), `PhotoStrip` + `PhotoTile` + `pickTripPhotos` — skill: frontend-ui-engineering, source-driven-development — tests first: step 10 list — verify: as above; verifier (+ ui-taste).
 - [ ] 11. [frontend] Strip in `CurrentTrip` (P1), `deleteTrip.body` (P7) — skill: frontend-ui-engineering — tests first: step 11 list — verify: as above; verifier.
 - [ ] 12. [frontend] Viewer route + `DeletePhotoSheet` (P4, P5) — skill: frontend-ui-engineering, source-driven-development — tests first: step 12 list — verify: as above; verifier (+ ui-taste).
 - [ ] 13. [tester] Device run of the manual steps below on a new dev build (R2) — skill: none — verify: tester PASS per scenario; the steps the emulator cannot cover go to Kacper's phone.
@@ -516,6 +539,70 @@ export type PickedPhoto = z.infer<typeof PickedPhotoSchema>;
     - the strip must stay mounted while the viewer is open (a pushed route keeps the home screen mounted), or waiting photos are lost (A4);
     - an upload has the shared Supabase client's 20 s request timeout (R13).
   - **Skill used:** test-driven-development.
+- Step 10 (2026-10-15, frontend agent): **implemented, NOT verified yet**. The verifier run is pending (the session's usage limit was reached) and the work is uncommitted.
+  - **What changed:**
+    - `size.photoTile` and the `tripPhotos.*` i18n keys (P8 + D22);
+    - the `app.json` permission text (D18);
+    - in `src/features/trip-photos/`: `pick-trip-photos.ts`, `PhotoTile.tsx` and `PhotoStrip.tsx` (a FlatList, plus `mergeStripItems`, which also drops an upload already in the photo list).
+  - **Tests:** 10 + 41 + 1. red ✓ (module / token missing) → green ✓. 26 mutations, all caught.
+  - **Checks:** suite 76 / 1179 ✓, typecheck ✓, lint ✓.
+  - **Open for Kacper:**
+    - the skeleton has no "loading" copy (it uses `tripPhotos.title` + busy);
+    - pressed looks: „+” → `surface.elevated`, photo → scrim;
+    - `DISABLED_OPACITY` is duplicated from `IconButton`.
+  - **Next:** verifier for step 10 → `[x]` + commit → step 11.
+- Step 10 verification (2026-10-16, new orchestrator session; Kacper asked to continue `trip-edit-menu`, which is done since 2026-10-15, so the work resumes here, where the last session stopped).
+  - **Orchestrator re-run:** suite 76 / 1179 ✓, typecheck ✓, lint ✓. Jest's "a worker process has failed to exit gracefully" warning also shows with the trip-photos tests excluded, so step 10 does not cause it.
+  - **Verifier: FAIL.** It ran the full suite three times, plus `--detectOpenHandles` (no open handles). Every item of the step 10 test list is covered, and scope, tokens, i18n parity, a11y and Zod are fine. Issues:
+    1. *major, overruled by the orchestrator:* the verifier read the Polish plurals of `tripPhotos.failed` as wrong ("1 zdjęcie, 2 zdjęcia"). After „Nie udało się wysłać” the object takes the genitive of negation, so the forms are 1 „zdjęcia”, 2–4 „(dwóch) zdjęć”, 5+ „zdjęć”. That is what P8 and the code have, so nothing changes.
+    2. *minor, to fix:* `compareTakenAt` in `PhotoStrip.tsx:15-21` repeats the one in `src/lib/trip-photos.ts:32-35`.
+    3. *minor, question to Kacper:* offline, a failed tile and „Spróbuj ponownie” can still be pressed, but `advance()` turns the photo straight back to `failed`, so the tap does nothing visible. No test covers this.
+    4. *minor, noted:* `useFocusRing` in `PhotoTile.tsx` copies `TextButton`'s focus ring. A shared hook would touch `TextButton`, so it is not done in this step.
+    5. *minor, question to Kacper:* `DISABLED_OPACITY = 0.4` repeats `IconButton.tsx:8`.
+  - **Verifier's notes (not findings):**
+    - one asset without a uri makes `PickedPhotoSchema.parse` reject the whole pick (the picker types the uri as required);
+    - a sending tile decodes the full gallery file at 80dp, to measure in manual 4b;
+    - red → green rests on the implementer's report, since nothing is committed.
+  - **Status:** not `[x]`. Waiting for Kacper's answers on 3, 5 and the implementer's open points (skeleton copy, the „+” tile's pressed look). Then the same implementer does one fix round, followed by a re-verify.
+  - Kacper answered on 2026-10-16 (D24–D27).
+- Step 10 fix round (2026-10-16, `frontend` agent).
+  - **What changed:**
+    - **D24:** `PhotoTile` has a new optional `retryDisabled` prop, which disables the failed tile. `PhotoStrip` passes `retryDisabled={offline}`, and the failed line's `TextButton` gets `disabled={offline}`. The load-error retry is unchanged.
+    - **D25:** `opacity.disabled` 0.4 in `tokens.ts`, exposed in `theme.ts`. `PhotoTile` and `IconButton` use it; both local constants are gone.
+    - **Issue 2:** `compareTakenAt` is exported from `src/lib/trip-photos.ts` (only `export` added) and used in `PhotoStrip`.
+  - **Tests:**
+    - D24: 3 tests, red ✓ (`toBeDisabled`: "is not disabled") → green ✓. A fourth is a characterization test: the load-error retry stays enabled offline. A `jest.spyOn` passthrough on `usePhotoUploads` proves `retry` / `retryFailed` are not called, and the same spy sees both calls online.
+    - D25: theme, 2 tests red ✓ (`Cannot read properties of undefined (reading 'disabled')`) → green ✓, plus 1 shared-value test.
+    - New `IconButton.test.tsx`: 2 characterization tests, green before and after the switch to the token.
+    - Existing tests are unedited.
+  - **Checks:** suite 77 / 1188 ✓, typecheck ✓, lint ✓ (implementer and verifier).
+  - **Re-verify: FAIL** on one point, everything else PASS.
+    - D24 says "like „+” (opacity …)", but the failed line's „Spróbuj ponownie” uses `TextButton`'s own disabled look (muted `text.tertiary` text, close to §10.1 ghost "disabled: neutral.400"), not opacity 0.4. That is a visual choice for Kacper.
+    - Verifier's note: a disabled failed tile keeps the label „…nie wysłane. Stuknij, aby spróbować ponownie.” (D22).
+    - Pre-existing, not this step: `TextButton`'s disabled text is neutral.500, while §10.1 says neutral.400.
+  - **Status:** not `[x]`. Asked Kacper about the button's disabled look and the tile's offline label.
+  - Kacper answered on 2026-10-16 (D28, D29).
+- Step 10 second fix round and close (2026-10-16, same `frontend` agent).
+  - **What changed:**
+    - **D29:** `PhotoTile` labels a failed tile with `tripPhotos.photoFailedOffline` when `retryDisabled`, otherwise with `photoFailed`; it has no new prop. The new key is in `pl.json` / `en.json`.
+    - **D28:** no change.
+  - **Tests:**
+    - 2 new tests, red ✓ (`Unable to find an element with role: button, name: Zdjęcie 1 z 2, nie wysłane`) → green ✓: the offline label and its return online, and the label in English.
+    - 1 characterization test: sending and server tiles are unchanged offline.
+    - The two round-1 D24 tests (written in this same uncommitted step) now look the tile up by its offline label, as D29 requires. Their assertions are unchanged; the verifier checked this by replaying the agent's edits.
+  - **Checks:** suite 77 / 1191 ✓, typecheck ✓, lint ✓ (implementer and verifier).
+  - **Verifier: PASS** on the whole step. Every item of the step 10 test list maps to a test, and D22–D29 are implemented as written.
+  - **Verifier's notes (non-blocking):**
+    - D26 (the „+” pressed look) has no test;
+    - the position tie-break in `mergeStripItems` is redundant with the stable `Array.prototype.sort`;
+    - `useFocusRing` still copies `TextButton`'s focus ring (out of scope).
+  - **`ui-taste`:**
+    - The skill asks for a render.
+    - The strip is not placed on any screen until step 11, so step 10 had the code-only pass the first verifier made: tile geometry, gaps, state colours, the spinner on the scrim, and wrapping status lines. That pass had two findings: the „+” pressed colour (decided as D26) and `ActivityIndicator size="small"`.
+    - The visual check moves to step 11 (the strip on the trip view) and to the device run (step 13). This step makes no claim of a visual pass.
+  - **Deviation:** the `IconButton.tsx` change and its new test (D25), plus the `export` in `src/lib/trip-photos.ts`, are outside the plan's step 10 file list. Kacper approved them on 2026-10-16.
+  - **Skill used:** frontend-ui-engineering, source-driven-development (round 1, by the previous session's agent), test-driven-development; ui-taste as a code-only pass.
+  - **Next:** step 11 (the strip in `CurrentTrip`, P1; `deleteTrip.body`, P7).
 
 ## Risks & open questions
 - **R11 (step 8, accepted by the orchestrator as consistent with P7; Kacper can overrule).** If the trip's files are removed and then the trip row delete itself fails (e.g. the connection drops between the two calls), the trip stays without its photos. The user had already confirmed deleting the trip, and a retry finishes it. The error text does not mention photos.
