@@ -1,6 +1,6 @@
 import { useFonts } from 'expo-font';
 import { router } from 'expo-router';
-import { act, fireEvent, renderRouter, screen, within } from 'expo-router/testing-library';
+import { act, fireEvent, renderRouter, screen, waitFor, within } from 'expo-router/testing-library';
 import { AccessibilityInfo, AppState, StyleSheet, type AppStateStatus } from 'react-native';
 
 import DrawerLayout from '@/app/(drawer)/_layout';
@@ -968,13 +968,48 @@ describe('Home screen — photo strip (trip-photos P1, A3, D23)', () => {
     expect(await screen.findByLabelText('Zdjęcie 1 z 2')).toBeTruthy();
   });
 
-  it('photo tiles are not buttons yet: the viewer comes later (D23)', async () => {
+  // Step 12 (D23): the viewer route exists now, so the photo tiles are buttons. This replaces the step 11 test "photo tiles
+  // are not buttons yet", which was written for the time before the route.
+  it('photo tiles are buttons now: the viewer is wired (D23)', async () => {
     mockCurrent = () => Promise.resolve(overview());
     mockPhotos = twoPhotos;
     await renderHome();
     await screen.findByLabelText('Zdjęcie 1 z 2');
     const buttons = within(screen.getByTestId('photo-strip')).getAllByRole('button');
-    expect(buttons.map((button) => button.props.accessibilityLabel)).toEqual(['Dodaj zdjęcia']);
+    expect(buttons.map((button) => button.props.accessibilityLabel)).toEqual(['Dodaj zdjęcia', 'Zdjęcie 1 z 2', 'Zdjęcie 2 z 2']);
+  });
+
+  it('pressing a photo tile opens the viewer on that photo, with the trip and the photo in the route', async () => {
+    mockCurrent = () => Promise.resolve(overview());
+    mockPhotos = twoPhotos;
+    const app = renderRouter({
+      _layout: RootLayout,
+      '(drawer)/_layout': DrawerLayout,
+      '(drawer)/index': HomeScreen,
+      'trips/[tripId]/photos': () => null,
+      'trips/new/index': () => null,
+    });
+    await app;
+    await fireEvent.press(await screen.findByRole('button', { name: 'Zdjęcie 2 z 2' }));
+    await waitFor(() => expect(app.getPathname()).toBe(`/trips/${TRIP_ID}/photos`));
+    expect(app.getSearchParams()).toEqual({ tripId: TRIP_ID, photoId: PHOTO_IDS[1] });
+  });
+
+  it('the home screen stays mounted under the viewer, and a tile of another photo opens that one', async () => {
+    mockCurrent = () => Promise.resolve(overview());
+    mockPhotos = twoPhotos;
+    const app = renderRouter({
+      _layout: RootLayout,
+      '(drawer)/_layout': DrawerLayout,
+      '(drawer)/index': HomeScreen,
+      'trips/[tripId]/photos': () => null,
+      'trips/new/index': () => null,
+    });
+    await app;
+    await fireEvent.press(await screen.findByRole('button', { name: 'Zdjęcie 1 z 2' }));
+    await waitFor(() => expect(app.getPathname()).toBe(`/trips/${TRIP_ID}/photos`));
+    expect(screen.getByTestId('home-screen', { includeHiddenElements: true })).toBeTruthy();
+    expect(app.getSearchParams()).toEqual({ tripId: TRIP_ID, photoId: PHOTO_IDS[0] });
   });
 
   it('reads in English', async () => {

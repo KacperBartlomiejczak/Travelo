@@ -43,6 +43,8 @@ export default function RootLayout() {
       <Stack>
         <Stack.Screen name="(drawer)" options={{ headerShown: false }} />
         <Stack.Screen name="trips/new" options={{ headerShown: false }} />
+        {/* The trip's photos full screen over the home screen (trip-photos D6, P4). */}
+        <Stack.Screen name="trips/[tripId]/photos" options={{ headerShown: false, presentation: 'fullScreenModal' }} />
       </Stack>
     </AppProviders>
   );

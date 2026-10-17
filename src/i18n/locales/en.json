@@ -208,6 +208,19 @@
     "offlineHint": "You need internet to add or delete photos.",
     "pickError": "Couldn't open the gallery."
   },
+  "photoViewer": {
+    "close": "Close",
+    "counter": "{{index}} of {{count}}",
+    "delete": "Delete photo",
+    "loadError": "Couldn't load the photo."
+  },
+  "deletePhoto": {
+    "title": "Delete this photo?",
+    "body": "It will be removed from this trip. This can't be undone.",
+    "confirm": "Delete photo",
+    "cancel": "Cancel",
+    "error": "Couldn't delete the photo. Try again."
+  },
   "sync": {
     "pending": "Waiting to sync",
     "failed": "Couldn't sync",

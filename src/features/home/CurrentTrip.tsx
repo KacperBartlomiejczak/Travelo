@@ -1,4 +1,4 @@
-import { useIsFocused } from 'expo-router';
+import { useIsFocused, useRouter } from 'expo-router';
 import { useDrawerStatus } from 'expo-router/drawer';
 import { StatusBar } from 'expo-status-bar';
 import { Fragment, useState, type ReactNode } from 'react';
@@ -41,6 +41,7 @@ export function CurrentTrip({ overview, budgetSyncStatus, onOpenMenu, onDeleted 
   const { t } = useTranslation();
   const theme = useTheme();
   const insets = useSafeAreaInsets();
+  const router = useRouter();
   const { width } = useWindowDimensions();
   const { spacing, colors } = theme;
   const side = width < theme.breakpoints.compact ? spacing[4] : spacing[5];
@@ -66,7 +67,11 @@ export function CurrentTrip({ overview, budgetSyncStatus, onOpenMenu, onDeleted 
           testID="home-photos"
           style={{ width: '100%', maxWidth: theme.size.maxContentWidth, alignSelf: 'center', marginBottom: spacing[4] }}
         >
-          <PhotoStrip tripId={trip.id} sidePadding={side} />
+          <PhotoStrip
+            tripId={trip.id}
+            sidePadding={side}
+            onOpenPhoto={(photoId) => router.push({ pathname: '/trips/[tripId]/photos', params: { tripId: trip.id, photoId } })}
+          />
         </View>
         <View style={{ gap: spacing[4], paddingHorizontal: side, width: '100%', maxWidth: theme.size.maxContentWidth, alignSelf: 'center' }}>
           <Section testID="home-flights" title={t('home.flights')}>

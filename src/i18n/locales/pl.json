@@ -208,6 +208,19 @@
     "offlineHint": "Bez internetu nie dodasz ani nie usuniesz zdjęć.",
     "pickError": "Nie udało się otworzyć galerii."
   },
+  "photoViewer": {
+    "close": "Zamknij",
+    "counter": "{{index}} z {{count}}",
+    "delete": "Usuń zdjęcie",
+    "loadError": "Nie udało się wczytać zdjęcia."
+  },
+  "deletePhoto": {
+    "title": "Usunąć to zdjęcie?",
+    "body": "Zniknie z tej podróży. Tego nie da się cofnąć.",
+    "confirm": "Usuń zdjęcie",
+    "cancel": "Anuluj",
+    "error": "Nie udało się usunąć zdjęcia. Spróbuj ponownie."
+  },
   "sync": {
     "pending": "Czeka na wysłanie",
     "failed": "Nie udało się wysłać",
