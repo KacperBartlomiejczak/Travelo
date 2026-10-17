@@ -1,5 +1,5 @@
 # Task: Trip photos
-Status: in progress — plan approved 2026-10-15 (with P1–P8 and the recommendations to Q1–Q5); branch `feature/trip-photos`
+Status: done (2026-10-17) — all steps `[x]`; step 13's phone checks on Kacper's confirmation (see the last progress entry); branch `feature/trip-photos`
 
 ## Understanding & assumptions
 The organizer can add **photos from the trip** from the phone's gallery to a trip. Order: feature 3 of 4 (`prompts/trips-drawer/plan.md` D1).
@@ -343,7 +343,7 @@ export type PickedPhoto = z.infer<typeof PickedPhotoSchema>;
 - [x] 11. [frontend] Strip in `CurrentTrip` (P1), `deleteTrip.body` (P7) — skill: frontend-ui-engineering — tests first: step 11 list — verify: as above; verifier.
 - [x] 12. [frontend] Viewer route + `DeletePhotoSheet` (P4, P5) — skill: frontend-ui-engineering, source-driven-development — tests first: step 12 list — verify: as above; verifier (+ ui-taste).
 - [x] 12b. [backend] `SupabaseConfigSchema` accepts http for local hosts only (D36) — skill: test-driven-development, security-and-hardening — tests first: in `src/schemas/__tests__/supabase-config.test.ts`, new cases accept `http://127.0.0.1:54321`, `http://localhost:54321` and `http://10.0.2.2:54321`, and reject `http://example.supabase.co`, `http://10.0.2.3:54321`, `http://192.168.1.10:54321`, `http://localhost.evil.com` and `ftp://127.0.0.1`. The existing "rejects an http URL" stays unedited — verify: full suite, typecheck, lint; verifier.
-- [ ] 13. [tester] Device run of the manual steps below on a new dev build (R2) — skill: none — verify: tester PASS per scenario; the steps the emulator cannot cover go to Kacper's phone.
+- [x] 13. [tester] Device run of the manual steps below on a new dev build (R2) — skill: none — verify: tester PASS per scenario; the steps the emulator cannot cover go to Kacper's phone.
 
 ## Manual test steps (Kacper / tester)
 1. Trip view → right under the hero: the „+” tile and „Dodaj zdjęcia z tej podróży.”; without and with a cover photo.
@@ -748,6 +748,11 @@ export type PickedPhoto = z.infer<typeof PickedPhotoSchema>;
     - Local Supabase is still running.
     - 21 test camera JPEGs remain in the emulator's `Pictures/`.
   - **Status:** step 13 stays `[ ]` until Kacper checks the items above on his phone.
+- Closing (2026-10-17).
+  - Kacper pushed the photo migrations to the hosted project (D37). A read-only check confirmed it: `trip_photos` now answers "permission denied" for anon instead of "not found".
+  - He then reported "wszystko zrobione" (everything done) and asked to commit, push and open the PR. Step 13 is marked `[x]` on his word. The phone runs were his and were not repeated here; their details are not in this log.
+  - `Architecture.md` is updated for the whole feature. R9 is resolved.
+  - Before closing, the orchestrator ran the full suite, typecheck and lint (see the commit / PR).
 
 ## Risks & open questions
 - **R11 (step 8, accepted by the orchestrator as consistent with P7; Kacper can overrule).** If the trip's files are removed and then the trip row delete itself fails (e.g. the connection drops between the two calls), the trip stays without its photos. The user had already confirmed deleting the trip, and a retry finishes it. The error text does not mention photos.
