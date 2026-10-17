@@ -324,7 +324,7 @@ export type PickedPhoto = z.infer<typeof PickedPhotoSchema>;
 - [x] 8. [backend] Repository `photos` / `addPhoto` / `deletePhoto`, trip delete removes files (P7), fake Storage — skill: api-and-interface-design, source-driven-development, security-and-hardening, doubt-driven-development — tests first: step 8 list — verify: as above; verifier.
 - [x] 9. [frontend] Hooks `useTripPhotos`, `usePhotoUploads`, `useDeleteTripPhoto(tripId)` — skill: test-driven-development — tests first: step 9 list — verify: as above; verifier.
 - [x] 10. [frontend] `size.photoTile`, i18n (P8), `PhotoStrip` + `PhotoTile` + `pickTripPhotos` — skill: frontend-ui-engineering, source-driven-development — tests first: step 10 list — verify: as above; verifier (+ ui-taste).
-- [ ] 11. [frontend] Strip in `CurrentTrip` (P1), `deleteTrip.body` (P7) — skill: frontend-ui-engineering — tests first: step 11 list — verify: as above; verifier.
+- [x] 11. [frontend] Strip in `CurrentTrip` (P1), `deleteTrip.body` (P7) — skill: frontend-ui-engineering — tests first: step 11 list — verify: as above; verifier.
 - [ ] 12. [frontend] Viewer route + `DeletePhotoSheet` (P4, P5) — skill: frontend-ui-engineering, source-driven-development — tests first: step 12 list — verify: as above; verifier (+ ui-taste).
 - [ ] 13. [tester] Device run of the manual steps below on a new dev build (R2) — skill: none — verify: tester PASS per scenario; the steps the emulator cannot cover go to Kacper's phone.
 
@@ -603,6 +603,30 @@ export type PickedPhoto = z.infer<typeof PickedPhotoSchema>;
   - **Deviation:** the `IconButton.tsx` change and its new test (D25), plus the `export` in `src/lib/trip-photos.ts`, are outside the plan's step 10 file list. Kacper approved them on 2026-10-16.
   - **Skill used:** frontend-ui-engineering, source-driven-development (round 1, by the previous session's agent), test-driven-development; ui-taste as a code-only pass.
   - **Next:** step 11 (the strip in `CurrentTrip`, P1; `deleteTrip.body`, P7).
+- Step 11 (2026-10-17, `frontend` agent).
+  - **What changed:**
+    - `CurrentTrip.tsx` renders `<PhotoStrip tripId sidePadding={side} />` right after `TripHero`. It sits outside the padded column, in its own wrapper (`home-photos`) with the column's width rules (`width 100%`, `maxWidth: size.maxContentWidth`, centred), no horizontal padding, and `marginBottom: spacing[4]`. The row pads itself by `side`, so its first tile lines up with the cards. There is no `onOpenPhoto` yet (D23).
+    - `deleteTrip.body` uses the P7 copy in pl and en.
+  - **Tests:**
+    - `home.test.tsx`: a new describe "Home screen — photo strip" with 14 tests. They cover:
+      - the order hero → strip → „Loty”, the trip's photos, and the alignment and gap;
+      - empty, loading, offline, the A3 error and retry;
+      - the strip absent in the home loading, empty and error states;
+      - tiles that are not buttons, and English.
+    - Also in `home.test.tsx`: one P7 PL test, and one added EN body line in the existing "reads in English" delete test.
+    - Red ✓: 15 failed with `Unable to find …`. They are the 4 P7 copy checks and 11 of the 14 strip tests; the 3 absence tests pass without the feature. Then green ✓.
+  - **Pre-existing test edits:**
+    - `DeleteTripSheet.test.tsx:67` and `:172` now expect the P7 copy (approved copy change, not weakening).
+    - The `home.test.tsx` repository stub got `photos` (default `[]`), `addPhoto` and `deletePhoto`.
+  - **Deviation:** the plan says the home test uses "the in-memory repository". It stubs `@/data/app-trip-repository`, as the rest of `home.test.tsx` does, with the same outcome.
+  - **Checks:** suite 77 / 1206 ✓, typecheck ✓, lint ✓ (implementer and verifier).
+  - **Verifier: PASS.** It checked that the strip stays mounted across refetches, and that the hero's 24dp bottom padding (§5.2) gives the space above the strip.
+  - **`ui-taste`:** code-only (no render here). No new colours, fonts or sizes.
+  - **For the device run (step 13) / Kacper:**
+    - the strip → „Loty” gap is 16dp, the column's existing card gap, not §5.2's 24dp section gap;
+    - above 720dp the strip is clipped at the column edge, not the screen edge (tablets).
+  - **Skill used:** frontend-ui-engineering, test-driven-development; ui-taste code-only (verifier).
+  - **Next:** step 12 (viewer route + `DeletePhotoSheet`, P4, P5).
 
 ## Risks & open questions
 - **R11 (step 8, accepted by the orchestrator as consistent with P7; Kacper can overrule).** If the trip's files are removed and then the trip row delete itself fails (e.g. the connection drops between the two calls), the trip stays without its photos. The user had already confirmed deleting the trip, and a retry finishes it. The error text does not mention photos.
