@@ -86,6 +86,11 @@ Assumptions (to confirm with the plan):
 - **D32 — Counter backing:** a rounded pill in `hero.control`, the backing of the round hero buttons, so the counter reads over any photo. The text stays Caption, `hero.textSecondary`. No new colours.
 - **D33 — Offline hint in the viewer (D8):** offline, the existing `tripPhotos.offlineHint` shows at the bottom of the viewer, above the bottom safe area. Online it is absent.
 - **D35 (amends D33) — The viewer's offline hint gets the same pill as the counter (D32):** `hero.control`, rounded. It stays readable over a full-screen photo.
+- **D36 (Kacper, 2026-10-17, step 13 blocker) — local Supabase over http.**
+  - The first device run stopped at launch: `SupabaseConfigSchema` accepts only https, so `http://10.0.2.2:54321` (local Supabase, from the emulator) failed with "Invalid Supabase env variables".
+  - Decision: the schema also accepts **http, only for the hosts `127.0.0.1`, `localhost` and `10.0.2.2`**. Every other host stays https-only, so the production rule is unchanged.
+  - This is done as step 12b, test first, before step 13 re-runs.
+  - The hosted project stays untouched (migrations are not pushed, R9).
 - **D34 — The viewer keeps the photo in view:** when the photo list changes while the viewer is open (an upload finishes and sorts before it), the viewer stays on the same photo (tracked by id), and only the counter changes. Deletes keep P5's behaviour (next, else previous, else close).
 
 ## Proposals (design-context has no carousel or photo viewer — Kacper approves or changes them with the plan)
@@ -336,6 +341,7 @@ export type PickedPhoto = z.infer<typeof PickedPhotoSchema>;
 - [x] 10. [frontend] `size.photoTile`, i18n (P8), `PhotoStrip` + `PhotoTile` + `pickTripPhotos` — skill: frontend-ui-engineering, source-driven-development — tests first: step 10 list — verify: as above; verifier (+ ui-taste).
 - [x] 11. [frontend] Strip in `CurrentTrip` (P1), `deleteTrip.body` (P7) — skill: frontend-ui-engineering — tests first: step 11 list — verify: as above; verifier.
 - [x] 12. [frontend] Viewer route + `DeletePhotoSheet` (P4, P5) — skill: frontend-ui-engineering, source-driven-development — tests first: step 12 list — verify: as above; verifier (+ ui-taste).
+- [x] 12b. [backend] `SupabaseConfigSchema` accepts http for local hosts only (D36) — skill: test-driven-development, security-and-hardening — tests first: in `src/schemas/__tests__/supabase-config.test.ts`, new cases accept `http://127.0.0.1:54321`, `http://localhost:54321` and `http://10.0.2.2:54321`, and reject `http://example.supabase.co`, `http://10.0.2.3:54321`, `http://192.168.1.10:54321`, `http://localhost.evil.com` and `ftp://127.0.0.1`. The existing "rejects an http URL" stays unedited — verify: full suite, typecheck, lint; verifier.
 - [ ] 13. [tester] Device run of the manual steps below on a new dev build (R2) — skill: none — verify: tester PASS per scenario; the steps the emulator cannot cover go to Kacper's phone.
 
 ## Manual test steps (Kacper / tester)
@@ -678,7 +684,30 @@ export type PickedPhoto = z.infer<typeof PickedPhotoSchema>;
     - expo-router logs "Route trips/[tripId]/photos is extraneous" in 9 older suites that render `RootLayout` with their own route maps. It is a warning only; fixing it touches files outside this step.
     - There is one `act()` warning in `DeletePhotoSheet.test.tsx`, the same as `DeleteTripSheet`'s.
   - **Skill used:** frontend-ui-engineering, source-driven-development, test-driven-development; ui-taste code-only (verifier).
-  - **Next:** step 13, the device run. It needs a **new dev build** (R2, `expo-image-manipulator` from step 1). After step 13 comes `Architecture.md`.
+  - **Next (superseded below):** step 13, the device run. It needs a **new dev build** (R2, `expo-image-manipulator` from step 1). After step 13 comes `Architecture.md`.
+- Step 13, attempt 1 (2026-10-17, `tester`, Android emulator `emulator-5554`, API 37).
+  - **Setup:** Kacper chose local Supabase for the run; the hosted project lacks `trip_photos` and the bucket (checked read-only, R9).
+    - `pnpm supabase start`; all 3 migrations applied.
+    - `.env` was switched to `http://10.0.2.2:54321` and the local publishable key. The original is backed up in the session scratchpad and is restored after the run.
+    - Kacper restarted Metro with `-c`.
+  - **Result: blocked at launch.** The red screen read "Invalid Supabase env variables: EXPO_PUBLIC_SUPABASE_URL", because `SupabaseConfigSchema` was https-only. Every scenario was NOT TESTABLE. This led to D36 and step 12b.
+  - **Findings:**
+    - The emulator runs **Expo Go** (`host.exp.exponent`); no dev build is installed, and `app.json` has no `android.package`. Expo Go SDK 57 bundles `expo-image-manipulator` and `expo-file-system`, so R2's "new dev build" applies only once a dev build exists.
+    - The emulator camera (the source of the test photos) writes 1440×1920 JPEGs of about 30 KB to `/storage/emulated/0/Pictures/`. They have EXIF but **no GPS**, even with a mock location set. So the GPS half of manual 4 cannot be proven on the emulator and stays with Kacper's phone. 4b (12 MP) is not reproducible here either.
+    - The tester left 21 camera JPEGs on the emulator (test data only).
+- Step 12b (2026-10-17, `backend` agent, D36).
+  - **What changed:** `src/schemas/supabase-config.ts`: `url` = `z.url({ protocol: /^https?$/ }).pipe(z.string().refine(...))`.
+    - It accepts https, or http when the parsed `hostname` is exactly `127.0.0.1`, `localhost` or `10.0.2.2`.
+    - The pipe is there because zod 4.6.5 runs a plain `.refine` even after `z.url` failed, and `new URL` then threw on non-URLs.
+    - `src/data/supabase.ts` is unchanged; the issue path is still `url`.
+  - **Tests:** a new describe "local Supabase over http (D36)", additions only.
+    - 4 accept cases, red ✓ (`Expected: true, Received: false`) → green ✓.
+    - 7 reject cases (other private IPs, look-alike hosts, userinfo tricks, ftp) and the issue path.
+  - **Checks:** suite 79 / 1274 ✓, typecheck ✓, lint ✓ (implementer and verifier).
+  - **Verifier: PASS.** Its probe of about 50 URLs found no non-local host that passes:
+    - userinfo, fragment, query and backslash tricks, trailing dots and IPv6 all fail closed;
+    - numeric loopback forms (`0x7f000001`, `127.1`) pass, which is still loopback.
+  - **Skill used:** test-driven-development, security-and-hardening; verifier: doubt-driven-development.
 
 ## Risks & open questions
 - **R11 (step 8, accepted by the orchestrator as consistent with P7; Kacper can overrule).** If the trip's files are removed and then the trip row delete itself fails (e.g. the connection drops between the two calls), the trip stays without its photos. The user had already confirmed deleting the trip, and a retry finishes it. The error text does not mention photos.
