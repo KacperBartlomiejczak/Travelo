@@ -3,6 +3,7 @@ import { renderRouter, screen } from 'expo-router/testing-library';
 import * as SplashScreen from 'expo-splash-screen';
 import { Text } from 'react-native';
 
+import TabsLayout from '@/app/(drawer)/(tabs)/_layout';
 import DrawerLayout from '@/app/(drawer)/_layout';
 import RootLayout from '@/app/_layout';
 import { useCurrentTrip } from '@/hooks/useTrips';
@@ -20,7 +21,8 @@ function renderApp() {
   return renderRouter({
     _layout: RootLayout,
     '(drawer)/_layout': DrawerLayout,
-    '(drawer)/index': () => <Text>home screen</Text>,
+    '(drawer)/(tabs)/_layout': TabsLayout,
+    '(drawer)/(tabs)/index': () => <Text>home screen</Text>,
     'trips/new/index': () => null,
   });
 }
@@ -47,7 +49,7 @@ describe('RootLayout', () => {
     const rendered = renderApp();
     await rendered;
     expect(rendered.getPathname()).toBe('/');
-    expect(rendered.getSegments()).toEqual(['(drawer)']);
+    expect(rendered.getSegments()).toEqual(['(drawer)', '(tabs)']);
     expect(screen.getByText('home screen')).toBeTruthy();
     expect(drawerStatus(rendered)).toBe('closed');
   });
@@ -65,7 +67,7 @@ describe('RootLayout', () => {
       const current = useCurrentTrip();
       return <Text>{current.isSuccess ? `current: ${current.data?.overview.trip.name ?? 'none'}` : 'loading'}</Text>;
     }
-    await renderRouter({ _layout: RootLayout, '(drawer)/_layout': DrawerLayout, '(drawer)/index': TripsProbe, 'trips/new/index': () => null });
+    await renderRouter({ _layout: RootLayout, '(drawer)/_layout': DrawerLayout, '(drawer)/(tabs)/_layout': TabsLayout, '(drawer)/(tabs)/index': TripsProbe, 'trips/new/index': () => null });
     // Example trips are gone (trips-supabase D8); under Jest the app repository is in memory (jest.setup.ts).
     expect(await screen.findByText('current: none')).toBeTruthy();
   });

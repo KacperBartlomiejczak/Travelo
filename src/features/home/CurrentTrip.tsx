@@ -4,13 +4,13 @@ import { StatusBar } from 'expo-status-bar';
 import { Fragment, useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ScrollView, Text, useWindowDimensions, View } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { LayoverLabel } from '@/components/LayoverLabel';
 import { OfflineBanner } from '@/components/OfflineBanner';
 import { SyncIndicator } from '@/components/SyncIndicator';
 import { TextButton } from '@/components/TextButton';
 import { TripHero } from '@/components/TripHero';
+import { usePillClearance } from '@/features/nav/usePillClearance';
 import { PhotoStrip } from '@/features/trip-photos/PhotoStrip';
 import { formatLocalShort } from '@/lib/date-time';
 import { savedLayoverMinutes } from '@/lib/layovers';
@@ -40,7 +40,7 @@ type Sheet = 'menu' | 'details' | 'budget' | 'delete';
 export function CurrentTrip({ overview, budgetSyncStatus, onOpenMenu, onDeleted }: Props) {
   const { t } = useTranslation();
   const theme = useTheme();
-  const insets = useSafeAreaInsets();
+  const clearance = usePillClearance();
   const router = useRouter();
   const { width } = useWindowDimensions();
   const { spacing, colors } = theme;
@@ -60,7 +60,8 @@ export function CurrentTrip({ overview, budgetSyncStatus, onOpenMenu, onDeleted 
       {/* First, so screen readers reach the navigation before the trip (§15); drawn above the photo. */}
       <HeroMenuButton onPress={onOpenMenu} />
       <TripMenuButton onPress={() => setSheet('menu')} />
-      <ScrollView testID="home-scroll" contentContainerStyle={{ paddingBottom: spacing[6] }}>
+      {/* The pill floats over the scene: the last card ends above it. Offline, the banner below already clears the pill. */}
+      <ScrollView testID="home-scroll" contentContainerStyle={{ paddingBottom: offline ? spacing[6] : clearance + spacing[4] }}>
         <TripHero trip={trip} />
         {/* Its own wrapper, not the padded column: the row scrolls sideways and pads itself by `side` (trip-photos P1). */}
         <View
@@ -108,7 +109,7 @@ export function CurrentTrip({ overview, budgetSyncStatus, onOpenMenu, onDeleted 
             alignSelf: 'center',
             paddingHorizontal: side,
             paddingTop: spacing[3],
-            paddingBottom: insets.bottom + spacing[4],
+            paddingBottom: clearance + spacing[3],
           }}
         >
           <OfflineBanner />

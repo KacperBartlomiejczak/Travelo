@@ -4,7 +4,8 @@ import { act, fireEvent, renderRouter, screen, waitFor, within } from 'expo-rout
 import { AccessibilityInfo, AppState, StyleSheet, type AppStateStatus } from 'react-native';
 
 import DrawerLayout from '@/app/(drawer)/_layout';
-import HomeScreen from '@/app/(drawer)/index';
+import TabsLayout from '@/app/(drawer)/(tabs)/_layout';
+import HomeScreen from '@/app/(drawer)/(tabs)/index';
 import RootLayout from '@/app/_layout';
 import i18n from '@/i18n';
 import type { SyncStatus, TripOverview, TripPhotoList } from '@/schemas';
@@ -93,7 +94,7 @@ function overview(patch: Partial<TripOverview['trip']> = {}): TripOverview {
 }
 
 function renderHome() {
-  return renderRouter({ _layout: RootLayout, '(drawer)/_layout': DrawerLayout, '(drawer)/index': HomeScreen, 'trips/new/index': () => null });
+  return renderRouter({ _layout: RootLayout, '(drawer)/_layout': DrawerLayout, '(drawer)/(tabs)/_layout': TabsLayout, '(drawer)/(tabs)/index': HomeScreen, 'trips/new/index': () => null });
 }
 
 const MENU = 'Otwórz listę podróży';
@@ -985,7 +986,8 @@ describe('Home screen — photo strip (trip-photos P1, A3, D23)', () => {
     const app = renderRouter({
       _layout: RootLayout,
       '(drawer)/_layout': DrawerLayout,
-      '(drawer)/index': HomeScreen,
+      '(drawer)/(tabs)/_layout': TabsLayout,
+      '(drawer)/(tabs)/index': HomeScreen,
       'trips/[tripId]/photos': () => null,
       'trips/new/index': () => null,
     });
@@ -1001,7 +1003,8 @@ describe('Home screen — photo strip (trip-photos P1, A3, D23)', () => {
     const app = renderRouter({
       _layout: RootLayout,
       '(drawer)/_layout': DrawerLayout,
-      '(drawer)/index': HomeScreen,
+      '(drawer)/(tabs)/_layout': TabsLayout,
+      '(drawer)/(tabs)/index': HomeScreen,
       'trips/[tripId]/photos': () => null,
       'trips/new/index': () => null,
     });

@@ -4,7 +4,8 @@ import { act, fireEvent, renderRouter, screen, within } from 'expo-router/testin
 import { AccessibilityInfo, Pressable, Text } from 'react-native';
 
 import DrawerLayout from '@/app/(drawer)/_layout';
-import HomeScreen from '@/app/(drawer)/index';
+import TabsLayout from '@/app/(drawer)/(tabs)/_layout';
+import HomeScreen from '@/app/(drawer)/(tabs)/index';
 import RootLayout from '@/app/_layout';
 import BudgetStep from '@/app/trips/new/budget';
 import NewTripLayout from '@/app/trips/new/_layout';
@@ -56,7 +57,8 @@ async function openBudget(companions = 2, destination: Destination = BKK) {
     {
       _layout: RootLayout,
       '(drawer)/_layout': DrawerLayout,
-      '(drawer)/index': HomeScreen,
+      '(drawer)/(tabs)/_layout': TabsLayout,
+      '(drawer)/(tabs)/index': HomeScreen,
       'trips/new/_layout': NewTripLayout,
       'trips/new/index': filledSteps(companions, destination),
       'trips/new/budget': BudgetStep,

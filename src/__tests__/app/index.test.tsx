@@ -3,7 +3,8 @@ import { useFonts } from 'expo-font';
 import { fireEvent, renderRouter, screen, waitFor, within } from 'expo-router/testing-library';
 
 import DrawerLayout from '@/app/(drawer)/_layout';
-import HomeScreen from '@/app/(drawer)/index';
+import TabsLayout from '@/app/(drawer)/(tabs)/_layout';
+import HomeScreen from '@/app/(drawer)/(tabs)/index';
 import RootLayout from '@/app/_layout';
 import FlightsStep from '@/app/trips/new/index';
 import NewTripLayout from '@/app/trips/new/_layout';
@@ -31,7 +32,8 @@ function renderTrips() {
   const rendered = renderRouter({
     _layout: RootLayout,
     '(drawer)/_layout': DrawerLayout,
-    '(drawer)/index': HomeScreen,
+    '(drawer)/(tabs)/_layout': TabsLayout,
+    '(drawer)/(tabs)/index': HomeScreen,
     'trips/new/_layout': NewTripLayout,
     'trips/new/index': FlightsStep,
   });

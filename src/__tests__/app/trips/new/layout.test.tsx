@@ -1,10 +1,11 @@
 import { useFonts } from 'expo-font';
 import { router } from 'expo-router';
-import { act, fireEvent, renderRouter, screen } from 'expo-router/testing-library';
+import { act, fireEvent, renderRouter, screen, waitFor, within } from 'expo-router/testing-library';
 import { Alert, Pressable, Text } from 'react-native';
 
 import DrawerLayout from '@/app/(drawer)/_layout';
-import HomeScreen from '@/app/(drawer)/index';
+import TabsLayout from '@/app/(drawer)/(tabs)/_layout';
+import HomeScreen from '@/app/(drawer)/(tabs)/index';
 import RootLayout from '@/app/_layout';
 import NewTripLayout from '@/app/trips/new/_layout';
 import { useTripDraft } from '@/features/trip-create/TripDraftContext';
@@ -56,7 +57,8 @@ function renderWizard(flights: () => React.JSX.Element = ShellFlights) {
     {
       _layout: RootLayout,
       '(drawer)/_layout': DrawerLayout,
-      '(drawer)/index': HomeScreen,
+      '(drawer)/(tabs)/_layout': TabsLayout,
+      '(drawer)/(tabs)/index': HomeScreen,
       'trips/new/_layout': NewTripLayout,
       'trips/new/index': flights,
       'trips/new/friends': ShellFriends,
@@ -162,30 +164,111 @@ describe('Create trip wizard', () => {
     const app = await openWizard();
     await act(() => router.back()); // header back on step 1 / system back
     expect(app.getPathname()).toBe('/');
+    expect(screen.queryByTestId('confirm-dialog')).toBeNull();
     expect(alert).not.toHaveBeenCalled();
   });
 
-  it('asks before discarding entered data, and stays on "Zostań" (D19)', async () => {
-    const alert = jest.spyOn(Alert, 'alert').mockImplementation(() => {});
-    const app = await openWizard(FlightsWithTestControls);
-    await fireEvent.press(screen.getByText('test: two friends'));
-    await act(() => router.back()); // header back on step 1 / system back
-    expect(alert).toHaveBeenCalledWith('Odrzucić wpisane dane?', expect.any(String), expect.any(Array));
-    expect(app.getPathname()).toBe('/trips/new');
-  });
+  describe('discard dialog (D19, pill-nav-and-dialog step 6)', () => {
+    const dialog = () => screen.queryByTestId('confirm-dialog');
 
-  it('leaves and drops the draft on "Odrzuć"', async () => {
-    const alert = jest.spyOn(Alert, 'alert').mockImplementation(() => {});
-    const app = await openWizard(FlightsWithTestControls);
-    await fireEvent.press(screen.getByText('test: two friends'));
-    await act(() => router.back()); // header back on step 1 / system back
-    const discard = alert.mock.calls[0][2]?.find((button) => button.style === 'destructive');
-    await act(async () => discard?.onPress?.());
-    expect(await screen.findByText('Twoje podróże')).toBeTruthy();
-    expect(app.getPathname()).toBe('/');
+    // Enters data (so the draft is dirty) and tries to leave the wizard.
+    async function tryToLeave() {
+      const alert = jest.spyOn(Alert, 'alert');
+      const app = await openWizard(FlightsWithTestControls);
+      await fireEvent.press(screen.getByText('test: two friends'));
+      await act(() => router.back()); // header back on step 1 / system back
+      expect(dialog()).toBeTruthy(); // so the "dialog is gone" checks below cannot pass vacuously
+      return { app, alert };
+    }
 
-    // A new wizard starts empty again.
-    await fireEvent.press(await screen.findByText('Utwórz podróż'));
-    expect(screen.getByRole('progressbar', { name: 'Krok 1 z 3' })).toBeTruthy();
+    it('asks with the in-app dialog (not the system alert) before discarding entered data', async () => {
+      const { app, alert } = await tryToLeave();
+      expect(dialog()).toBeTruthy();
+      expect(screen.getByRole('header', { name: 'Odrzucić wpisane dane?' })).toBeTruthy();
+      expect(screen.getByText('Podróż nie zostanie zapisana.')).toBeTruthy();
+      expect(screen.getByRole('button', { name: 'Odrzuć' })).toBeTruthy();
+      expect(screen.getByRole('button', { name: 'Zostań' })).toBeTruthy();
+      expect(alert).not.toHaveBeenCalled();
+      expect(app.getPathname()).toBe('/trips/new');
+    });
+
+    it('asks in English with the English copy', async () => {
+      await i18n.changeLanguage('en');
+      await renderWizard(FlightsWithTestControls);
+      await fireEvent.press(await screen.findByText('Create trip'));
+      await fireEvent.press(screen.getByText('test: two friends'));
+      await act(() => router.back());
+      expect(screen.getByRole('header', { name: 'Discard entered data?' })).toBeTruthy();
+      expect(screen.getByText('The trip will not be saved.')).toBeTruthy();
+      expect(screen.getByRole('button', { name: 'Discard' })).toBeTruthy();
+      expect(screen.getByRole('button', { name: 'Stay' })).toBeTruthy();
+    });
+
+    it('stays in the wizard on "Zostań", and asks again on the next attempt to leave', async () => {
+      const { app } = await tryToLeave();
+      await fireEvent.press(screen.getByRole('button', { name: 'Zostań' }));
+      await waitFor(() => expect(dialog()).toBeNull());
+      expect(app.getPathname()).toBe('/trips/new');
+      expect(screen.getByText('test: two friends')).toBeTruthy();
+
+      await act(() => router.back());
+      expect(dialog()).toBeTruthy();
+      expect(app.getPathname()).toBe('/trips/new');
+    });
+
+    it('stays in the wizard on a tap outside the dialog', async () => {
+      const { app } = await tryToLeave();
+      // The scrim is the dialog's "Zamknij" button (hidden from screen readers while the dialog is modal).
+      const scrim = within(screen.getByTestId('confirm-dialog-container')).getByRole('button', { name: 'Zamknij', includeHiddenElements: true });
+      await fireEvent.press(scrim);
+      await waitFor(() => expect(dialog()).toBeNull());
+      expect(app.getPathname()).toBe('/trips/new');
+    });
+
+    it('stays in the wizard on the Android back button', async () => {
+      const { app } = await tryToLeave();
+      await fireEvent(screen.getByTestId('confirm-dialog-modal'), 'requestClose');
+      await waitFor(() => expect(dialog()).toBeNull());
+      expect(app.getPathname()).toBe('/trips/new');
+    });
+
+    it('leaves and drops the draft on "Odrzuć", without asking again', async () => {
+      const { app, alert } = await tryToLeave();
+      await fireEvent.press(screen.getByRole('button', { name: 'Odrzuć' }));
+      expect(await screen.findByText('Twoje podróże')).toBeTruthy();
+      expect(app.getPathname()).toBe('/');
+      await waitFor(() => expect(dialog()).toBeNull());
+      expect(alert).not.toHaveBeenCalled();
+
+      // A new wizard starts empty again.
+      await fireEvent.press(await screen.findByText('Utwórz podróż'));
+      expect(screen.getByRole('progressbar', { name: 'Krok 1 z 3' })).toBeTruthy();
+    });
+
+    it('keeps a single dialog when leaving is attempted again while it is open, and "Odrzuć" still leaves', async () => {
+      const { app } = await tryToLeave();
+      await act(() => router.back());
+      expect(screen.getAllByTestId('confirm-dialog')).toHaveLength(1);
+      expect(app.getPathname()).toBe('/trips/new');
+
+      await fireEvent.press(screen.getByRole('button', { name: 'Odrzuć' }));
+      expect(await screen.findByText('Twoje podróże')).toBeTruthy();
+      expect(app.getPathname()).toBe('/');
+    });
+
+    it('asks when leaving from a later step, and "Odrzuć" leaves the whole wizard', async () => {
+      const app = await openWizard(FlightsWithTestControls);
+      await fireEvent.press(screen.getByText('test: two friends'));
+      await fireEvent.press(screen.getByText('Dalej'));
+      expect(app.getPathname()).toBe('/trips/new/friends');
+
+      await act(() => router.dismissTo('/'));
+      expect(dialog()).toBeTruthy();
+      expect(app.getPathname()).toBe('/trips/new/friends');
+
+      await fireEvent.press(screen.getByRole('button', { name: 'Odrzuć' }));
+      expect(await screen.findByText('Twoje podróże')).toBeTruthy();
+      expect(app.getPathname()).toBe('/');
+    });
   });
 });

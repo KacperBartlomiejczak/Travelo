@@ -11,6 +11,14 @@
     "loading": "Wczytywanie podróży",
     "openList": "Otwórz listę podróży"
   },
+  "nav": {
+    "trip": "Podróż",
+    "expenses": "Wydatki",
+    "places": "Miejsca",
+    "plan": "Plan",
+    "settings": "Ustawienia",
+    "comingSoon": "Ten ekran pojawi się wkrótce."
+  },
   "drawer": {
     "upcoming": "Nadchodzące",
     "past": "Minione",

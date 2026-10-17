@@ -1,7 +1,7 @@
-import { router } from 'expo-router';
+import { router, usePathname } from 'expo-router';
 import { Drawer, useDrawerStatus, type DrawerContentComponentProps } from 'expo-router/drawer';
 import { useTranslation } from 'react-i18next';
-import { useWindowDimensions, View } from 'react-native';
+import { Platform, useWindowDimensions, View } from 'react-native';
 
 import { TripsDrawer } from '@/features/drawer/TripsDrawer';
 import { useTheme } from '@/theme/useTheme';
@@ -10,18 +10,23 @@ import { useTheme } from '@/theme/useTheme';
 const PANEL_SHARE = 0.85;
 
 // The home screen sits in a drawer: a side panel slides in from the left with all trips (trips-drawer).
-// The wizard stays in the root stack above it, so the edge swipe works only on the home screen (A8).
+// The wizard stays in the root stack above the drawer and shows no panel. The four other pill screens sit in the drawer
+// too, but only the home path "/" has the menu button, so the edge swipe is limited to it (pill-nav-and-dialog R3).
+// The panel still opens over the pill: the tabs are the drawer's child.
 // The panel follows the system theme (A7), like a bottom sheet: elevated surface over the scrim.
 export default function DrawerLayout() {
   const { t } = useTranslation();
   const theme = useTheme();
   const { width } = useWindowDimensions();
+  const onHome = usePathname() === '/';
   return (
     <Drawer
       drawerContent={(props) => <Panel {...props} />}
       screenOptions={{
         headerShown: false,
         drawerType: 'front',
+        // The library's own default is off on the web; keep it.
+        swipeEnabled: Platform.OS !== 'web' && onHome,
         drawerStyle: {
           width: Math.min(width * PANEL_SHARE, theme.size.drawerMaxWidth),
           backgroundColor: theme.colors.surface.elevated,

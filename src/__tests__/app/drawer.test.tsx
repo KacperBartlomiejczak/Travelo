@@ -3,7 +3,8 @@ import { StyleSheet } from 'react-native';
 import { act, fireEvent, isHiddenFromAccessibility, renderRouter, screen, waitFor, within } from 'expo-router/testing-library';
 
 import DrawerLayout from '@/app/(drawer)/_layout';
-import HomeScreen from '@/app/(drawer)/index';
+import TabsLayout from '@/app/(drawer)/(tabs)/_layout';
+import HomeScreen from '@/app/(drawer)/(tabs)/index';
 import RootLayout from '@/app/_layout';
 import i18n from '@/i18n';
 import type { CurrentTrip, TripListItem } from '@/schemas';
@@ -74,7 +75,7 @@ jest.mock('@/data/app-trip-repository', () => ({
 }));
 
 function renderApp() {
-  return renderRouter({ _layout: RootLayout, '(drawer)/_layout': DrawerLayout, '(drawer)/index': HomeScreen, 'trips/new/index': () => null });
+  return renderRouter({ _layout: RootLayout, '(drawer)/_layout': DrawerLayout, '(drawer)/(tabs)/_layout': TabsLayout, '(drawer)/(tabs)/index': HomeScreen, 'trips/new/index': () => null });
 }
 
 async function openPanel() {
