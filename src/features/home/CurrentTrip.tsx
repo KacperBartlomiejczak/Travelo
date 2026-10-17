@@ -11,6 +11,7 @@ import { OfflineBanner } from '@/components/OfflineBanner';
 import { SyncIndicator } from '@/components/SyncIndicator';
 import { TextButton } from '@/components/TextButton';
 import { TripHero } from '@/components/TripHero';
+import { PhotoStrip } from '@/features/trip-photos/PhotoStrip';
 import { formatLocalShort } from '@/lib/date-time';
 import { savedLayoverMinutes } from '@/lib/layovers';
 import { formatMoney } from '@/lib/money';
@@ -60,6 +61,13 @@ export function CurrentTrip({ overview, budgetSyncStatus, onOpenMenu, onDeleted 
       <TripMenuButton onPress={() => setSheet('menu')} />
       <ScrollView testID="home-scroll" contentContainerStyle={{ paddingBottom: spacing[6] }}>
         <TripHero trip={trip} />
+        {/* Its own wrapper, not the padded column: the row scrolls sideways and pads itself by `side` (trip-photos P1). */}
+        <View
+          testID="home-photos"
+          style={{ width: '100%', maxWidth: theme.size.maxContentWidth, alignSelf: 'center', marginBottom: spacing[4] }}
+        >
+          <PhotoStrip tripId={trip.id} sidePadding={side} />
+        </View>
         <View style={{ gap: spacing[4], paddingHorizontal: side, width: '100%', maxWidth: theme.size.maxContentWidth, alignSelf: 'center' }}>
           <Section testID="home-flights" title={t('home.flights')}>
             <Direction label={t('newTrip.flights.outbound')} segments={segments.filter((s) => s.direction === 'outbound')} />

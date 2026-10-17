@@ -184,7 +184,7 @@
   },
   "deleteTrip": {
     "title": "Usunąć podróż „{{name}}”?",
-    "body": "Znikną loty, uczestnicy i budżet. Tego nie da się cofnąć.",
+    "body": "Znikną loty, uczestnicy, budżet i zdjęcia. Tego nie da się cofnąć.",
     "confirm": "Usuń podróż",
     "cancel": "Anuluj",
     "error": "Nie udało się usunąć podróży. Spróbuj ponownie.",

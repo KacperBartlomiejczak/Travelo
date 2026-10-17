@@ -64,7 +64,7 @@ describe('DeleteTripSheet (trip-edit-menu D7, D8, D10, D19)', () => {
   it('asks with the trip\'s name in the title and says what goes away', async () => {
     await setup();
     expect(screen.getByRole('header', { name: 'Usunąć podróż „Warsaw → Bangkok”?' })).toBeTruthy();
-    expect(screen.getByText('Znikną loty, uczestnicy i budżet. Tego nie da się cofnąć.')).toBeTruthy();
+    expect(screen.getByText('Znikną loty, uczestnicy, budżet i zdjęcia. Tego nie da się cofnąć.')).toBeTruthy();
   });
 
   it('puts the destructive "Usuń podróż" above "Anuluj", full width and 16dp apart, never adjacent (D19)', async () => {
@@ -169,7 +169,7 @@ describe('DeleteTripSheet (trip-edit-menu D7, D8, D10, D19)', () => {
     await i18n.changeLanguage('en');
     await setup();
     expect(screen.getByRole('header', { name: 'Delete trip “Warsaw → Bangkok”?' })).toBeTruthy();
-    expect(screen.getByText("Flights, members and budget will be gone. This can't be undone.")).toBeTruthy();
+    expect(screen.getByText("Flights, members, budget and photos will be gone. This can't be undone.")).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Delete trip' })).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Cancel' })).toBeTruthy();
   });

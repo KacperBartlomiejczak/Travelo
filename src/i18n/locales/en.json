@@ -184,7 +184,7 @@
   },
   "deleteTrip": {
     "title": "Delete trip “{{name}}”?",
-    "body": "Flights, members and budget will be gone. This can't be undone.",
+    "body": "Flights, members, budget and photos will be gone. This can't be undone.",
     "confirm": "Delete trip",
     "cancel": "Cancel",
     "error": "Couldn't delete the trip. Try again.",
