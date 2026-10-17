@@ -776,5 +776,5 @@ export type PickedPhoto = z.infer<typeof PickedPhotoSchema>;
 - **R6 — Orphan files:** if the row of a deleted photo is gone but removing its files fails, the files stay in Storage (not visible in the app). Rare; logged as a known limitation.
 - **R7 — Race (like trip-edit-menu N7):** a photos fetch running while the trip is deleted can write the deleted trip's photo copy back; the next list read prunes it.
 - **R8 — Storage size:** the free Supabase plan has 1 GB of Storage, about 1,500 photos with thumbnails. That is fine for now; it is worth knowing before real users (with the paid / free decision).
-- **R9 — Migrations are not pushed to the project yet** (Architecture); Kacper pushes them, as before.
+- **R9 — resolved 2026-10-17 (D37):** both photo migrations are pushed to the hosted project. Kacper pushed them himself, as before. A read-only check confirmed `trip_photos` exists there.
 - ⚠ **Scope conflict:** `CLAUDE.md` lists "social feed" under *Out of scope — do not build*. The forum is a social feed. Nothing of the forum is built in this feature. Kacper decides about that rule when the forum is planned.
