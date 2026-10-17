@@ -6,7 +6,7 @@ What Kacper first called "updating the budget" means **adding expenses during th
 
 ## Decisions (Kacper, 2026-10-08)
 - **D1 — Separate screen** for expenses.
-- **D2 — Pill nav** switches between the screens. It has icons **and** text. The active item changes colour, and its icon and text grow, with an animation.
+- **D2 — Pill nav** switches between the screens. It has icons **and** text. The active item changes colour, and its icon and text grow, with an animation. **Built in `prompts/pill-nav-and-dialog/plan.md`** (2026-10-18): floating, always dark, five items; „Wydatki” is an empty placeholder screen until this feature.
 - **D3 — Add-expense form:**
   - name (what it was);
   - amount;
