@@ -91,6 +91,7 @@ Assumptions (to confirm with the plan):
   - Decision: the schema also accepts **http, only for the hosts `127.0.0.1`, `localhost` and `10.0.2.2`**. Every other host stays https-only, so the production rule is unchanged.
   - This is done as step 12b, test first, before step 13 re-runs.
   - The hosted project stays untouched (migrations are not pushed, R9).
+- **D37 (Kacper, 2026-10-17) — Phone check on the hosted project.** Kacper pushes the two photo migrations to the hosted Supabase himself (`pnpm supabase db push`; R9 resolved by him). He then checks the rest of step 13 on his phone against the hosted project: the items the emulator could not cover (attempt 2).
 - **D34 — The viewer keeps the photo in view:** when the photo list changes while the viewer is open (an upload finishes and sorts before it), the viewer stays on the same photo (tracked by id), and only the counter changes. Deletes keep P5's behaviour (next, else previous, else close).
 
 ## Proposals (design-context has no carousel or photo viewer — Kacper approves or changes them with the plan)
