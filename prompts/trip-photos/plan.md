@@ -78,6 +78,16 @@ Assumptions (to confirm with the plan):
   |---|---|---|
   | `tripPhotos.photoFailedOffline` | Zdjęcie {{index}} z {{count}}, nie wysłane | Photo {{index}} of {{count}}, not sent |
 
+## Decisions (Kacper, 2026-10-17, before step 12)
+- **D30 — `HeroIconButton` gets an optional `disabled` prop** (default `false`). When disabled, it dims to `opacity.disabled`, has `accessibilityState.disabled`, and does not call `onPress`. The viewer uses it for „Usuń zdjęcie” offline (P4). Every other use is unchanged. `src/components/HeroIconButton.tsx` and its test join step 12's files.
+
+## Decisions (Kacper, 2026-10-17, during step 12)
+- **D31 — Counter position:** top centre, between „Zamknij” and „Usuń zdjęcie”, on one line with them (as built).
+- **D32 — Counter backing:** a rounded pill in `hero.control`, the backing of the round hero buttons, so the counter reads over any photo. The text stays Caption, `hero.textSecondary`. No new colours.
+- **D33 — Offline hint in the viewer (D8):** offline, the existing `tripPhotos.offlineHint` shows at the bottom of the viewer, above the bottom safe area. Online it is absent.
+- **D35 (amends D33) — The viewer's offline hint gets the same pill as the counter (D32):** `hero.control`, rounded. It stays readable over a full-screen photo.
+- **D34 — The viewer keeps the photo in view:** when the photo list changes while the viewer is open (an upload finishes and sorts before it), the viewer stays on the same photo (tracked by id), and only the counter changes. Deletes keep P5's behaviour (next, else previous, else close).
+
 ## Proposals (design-context has no carousel or photo viewer — Kacper approves or changes them with the plan)
 - **P1 — Where the strip sits:** directly **under the hero** (the photo has faded into ink there, so it reads as "under the title"), as the first element of the content column, before „Loty”. It scrolls sideways; its first tile lines up with the cards' side padding (20dp, 16dp below 360dp). *Alternative:* inside the hero, under the date line. Rejected because a 2-line name at large Dynamic Type would not fit in half the screen.
 - **P2 — Tiles:** square **80dp** tiles (new token `size.photoTile`), `radius.md` (12dp), 8dp apart (`spacing[2]`). The „+” tile has a `surface.secondary` background and an `ImagePlus` icon (24dp) in `text.secondary`, with the screen reader label „Dodaj zdjęcia”. With no photos yet, a one-line hint sits next to „+”: „Dodaj zdjęcia z tej podróży.”
@@ -325,7 +335,7 @@ export type PickedPhoto = z.infer<typeof PickedPhotoSchema>;
 - [x] 9. [frontend] Hooks `useTripPhotos`, `usePhotoUploads`, `useDeleteTripPhoto(tripId)` — skill: test-driven-development — tests first: step 9 list — verify: as above; verifier.
 - [x] 10. [frontend] `size.photoTile`, i18n (P8), `PhotoStrip` + `PhotoTile` + `pickTripPhotos` — skill: frontend-ui-engineering, source-driven-development — tests first: step 10 list — verify: as above; verifier (+ ui-taste).
 - [x] 11. [frontend] Strip in `CurrentTrip` (P1), `deleteTrip.body` (P7) — skill: frontend-ui-engineering — tests first: step 11 list — verify: as above; verifier.
-- [ ] 12. [frontend] Viewer route + `DeletePhotoSheet` (P4, P5) — skill: frontend-ui-engineering, source-driven-development — tests first: step 12 list — verify: as above; verifier (+ ui-taste).
+- [x] 12. [frontend] Viewer route + `DeletePhotoSheet` (P4, P5) — skill: frontend-ui-engineering, source-driven-development — tests first: step 12 list — verify: as above; verifier (+ ui-taste).
 - [ ] 13. [tester] Device run of the manual steps below on a new dev build (R2) — skill: none — verify: tester PASS per scenario; the steps the emulator cannot cover go to Kacper's phone.
 
 ## Manual test steps (Kacper / tester)
@@ -627,6 +637,48 @@ export type PickedPhoto = z.infer<typeof PickedPhotoSchema>;
     - above 720dp the strip is clipped at the column edge, not the screen edge (tablets).
   - **Skill used:** frontend-ui-engineering, test-driven-development; ui-taste code-only (verifier).
   - **Next:** step 12 (viewer route + `DeletePhotoSheet`, P4, P5).
+- Step 12 (2026-10-17, `frontend` agent, plus two fix rounds for D31–D35).
+  - **What changed:**
+    - `HeroIconButton` gets an optional `disabled` prop (D30).
+    - New `src/features/trip-photos/PhotoViewer.tsx`:
+      - ink background, light status bar;
+      - a paging `FlatList` with `getItemLayout` + `initialScrollIndex`, windowed to 3 pages;
+      - full photos shown `contain`, cached under `photoPaths(photo).file`; a load error shows `photoViewer.loadError`;
+      - top bar with Close, the counter pill (D31, D32) and Delete (disabled offline);
+      - the offline hint pill at the bottom (D33, D35);
+      - the photo in view tracked by id (D34), and P5 after a delete;
+      - loading, error with retry, and empty (closes).
+    - New `DeletePhotoSheet.tsx`, built like `DeleteTripSheet`: not dismissible while pending, error announced once, confirm disabled offline.
+    - New route `src/app/trips/[tripId]/photos.tsx`, registered in `src/app/_layout.tsx` as `fullScreenModal` without a header. Close does `canGoBack ? back : replace('/')`.
+    - `CurrentTrip` passes `onOpenPhoto` → `router.push` (D23).
+    - `photoViewer.*` and `deletePhoto.*` copy as in P8.
+  - **Tests:**
+    - `photos.test.tsx` 41, `DeletePhotoSheet.test.tsx` 10, `HeroIconButton.test.tsx` +3, `home.test.tsx` +2.
+    - Red ✓ (`Could not locate module …`, `Unable to find …`, `toHaveStyle opacity`, `toBeDisabled`) → green ✓.
+  - **Pre-existing test edits:**
+    - `home.test.tsx`: step 11's "photo tiles are not buttons yet" became "photo tiles are buttons now", as D23 planned. Plus the `waitFor` import.
+    - Within this step, one of the agent's own assertions now reads the hint's grandparent after the D35 pill wrap. The assertions are unchanged.
+  - **Docs checked** (installed packages):
+    - expo-router `native-stack/types.d.ts`: `presentation: 'fullScreenModal'`, which is a modal on Android;
+    - `FlatList.js`: `initialScrollIndex` requires `getItemLayout`;
+    - expo-image `Image.types.d.ts`: `cacheKey`, `onError`.
+  - **Checks:** suite 79 / 1262 ✓, typecheck ✓, lint ✓ (implementer and verifier).
+    - Typecheck needs the typed-route file `.expo/types/router.d.ts` (gitignored) regenerated: `expo start` once on a fresh checkout. The same applies to `trips/new`.
+  - **Verifier: PASS.**
+    - No render loop: the D34 correction always lands on an id in the list.
+    - `scrollToIndex` is clamped to `[0, last]`.
+    - Home stays mounted under the viewer.
+  - **`ui-taste`:** code-only, no render. The look is for step 13.
+  - **Deviations:**
+    - the agent placed the counter without asking (Kacper then confirmed it as D31);
+    - `canGoBack ? back : replace('/')` is a small addition beyond the brief, and it is tested.
+  - **Non-blocking notes:**
+    - `onScroll` sets state on every scroll event, so it re-renders the pager during a swipe. A bail-out when the page is unchanged would avoid this (performance, measure on the device first).
+    - `HeroIconButton`'s explicit `accessibilityState` repeats what `Pressable` already does.
+    - expo-router logs "Route trips/[tripId]/photos is extraneous" in 9 older suites that render `RootLayout` with their own route maps. It is a warning only; fixing it touches files outside this step.
+    - There is one `act()` warning in `DeletePhotoSheet.test.tsx`, the same as `DeleteTripSheet`'s.
+  - **Skill used:** frontend-ui-engineering, source-driven-development, test-driven-development; ui-taste code-only (verifier).
+  - **Next:** step 13, the device run. It needs a **new dev build** (R2, `expo-image-manipulator` from step 1). After step 13 comes `Architecture.md`.
 
 ## Risks & open questions
 - **R11 (step 8, accepted by the orchestrator as consistent with P7; Kacper can overrule).** If the trip's files are removed and then the trip row delete itself fails (e.g. the connection drops between the two calls), the trip stays without its photos. The user had already confirmed deleting the trip, and a retry finishes it. The error text does not mention photos.
