@@ -708,6 +708,45 @@ export type PickedPhoto = z.infer<typeof PickedPhotoSchema>;
     - userinfo, fragment, query and backslash tricks, trailing dots and IPv6 all fail closed;
     - numeric loopback forms (`0x7f000001`, `127.1`) pass, which is still loopback.
   - **Skill used:** test-driven-development, security-and-hardening; verifier: doubt-driven-development.
+- Step 13, attempt 2 (2026-10-17, `tester`, Expo Go on `emulator-5554`, local Supabase over `http://10.0.2.2:54321`).
+  - **Result:** no FAIL. D36 works, and there was no Android cleartext problem.
+  - **Test trip:** „Warsaw → Barcelona” was created through the wizard and deleted at the end (manual 9).
+  - **PASS:**
+    - **1:** „+” and the hint; with a cover, the strip sits under the title.
+    - **2:** pick 5, then 20; tiles at once, ordered by date taken, then added.
+    - **3:** the photos survive a restart.
+    - **4b:** 20 photos at once (rows 5 → 25 in ~9 s), no crash and no "native object released" in logcat. Caveat: 1440×1920 emulator photos, not 12 MP.
+    - **5:** the viewer swipes, counts, and closes via „Close” and back.
+    - **6:** delete gives the next photo, and the last photo gives the previous one (P5). The server row and file counts match.
+    - **7:** offline:
+      - seen photos show;
+      - „+” and delete are disabled;
+      - the strip hint and the viewer hint pill show;
+      - a never-opened photo shows „Couldn't load the photo.”
+    - **8:** 5 failed sends (network cut right after picking), „Try again” disabled offline. Online, the retry gave 29 rows, **0 duplicate ids** and 58 files.
+    - **9:** deleting the trip leaves no trip row, no photo rows and an empty Storage folder. The sheet shows the P7 copy.
+    - **10:** labels (accessibility tree, English UI), including the D29 offline label.
+    - **11:** `font_scale` 2.0: the strip works, the hints wrap and the counter fits.
+    - **Decisions:** D24, D29, D30, D31/D32 and D33/D35 PASS.
+  - **Manual 4 (partly):** the uploaded file and the thumbnail have **no EXIF block** (`exif: false`). The file is 1440×1920 (≤ 2048) and the thumbnail 360×480 (≤ 480), checked on 2 photos with `jpeg-inspect.js`.
+  - **NOT TESTABLE on the emulator (for Kacper's phone):**
+    - GPS stripping (the emulator camera writes no GPS, even with a mock location);
+    - EXIF orientation of a real portrait photo (the emulator writes orientation 1);
+    - the downscale from a photo larger than 2048 px, and 4b with 12 MP photos;
+    - the spinners and the „Wysyłam zdjęcia: n z 5” line (uploads finish in ~1 s);
+    - 8b, slow network (the `adb emu network speed gsm` throttle did not reach the app's traffic);
+    - D34 (no upload was running while the viewer was open);
+    - „the viewer closes when no photo is left” (6), which is covered by automated tests only.
+  - **Evidence caveat:** the tester's report names screenshot files, but none were saved to disk. The evidence is the accessibility tree it read, plus the server reads and downloaded JPEGs in the session scratchpad (`rows-*.json`, `files-29.txt`, `poll-4b.log`, `up-*.jpg`).
+  - **Notes:**
+    - a short swipe in the viewer does not change the page, a long one does (FlatList paging, for Kacper's feel check);
+    - twice a tap by element ref did not register and a tap by coordinate did (a tool quirk, not the app);
+    - only Expo Go's own "Cannot connect to Expo CLI" warnings appeared, with no app errors.
+  - **After the run:**
+    - `.env` was restored to the hosted project; Metro needs a restart with `-c` to pick it up.
+    - Local Supabase is still running.
+    - 21 test camera JPEGs remain in the emulator's `Pictures/`.
+  - **Status:** step 13 stays `[ ]` until Kacper checks the items above on his phone.
 
 ## Risks & open questions
 - **R11 (step 8, accepted by the orchestrator as consistent with P7; Kacper can overrule).** If the trip's files are removed and then the trip row delete itself fails (e.g. the connection drops between the two calls), the trip stays without its photos. The user had already confirmed deleting the trip, and a retry finishes it. The error text does not mention photos.
