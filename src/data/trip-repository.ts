@@ -4,13 +4,17 @@ import type { z } from 'zod';
 import { localToIso } from '@/lib/time';
 import { deriveTripDates } from '@/lib/trip-dates';
 import { defaultTripId, deviceToday } from '@/lib/trip-sections';
+import { photoPaths, sortTripPhotos } from '@/lib/trip-photos';
 import {
   CreateTripInputSchema,
   CurrentTripSchema,
   FlightSegmentSchema,
+  PickedPhotoSchema,
   SelectedTripSchema,
   TripListItemSchema,
   TripMemberSchema,
+  TripPhotoListSchema,
+  TripPhotoSchema,
   TripSchema,
   TripBudgetFormSchema,
   TripDetailsInputSchema,
@@ -18,10 +22,13 @@ import {
   type CreateTripInput,
   type CurrentTrip,
   type FlightSegment,
+  type PickedPhoto,
   type SegmentInput,
   type Trip,
   type TripList,
   type TripMember,
+  type TripPhoto,
+  type TripPhotoList,
 } from '@/schemas';
 
 import type { SyncResult } from './budget-sync';
@@ -47,8 +54,21 @@ export interface TripRepository {
   syncBudgets(): Promise<SyncResult>;
   /** Changes the trip's name and cover on the server; online only (trip-edit-menu D5). */
   updateDetails(tripId: string, input: z.input<typeof TripDetailsInputSchema>): Promise<void>;
-  /** Deletes the trip on the server, then forgets the phone's copies of it (A5); online only (D8). A trip already gone counts as deleted (D13). */
+  /**
+   * Deletes the trip on the server, then forgets the phone's copies of it (A5); online only (D8). A trip already gone counts as deleted (D13).
+   * The trip's photo files in Storage are removed first, so none stay behind a deleted trip; if that fails the trip is not deleted (trip-photos P7).
+   */
   delete(tripId: string): Promise<void>;
+  /** The trip's photos in display order (D10, D13) with signed URLs (A2); offline: the phone's copy (D8). Rejects offline without a copy. */
+  photos(tripId: string): Promise<TripPhotoList>;
+  /**
+   * Sends one picked photo (D2, D7, D14): prepared, thumbnail + file to Storage, then its row. Online only; the same photoId again adds nothing (A5).
+   * `tripId` and `photoId` become part of the Storage paths, which the server accepts only in lowercase: pass lowercase UUIDs (`randomUUID()` gives one);
+   * the Supabase repository rejects capitals before any network call.
+   */
+  addPhoto(tripId: string, photoId: string, picked: PickedPhoto): Promise<void>;
+  /** Deletes the photo's row, then its files (R6). Online only. A photo already gone counts as deleted. */
+  deletePhoto(photo: TripPhoto): Promise<void>;
 }
 
 type Deps = { now: Date; newId: () => string; ownerId: string };
@@ -119,6 +139,7 @@ export function createInMemoryTripRepository(
   const build = (input: z.input<typeof CreateTripInputSchema>) =>
     buildTrip(CreateTripInputSchema.parse(input), { now: deps.now(), newId: deps.newId, ownerId: LOCAL_OWNER_ID });
   const stored: CreatedTrip[] = [];
+  const storedPhotos: TripPhoto[] = [];
   let selectedId: string | null = null;
   const summary = ({ trip, members }: CreatedTrip) => TripSummarySchema.parse({ ...trip, travellerCount: members.length + 1 });
   // Same order as the Supabase query: start date, then creation time.
@@ -167,6 +188,31 @@ export function createInMemoryTripRepository(
       // An unknown id is already gone: success, like the Supabase repository (trip-edit-menu D13).
       const index = stored.findIndex((entry) => entry.trip.id === tripId);
       if (index >= 0) stored.splice(index, 1);
+      // The photos go with the trip (trip-photos P7).
+      for (let i = storedPhotos.length - 1; i >= 0; i--) if (storedPhotos[i].tripId === tripId) storedPhotos.splice(i, 1);
+    },
+    async photos(tripId) {
+      // No files here: the urls are fake but valid http(s) ones (`.invalid` is a reserved top-level domain).
+      const shown = storedPhotos
+        .filter((photo) => photo.tripId === tripId)
+        .map((photo) => {
+          const { file, thumbnail } = photoPaths(photo);
+          return { ...photo, url: `https://photos.invalid/${file}`, thumbnailUrl: `https://photos.invalid/${thumbnail}` };
+        });
+      return sortTripPhotos(TripPhotoListSchema.parse(shown));
+    },
+    async addPhoto(tripId, photoId, picked) {
+      const { takenAt } = PickedPhotoSchema.parse(picked);
+      const photo = TripPhotoSchema.parse({ id: photoId, tripId, ...(takenAt ? { takenAt } : {}), createdAt: deps.now().toISOString() });
+      // Like the server: a photo needs a trip, and an id that exists already adds nothing (trip-photos A5).
+      if (!stored.some((entry) => entry.trip.id === photo.tripId)) throw new Error('trip-not-found');
+      if (!storedPhotos.some((entry) => entry.id === photo.id)) storedPhotos.push(photo);
+    },
+    async deletePhoto(photo) {
+      const { id } = TripPhotoSchema.parse(photo);
+      // An unknown photo is already gone: success, like the Supabase repository.
+      const index = storedPhotos.findIndex((entry) => entry.id === id);
+      if (index >= 0) storedPhotos.splice(index, 1);
     },
   };
 }

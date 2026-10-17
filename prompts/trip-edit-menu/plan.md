@@ -596,3 +596,6 @@ decided to leave it out (D22).
   (step 7b). Those runs were his, not repeated here; their output is not in this log. Steps 2, 6, 8 marked `[x]` on his
   word. Before closing, the orchestrator ran `pnpm test` (69 suites, 896 tests), `pnpm typecheck` and `pnpm lint`: all
   green. `Architecture.md` updated for the whole feature (incl. `BottomSheet` `dismissible` and the stale swipe line).
+- Later check (2026-10-15, during trip-photos): local Supabase started on this machine (`pnpm supabase start`).
+  `supabase/tests/trips_rls.sql`, including this feature's step 2 checks, was run through the database container's
+  `psql` and printed "trips_rls: all checks passed". `supabase gen types` matched `src/data/database.types.ts`.

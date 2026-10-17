@@ -38,7 +38,7 @@
       [
         "expo-image-picker",
         {
-          "photosPermission": "Travelo uses your photos so you can choose a cover photo for a trip.",
+          "photosPermission": "Travelo uses your photos so you can add them to a trip and choose its cover.",
           "cameraPermission": false,
           "microphonePermission": false
         }

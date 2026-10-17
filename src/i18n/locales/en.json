@@ -184,11 +184,42 @@
   },
   "deleteTrip": {
     "title": "Delete trip “{{name}}”?",
-    "body": "Flights, members and budget will be gone. This can't be undone.",
+    "body": "Flights, members, budget and photos will be gone. This can't be undone.",
     "confirm": "Delete trip",
     "cancel": "Cancel",
     "error": "Couldn't delete the trip. Try again.",
     "deleted": "Trip deleted."
+  },
+  "tripPhotos": {
+    "title": "Trip photos",
+    "add": "Add photos",
+    "emptyHint": "Add photos from this trip.",
+    "photo": "Photo {{index}} of {{count}}",
+    "photoSending": "Photo {{index}} of {{count}}, sending",
+    "photoFailed": "Photo {{index}} of {{count}}, not sent. Tap to try again.",
+    "photoFailedOffline": "Photo {{index}} of {{count}}, not sent",
+    "sending": "Sending photos: {{done}} of {{total}}",
+    "failed_one": "{{count}} photo couldn't be sent",
+    "failed_few": "{{count}} photos couldn't be sent",
+    "failed_many": "{{count}} photos couldn't be sent",
+    "failed_other": "{{count}} photos couldn't be sent",
+    "retry": "Try again",
+    "loadError": "Couldn't load the photos.",
+    "offlineHint": "You need internet to add or delete photos.",
+    "pickError": "Couldn't open the gallery."
+  },
+  "photoViewer": {
+    "close": "Close",
+    "counter": "{{index}} of {{count}}",
+    "delete": "Delete photo",
+    "loadError": "Couldn't load the photo."
+  },
+  "deletePhoto": {
+    "title": "Delete this photo?",
+    "body": "It will be removed from this trip. This can't be undone.",
+    "confirm": "Delete photo",
+    "cancel": "Cancel",
+    "error": "Couldn't delete the photo. Try again."
   },
   "sync": {
     "pending": "Waiting to sync",

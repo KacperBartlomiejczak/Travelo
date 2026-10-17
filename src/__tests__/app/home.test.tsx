@@ -1,13 +1,13 @@
 import { useFonts } from 'expo-font';
 import { router } from 'expo-router';
-import { act, fireEvent, renderRouter, screen, within } from 'expo-router/testing-library';
+import { act, fireEvent, renderRouter, screen, waitFor, within } from 'expo-router/testing-library';
 import { AccessibilityInfo, AppState, StyleSheet, type AppStateStatus } from 'react-native';
 
 import DrawerLayout from '@/app/(drawer)/_layout';
 import HomeScreen from '@/app/(drawer)/index';
 import RootLayout from '@/app/_layout';
 import i18n from '@/i18n';
-import type { SyncStatus, TripOverview } from '@/schemas';
+import type { SyncStatus, TripOverview, TripPhotoList } from '@/schemas';
 import { drawerStatus } from '@/test/drawer-status';
 import { setNetwork } from '@/test/mock-network';
 import { darkTheme, lightTheme } from '@/theme/theme';
@@ -35,6 +35,8 @@ const mockSetBudget = jest.fn(async (_trip: { id: string; baseCurrency: string }
 const mockSyncBudgets = jest.fn(async () => ({ nextAttemptAt: null }));
 const mockUpdateDetails = jest.fn(async (_tripId: string, _input: { name: string; coverImageUri?: string }) => {});
 const mockDelete = jest.fn(async (_tripId: string) => {});
+// The trip's photos (trip-photos): none unless a test says otherwise.
+let mockPhotos: (tripId: string) => Promise<TripPhotoList> = () => Promise.resolve([]);
 jest.mock('@/data/app-trip-repository', () => ({
   createAppTripRepository: () => ({
     list: async () => [],
@@ -47,6 +49,9 @@ jest.mock('@/data/app-trip-repository', () => ({
     syncBudgets: () => mockSyncBudgets(),
     updateDetails: (tripId: string, input: { name: string; coverImageUri?: string }) => mockUpdateDetails(tripId, input),
     delete: (tripId: string) => mockDelete(tripId),
+    photos: (tripId: string) => mockPhotos(tripId),
+    addPhoto: () => Promise.reject(new Error('unused')),
+    deletePhoto: () => Promise.reject(new Error('unused')),
   }),
 }));
 
@@ -97,6 +102,7 @@ beforeEach(async () => {
   mockCurrent = () => Promise.resolve(null);
   mockSyncStatus = 'synced';
   mockFromCache = false;
+  mockPhotos = () => Promise.resolve([]);
   mockSetBudget.mockReset();
   mockSyncBudgets.mockClear();
   mockUpdateDetails.mockReset();
@@ -648,6 +654,13 @@ describe('Home screen — deleting the trip (trip-edit-menu D7, D8, D9, D11, D19
       mockCurrent = () => Promise.resolve(next ? next() : null);
     });
 
+  it('says that the photos go too (trip-photos P7)', async () => {
+    mockCurrent = () => Promise.resolve(overview());
+    await renderHome();
+    await openConfirmation();
+    expect(sheet().getByText('Znikną loty, uczestnicy, budżet i zdjęcia. Tego nie da się cofnąć.')).toBeTruthy();
+  });
+
   it('"Anuluj" keeps the trip: nothing is deleted, no snackbar', async () => {
     mockCurrent = () => Promise.resolve(overview());
     await renderHome();
@@ -790,9 +803,222 @@ describe('Home screen — deleting the trip (trip-edit-menu D7, D8, D9, D11, D19
     await fireEvent.press(await screen.findByRole('button', { name: 'Trip options' }));
     await fireEvent.press(sheet().getByRole('button', { name: 'Delete trip' }));
     expect(screen.getByRole('header', { name: 'Delete trip “Warsaw → Bangkok”?' })).toBeTruthy();
+    expect(sheet().getByText("Flights, members, budget and photos will be gone. This can't be undone.")).toBeTruthy();
     deletingLeaves(other);
     await fireEvent.press(sheet().getByRole('button', { name: 'Delete trip' }));
     expect(await screen.findByText('Trip deleted.')).toBeTruthy();
+  });
+});
+
+describe('Home screen — photo strip (trip-photos P1, A3, D23)', () => {
+  const PHOTO_IDS = ['4a1e7c2d-0b3f-4d5a-8e6b-000000000001', '4a1e7c2d-0b3f-4d5a-8e6b-000000000002'];
+  const shown = (photoId: string, index: number) => ({
+    id: photoId,
+    tripId: TRIP_ID,
+    takenAt: `2026-11-0${index + 3}T10:00`,
+    createdAt: '2026-10-15T12:00:00.000Z',
+    url: `https://photos.invalid/${photoId}.jpg`,
+    thumbnailUrl: `https://photos.invalid/${photoId}-thumb.jpg`,
+  });
+  const twoPhotos = () => Promise.resolve(PHOTO_IDS.map(shown));
+  const NO_PHOTOS_HINT = 'Dodaj zdjęcia z tej podróży.';
+  const OFFLINE_HINT = 'Bez internetu nie dodasz ani nie usuniesz zdjęć.';
+
+  type Rendered = ReturnType<typeof screen.toJSON>;
+  /** The given testIDs in the order they are rendered, top to bottom. */
+  function renderOrder(ids: string[]) {
+    const found: string[] = [];
+    const walk = (node: Rendered | string) => {
+      if (!node || typeof node === 'string') return;
+      if (Array.isArray(node)) return node.forEach(walk);
+      const testID = node.props.testID as string | undefined;
+      if (testID && ids.includes(testID)) found.push(testID);
+      node.children?.forEach(walk);
+    };
+    walk(screen.toJSON());
+    return found;
+  }
+
+  it('sits right after the hero and before "Loty", with the trip\'s photos', async () => {
+    mockCurrent = () => Promise.resolve(overview());
+    mockPhotos = twoPhotos;
+    await renderHome();
+    expect(await screen.findByLabelText('Zdjęcie 1 z 2')).toBeTruthy();
+    expect(screen.getByLabelText('Zdjęcie 2 z 2')).toBeTruthy();
+    const order = ['trip-hero', 'photo-strip', 'home-flights', 'home-travellers', 'home-budget'];
+    expect(renderOrder(order)).toEqual(order);
+    expect(within(screen.getByTestId('home-scroll')).getByTestId('photo-strip')).toBeTruthy();
+  });
+
+  it('reads the photos of the trip shown', async () => {
+    const asked = jest.fn(twoPhotos);
+    mockCurrent = () => Promise.resolve(overview());
+    mockPhotos = asked;
+    await renderHome();
+    await screen.findByLabelText('Zdjęcie 1 z 2');
+    expect(asked).toHaveBeenCalledWith(TRIP_ID);
+  });
+
+  it('keeps the strip out of the padded column, in its own wrapper with the column\'s width rules, so tiles are not clipped', async () => {
+    mockCurrent = () => Promise.resolve(overview());
+    mockPhotos = twoPhotos;
+    await renderHome();
+    await screen.findByLabelText('Zdjęcie 1 z 2');
+    const wrapper = screen.getByTestId('home-photos');
+    expect(wrapper).toHaveStyle({ width: '100%', maxWidth: lightTheme.size.maxContentWidth, alignSelf: 'center' });
+    expect(StyleSheet.flatten(wrapper.props.style).paddingHorizontal).toBeUndefined();
+    expect(within(wrapper).getByTestId('photo-strip')).toBeTruthy();
+    // The cards keep their side padding in the column; the strip pads its own row by the same amount, so the first tile lines up.
+    expect(StyleSheet.flatten(screen.getByTestId('home-flights').parent?.props.style).paddingHorizontal).toBe(lightTheme.spacing[5]);
+    expect(StyleSheet.flatten(within(wrapper).getByLabelText('Zdjęcia z podróży').props.contentContainerStyle).paddingHorizontal).toBe(lightTheme.spacing[5]);
+  });
+
+  it('keeps the 16dp rhythm between the strip and "Loty"', async () => {
+    mockCurrent = () => Promise.resolve(overview());
+    await renderHome();
+    expect(await screen.findByTestId('home-photos')).toHaveStyle({ marginBottom: lightTheme.spacing[4] });
+  });
+
+  it('shows the add tile and the hint when the trip has no photos', async () => {
+    mockCurrent = () => Promise.resolve(overview());
+    await renderHome();
+    expect(await screen.findByText(NO_PHOTOS_HINT)).toBeTruthy();
+    expect(within(screen.getByTestId('photo-strip')).getByRole('button', { name: 'Dodaj zdjęcia' })).toBeEnabled();
+    // The row pads itself like the cards, so the add tile lines up with them.
+    expect(screen.getByLabelText('Zdjęcia z podróży')).toHaveStyle({ paddingHorizontal: lightTheme.spacing[5] });
+  });
+
+  it('shows skeleton tiles while the photos load, and the trip is already there', async () => {
+    mockCurrent = () => Promise.resolve(overview());
+    mockPhotos = () => new Promise(() => {});
+    await renderHome();
+    expect(await screen.findByTestId('photo-strip-loading')).toBeTruthy();
+    expect(screen.getByRole('header', { name: 'Warsaw → Bangkok' })).toBeTruthy();
+    expect(screen.getByTestId('home-flights')).toBeTruthy();
+  });
+
+  it('is not there while the trip loads', async () => {
+    mockCurrent = () => new Promise(() => {});
+    await renderHome();
+    await screen.findByTestId('trips-loading');
+    expect(screen.queryByTestId('photo-strip')).toBeNull();
+    expect(screen.queryByTestId('home-photos')).toBeNull();
+  });
+
+  it('is not there on the empty state', async () => {
+    await renderHome();
+    expect(await screen.findByText('Nie masz jeszcze żadnej podróży.')).toBeTruthy();
+    expect(screen.queryByTestId('photo-strip')).toBeNull();
+    expect(screen.queryByTestId('home-photos')).toBeNull();
+  });
+
+  it('is not there on the error state', async () => {
+    jest.useFakeTimers({ advanceTimers: true });
+    mockCurrent = () => Promise.reject(new Error('offline'));
+    await renderHome();
+    await act(async () => {
+      await jest.runAllTimersAsync();
+    });
+    expect(await screen.findByText('Nie udało się wczytać podróży.')).toBeTruthy();
+    expect(screen.queryByTestId('photo-strip')).toBeNull();
+    expect(screen.queryByTestId('home-photos')).toBeNull();
+  });
+
+  it('offline: shows the phone\'s copy of the photos, the disabled add tile and why', async () => {
+    setNetwork({ isConnected: false, isInternetReachable: false });
+    mockFromCache = true;
+    mockCurrent = () => Promise.resolve(overview());
+    mockPhotos = twoPhotos;
+    await renderHome();
+    expect(await screen.findByLabelText('Zdjęcie 1 z 2')).toBeTruthy();
+    expect(screen.getByLabelText('Zdjęcie 2 z 2')).toBeTruthy();
+    const strip = within(screen.getByTestId('photo-strip'));
+    expect(strip.getByRole('button', { name: 'Dodaj zdjęcia' })).toBeDisabled();
+    expect(strip.getByText(OFFLINE_HINT)).toBeTruthy();
+  });
+
+  it('a failed read of the photos shows inside the strip only: the trip stays (A3)', async () => {
+    jest.useFakeTimers({ advanceTimers: true });
+    mockCurrent = () => Promise.resolve(overview());
+    mockPhotos = () => Promise.reject(new Error('photos failed'));
+    await renderHome();
+    await act(async () => {
+      await jest.runAllTimersAsync();
+    });
+    const strip = within(await screen.findByTestId('photo-strip'));
+    expect(strip.getByText('Nie udało się wczytać zdjęć.')).toBeTruthy();
+    expect(strip.getByRole('button', { name: 'Spróbuj ponownie' })).toBeTruthy();
+    expect(screen.queryByText('Nie udało się wczytać podróży.')).toBeNull();
+    expect(screen.getByRole('header', { name: 'Warsaw → Bangkok' })).toBeTruthy();
+    expect(within(screen.getByTestId('home-flights')).getByRole('header', { name: 'Loty' })).toBeTruthy();
+  });
+
+  it('shows the photos again after a retry', async () => {
+    jest.useFakeTimers({ advanceTimers: true });
+    let fail = true;
+    mockCurrent = () => Promise.resolve(overview());
+    mockPhotos = () => (fail ? Promise.reject(new Error('photos failed')) : twoPhotos());
+    await renderHome();
+    await act(async () => {
+      await jest.runAllTimersAsync();
+    });
+    await screen.findByText('Nie udało się wczytać zdjęć.');
+    fail = false;
+    await fireEvent.press(within(screen.getByTestId('photo-strip')).getByRole('button', { name: 'Spróbuj ponownie' }));
+    expect(await screen.findByLabelText('Zdjęcie 1 z 2')).toBeTruthy();
+  });
+
+  // Step 12 (D23): the viewer route exists now, so the photo tiles are buttons. This replaces the step 11 test "photo tiles
+  // are not buttons yet", which was written for the time before the route.
+  it('photo tiles are buttons now: the viewer is wired (D23)', async () => {
+    mockCurrent = () => Promise.resolve(overview());
+    mockPhotos = twoPhotos;
+    await renderHome();
+    await screen.findByLabelText('Zdjęcie 1 z 2');
+    const buttons = within(screen.getByTestId('photo-strip')).getAllByRole('button');
+    expect(buttons.map((button) => button.props.accessibilityLabel)).toEqual(['Dodaj zdjęcia', 'Zdjęcie 1 z 2', 'Zdjęcie 2 z 2']);
+  });
+
+  it('pressing a photo tile opens the viewer on that photo, with the trip and the photo in the route', async () => {
+    mockCurrent = () => Promise.resolve(overview());
+    mockPhotos = twoPhotos;
+    const app = renderRouter({
+      _layout: RootLayout,
+      '(drawer)/_layout': DrawerLayout,
+      '(drawer)/index': HomeScreen,
+      'trips/[tripId]/photos': () => null,
+      'trips/new/index': () => null,
+    });
+    await app;
+    await fireEvent.press(await screen.findByRole('button', { name: 'Zdjęcie 2 z 2' }));
+    await waitFor(() => expect(app.getPathname()).toBe(`/trips/${TRIP_ID}/photos`));
+    expect(app.getSearchParams()).toEqual({ tripId: TRIP_ID, photoId: PHOTO_IDS[1] });
+  });
+
+  it('the home screen stays mounted under the viewer, and a tile of another photo opens that one', async () => {
+    mockCurrent = () => Promise.resolve(overview());
+    mockPhotos = twoPhotos;
+    const app = renderRouter({
+      _layout: RootLayout,
+      '(drawer)/_layout': DrawerLayout,
+      '(drawer)/index': HomeScreen,
+      'trips/[tripId]/photos': () => null,
+      'trips/new/index': () => null,
+    });
+    await app;
+    await fireEvent.press(await screen.findByRole('button', { name: 'Zdjęcie 1 z 2' }));
+    await waitFor(() => expect(app.getPathname()).toBe(`/trips/${TRIP_ID}/photos`));
+    expect(screen.getByTestId('home-screen', { includeHiddenElements: true })).toBeTruthy();
+    expect(app.getSearchParams()).toEqual({ tripId: TRIP_ID, photoId: PHOTO_IDS[0] });
+  });
+
+  it('reads in English', async () => {
+    await i18n.changeLanguage('en');
+    mockCurrent = () => Promise.resolve(overview());
+    mockPhotos = twoPhotos;
+    await renderHome();
+    expect(await screen.findByLabelText('Photo 1 of 2')).toBeTruthy();
+    expect(within(screen.getByTestId('photo-strip')).getByRole('button', { name: 'Add photos' })).toBeTruthy();
   });
 });
 

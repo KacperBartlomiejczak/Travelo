@@ -39,4 +39,32 @@ describe('HeroIconButton (trips-drawer P5)', () => {
     expect(icon.props.strokeWidth).toBe(lightTheme.size.iconStroke);
     expect(icon.props.stroke).toBe(lightTheme.colors.hero.text);
   });
+
+  // trip-photos D30: the viewer's "Usuń zdjęcie" is disabled offline.
+  it('is enabled at full opacity by default', async () => {
+    await render(<HeroIconButton icon={Menu} label={label} onPress={jest.fn()} />);
+    const button = screen.getByRole('button', { name: label });
+    expect(button).toBeEnabled();
+    expect(button).toHaveStyle({ opacity: 1 });
+  });
+
+  it('disabled: dimmed to the disabled opacity, marked disabled for screen readers and not pressable (D30)', async () => {
+    const onPress = jest.fn();
+    await render(<HeroIconButton icon={Menu} label={label} disabled onPress={onPress} />);
+    const button = screen.getByRole('button', { name: label });
+    expect(button).toBeDisabled();
+    expect(button.props.accessibilityState).toEqual(expect.objectContaining({ disabled: true }));
+    expect(button).toHaveStyle({ opacity: lightTheme.opacity.disabled });
+    await fireEvent.press(button);
+    expect(onPress).not.toHaveBeenCalled();
+  });
+
+  it('keeps its size and shape while disabled', async () => {
+    await render(<HeroIconButton icon={Menu} label={label} disabled onPress={jest.fn()} />);
+    expect(screen.getByRole('button', { name: label })).toHaveStyle({
+      width: lightTheme.size.touchTarget,
+      height: lightTheme.size.touchTarget,
+      backgroundColor: lightTheme.colors.hero.control,
+    });
+  });
 });

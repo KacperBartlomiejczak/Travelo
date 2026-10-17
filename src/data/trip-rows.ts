@@ -4,12 +4,14 @@ import {
   TripListItemSchema,
   TripMemberSchema,
   TripOverviewSchema,
+  TripPhotoSchema,
   TripSummarySchema,
   type FlightDirection,
   type FlightSegment,
   type TripListItem,
   type TripMember,
   type TripOverview,
+  type TripPhoto,
 } from '@/schemas';
 
 import type { Database } from './database.types';
@@ -18,6 +20,7 @@ type Tables = Database['public']['Tables'];
 export type TripRow = Tables['trips']['Row'];
 export type MemberRow = Tables['trip_members']['Row'];
 export type SegmentRow = Tables['flight_segments']['Row'];
+export type PhotoRow = Tables['trip_photos']['Row'];
 export type CreateTripArgs = Database['public']['Functions']['create_trip']['Args'];
 /** The columns the side panel's query selects (trips-drawer D4). */
 export type TripListRow = Pick<TripRow, 'id' | 'name' | 'cover_image_uri' | 'start_date' | 'end_date'>;
@@ -126,6 +129,29 @@ export function overviewFromRows(tripRow: TripRow, memberRows: MemberRow[], segm
     travellerCount: members.length + 1,
   });
   return TripOverviewSchema.parse({ trip, members, segments });
+}
+
+/** `YYYY-MM-DDTHH:mm`, the length of a `LocalDateTime` (PostgREST adds `:ss` to a `timestamp without time zone`). */
+const LOCAL_DATE_TIME_LENGTH = 16;
+
+/** One trip photo from a Supabase row (trip-photos). Parsed with Zod. */
+export function photoFromRow(row: PhotoRow): TripPhoto {
+  return TripPhotoSchema.parse({
+    id: row.id,
+    tripId: row.trip_id,
+    ...(row.taken_at !== null ? { takenAt: row.taken_at.slice(0, LOCAL_DATE_TIME_LENGTH) } : {}),
+    createdAt: row.created_at,
+  });
+}
+
+/** The row to insert for a trip photo (trip-photos A5: the id comes from the device). */
+export function toPhotoRow(photo: TripPhoto): Tables['trip_photos']['Insert'] {
+  return {
+    id: photo.id,
+    trip_id: photo.tripId,
+    taken_at: photo.takenAt ?? null,
+    created_at: photo.createdAt,
+  };
 }
 
 /** One trip for the side panel, from the columns `list()` selects (trips-drawer D4). Parsed with Zod. */

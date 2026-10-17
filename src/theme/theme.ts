@@ -1,6 +1,6 @@
 import type { ViewStyle } from 'react-native';
 
-import { breakpoints, duration, elevation, gradient, palette, radius, size, spacing } from './tokens';
+import { breakpoints, duration, elevation, gradient, opacity, palette, radius, size, spacing } from './tokens';
 import { typography } from './typography';
 
 // §6.1: shadows in light mode; dark mode relies on surface contrast.
@@ -56,6 +56,7 @@ const light = {
   spacing,
   radius,
   size,
+  opacity,
   duration,
   breakpoints,
   typography,
@@ -105,6 +106,7 @@ export const darkTheme: Theme = {
   spacing,
   radius,
   size,
+  opacity,
   duration,
   breakpoints,
   typography,

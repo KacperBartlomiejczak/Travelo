@@ -20,4 +20,32 @@ describe('SupabaseConfig', () => {
   ])('rejects %s', (_, config) => {
     expect(SupabaseConfigSchema.safeParse(config).success).toBe(false);
   });
+
+  describe('local Supabase over http (D36)', () => {
+    it.each([
+      'http://127.0.0.1:54321',
+      'http://localhost:54321',
+      'http://10.0.2.2:54321',
+      'http://localhost',
+    ])('accepts %s', (url) => {
+      expect(SupabaseConfigSchema.safeParse({ ...valid, url }).success).toBe(true);
+    });
+
+    it.each([
+      'http://10.0.2.3:54321',
+      'http://192.168.1.10:54321',
+      'http://localhost.evil.com',
+      'http://127.0.0.1.nip.io',
+      'ftp://127.0.0.1',
+      'http://user@evil.com',
+      'http://localhost@evil.com',
+    ])('rejects %s', (url) => {
+      expect(SupabaseConfigSchema.safeParse({ ...valid, url }).success).toBe(false);
+    });
+
+    it('reports a rejected local-looking URL on the url path', () => {
+      const result = SupabaseConfigSchema.safeParse({ ...valid, url: 'http://10.0.2.3:54321' });
+      expect(result.success ? [] : result.error.issues.map((issue) => issue.path)).toEqual([['url']]);
+    });
+  });
 });

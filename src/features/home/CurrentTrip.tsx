@@ -1,4 +1,4 @@
-import { useIsFocused } from 'expo-router';
+import { useIsFocused, useRouter } from 'expo-router';
 import { useDrawerStatus } from 'expo-router/drawer';
 import { StatusBar } from 'expo-status-bar';
 import { Fragment, useState, type ReactNode } from 'react';
@@ -11,6 +11,7 @@ import { OfflineBanner } from '@/components/OfflineBanner';
 import { SyncIndicator } from '@/components/SyncIndicator';
 import { TextButton } from '@/components/TextButton';
 import { TripHero } from '@/components/TripHero';
+import { PhotoStrip } from '@/features/trip-photos/PhotoStrip';
 import { formatLocalShort } from '@/lib/date-time';
 import { savedLayoverMinutes } from '@/lib/layovers';
 import { formatMoney } from '@/lib/money';
@@ -40,6 +41,7 @@ export function CurrentTrip({ overview, budgetSyncStatus, onOpenMenu, onDeleted 
   const { t } = useTranslation();
   const theme = useTheme();
   const insets = useSafeAreaInsets();
+  const router = useRouter();
   const { width } = useWindowDimensions();
   const { spacing, colors } = theme;
   const side = width < theme.breakpoints.compact ? spacing[4] : spacing[5];
@@ -60,6 +62,17 @@ export function CurrentTrip({ overview, budgetSyncStatus, onOpenMenu, onDeleted 
       <TripMenuButton onPress={() => setSheet('menu')} />
       <ScrollView testID="home-scroll" contentContainerStyle={{ paddingBottom: spacing[6] }}>
         <TripHero trip={trip} />
+        {/* Its own wrapper, not the padded column: the row scrolls sideways and pads itself by `side` (trip-photos P1). */}
+        <View
+          testID="home-photos"
+          style={{ width: '100%', maxWidth: theme.size.maxContentWidth, alignSelf: 'center', marginBottom: spacing[4] }}
+        >
+          <PhotoStrip
+            tripId={trip.id}
+            sidePadding={side}
+            onOpenPhoto={(photoId) => router.push({ pathname: '/trips/[tripId]/photos', params: { tripId: trip.id, photoId } })}
+          />
+        </View>
         <View style={{ gap: spacing[4], paddingHorizontal: side, width: '100%', maxWidth: theme.size.maxContentWidth, alignSelf: 'center' }}>
           <Section testID="home-flights" title={t('home.flights')}>
             <Direction label={t('newTrip.flights.outbound')} segments={segments.filter((s) => s.direction === 'outbound')} />

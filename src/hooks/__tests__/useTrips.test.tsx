@@ -67,6 +67,9 @@ describe('useCurrentTrip', () => {
       syncBudgets: () => Promise.reject(new Error('offline')),
       updateDetails: () => Promise.reject(new Error('offline')),
       delete: () => Promise.reject(new Error('offline')),
+      photos: () => Promise.reject(new Error('offline')),
+      addPhoto: () => Promise.reject(new Error('offline')),
+      deletePhoto: () => Promise.reject(new Error('offline')),
     };
     const { result } = await renderHook(() => useCurrentTrip(), { wrapper: setup(failing) });
     await waitFor(() => expect(result.current.isError).toBe(true));

@@ -3,11 +3,13 @@ import {
   SelectedTripSchema,
   TripListSchema,
   TripOverviewSchema,
+  TripPhotoListSchema,
   type LocalTripBudgetChange,
   type SyncStatus,
   type TripBudgetChange,
   type TripList,
   type TripOverview,
+  type TripPhotoList,
 } from '@/schemas';
 
 import type { LocalDb } from './local-db';
@@ -39,7 +41,7 @@ export type BudgetAttempt = { syncStatus: Exclude<SyncStatus, 'synced'>; error?:
 
 /**
  * What the device keeps in SQLite: copies of the trip list and of each trip opened here, the chosen trip
- * (trips-drawer D2, D3), and budget changes not yet synced (trips-supabase D1).
+ * (trips-drawer D2, D3), the photo list of each trip (trip-photos D8), and budget changes not yet synced (trips-supabase D1).
  */
 export function createLocalStore(db: LocalDb) {
   /** The copy of one trip, or null when it was never opened here or cannot be read any more. */
@@ -67,8 +69,8 @@ export function createLocalStore(db: LocalDb) {
   return {
     /**
      * Replaces the list copy with the list the server just returned (trips-drawer D3). Trips no longer on it are
-     * gone: their copies are deleted (A5) and a choice of one is forgotten (D2). Budget changes stay: one waiting
-     * for a gone trip must stay visible.
+     * gone: their copies and photo copies are deleted (A5; trip-photos D8) and a choice of one is forgotten (D2).
+     * Budget changes stay: one waiting for a gone trip must stay visible.
      */
     async cacheList(list: TripList, cachedAt: string): Promise<void> {
       const json = JSON.stringify(TripListSchema.parse(list));
@@ -79,6 +81,7 @@ export function createLocalStore(db: LocalDb) {
         [json, cachedAt],
       );
       await db.runAsync(`delete from trip_overview_cache where trip_id not in (${listedIds})`, [json]);
+      await db.runAsync(`delete from trip_photos_cache where trip_id not in (${listedIds})`, [json]);
       await db.runAsync(`delete from selected_trip where trip_id not in (${listedIds})`, [json]);
     },
 
@@ -94,6 +97,26 @@ export function createLocalStore(db: LocalDb) {
     },
 
     cachedOverview,
+
+    /** Keeps (or replaces) the photo list copy of one trip; copies of other trips stay (trip-photos D8). */
+    async cachePhotos(tripId: string, photos: TripPhotoList, cachedAt: string): Promise<void> {
+      await db.runAsync(
+        `insert into trip_photos_cache (trip_id, photos_json, cached_at) values (?, ?, ?)
+         on conflict (trip_id) do update set photos_json = excluded.photos_json, cached_at = excluded.cached_at`,
+        [tripId, JSON.stringify(TripPhotoListSchema.parse(photos)), cachedAt],
+      );
+    },
+
+    /** The photo list copy of one trip, or null when there is none or it cannot be read any more. */
+    async cachedPhotos(tripId: string): Promise<TripPhotoList | null> {
+      const row = await db.getFirstAsync<{ photos_json: string }>('select photos_json from trip_photos_cache where trip_id = ?', [tripId]);
+      if (!row) return null;
+      try {
+        return TripPhotoListSchema.parse(JSON.parse(row.photos_json));
+      } catch {
+        return null;
+      }
+    },
 
     /** Remembers the trip the organizer chose (trips-drawer D2); a newer choice replaces the older one. */
     async selectTrip(tripId: string): Promise<void> {
@@ -117,13 +140,14 @@ export function createLocalStore(db: LocalDb) {
 
     /**
      * The trip is gone from the server: forgets everything kept for it, in one transaction (trip-edit-menu A5) —
-     * its copy, the choice of it, its entry in the list copy and a budget change still waiting (dropped on purpose:
-     * syncing it would only fail). Other trips are untouched; an unknown id changes nothing.
+     * its copy, its photo list copy (trip-photos D8), the choice of it, its entry in the list copy and a budget change
+     * still waiting (dropped on purpose: syncing it would only fail). Other trips are untouched; an unknown id changes nothing.
      */
     async forgetTrip(tripId: string): Promise<void> {
       await db.runAsync('begin', []);
       try {
         await db.runAsync('delete from trip_overview_cache where trip_id = ?', [tripId]);
+        await db.runAsync('delete from trip_photos_cache where trip_id = ?', [tripId]);
         await db.runAsync('delete from selected_trip where trip_id = ?', [tripId]);
         await db.runAsync('delete from trip_budget_changes where trip_id = ?', [tripId]);
         const list = await cachedList();

@@ -228,3 +228,25 @@ describe('side panel and hero menu button (trips-drawer P1, P5)', () => {
     expect(darkTheme.size).toBe(lightTheme.size);
   });
 });
+
+describe('disabled opacity (trip-photos D25, §10.2)', () => {
+  it.each([
+    ['light', lightTheme],
+    ['dark', darkTheme],
+  ])('is 0.4 in %s mode', (_, theme) => {
+    expect(theme.opacity.disabled).toBe(0.4);
+  });
+
+  it('is shared between light and dark', () => {
+    expect(darkTheme.opacity).toBe(lightTheme.opacity);
+  });
+});
+
+describe('trip photo tile (trip-photos P2)', () => {
+  it('is an 80dp square on the 4dp grid, big enough to touch, the same in both themes', () => {
+    expect(lightTheme.size.photoTile).toBe(80);
+    expect(lightTheme.size.photoTile % 4).toBe(0);
+    expect(lightTheme.size.photoTile).toBeGreaterThanOrEqual(lightTheme.size.touchTarget);
+    expect(darkTheme.size.photoTile).toBe(lightTheme.size.photoTile);
+  });
+});

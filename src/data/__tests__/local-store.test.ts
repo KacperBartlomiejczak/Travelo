@@ -1,10 +1,26 @@
 import { migrateLocalDb } from '@/data/local-db';
 import { createLocalStore } from '@/data/local-store';
-import type { TripList, TripOverview } from '@/schemas';
+import type { TripList, TripOverview, TripPhotoList } from '@/schemas';
 import { openTestDb } from '@/test/node-sqlite';
 
 const TRIP_ID = '0b9e7c4e-6a43-4c4b-9a55-2f6f0f7e1a01';
 const OTHER_TRIP_ID = '1c0f8d5f-7b54-4d5c-8b66-3a7f1f8f2b02';
+
+function photosOf(tripId: string, ids: string[]): TripPhotoList {
+  return ids.map((id, index) => ({
+    id,
+    tripId,
+    takenAt: `2026-11-0${index + 2}T10:00`,
+    createdAt: '2026-10-14T18:00:00+00:00',
+    url: `https://example.supabase.co/storage/v1/object/sign/trip-photos/${tripId}/${id}.jpg?token=a`,
+    thumbnailUrl: `https://example.supabase.co/storage/v1/object/sign/trip-photos/${tripId}/${id}_thumb.jpg?token=b`,
+  }));
+}
+
+const PHOTO_A = '3e2b0f7b-9d76-4f7e-8d88-5c9b3b0b4d04';
+const PHOTO_B = '4f3c1a8c-0e87-4a8f-9e99-6d0c4c1c5e05';
+const photos = photosOf(TRIP_ID, [PHOTO_A, PHOTO_B]);
+const otherPhotos = photosOf(OTHER_TRIP_ID, [PHOTO_B]);
 
 const overview: TripOverview = {
   trip: {
@@ -71,6 +87,17 @@ describe('trip list copy (trips-drawer D3)', () => {
     await expect(local.cachedOverview(OTHER_TRIP_ID)).resolves.toBeNull();
   });
 
+  it('deletes the photo copies of trips that are no longer on the list and keeps the others (trip-photos D8)', async () => {
+    const { local } = await store();
+    await local.cachePhotos(TRIP_ID, photos, '2026-10-14T09:00:00.000Z');
+    await local.cachePhotos(OTHER_TRIP_ID, otherPhotos, '2026-10-14T09:00:00.000Z');
+    await local.cacheList([list[1]], '2026-10-14T09:05:00.000Z');
+    await expect(local.cachedPhotos(TRIP_ID)).resolves.toBeNull();
+    await expect(local.cachedPhotos(OTHER_TRIP_ID)).resolves.toEqual(otherPhotos);
+    await local.cacheList([], '2026-10-14T09:10:00.000Z');
+    await expect(local.cachedPhotos(OTHER_TRIP_ID)).resolves.toBeNull();
+  });
+
   it('forgets the chosen trip once it is no longer on the list, and keeps a chosen trip that is (D2)', async () => {
     const { local } = await store();
     await local.selectTrip(OTHER_TRIP_ID);
@@ -112,6 +139,89 @@ describe('trip copies, one per trip opened on this phone (A5)', () => {
     await expect(local.cachedOverview(TRIP_ID)).resolves.toBeNull();
     await db.runAsync('update trip_overview_cache set overview_json = ?', [JSON.stringify({ trip: { id: TRIP_ID } })]);
     await expect(local.cachedOverview(TRIP_ID)).resolves.toBeNull();
+  });
+});
+
+describe('trip photo copies, one per trip (trip-photos D8)', () => {
+  it('has no copy of a trip whose photos were never read', async () => {
+    const { local } = await store();
+    await expect(local.cachedPhotos(TRIP_ID)).resolves.toBeNull();
+  });
+
+  it('gives back the photos last read from the server, also an empty list', async () => {
+    const { local } = await store();
+    await local.cachePhotos(TRIP_ID, photos, '2026-10-14T09:00:00.000Z');
+    await expect(local.cachedPhotos(TRIP_ID)).resolves.toEqual(photos);
+    await local.cachePhotos(TRIP_ID, [], '2026-10-14T09:05:00.000Z');
+    await expect(local.cachedPhotos(TRIP_ID)).resolves.toEqual([]);
+  });
+
+  it('keeps the order of the list it was given', async () => {
+    const { local } = await store();
+    const reversed = [photos[1], photos[0]];
+    await local.cachePhotos(TRIP_ID, reversed, '2026-10-14T09:00:00.000Z');
+    const cached = await local.cachedPhotos(TRIP_ID);
+    expect(cached?.map((photo) => photo.id)).toEqual([PHOTO_B, PHOTO_A]);
+  });
+
+  it('replaces the copy of a trip when it is saved again, with the new time', async () => {
+    const { db, local } = await store();
+    await local.cachePhotos(TRIP_ID, photos, '2026-10-14T09:00:00.000Z');
+    await local.cachePhotos(TRIP_ID, [photos[1]], '2026-10-14T09:05:00.000Z');
+    await expect(local.cachedPhotos(TRIP_ID)).resolves.toEqual([photos[1]]);
+    await expect(db.getAllAsync('select trip_id, cached_at from trip_photos_cache', [])).resolves.toEqual([
+      { trip_id: TRIP_ID, cached_at: '2026-10-14T09:05:00.000Z' },
+    ]);
+  });
+
+  it('keeps the copies of two trips independent', async () => {
+    const { local } = await store();
+    await local.cachePhotos(TRIP_ID, photos, '2026-10-14T09:00:00.000Z');
+    await local.cachePhotos(OTHER_TRIP_ID, otherPhotos, '2026-10-14T09:00:00.000Z');
+    await local.cachePhotos(TRIP_ID, [], '2026-10-14T09:05:00.000Z');
+    await expect(local.cachedPhotos(TRIP_ID)).resolves.toEqual([]);
+    await expect(local.cachedPhotos(OTHER_TRIP_ID)).resolves.toEqual(otherPhotos);
+  });
+
+  it('treats a corrupt copy as no copy instead of crashing', async () => {
+    const { db, local } = await store();
+    await db.runAsync("insert into trip_photos_cache (trip_id, photos_json, cached_at) values (?, '{not json', 'x')", [TRIP_ID]);
+    await expect(local.cachedPhotos(TRIP_ID)).resolves.toBeNull();
+  });
+
+  it('treats a copy that no longer matches the schema as no copy', async () => {
+    const { db, local } = await store();
+    const write = (list: unknown[]) =>
+      db.runAsync('insert into trip_photos_cache (trip_id, photos_json, cached_at) values (?, ?, ?) on conflict (trip_id) do update set photos_json = excluded.photos_json', [
+        TRIP_ID,
+        JSON.stringify(list),
+        'x',
+      ]);
+
+    await write([{ ...photos[0], url: 'javascript:alert(1)' }]);
+    await expect(local.cachedPhotos(TRIP_ID)).resolves.toBeNull();
+    await write([{ ...photos[0], thumbnailUrl: 'file:///cache/thumb.jpg' }]);
+    await expect(local.cachedPhotos(TRIP_ID)).resolves.toBeNull();
+    await write([{ ...photos[0], id: 'photo-1' }]);
+    await expect(local.cachedPhotos(TRIP_ID)).resolves.toBeNull();
+    await write([{ id: PHOTO_A }]);
+    await expect(local.cachedPhotos(TRIP_ID)).resolves.toBeNull();
+    await db.runAsync('update trip_photos_cache set photos_json = ?', [JSON.stringify({ photos })]);
+    await expect(local.cachedPhotos(TRIP_ID)).resolves.toBeNull();
+  });
+
+  it('refuses to save a list that does not match the schema and writes nothing', async () => {
+    const { db, local } = await store();
+    await expect(local.cachePhotos(TRIP_ID, [{ ...photos[0], url: 'javascript:alert(1)' }], '2026-10-14T09:00:00.000Z')).rejects.toThrow();
+    await expect(local.cachePhotos(TRIP_ID, [{ ...photos[0], id: 'photo-1' }], '2026-10-14T09:00:00.000Z')).rejects.toThrow();
+    await expect(db.getAllAsync('select * from trip_photos_cache', [])).resolves.toEqual([]);
+  });
+
+  it('keeps the old copy when a newer list is refused', async () => {
+    const { local } = await store();
+    await local.cachePhotos(TRIP_ID, photos, '2026-10-14T09:00:00.000Z');
+    await expect(local.cachePhotos(TRIP_ID, [{ ...photos[0], url: 'ftp://example.com/a.jpg' }], '2026-10-14T09:05:00.000Z')).rejects.toThrow();
+    await expect(local.cachedPhotos(TRIP_ID)).resolves.toEqual(photos);
   });
 });
 
@@ -292,6 +402,17 @@ describe('forgetTrip (trip-edit-menu A5)', () => {
     await expect(local.cachedList()).resolves.toEqual([list[1]]);
   });
 
+  it('removes the trip\'s photo copy and keeps the photo copies of other trips (trip-photos D8)', async () => {
+    const { local } = await store();
+    await local.cachePhotos(TRIP_ID, photos, '2026-10-14T09:00:00.000Z');
+    await local.cachePhotos(OTHER_TRIP_ID, otherPhotos, '2026-10-14T09:00:00.000Z');
+
+    await local.forgetTrip(TRIP_ID);
+
+    await expect(local.cachedPhotos(TRIP_ID)).resolves.toBeNull();
+    await expect(local.cachedPhotos(OTHER_TRIP_ID)).resolves.toEqual(otherPhotos);
+  });
+
   it('does nothing for a trip the phone never kept anything of', async () => {
     const { local } = await store();
     await local.cacheList(list, '2026-10-08T09:00:00.000Z');
@@ -325,6 +446,7 @@ describe('forgetTrip (trip-edit-menu A5)', () => {
   it('is all or nothing: when a step fails, nothing is removed', async () => {
     const { db, local } = await store();
     await local.cacheOverview(overview, '2026-10-08T09:00:00.000Z');
+    await local.cachePhotos(TRIP_ID, photos, '2026-10-14T09:00:00.000Z');
     await local.selectTrip(TRIP_ID);
     await local.saveBudgetChange(change);
     const run = db.runAsync.bind(db);
@@ -336,6 +458,7 @@ describe('forgetTrip (trip-edit-menu A5)', () => {
     await expect(local.forgetTrip(TRIP_ID)).rejects.toThrow('disk full');
 
     await expect(local.cachedOverview(TRIP_ID)).resolves.not.toBeNull();
+    await expect(local.cachedPhotos(TRIP_ID)).resolves.toEqual(photos);
     await expect(local.selectedTripId()).resolves.toBe(TRIP_ID);
     await expect(local.budgetChange(TRIP_ID)).resolves.not.toBeNull();
   });

@@ -8,3 +8,4 @@ export * from './supabase-config';
 export * from './sync';
 export * from './trip';
 export * from './trip-budget';
+export * from './trip-photo';
