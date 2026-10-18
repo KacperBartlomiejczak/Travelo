@@ -3,6 +3,20 @@
 jest.mock('@/data/app-trip-repository', () => ({
   createAppTripRepository: () => jest.requireActual('@/data/trip-repository').createInMemoryTripRepository(),
 }));
+// Sign-in (auth-onboarding step 5): the app is signed in with a profile unless a test says otherwise, so route tests land on / as before.
+// A test picks another state with useFakeAppSession() / setAppProfileRepository() before it renders (src/test/fake-session-source.ts, fake-profile-repository.ts).
+jest.mock('@/data/app-session-source', () => ({
+  appSessionSource: jest.requireActual('@/test/fake-session-source').delegatingSessionSource,
+}));
+jest.mock('@/data/app-profile-repository', () => ({
+  createAppProfileRepository: () => jest.requireActual('@/test/fake-profile-repository').delegatingProfileRepository,
+}));
+// Route tests wait for the gate to leave its loading view after rendering (src/test/settle-gate.ts).
+jest.mock('expo-router/testing-library', () => {
+  const testingLibrary = jest.requireActual('expo-router/testing-library');
+  jest.requireActual('@/test/settle-gate').settleGateAfterRender(testingLibrary);
+  return testingLibrary;
+});
 jest.mock('expo-network', () => jest.requireActual('@/test/mock-network').expoNetworkMock);
 
 // The side panel (expo-router/drawer, trips-drawer) runs on gesture-handler and Reanimated, which have no native
@@ -47,6 +61,12 @@ jest.mock('expo-file-system', () => {
   return { File };
 });
 
-afterEach(() => {
+afterEach(async () => {
+  // A test that signed out with a fake session closed the user epoch for good; open it for the next test.
+  const epoch = jest.requireActual('@/data/local-store');
+  if (!epoch.isEpochCurrent(epoch.currentUserEpoch())) await jest.requireActual('@/test/user-epoch').reopenUserEpoch();
   jest.requireActual('@/test/mock-network').resetNetwork();
+  jest.requireActual('@/test/fake-session-source').resetFakeAppSession();
+  jest.requireActual('@/test/settle-gate').resetGateAllowance();
+  jest.requireActual('@/test/fake-profile-repository').resetAppProfileRepository();
 });

@@ -241,6 +241,17 @@
     "failed": "Nie udało się wysłać",
     "retry": "Spróbuj ponownie"
   },
+  "auth": {
+    "welcome": {
+      "title": "Witaj w Travelo"
+    },
+    "profile": {
+      "title": "Utwórz profil"
+    },
+    "startError": "Nie udało się uruchomić aplikacji.",
+    "profileLoadError": "Nie udało się wczytać profilu.",
+    "retry": "Spróbuj ponownie"
+  },
   "offline": {
     "banner": "Jesteś offline. Zmiany zapiszą się po połączeniu."
   }

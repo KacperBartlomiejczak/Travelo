@@ -1,0 +1,402 @@
+import { useFonts } from 'expo-font';
+import { router } from 'expo-router';
+import { act, fireEvent, renderRouter, screen, waitFor } from 'expo-router/testing-library';
+import * as SplashScreen from 'expo-splash-screen';
+import { AccessibilityInfo, Text } from 'react-native';
+
+import DrawerLayout from '@/app/(drawer)/_layout';
+import TabsLayout from '@/app/(drawer)/(tabs)/_layout';
+import AuthLayout from '@/app/(auth)/_layout';
+import WelcomeScreen from '@/app/(auth)/welcome';
+import RootLayout from '@/app/_layout';
+import AuthCallback from '@/app/auth/callback';
+import OnboardingScreen from '@/app/onboarding';
+import { ServerUnreachableError } from '@/data/errors';
+import { createInMemoryProfileRepository, type ProfileRepository } from '@/data/profile-repository';
+import { useCreateProfile } from '@/hooks/useProfile';
+import i18n from '@/i18n';
+import { repositoryWithProfile, setAppProfileRepository, withMyProfile } from '@/test/fake-profile-repository';
+import { useFakeAppSession } from '@/test/fake-session-source';
+import { SIGNED_IN_USER_ID } from '@/test/fake-supabase';
+import { setNetwork } from '@/test/mock-network';
+import { allowGateToStayLoading } from '@/test/settle-gate';
+
+jest.mock('expo-font', () => ({ ...jest.requireActual('expo-font'), useFonts: jest.fn() }));
+jest.mock('expo-splash-screen', () => ({ preventAutoHideAsync: jest.fn(), hideAsync: jest.fn() }));
+jest.mocked(useFonts).mockReturnValue([true, null]);
+
+const WELCOME = 'Witaj w Travelo';
+const ONBOARDING = 'Utwórz profil';
+const PROFILE_ERROR = 'Nie udało się wczytać profilu.';
+const START_ERROR = 'Nie udało się uruchomić aplikacji.';
+const signedOut = { status: 'signedOut' } as const;
+const signedIn = { status: 'signedIn', userId: SIGNED_IN_USER_ID } as const;
+const SETUP = { username: 'kacper', interests: ['museums' as const], avatarUri: null };
+
+/** The screens of the app that matter to the gate; the home tab and the wizard are plain texts. */
+function routes(overrides: Record<string, () => React.JSX.Element | null> = {}) {
+  return {
+    _layout: RootLayout,
+    '(auth)/_layout': AuthLayout,
+    '(auth)/welcome': WelcomeScreen,
+    onboarding: OnboardingScreen,
+    '(drawer)/_layout': DrawerLayout,
+    '(drawer)/(tabs)/_layout': TabsLayout,
+    '(drawer)/(tabs)/index': () => <Text>home screen</Text>,
+    'trips/new/index': () => <Text>new trip screen</Text>,
+    'auth/callback': AuthCallback,
+    ...overrides,
+  };
+}
+
+async function open(initialUrl?: string, overrides?: Record<string, () => React.JSX.Element | null>) {
+  const rendered = renderRouter(routes(overrides), initialUrl ? { initialUrl } : undefined);
+  await rendered;
+  // renderRouter attaches getPathname to the returned promise, not to the awaited result.
+  return { getPathname: () => rendered.getPathname() };
+}
+
+const shown = (text: string) => screen.queryByText(text) !== null;
+const expectOnly = async (text: string) => {
+  await waitFor(() => expect(screen.getByText(text)).toBeTruthy());
+  for (const other of [WELCOME, ONBOARDING, 'home screen', 'new trip screen']) {
+    if (other !== text) expect(shown(other)).toBe(false);
+  }
+};
+
+async function visit(href: string) {
+  await act(async () => router.push(href as never));
+}
+
+beforeEach(async () => {
+  await i18n.changeLanguage('pl');
+  jest.mocked(SplashScreen.hideAsync).mockClear();
+});
+
+describe('signed out', () => {
+  it('shows only the welcome screen, and the user data was cleared before it appeared', async () => {
+    const session = useFakeAppSession(signedOut);
+    await open();
+
+    await expectOnly(WELCOME);
+    expect(session.log).toContain('clear:done');
+  });
+
+  it.each(['/', '/trips/new', '/onboarding'])('%s is not reachable: navigating there leaves the welcome screen', async (href) => {
+    useFakeAppSession(signedOut);
+    await open();
+    await expectOnly(WELCOME);
+
+    await visit(href);
+
+    await expectOnly(WELCOME);
+  });
+
+  it('a leftover anonymous session (the source drops it and reports signed out) shows the welcome screen too', async () => {
+    const session = useFakeAppSession(signedOut);
+    await open();
+    await expectOnly(WELCOME);
+    expect(session.clearUserData).toHaveBeenCalledTimes(1);
+  });
+
+  it('shows the English title on an English phone', async () => {
+    await i18n.changeLanguage('en');
+    useFakeAppSession(signedOut);
+    await open();
+    await waitFor(() => expect(screen.getByText('Welcome to Travelo')).toBeTruthy());
+  });
+
+  it('keeps the splash screen, and shows nothing, until the clear has finished', async () => {
+    const session = useFakeAppSession(signedOut);
+    const release = session.holdClear();
+    allowGateToStayLoading();
+    await open();
+    await waitFor(() => expect(session.clearUserData).toHaveBeenCalled());
+    expect(shown(WELCOME)).toBe(false);
+    expect(SplashScreen.hideAsync).not.toHaveBeenCalled();
+
+    await act(async () => release());
+    await expectOnly(WELCOME);
+    expect(SplashScreen.hideAsync).toHaveBeenCalled();
+  });
+
+  it('a failed clear never shows the welcome screen: an error with a retry that then continues', async () => {
+    const session = useFakeAppSession(signedOut);
+    session.failClear(new Error('disk full'));
+    await open();
+
+    await waitFor(() => expect(screen.getByText(START_ERROR)).toBeTruthy());
+    expect(shown(WELCOME)).toBe(false);
+
+    session.failClear(null);
+    await fireEvent.press(screen.getByRole('button', { name: 'Spróbuj ponownie' }));
+    await expectOnly(WELCOME);
+  });
+
+  it('a sign-in while on the welcome screen goes to profile setup (no profile yet)', async () => {
+    const session = useFakeAppSession(signedOut);
+    setAppProfileRepository(createInMemoryProfileRepository());
+    await open();
+    await expectOnly(WELCOME);
+
+    await act(async () => session.emit({ type: 'signedIn', userId: SIGNED_IN_USER_ID }));
+
+    await expectOnly(ONBOARDING);
+  });
+
+  it('a sign-in while on the welcome screen goes straight to the app when the profile exists', async () => {
+    const session = useFakeAppSession(signedOut);
+    await open();
+    await expectOnly(WELCOME);
+
+    await act(async () => session.emit({ type: 'signedIn', userId: SIGNED_IN_USER_ID }));
+
+    await expectOnly('home screen');
+  });
+});
+
+describe('signed in without a profile', () => {
+  beforeEach(() => {
+    useFakeAppSession(signedIn);
+    setAppProfileRepository(createInMemoryProfileRepository());
+  });
+
+  it('shows only profile setup', async () => {
+    await open();
+    await expectOnly(ONBOARDING);
+  });
+
+  it.each(['/', '/trips/new', '/welcome'])('%s is not reachable', async (href) => {
+    await open();
+    await expectOnly(ONBOARDING);
+
+    await visit(href);
+
+    await expectOnly(ONBOARDING);
+  });
+
+  it('saving the profile moves on to the app at /', async () => {
+    function Setup() {
+      const create = useCreateProfile();
+      return (
+        <Text onPress={() => create.mutate(SETUP)} testID="save">
+          {ONBOARDING}
+        </Text>
+      );
+    }
+    const rendered = await open(undefined, { onboarding: Setup });
+    await expectOnly(ONBOARDING);
+
+    await fireEvent.press(screen.getByTestId('save'));
+
+    await expectOnly('home screen');
+    expect(rendered.getPathname()).toBe('/');
+  });
+
+  it('is signed in, so the data on the phone is not cleared', async () => {
+    const session = useFakeAppSession(signedIn);
+    await open();
+    await expectOnly(ONBOARDING);
+    expect(session.clearUserData).not.toHaveBeenCalled();
+  });
+});
+
+describe('a profile save that finishes after the sign-out', () => {
+  it("never shows the old user's profile to the next user: after the next sign-in the app waits for the next user's own profile", async () => {
+    const session = useFakeAppSession(signedIn);
+    const base = createInMemoryProfileRepository();
+    let release = () => {};
+    const held = new Promise<void>((resolve) => (release = resolve));
+    let secondUserRead: () => void = () => {};
+    const secondUser = new Promise<void>((resolve) => (secondUserRead = resolve));
+    let reads = 0;
+    setAppProfileRepository({
+      myProfile: async () => {
+        if (reads++ === 0) return null; // the first user has no profile yet
+        await secondUser; // the next user's profile is still being read
+        return null;
+      },
+      createProfile: async (input) => {
+        await held;
+        return base.createProfile(input);
+      },
+    });
+    function Setup() {
+      const create = useCreateProfile();
+      return (
+        <Text onPress={() => create.mutate(SETUP)} testID="save">
+          {ONBOARDING}
+        </Text>
+      );
+    }
+    await open(undefined, { onboarding: Setup });
+    await expectOnly(ONBOARDING);
+    await fireEvent.press(screen.getByTestId('save')); // the save is on its way
+
+    await act(async () => session.emit({ type: 'signedOut' }));
+    await expectOnly(WELCOME);
+    await act(async () => release()); // the save of the first user finishes now, after the sign-out
+    await act(async () => session.emit({ type: 'signedIn', userId: SIGNED_IN_USER_ID }));
+    allowGateToStayLoading();
+
+    // The next user's profile is not known yet: nothing of the first user's may show in its place.
+    expect(shown('home screen')).toBe(false);
+    await act(async () => secondUserRead());
+    await expectOnly(ONBOARDING);
+  });
+});
+
+describe('signed in with a profile', () => {
+  it('shows the app at /', async () => {
+    const rendered = await open();
+    await expectOnly('home screen');
+    expect(rendered.getPathname()).toBe('/');
+  });
+
+  it('the new trip screen is reachable', async () => {
+    await open();
+    await expectOnly('home screen');
+    await visit('/trips/new');
+    await waitFor(() => expect(screen.getByText('new trip screen')).toBeTruthy());
+  });
+
+  it.each(['/welcome', '/onboarding'])('%s is not reachable', async (href) => {
+    await open();
+    await expectOnly('home screen');
+
+    await visit(href);
+
+    await expectOnly('home screen');
+  });
+
+  it('opens offline on the home screen from the copy of the profile: no welcome, no profile setup, no error', async () => {
+    setNetwork({ isConnected: false, isInternetReachable: false });
+    useFakeAppSession({ status: 'signedIn', userId: null });
+    const base = await repositoryWithProfile();
+    setAppProfileRepository(
+      withMyProfile(base, async () => {
+        const mine = await base.myProfile();
+        return mine && { ...mine, fromCache: true };
+      }),
+    );
+    await open();
+    await expectOnly('home screen');
+  });
+
+  it('keeps the splash screen until the session and the profile are known', async () => {
+    const session = useFakeAppSession(signedIn);
+    const release = session.holdCurrent();
+    allowGateToStayLoading();
+    await open();
+    expect(shown('home screen')).toBe(false);
+    expect(SplashScreen.hideAsync).not.toHaveBeenCalled();
+
+    await act(async () => release());
+    await expectOnly('home screen');
+    expect(SplashScreen.hideAsync).toHaveBeenCalled();
+  });
+
+  it('a sign-out later clears the user data and leaves for the welcome screen', async () => {
+    const session = useFakeAppSession(signedIn);
+    await open();
+    await expectOnly('home screen');
+
+    await act(async () => session.emit({ type: 'signedOut' }));
+
+    await expectOnly(WELCOME);
+    expect(session.log).toContain('clear:done');
+  });
+});
+
+describe('errors', () => {
+  async function failingProfile(error: Error, then?: ProfileRepository) {
+    const base = then ?? (await repositoryWithProfile());
+    const myProfile = jest.fn<ReturnType<ProfileRepository['myProfile']>, []>().mockRejectedValueOnce(error).mockImplementation(() => base.myProfile());
+    setAppProfileRepository(withMyProfile(base, myProfile));
+    return myProfile;
+  }
+
+  it('a profile that cannot be read (no copy offline) is an error screen with a retry, never profile setup; the retry reaches the app', async () => {
+    const myProfile = await failingProfile(new ServerUnreachableError('offline'));
+    const announce = jest.spyOn(AccessibilityInfo, 'announceForAccessibility');
+    await open();
+
+    await waitFor(() => expect(screen.getByText(PROFILE_ERROR)).toBeTruthy());
+    expect(shown(ONBOARDING)).toBe(false);
+    expect(shown('home screen')).toBe(false);
+    expect(announce).toHaveBeenCalledWith(PROFILE_ERROR);
+    expect(SplashScreen.hideAsync).toHaveBeenCalled();
+
+    await fireEvent.press(screen.getByRole('button', { name: 'Spróbuj ponownie' }));
+    await expectOnly('home screen');
+    expect(myProfile).toHaveBeenCalledTimes(2);
+    announce.mockRestore();
+  });
+
+  it('another error while online is the same error screen, not profile setup', async () => {
+    await failingProfile(new Error('boom'));
+    await open();
+    await waitFor(() => expect(screen.getByText(PROFILE_ERROR)).toBeTruthy());
+    expect(shown(ONBOARDING)).toBe(false);
+  });
+
+  it('when the user was unknown (offline start), the retry reads the session again first', async () => {
+    const session = useFakeAppSession({ status: 'signedIn', userId: null });
+    await failingProfile(new ServerUnreachableError('offline'));
+    await open();
+    await waitFor(() => expect(screen.getByText(PROFILE_ERROR)).toBeTruthy());
+    expect(session.current).toHaveBeenCalledTimes(1);
+
+    session.answerWith(signedIn);
+    await fireEvent.press(screen.getByRole('button', { name: 'Spróbuj ponownie' }));
+
+    await expectOnly('home screen');
+    expect(session.current).toHaveBeenCalledTimes(2);
+  });
+
+  it('a session that cannot be read is an error with its own message and a retry', async () => {
+    const session = useFakeAppSession(new Error('storage broken'));
+    await open();
+
+    await waitFor(() => expect(screen.getByText(START_ERROR)).toBeTruthy());
+    expect(shown(WELCOME)).toBe(false);
+    expect(shown('home screen')).toBe(false);
+
+    session.answerWith(signedIn);
+    await fireEvent.press(screen.getByRole('button', { name: 'Spróbuj ponownie' }));
+    await expectOnly('home screen');
+  });
+
+  it('speaks English on an English phone', async () => {
+    await i18n.changeLanguage('en');
+    await failingProfile(new Error('boom'));
+    await open();
+    await waitFor(() => expect(screen.getByText("Couldn't load your profile.")).toBeTruthy());
+    expect(screen.getByRole('button', { name: 'Try again' })).toBeTruthy();
+  });
+});
+
+describe('auth/callback is reachable in every state and only leads on', () => {
+  it('signed out → welcome', async () => {
+    useFakeAppSession(signedOut);
+    const rendered = await open('/auth/callback?code=x');
+    await expectOnly(WELCOME);
+    expect(rendered.getPathname()).toBe('/welcome');
+    expect(screen.queryByText(/unmatched/i)).toBeNull();
+  });
+
+  it('signed in without a profile → profile setup', async () => {
+    setAppProfileRepository(createInMemoryProfileRepository());
+    const rendered = await open('/auth/callback?code=x');
+    await expectOnly(ONBOARDING);
+    expect(rendered.getPathname()).toBe('/onboarding');
+    expect(screen.queryByText(/unmatched/i)).toBeNull();
+  });
+
+  it('signed in with a profile → home', async () => {
+    const rendered = await open('/auth/callback?code=x');
+    await expectOnly('home screen');
+    expect(rendered.getPathname()).toBe('/');
+    expect(screen.queryByText(/unmatched/i)).toBeNull();
+  });
+});

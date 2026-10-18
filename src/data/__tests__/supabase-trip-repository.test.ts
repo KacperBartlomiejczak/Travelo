@@ -1,11 +1,12 @@
 import { createClient } from '@supabase/supabase-js';
 
+import { NotSignedInError } from '@/data/auth';
 import type { Database } from '@/data/database.types';
 import { REQUEST_TIMEOUT_MS, withTimeout } from '@/data/fetch-timeout';
 import { migrateLocalDb } from '@/data/local-db';
 import { createLocalStore } from '@/data/local-store';
 import { createSupabaseTripRepository } from '@/data/supabase-trip-repository';
-import { buildTrip } from '@/data/trip-repository';
+import { buildTrip, type TripRepository } from '@/data/trip-repository';
 import { toCreateTripArgs, type MemberRow, type PhotoRow, type SegmentRow, type TripRow } from '@/data/trip-rows';
 import { photoPaths } from '@/lib/trip-photos';
 import { CreateTripInputSchema, CurrentTripSchema, TripPhotoListSchema, type ShownTripPhoto, type TripPhoto } from '@/schemas';
@@ -73,11 +74,12 @@ describe('create', () => {
     expect(trip).toEqual(expect.objectContaining({ ownerId: SIGNED_IN_USER_ID, name: 'Warsaw → Bangkok', budgetUpdatedAt: NOW.toISOString() }));
   });
 
-  it('signs in anonymously on first launch', async () => {
+  it('rejects with NotSignedInError when nobody is signed in, and sends nothing (auth-onboarding D2)', async () => {
     const { supabase, repository } = await setup();
-    supabase.auth.getSession.mockResolvedValueOnce({ data: { session: null as never }, error: null });
-    await repository.create(createTripInputFixture());
-    expect(supabase.auth.signInAnonymously).toHaveBeenCalledTimes(1);
+    supabase.storedSession('none');
+    await expect(repository.create(createTripInputFixture())).rejects.toBeInstanceOf(NotSignedInError);
+    expect(supabase.rpc).not.toHaveBeenCalled();
+    expect(supabase.auth).not.toHaveProperty('signInAnonymously');
   });
 
   it('rejects when the server refuses, and keeps nothing on the device', async () => {
@@ -142,6 +144,28 @@ const past = () => serverTrip({ id: PAST_ID, name: 'Lisbon', start_date: '2026-0
 const ongoing = () => serverTrip({ id: ONGOING_ID, name: 'Rome', start_date: '2026-10-01', end_date: '2026-10-07' });
 const later = () => serverTrip({ id: LATER_ID, name: 'Bangkok', start_date: '2026-11-03', end_date: '2026-11-15' });
 
+describe('nobody is signed in (auth-onboarding D2)', () => {
+  it.each([
+    ['list', (r: TripRepository) => r.list()],
+    ['current', (r: TripRepository) => r.current()],
+    ['updateDetails', (r: TripRepository) => r.updateDetails(PAST_ID, { name: 'Lisbon', coverImageUri: STORED_COVER })],
+    ['delete', (r: TripRepository) => r.delete(PAST_ID)],
+    ['photos', (r: TripRepository) => r.photos(PAST_ID)],
+  ])('%s rejects with NotSignedInError (not "unreachable", not the copy on the phone) and sends nothing', async (_name, call) => {
+    const { supabase, local, repository } = await setup();
+    await repository.select(PAST_ID);
+    supabase.respond('trips', { data: past().row });
+    await repository.current();
+    supabase.storedSession('none');
+    const queriesBefore = supabase.queries.length;
+
+    await expect(call(repository)).rejects.toBeInstanceOf(NotSignedInError);
+    expect(supabase.queries).toHaveLength(queriesBefore);
+    expect(supabase.storageCalls).toEqual([]);
+    await expect(local.cachedOverview(PAST_ID)).resolves.not.toBeNull();
+  });
+});
+
 describe('list (trips-drawer D4)', () => {
   it('reads every trip with only the columns the side panel needs, and keeps a copy', async () => {
     const { supabase, local, repository } = await setup();
@@ -165,13 +189,12 @@ describe('list (trips-drawer D4)', () => {
     await expect(repository.list()).resolves.toEqual(online);
   });
 
-  it('shows the copy when signing in fails for lack of connection', async () => {
+  it('shows the copy when reading the session fails for lack of connection', async () => {
     const { supabase, repository } = await setup();
     supabase.respond('trips', { data: [listRow(past())] });
     const online = await repository.list();
     const { AuthRetryableFetchError } = jest.requireActual('@supabase/supabase-js');
-    supabase.auth.getSession.mockResolvedValueOnce({ data: { session: null as never }, error: null });
-    supabase.auth.signInAnonymously.mockResolvedValueOnce({ data: { session: null as never, user: null as never }, error: new AuthRetryableFetchError('Network request failed', 0) });
+    supabase.auth.getSession.mockResolvedValueOnce({ data: { session: null as never }, error: new AuthRetryableFetchError('Network request failed', 0) });
     await expect(repository.list()).resolves.toEqual(online);
   });
 
@@ -310,14 +333,13 @@ describe('current (trips-drawer D2, A1)', () => {
     await expect(repository.current()).rejects.toThrow('Network request failed');
   });
 
-  it('shows the copy when signing in fails for lack of connection', async () => {
+  it('shows the copy when reading the session fails for lack of connection', async () => {
     const { supabase, repository } = await setup();
     await repository.select(PAST_ID);
     supabase.respond('trips', { data: past().row });
     const online = await repository.current();
     const { AuthRetryableFetchError } = jest.requireActual('@supabase/supabase-js');
-    supabase.auth.getSession.mockResolvedValueOnce({ data: { session: null as never }, error: null });
-    supabase.auth.signInAnonymously.mockResolvedValueOnce({ data: { session: null as never, user: null as never }, error: new AuthRetryableFetchError('Network request failed', 0) });
+    supabase.auth.getSession.mockResolvedValueOnce({ data: { session: null as never }, error: new AuthRetryableFetchError('Network request failed', 0) });
     await expect(repository.current()).resolves.toEqual({ ...online, fromCache: true });
   });
 
@@ -445,11 +467,10 @@ describe('updateDetails (trip-edit-menu D5)', () => {
     await expect(local.cachedOverview(PAST_ID)).resolves.toEqual(overviewCopy);
   });
 
-  it('offline: signing in fails for lack of connection, so it rejects as unreachable', async () => {
+  it('offline: reading the session fails for lack of connection, so it rejects as unreachable', async () => {
     const { supabase, repository } = await setup();
     const { AuthRetryableFetchError } = jest.requireActual('@supabase/supabase-js');
-    supabase.auth.getSession.mockResolvedValueOnce({ data: { session: null as never }, error: null });
-    supabase.auth.signInAnonymously.mockResolvedValueOnce({ data: { session: null as never, user: null as never }, error: new AuthRetryableFetchError('Network request failed', 0) });
+    supabase.auth.getSession.mockResolvedValueOnce({ data: { session: null as never }, error: new AuthRetryableFetchError('Network request failed', 0) });
     const rejected = repository.updateDetails(PAST_ID, { name: 'Lisbon', coverImageUri: STORED_COVER });
     await expect(rejected).rejects.toMatchObject({ constructor: expect.objectContaining({ name: 'ServerUnreachableError' }) });
     expect(supabase.queries).toHaveLength(0);
@@ -1011,13 +1032,12 @@ describe('photos (trip-photos A2, D8, D10, D13)', () => {
     await expect(repository.photos(PAST_ID)).resolves.toEqual(online);
   });
 
-  it("offline: shows the phone's copy when signing in fails for lack of connection", async () => {
+  it("offline: shows the phone's copy when reading the session fails for lack of connection", async () => {
     const { supabase, repository } = await setup();
     supabase.respond('trip_photos', { data: [photoRow(1)] });
     const online = await repository.photos(PAST_ID);
     const { AuthRetryableFetchError } = jest.requireActual('@supabase/supabase-js');
-    supabase.auth.getSession.mockResolvedValueOnce({ data: { session: null as never }, error: null });
-    supabase.auth.signInAnonymously.mockResolvedValueOnce({ data: { session: null as never, user: null as never }, error: new AuthRetryableFetchError('Network request failed', 0) });
+    supabase.auth.getSession.mockResolvedValueOnce({ data: { session: null as never }, error: new AuthRetryableFetchError('Network request failed', 0) });
     await expect(repository.photos(PAST_ID)).resolves.toEqual(online);
   });
 
@@ -1198,11 +1218,10 @@ describe('addPhoto (trip-photos A5, D2, D7, D14)', () => {
     expect(supabase.queries).toEqual([]);
   });
 
-  it('offline when signing in: rejects as unreachable before preparing or sending anything', async () => {
+  it('offline when reading the session: rejects as unreachable before preparing or sending anything', async () => {
     const { supabase, repository, prepare } = await setupAdd();
     const { AuthRetryableFetchError } = jest.requireActual('@supabase/supabase-js');
-    supabase.auth.getSession.mockResolvedValueOnce({ data: { session: null as never }, error: null });
-    supabase.auth.signInAnonymously.mockResolvedValueOnce({ data: { session: null as never, user: null as never }, error: new AuthRetryableFetchError('Network request failed', 0) });
+    supabase.auth.getSession.mockResolvedValueOnce({ data: { session: null as never }, error: new AuthRetryableFetchError('Network request failed', 0) });
 
     await expect(repository.addPhoto(PAST_ID, photoUuid(1), PICKED)).rejects.toMatchObject({
       constructor: expect.objectContaining({ name: 'ServerUnreachableError' }),

@@ -241,6 +241,17 @@
     "failed": "Couldn't sync",
     "retry": "Try again"
   },
+  "auth": {
+    "welcome": {
+      "title": "Welcome to Travelo"
+    },
+    "profile": {
+      "title": "Create your profile"
+    },
+    "startError": "Couldn't start the app.",
+    "profileLoadError": "Couldn't load your profile.",
+    "retry": "Try again"
+  },
   "offline": {
     "banner": "You're offline. Changes will sync when you're connected."
   }
