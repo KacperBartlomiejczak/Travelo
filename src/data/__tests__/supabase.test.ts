@@ -48,6 +48,7 @@ describe('supabase client', () => {
         autoRefreshToken: true,
         persistSession: true,
         detectSessionInUrl: false,
+        flowType: 'pkce',
       },
       global: { fetch: mockTimedFetch },
     });

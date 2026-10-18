@@ -33,6 +33,8 @@ export const supabase = createClient(config.data.url, config.data.key, {
     autoRefreshToken: true,
     persistSession: true,
     detectSessionInUrl: false,
+    // OAuth returns a one-time code, never tokens (auth-onboarding); the PKCE verifier is kept in the same storage.
+    flowType: 'pkce',
   },
   global: { fetch: withTimeout(fetch, REQUEST_TIMEOUT_MS) },
 });
