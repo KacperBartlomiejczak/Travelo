@@ -15,7 +15,7 @@ import {
   type SegmentRow,
   type TripRow,
 } from '@/data/trip-rows';
-import { CreateTripInputSchema, InterestTagSchema, TripOverviewSchema, TripPhotoSchema, type TripPhoto } from '@/schemas';
+import { COVER_PRESET_IDS, CoverSchema, CreateTripInputSchema, InterestTagSchema, TripOverviewSchema, TripPhotoSchema, type TripPhoto } from '@/schemas';
 import { createTripInputFixture } from '@/test/fixtures';
 
 const NOW = new Date('2026-10-04T12:00:00Z');
@@ -45,7 +45,7 @@ describe('toCreateTripArgs', () => {
     expect(trip).toEqual({
       id: '00000000-0000-4000-8000-000000000001',
       name: 'Warsaw → Bangkok',
-      cover_image_uri: null,
+      cover_image_uri: 'preset:auckland',
       destination: 'BKK',
       start_date: '2026-11-03',
       end_date: '2026-11-15',
@@ -76,18 +76,26 @@ describe('toCreateTripArgs', () => {
     );
   });
 
-  it('sends the cover photo URI when there is one', () => {
+  it('always sends the cover: the chosen preset, never null (the column is not null, trip-covers D1)', () => {
     const withCover = created((input) => {
+      input.details.coverImageUri = 'preset:bali';
+    });
+    expect(toCreateTripArgs(withCover).trip).toEqual(expect.objectContaining({ cover_image_uri: 'preset:bali' }));
+    expect(toCreateTripArgs(created()).trip).toEqual(expect.objectContaining({ cover_image_uri: 'preset:auckland' }));
+  });
+
+  it('sends the default cover for a gallery photo, which is uploaded after the trip exists (trip-covers Q1)', () => {
+    const withPhoto = created((input) => {
       input.details.coverImageUri = 'file:///cache/cover.jpg';
     });
-    expect(toCreateTripArgs(withCover).trip).toEqual(expect.objectContaining({ cover_image_uri: 'file:///cache/cover.jpg' }));
+    expect(toCreateTripArgs(withPhoto).trip).toEqual(expect.objectContaining({ cover_image_uri: 'preset:auckland' }));
   });
 });
 
 describe('overviewFromRows', () => {
   it('gives back what was created (round trip), with the traveller count', () => {
     const trip = created((input) => {
-      input.details.coverImageUri = 'file:///cache/cover.jpg';
+      input.details.coverImageUri = 'preset:bali';
     });
     const { tripRow, members, segments } = storedRows(trip);
     const overview = overviewFromRows(tripRow, members, segments);
@@ -98,11 +106,41 @@ describe('overviewFromRows', () => {
   it('leaves null columns out instead of passing null to optional fields', () => {
     const { tripRow, members, segments } = storedRows(created());
     const overview = overviewFromRows(tripRow, members, segments);
-    expect(overview.trip).not.toHaveProperty('coverImageUri');
+    expect(overview.trip.coverImageUri).toBe('preset:auckland');
+    expect(overview.trip).not.toHaveProperty('coverUrls');
     expect(overview.members[0]).not.toHaveProperty('budgetLevel');
     expect(overview.members[0]).not.toHaveProperty('pace');
     expect(overview.members[0]).not.toHaveProperty('dietaryNotes');
     expect(overview.segments[1]).not.toHaveProperty('flightNumber');
+  });
+
+  describe('cover (trip-covers)', () => {
+    const photoCover = 'photo:5b1f0f6a-2c7d-4a8e-9b3c-1d2e3f4a5b6c';
+    const urls = { url: 'https://example.supabase.co/a.jpg?token=1', thumbnailUrl: 'https://example.supabase.co/a_thumb.jpg?token=2' };
+
+    it('maps a gallery cover with its signed urls', () => {
+      const { tripRow, members, segments } = storedRows(created());
+      const overview = overviewFromRows({ ...tripRow, cover_image_uri: photoCover }, members, segments, urls);
+      expect(overview.trip).toEqual(expect.objectContaining({ coverImageUri: photoCover, coverUrls: urls }));
+    });
+
+    it.each([
+      ['a null cover', { cover_image_uri: null }],
+      ['a device URI from before covers', { cover_image_uri: 'file:///cache/cover.jpg' }],
+      ['an unknown preset', { cover_image_uri: 'preset:paris' }],
+      ['an uppercase gallery id', { cover_image_uri: 'photo:5B1F0F6A-2C7D-4A8E-9B3C-1D2E3F4A5B6C' }],
+    ])('rejects a trip row with %s', (_, patch) => {
+      const { tripRow, members, segments } = storedRows(created());
+      expect(() => overviewFromRows({ ...tripRow, ...patch } as TripRow, members, segments)).toThrow();
+    });
+
+    it('rejects signed urls for a preset or urls that are not http(s)', () => {
+      const { tripRow, members, segments } = storedRows(created());
+      expect(() => overviewFromRows(tripRow, members, segments, urls)).toThrow();
+      expect(() =>
+        overviewFromRows({ ...tripRow, cover_image_uri: photoCover }, members, segments, { ...urls, url: 'javascript:alert(1)' }),
+      ).toThrow();
+    });
   });
 
   it('keeps member details the server has', () => {
@@ -151,20 +189,36 @@ describe('overviewFromRows', () => {
 });
 
 describe('listItemFromRow (trips-drawer D4)', () => {
-  const row = { id: '0b9e7c4e-6a43-4c4b-9a55-2f6f0f7e1a01', name: 'Warsaw → Bangkok', cover_image_uri: 'file:///cache/cover.jpg', start_date: '2026-11-03', end_date: '2026-11-15' };
+  const row = { id: '0b9e7c4e-6a43-4c4b-9a55-2f6f0f7e1a01', name: 'Warsaw → Bangkok', cover_image_uri: 'preset:bali', start_date: '2026-11-03', end_date: '2026-11-15' };
+  const photoCover = 'photo:5b1f0f6a-2c7d-4a8e-9b3c-1d2e3f4a5b6c';
+  const urls = { url: 'https://example.supabase.co/a.jpg?token=1', thumbnailUrl: 'https://example.supabase.co/a_thumb.jpg?token=2' };
 
   it('turns the selected columns into a side panel item', () => {
     expect(listItemFromRow(row)).toEqual({
       id: row.id,
       name: 'Warsaw → Bangkok',
-      coverImageUri: 'file:///cache/cover.jpg',
+      coverImageUri: 'preset:bali',
       startDate: '2026-11-03',
       endDate: '2026-11-15',
     });
   });
 
-  it('leaves a missing cover out', () => {
-    expect(listItemFromRow({ ...row, cover_image_uri: null })).not.toHaveProperty('coverImageUri');
+  it('adds the signed urls of a gallery cover', () => {
+    expect(listItemFromRow({ ...row, cover_image_uri: photoCover }, urls)).toEqual(
+      expect.objectContaining({ coverImageUri: photoCover, coverUrls: urls }),
+    );
+  });
+
+  it.each([
+    ['a null cover', { cover_image_uri: null }],
+    ['a device URI from before covers', { cover_image_uri: 'file:///cache/cover.jpg' }],
+    ['an unknown preset', { cover_image_uri: 'preset:paris' }],
+  ])('rejects a row with %s', (_, patch) => {
+    expect(() => listItemFromRow({ ...row, ...patch } as never)).toThrow();
+  });
+
+  it('rejects signed urls for a preset', () => {
+    expect(() => listItemFromRow(row, urls)).toThrow();
   });
 
   it.each([
@@ -248,6 +302,39 @@ describe('Zod ↔ database parity', () => {
   const migrations = readdirSync(join(__dirname, '../../../supabase/migrations'))
     .map((file) => readFileSync(join(__dirname, '../../../supabase/migrations', file), 'utf8'))
     .join('\n');
+
+  const cover = migrations.match(/cover_image_uri ~ '([^']+)'/)?.[1] ?? '';
+  // Postgres and JavaScript read this pattern the same way (anchors, groups, alternation, character classes).
+  const coverCheck = new RegExp(cover);
+
+  it('the database accepts exactly the presets of CoverPresetIdSchema', () => {
+    const list = cover.match(/preset:\(([a-z|]+)\)/)?.[1] ?? '';
+    expect(list.split('|').sort()).toEqual([...COVER_PRESET_IDS].sort());
+  });
+
+  it('the cover check of the database and CoverSchema agree on valid and invalid values', () => {
+    expect(cover).not.toBe('');
+    const photo = 'photo:5b1f0f6a-2c7d-4a8e-9b3c-1d2e3f4a5b6c';
+    const values = [
+      ...COVER_PRESET_IDS.map((id) => `preset:${id}`),
+      photo,
+      '',
+      'preset:',
+      'preset:paris',
+      'preset:Bali',
+      'preset:bali\n',
+      'preset:bali preset:bali',
+      photo.toUpperCase(),
+      'photo:5b1f0f6a',
+      `${photo}\n`,
+      `x${photo}`,
+      'file:///cache/cover.jpg',
+      'https://example.com/a.jpg',
+    ];
+    for (const value of values) {
+      expect([value, coverCheck.test(value)]).toEqual([value, CoverSchema.safeParse(value).success]);
+    }
+  });
 
   it('the database accepts exactly the interest tags of InterestTagSchema', () => {
     const list = migrations.match(/interests <@ array\[([^\]]+)\]/)?.[1] ?? '';

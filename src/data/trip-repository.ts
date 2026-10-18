@@ -8,6 +8,7 @@ import { photoPaths, sortTripPhotos } from '@/lib/trip-photos';
 import {
   CreateTripInputSchema,
   CurrentTripSchema,
+  DEFAULT_COVER,
   FlightSegmentSchema,
   PickedPhotoSchema,
   SelectedTripSchema,
@@ -19,6 +20,8 @@ import {
   TripBudgetFormSchema,
   TripDetailsInputSchema,
   TripSummarySchema,
+  type CoverChoice,
+  type CoverUrls,
   type CreateTripInput,
   type CurrentTrip,
   type FlightSegment,
@@ -46,13 +49,24 @@ export interface TripRepository {
   current(): Promise<CurrentTrip | null>;
   /** Remembers the chosen trip on this phone (D2); no network. */
   select(tripId: string): Promise<void>;
-  /** Saves a new trip; it becomes the chosen trip (A3). */
+  /**
+   * Saves a new trip; it becomes the chosen trip (A3).
+   * A `preset:` cover is stored as is. A `file://` cover (a gallery photo) needs the trip to exist first (the Storage rules check the owner),
+   * so the trip is created with `DEFAULT_COVER`, then the photo is sent and the cover changed to `photo:<id>` (trip-covers D5).
+   * If sending the photo fails, the trip stays on `DEFAULT_COVER` and `create` still resolves (Q1): the returned trip's cover is
+   * `DEFAULT_COVER` although a `file://` cover was asked for, which is how the caller tells the photo did not make it.
+   */
   create(input: z.input<typeof CreateTripInputSchema>): Promise<Trip>;
   /** Saves a new budget per person (whole amount in minor units, the trip's base currency) on the device. */
   setBudget(trip: Pick<Trip, 'id' | 'baseCurrency'>, amountMinor: number): Promise<void>;
   /** Sends budget changes still on the device; says when the next retry is due. */
   syncBudgets(): Promise<SyncResult>;
-  /** Changes the trip's name and cover on the server; online only (trip-edit-menu D5). */
+  /**
+   * Changes the trip's name and cover on the server; online only (trip-edit-menu D5).
+   * A `file://` cover is sent first and stored as `photo:<id>`; a `preset:` cover is stored as is; an unchanged `photo:` cover sends nothing.
+   * After the update, the files of a replaced `photo:` cover are removed (best effort: a failed removal does not reject).
+   * If sending the photo fails it rejects and changes nothing (trip-covers D5).
+   */
   updateDetails(tripId: string, input: z.input<typeof TripDetailsInputSchema>): Promise<void>;
   /**
    * Deletes the trip on the server, then forgets the phone's copies of it (A5); online only (D8). A trip already gone counts as deleted (D13).
@@ -106,7 +120,8 @@ export function buildTrip(input: CreateTripInput, { now, newId, ownerId }: Deps)
     id: tripId,
     ownerId,
     name,
-    ...(coverImageUri ? { coverImageUri } : {}),
+    // A gallery photo is sent after the trip exists (trip-covers Q1), so the trip starts on the default cover.
+    coverImageUri: coverImageUri.startsWith('file://') ? DEFAULT_COVER : coverImageUri,
     destination,
     ...deriveTripDates(input.flights),
     baseCurrency: budgetPerPerson.currency,
@@ -132,21 +147,33 @@ export function buildTrip(input: CreateTripInput, { now, newId, ownerId }: Deps)
   return { trip, members, segments };
 }
 
+const PHOTO_COVER_PREFIX = 'photo:';
+
+/** Fake but valid http(s) urls for a gallery cover (`.invalid` is a reserved top-level domain); a preset has none. */
+function fakeCoverUrls(trip: Pick<Trip, 'id' | 'coverImageUri'>): { coverUrls?: CoverUrls } {
+  if (!trip.coverImageUri.startsWith(PHOTO_COVER_PREFIX)) return {};
+  const { file, thumbnail } = photoPaths({ id: trip.coverImageUri.slice(PHOTO_COVER_PREFIX.length), tripId: trip.id });
+  return { coverUrls: { url: `https://photos.invalid/${file}`, thumbnailUrl: `https://photos.invalid/${thumbnail}` } };
+}
+
 /** Trips in memory, lost on restart. Tests only (trips-supabase D8). */
 export function createInMemoryTripRepository(
   deps: { now: () => Date; newId: () => string } = { now: () => new Date(), newId: randomUUID },
 ): TripRepository {
   const build = (input: z.input<typeof CreateTripInputSchema>) =>
     buildTrip(CreateTripInputSchema.parse(input), { now: deps.now(), newId: deps.newId, ownerId: LOCAL_OWNER_ID });
+  /** No files here: a gallery photo just becomes a stored cover with a new id, like after a successful upload. */
+  const storedCover = (choice: CoverChoice) => (choice.startsWith('file://') ? `${PHOTO_COVER_PREFIX}${deps.newId()}` : choice);
   const stored: CreatedTrip[] = [];
   const storedPhotos: TripPhoto[] = [];
   let selectedId: string | null = null;
-  const summary = ({ trip, members }: CreatedTrip) => TripSummarySchema.parse({ ...trip, travellerCount: members.length + 1 });
+  const summary = ({ trip, members }: CreatedTrip) =>
+    TripSummarySchema.parse({ ...trip, ...fakeCoverUrls(trip), travellerCount: members.length + 1 });
   // Same order as the Supabase query: start date, then creation time.
   const list = (): TripList =>
     [...stored]
       .sort((a, b) => a.trip.startDate.localeCompare(b.trip.startDate) || a.trip.createdAt.localeCompare(b.trip.createdAt))
-      .map(({ trip }) => TripListItemSchema.parse(trip));
+      .map(({ trip }) => TripListItemSchema.parse({ ...trip, ...fakeCoverUrls(trip) }));
   return {
     async list() {
       return list();
@@ -165,6 +192,8 @@ export function createInMemoryTripRepository(
     },
     async create(input) {
       const created = build(input);
+      const asked = CreateTripInputSchema.parse(input).details.coverImageUri;
+      if (asked.startsWith('file://')) created.trip = TripSchema.parse({ ...created.trip, coverImageUri: storedCover(asked) });
       stored.push(created);
       selectedId = created.trip.id;
       return created.trip;
@@ -181,8 +210,9 @@ export function createInMemoryTripRepository(
       const { name, coverImageUri } = TripDetailsInputSchema.parse(input);
       const found = stored.find((entry) => entry.trip.id === tripId);
       if (!found) throw new Error('trip-not-found');
-      const { coverImageUri: _removed, ...rest } = found.trip;
-      found.trip = TripSchema.parse({ ...rest, name, ...(coverImageUri ? { coverImageUri } : {}) });
+      // Like the Supabase repository: a stored cover can only be kept, never swapped for another one's.
+      if (coverImageUri.startsWith(PHOTO_COVER_PREFIX) && coverImageUri !== found.trip.coverImageUri) throw new Error('cover-not-current');
+      found.trip = TripSchema.parse({ ...found.trip, name, coverImageUri: storedCover(coverImageUri) });
     },
     async delete(tripId) {
       // An unknown id is already gone: success, like the Supabase repository (trip-edit-menu D13).

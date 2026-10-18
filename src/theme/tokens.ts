@@ -116,6 +116,8 @@ export const size = {
   thumbnail: 48,
   // trip-photos P2: the square tiles of the photo strip on the trip view (the add tile, photos, skeletons).
   photoTile: 80,
+  // trip-covers P1: width of a 16:9 cover tile in the picker (height follows from the ratio).
+  coverTile: 112,
   // §10.16 snackbar: at least 48dp high, at most 360dp wide.
   snackbarMinHeight: 48,
   snackbarMaxWidth: 360,

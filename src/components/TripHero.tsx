@@ -1,9 +1,9 @@
-import { Image } from 'expo-image';
 import { useId } from 'react';
 import { useTranslation } from 'react-i18next';
 import { StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 import Svg, { Defs, LinearGradient, Rect, Stop } from 'react-native-svg';
 
+import { CoverImage } from '@/components/CoverImage';
 import { formatDateRange } from '@/lib/date-time';
 import { tripDayCount } from '@/lib/trip-days';
 import type { TripSummary } from '@/schemas';
@@ -16,7 +16,7 @@ export function heroHeight(windowHeight: number): number {
   return Math.round(windowHeight * SCREEN_SHARE);
 }
 
-// Top of the home screen: the cover photo fading into ink, or plain ink (D6), with the trip's name and dates.
+// Top of the home screen: the cover photo fading into ink, with the trip's name and dates.
 export function TripHero({ trip }: { trip: TripSummary }) {
   const { t, i18n } = useTranslation();
   const theme = useTheme();
@@ -27,20 +27,25 @@ export function TripHero({ trip }: { trip: TripSummary }) {
 
   return (
     <View testID="trip-hero" style={{ height: heroHeight(height), backgroundColor: hero.background }}>
-      {trip.coverImageUri && (
-        <View testID="trip-hero-photo" aria-hidden style={StyleSheet.absoluteFill}>
-          <Image testID="trip-hero-image" source={{ uri: trip.coverImageUri }} contentFit="cover" style={StyleSheet.absoluteFill} />
-          <Svg testID="trip-hero-gradient" style={StyleSheet.absoluteFill} width="100%" height="100%">
-            <Defs>
-              <LinearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
-                <Stop offset={theme.gradient.heroFade.start} stopColor={hero.background} stopOpacity={0} />
-                <Stop offset={1} stopColor={hero.background} stopOpacity={1} />
-              </LinearGradient>
-            </Defs>
-            <Rect width="100%" height="100%" fill={`url(#${gradientId})`} />
-          </Svg>
-        </View>
-      )}
+      <View testID="trip-hero-photo" aria-hidden style={StyleSheet.absoluteFill}>
+        {/* On ink while it loads, so the light placeholder surface does not flash behind the fade. */}
+        <CoverImage
+          testID="trip-hero-image"
+          cover={trip.coverImageUri}
+          urls={trip.coverUrls}
+          variant="full"
+          style={[StyleSheet.absoluteFill, { backgroundColor: hero.background }]}
+        />
+        <Svg testID="trip-hero-gradient" style={StyleSheet.absoluteFill} width="100%" height="100%">
+          <Defs>
+            <LinearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
+              <Stop offset={theme.gradient.heroFade.start} stopColor={hero.background} stopOpacity={0} />
+              <Stop offset={1} stopColor={hero.background} stopOpacity={1} />
+            </LinearGradient>
+          </Defs>
+          <Rect width="100%" height="100%" fill={`url(#${gradientId})`} />
+        </Svg>
+      </View>
       <View
         style={{
           position: 'absolute',

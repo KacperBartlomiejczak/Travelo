@@ -16,7 +16,8 @@
     "expenses": "Expenses",
     "places": "Places",
     "plan": "Plan",
-    "settings": "Settings",
+    "profile": "Profile",
+    "profileTitle": "User profile",
     "comingSoon": "This screen is coming soon."
   },
   "drawer": {
@@ -91,6 +92,7 @@
       "perDay": "~{{perDay}} a day",
       "create": "Create trip",
       "saveError": "Couldn't save the trip. Try again.",
+      "coverUploadFailed": "Couldn't upload the cover photo. Change it in “Name and photo”.",
       "budgetTitle": "Budget",
       "changeSection": "Change: {{section}}",
       "detailsTitle": "Name and photo",
@@ -165,11 +167,16 @@
   },
   "coverPicker": {
     "label": "Cover photo",
-    "choose": "Choose from gallery",
-    "change": "Change photo",
-    "remove": "Remove photo",
-    "preview": "Selected cover photo",
-    "error": "Couldn't open your photos. Try again."
+    "gallery": "From gallery",
+    "yourPhoto": "Your photo",
+    "error": "Couldn't open your photos. Try again.",
+    "presets": {
+      "auckland": "Auckland",
+      "bali": "Bali",
+      "beijing": "Beijing",
+      "jakarta": "Jakarta",
+      "majorka": "Mallorca"
+    }
   },
   "home": {
     "flights": "Flights",

@@ -7,7 +7,7 @@ import type { TripRepository } from '@/data/trip-repository';
 import { TripsDrawer } from '@/features/drawer/TripsDrawer';
 import i18n from '@/i18n';
 import { AppProviders } from '@/providers/AppProviders';
-import type { CurrentTrip, TripListItem } from '@/schemas';
+import { DEFAULT_COVER, type CurrentTrip, type TripListItem } from '@/schemas';
 import { setNetwork } from '@/test/mock-network';
 import { darkTheme, lightTheme } from '@/theme/theme';
 
@@ -15,21 +15,25 @@ let mockScheme: 'light' | 'dark' = 'light';
 // useColorScheme reads Appearance through an internal import, so it is mocked at its module path.
 jest.mock('react-native/Libraries/Utilities/useColorScheme', () => ({ __esModule: true, default: () => mockScheme }));
 
+// Jest turns every image into the number 1, so the Bali files are stood in by distinct objects.
+jest.mock('../../../../assets/covers/bali.jpg', () => ({ uri: 'bundled/bali.jpg' }));
+jest.mock('../../../../assets/covers/bali_thumb.jpg', () => ({ uri: 'bundled/bali_thumb.jpg' }));
+
 const METRICS = { frame: { x: 0, y: 0, width: 320, height: 640 }, insets: { top: 47, left: 0, right: 0, bottom: 34 } };
 
 // "Today" for the sections: 8 Oct 2026, in the morning on the device.
 const NOW = new Date(2026, 9, 8, 9, 0);
 
-const LISBON: TripListItem = { id: '00000000-0000-4000-8000-0000000000a1', name: 'Lizbona', startDate: '2026-05-01', endDate: '2026-05-08' };
-const OSLO: TripListItem = { id: '00000000-0000-4000-8000-0000000000a2', name: 'Oslo', startDate: '2026-08-10', endDate: '2026-08-14' };
+const LISBON: TripListItem = { id: '00000000-0000-4000-8000-0000000000a1', name: 'Lizbona', coverImageUri: DEFAULT_COVER, startDate: '2026-05-01', endDate: '2026-05-08' };
+const OSLO: TripListItem = { id: '00000000-0000-4000-8000-0000000000a2', name: 'Oslo', coverImageUri: DEFAULT_COVER, startDate: '2026-08-10', endDate: '2026-08-14' };
 const ROME: TripListItem = {
   id: '00000000-0000-4000-8000-0000000000a3',
   name: 'Rzym',
-  coverImageUri: 'file:///cache/rome.jpg',
+  coverImageUri: 'preset:bali',
   startDate: '2026-10-05',
   endDate: '2026-10-12',
 };
-const BANGKOK: TripListItem = { id: '00000000-0000-4000-8000-0000000000a4', name: 'Warsaw → Bangkok', startDate: '2026-11-03', endDate: '2026-11-15' };
+const BANGKOK: TripListItem = { id: '00000000-0000-4000-8000-0000000000a4', name: 'Warsaw → Bangkok', coverImageUri: DEFAULT_COVER, startDate: '2026-11-03', endDate: '2026-11-15' };
 
 function current(item: TripListItem): CurrentTrip {
   return {
@@ -133,7 +137,7 @@ describe('TripsDrawer (trips-drawer D4)', () => {
     expect(screen.queryByText('Minione')).toBeNull();
   });
 
-  it('shows each row\'s name and dates, and the cover photo or a placeholder', async () => {
+  it('shows each row\'s name and dates, and its cover photo', async () => {
     // Oslo is open, so the rows checked here are not the selected one (that one is D8, below).
     await setup({ currentId: OSLO.id }).rendered;
     await waitFor(() => expect(screen.getByRole('button', { name: 'Oslo, 10 sie – 14 sie 2026' })).toBeSelected());
@@ -141,15 +145,30 @@ describe('TripsDrawer (trips-drawer D4)', () => {
     expect(within(rome).getByText('Rzym')).toBeTruthy();
     expect(within(rome).getByText('5 paź – 12 paź 2026')).toBeTruthy();
     const cover = within(rome).getByTestId('trip-row-cover', { includeHiddenElements: true });
-    expect(cover.props.source).toEqual([{ uri: 'file:///cache/rome.jpg' }]); // expo-image normalises to a list
+    expect(cover.props.source).toEqual([{ uri: 'bundled/bali_thumb.jpg' }]); // expo-image normalises to a list
     expect(cover).toHaveStyle({ width: lightTheme.size.thumbnail, height: lightTheme.size.thumbnail, borderRadius: lightTheme.radius.sm });
-    // A cover the phone has since cleared still shows as the placeholder square, not as a hole.
+    // The placeholder surface sits behind the cover while it loads.
     expect(cover).toHaveStyle({ backgroundColor: lightTheme.colors.surface.secondary });
-    const bangkok = screen.getByRole('button', { name: 'Warsaw → Bangkok, 3 lis – 15 lis 2026' });
-    expect(within(bangkok).queryByTestId('trip-row-cover', { includeHiddenElements: true })).toBeNull();
-    const placeholder = within(bangkok).getByTestId('trip-row-placeholder', { includeHiddenElements: true });
-    expect(isHiddenFromAccessibility(placeholder)).toBe(true);
-    expect(placeholder).toHaveStyle({ width: lightTheme.size.thumbnail, height: lightTheme.size.thumbnail, backgroundColor: lightTheme.colors.surface.secondary });
+    // Every trip has a cover (trip-covers D1): no row is drawn without one.
+    expect(screen.getAllByTestId('trip-row-cover', { includeHiddenElements: true })).toHaveLength(4);
+    expect(screen.queryByTestId('trip-row-placeholder', { includeHiddenElements: true })).toBeNull();
+  });
+
+  it('shows a gallery cover from its signed thumbnail URL, cached under the cover\'s own id (trip-covers C3)', async () => {
+    const photoId = '5b1f0f6a-2c7d-4a8e-9b3c-1d2e3f4a5b6c';
+    const coverUrls = { url: 'https://example.com/signed/cover.jpg?token=a', thumbnailUrl: 'https://example.com/signed/cover_thumb.jpg?token=a' };
+    await setup({ list: async () => [{ ...OSLO, coverImageUri: `photo:${photoId}`, coverUrls }], currentId: null }).rendered;
+    const oslo = await screen.findByRole('button', { name: 'Oslo, 10 sie – 14 sie 2026' });
+    const cover = within(oslo).getByTestId('trip-row-cover', { includeHiddenElements: true });
+    expect(cover.props.source).toEqual([{ uri: coverUrls.thumbnailUrl, cacheKey: `cover:${photoId}:thumbnail` }]);
+  });
+
+  it('shows a preset cover from its bundled thumbnail, never the full file (trip-covers C3)', async () => {
+    await setup({ list: async () => [{ ...OSLO, coverImageUri: 'preset:bali' }], currentId: null }).rendered;
+    const oslo = await screen.findByRole('button', { name: 'Oslo, 10 sie – 14 sie 2026' });
+    const cover = within(oslo).getByTestId('trip-row-cover', { includeHiddenElements: true });
+    expect(cover.props.source).toEqual([{ uri: 'bundled/bali_thumb.jpg' }]);
+    expect(isHiddenFromAccessibility(cover)).toBe(true);
   });
 
   it('rows are list rows: at least 64dp high with 16dp side padding, secondary surface while pressed (§10.8)', async () => {
@@ -255,17 +274,17 @@ describe('TripsDrawer — thumbnail on the open trip\'s row (trips-drawer D8)', 
   it.each([
     ['light', lightTheme],
     ['dark', darkTheme],
-  ] as const)('puts the open trip\'s placeholder on the panel surface, the others on the secondary surface (%s)', async (scheme, theme) => {
+  ] as const)('puts the open trip\'s thumbnail on the panel surface, the others on the secondary surface (%s)', async (scheme, theme) => {
     mockScheme = scheme;
     await setup({ currentId: BANGKOK.id }).rendered;
     const bangkok = await screen.findByRole('button', { name: 'Warsaw → Bangkok, 3 lis – 15 lis 2026' });
     await waitFor(() => expect(bangkok).toBeSelected());
     expect(bangkok).toHaveStyle({ backgroundColor: theme.colors.surface.secondary });
-    expect(within(bangkok).getByTestId('trip-row-placeholder', { includeHiddenElements: true })).toHaveStyle({
+    expect(within(bangkok).getByTestId('trip-row-cover', { includeHiddenElements: true })).toHaveStyle({
       backgroundColor: theme.colors.surface.elevated,
     });
     const oslo = screen.getByRole('button', { name: 'Oslo, 10 sie – 14 sie 2026' });
-    expect(within(oslo).getByTestId('trip-row-placeholder', { includeHiddenElements: true })).toHaveStyle({
+    expect(within(oslo).getByTestId('trip-row-cover', { includeHiddenElements: true })).toHaveStyle({
       backgroundColor: theme.colors.surface.secondary,
     });
   });

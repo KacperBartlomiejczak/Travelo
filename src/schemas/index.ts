@@ -1,5 +1,6 @@
 export * from './airport';
 export * from './common';
+export * from './cover';
 export * from './create-trip-form';
 export * from './flight';
 export * from './interests';

@@ -71,6 +71,7 @@ function overview(patch: Partial<TripOverview['trip']> = {}): TripOverview {
       id: TRIP_ID,
       ownerId: 'local-user',
       name: 'Warsaw → Bangkok',
+      coverImageUri: 'preset:auckland',
       destination: 'BKK',
       startDate: '2026-11-03',
       endDate: '2026-11-15',
@@ -601,7 +602,7 @@ describe('Home screen — trip menu ⋮ (trip-edit-menu D3, D4, D6, D8, D15)', (
     await fireEvent.changeText(screen.getByLabelText('Nazwa podróży'), '  Bangkok z Kasią ');
     await fireEvent.press(sheet().getByRole('button', { name: 'Zapisz' }));
 
-    expect(mockUpdateDetails).toHaveBeenCalledWith(TRIP_ID, { name: 'Bangkok z Kasią' });
+    expect(mockUpdateDetails).toHaveBeenCalledWith(TRIP_ID, { name: 'Bangkok z Kasią', coverImageUri: 'preset:auckland' }); // the trip's own cover goes back unchanged
     expect(await screen.findByRole('header', { name: 'Bangkok z Kasią' })).toBeTruthy();
     expect(screen.queryByTestId('bottom-sheet')).toBeNull();
   });

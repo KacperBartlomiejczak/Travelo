@@ -127,6 +127,7 @@ describe('Trip', () => {
     budgetPerPerson: { amountMinor: 300000, currency: 'EUR' },
     createdAt: '2026-10-04T12:00:00+02:00',
     budgetUpdatedAt: '2026-10-04T12:00:00+02:00',
+    coverImageUri: 'preset:auckland',
   };
 
   it('accepts a trip, including a one-day trip', () => {
@@ -153,9 +154,21 @@ describe('Trip', () => {
     expect(TripSchema.safeParse({ ...trip, budgetUpdatedAt: '2026-10-04T12:00:00' }).success).toBe(false);
   });
 
-  it('accepts a cover photo URI, which is optional', () => {
-    expect(TripSchema.parse({ ...trip, coverImageUri: 'file:///cache/cover.jpg' }).coverImageUri).toBe('file:///cache/cover.jpg');
-    expect(TripSchema.parse(trip)).not.toHaveProperty('coverImageUri');
+  it('accepts a preset or a stored gallery cover', () => {
+    expect(TripSchema.parse({ ...trip, coverImageUri: 'preset:bali' }).coverImageUri).toBe('preset:bali');
+    const stored = 'photo:5b1f0f6a-2c7d-4a8e-9b3c-1d2e3f4a5b6c';
+    expect(TripSchema.parse({ ...trip, coverImageUri: stored }).coverImageUri).toBe(stored);
+  });
+
+  it('requires a cover (trip-covers D1)', () => {
+    const { coverImageUri: _omit, ...withoutCover } = trip;
+    expect(TripSchema.safeParse(withoutCover).success).toBe(false);
+  });
+
+  it('has no signed URLs: only the summary and the list item carry them', () => {
+    const urls = { url: 'https://example.supabase.co/a.jpg', thumbnailUrl: 'https://example.supabase.co/a_thumb.jpg' };
+    const stored = 'photo:5b1f0f6a-2c7d-4a8e-9b3c-1d2e3f4a5b6c';
+    expect(TripSchema.parse({ ...trip, coverImageUri: stored, coverUrls: urls })).not.toHaveProperty('coverUrls');
   });
 
   it('accepts a name of up to 60 characters', () => {
@@ -167,6 +180,9 @@ describe('Trip', () => {
     ['a 61-character name', { name: 'a'.repeat(61) }],
     ['an empty name', { name: '' }],
     ['an empty cover URI', { coverImageUri: '' }],
+    ['a device URI as the cover (not a stored cover)', { coverImageUri: 'file:///cache/cover.jpg' }],
+    ['an unknown preset', { coverImageUri: 'preset:paris' }],
+    ['a gallery cover with an uppercase id', { coverImageUri: 'photo:5B1F0F6A-2C7D-4A8E-9B3C-1D2E3F4A5B6C' }],
   ])('rejects %s', (_, patch) => {
     expect(TripSchema.safeParse({ ...trip, ...patch }).success).toBe(false);
   });
@@ -181,10 +197,30 @@ describe('Trip', () => {
       expect(TripSummarySchema.safeParse({ ...trip, endDate: '2026-11-01', travellerCount: 1 }).success).toBe(false);
     });
 
-    it('carries the cover photo', () => {
-      const summary = { ...trip, coverImageUri: 'file:///cache/cover.jpg', travellerCount: 1 };
-      expect(TripSummarySchema.parse(summary).coverImageUri).toBe('file:///cache/cover.jpg');
+    it('carries the cover', () => {
+      const summary = { ...trip, coverImageUri: 'preset:bali', travellerCount: 1 };
+      expect(TripSummarySchema.parse(summary).coverImageUri).toBe('preset:bali');
       expect(TripSummarySchema.safeParse({ ...summary, name: 'a'.repeat(61) }).success).toBe(false);
+    });
+
+    describe('signed cover URLs (trip-covers D5)', () => {
+      const stored = 'photo:5b1f0f6a-2c7d-4a8e-9b3c-1d2e3f4a5b6c';
+      const urls = { url: 'https://example.supabase.co/a.jpg?token=1', thumbnailUrl: 'https://example.supabase.co/a_thumb.jpg?token=2' };
+
+      it('are optional for a gallery cover (an offline copy or a legacy value may lack them)', () => {
+        const summary = { ...trip, coverImageUri: stored, travellerCount: 1 };
+        expect(TripSummarySchema.parse({ ...summary, coverUrls: urls }).coverUrls).toEqual(urls);
+        expect(TripSummarySchema.parse(summary)).not.toHaveProperty('coverUrls');
+      });
+
+      it('are refused for a preset', () => {
+        expect(TripSummarySchema.safeParse({ ...trip, coverImageUri: 'preset:bali', travellerCount: 1, coverUrls: urls }).success).toBe(false);
+      });
+
+      it('must be http(s) URLs', () => {
+        const bad = { url: 'javascript:alert(1)', thumbnailUrl: urls.thumbnailUrl };
+        expect(TripSummarySchema.safeParse({ ...trip, coverImageUri: stored, travellerCount: 1, coverUrls: bad }).success).toBe(false);
+      });
     });
   });
 

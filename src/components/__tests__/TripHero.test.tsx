@@ -11,10 +11,15 @@ jest.mock('react-native/Libraries/Utilities/useWindowDimensions', () => ({
   default: () => ({ width: 375, height: 812, scale: 2, fontScale: 1 }),
 }));
 
+// Jest turns every image into the number 1, so the Bali files are stood in by distinct objects.
+jest.mock('../../../assets/covers/bali.jpg', () => ({ uri: 'bundled/bali.jpg' }));
+jest.mock('../../../assets/covers/bali_thumb.jpg', () => ({ uri: 'bundled/bali_thumb.jpg' }));
+
 const trip: TripSummary = {
   id: '0b9e7c4e-6a43-4c4b-9a55-2f6f0f7e1a01',
   ownerId: 'local-user',
   name: 'Warsaw → Bangkok',
+  coverImageUri: 'preset:auckland',
   destination: 'BKK',
   startDate: '2026-11-03',
   endDate: '2026-11-15',
@@ -54,11 +59,11 @@ describe('TripHero (D4)', () => {
   });
 
   it('shows the cover photo, hidden from screen readers, fading into ink', async () => {
-    await render(<TripHero trip={{ ...trip, coverImageUri: 'file:///cache/cover.jpg' }} />);
+    await render(<TripHero trip={{ ...trip, coverImageUri: 'preset:bali' }} />);
     const hidden = { includeHiddenElements: true };
     expect(screen.queryByTestId('trip-hero-photo')).toBeNull(); // not reachable for screen readers
     expect(screen.getByTestId('trip-hero-photo', hidden).props['aria-hidden']).toBe(true);
-    expect(screen.getByTestId('trip-hero-image', hidden).props.source).toEqual([{ uri: 'file:///cache/cover.jpg' }]); // expo-image normalises to a list
+    expect(screen.getByTestId('trip-hero-image', hidden).props.source).toEqual([{ uri: 'bundled/bali.jpg' }]); // expo-image normalises to a list
     expect(screen.getByTestId('trip-hero-gradient', hidden)).toBeTruthy();
     // The fade follows the theme's gradient token (§20 rule 20). The native gradient prop is
     // [offset, colour, offset, colour, …].
@@ -66,10 +71,19 @@ describe('TripHero (D4)', () => {
     expect(offsets).toEqual([lightTheme.gradient.heroFade.start, 1]);
   });
 
-  it('is plain ink without a cover photo (D6)', async () => {
-    await render(<TripHero trip={trip} />);
-    expect(screen.queryByTestId('trip-hero-photo', { includeHiddenElements: true })).toBeNull();
-    expect(screen.getByTestId('trip-hero')).toHaveStyle({ backgroundColor: lightTheme.colors.hero.background });
+  it('shows a preset cover from its bundled full-size file, on ink while it loads (trip-covers C3)', async () => {
+    await render(<TripHero trip={{ ...trip, coverImageUri: 'preset:bali' }} />);
+    const image = screen.getByTestId('trip-hero-image', { includeHiddenElements: true });
+    expect(image.props.source).toEqual([{ uri: 'bundled/bali.jpg' }]);
+    expect(image).toHaveStyle({ backgroundColor: lightTheme.colors.hero.background });
+  });
+
+  it('shows a gallery cover from its signed full-size URL, cached under the cover\'s own id (trip-covers C3)', async () => {
+    const photoId = '5b1f0f6a-2c7d-4a8e-9b3c-1d2e3f4a5b6c';
+    const coverUrls = { url: 'https://example.com/signed/cover.jpg?token=a', thumbnailUrl: 'https://example.com/signed/cover_thumb.jpg?token=a' };
+    await render(<TripHero trip={{ ...trip, coverImageUri: `photo:${photoId}`, coverUrls }} />);
+    const image = screen.getByTestId('trip-hero-image', { includeHiddenElements: true });
+    expect(image.props.source).toEqual([{ uri: coverUrls.url, cacheKey: `cover:${photoId}:full` }]);
   });
 
   it('names the trip in Display XL (§4.2 "Trip hero") and light text, with dates and days below', async () => {

@@ -6,7 +6,7 @@ import ExpensesScreen from '@/app/(drawer)/(tabs)/expenses';
 import HomeScreen from '@/app/(drawer)/(tabs)/index';
 import PlacesScreen from '@/app/(drawer)/(tabs)/places';
 import PlanScreen from '@/app/(drawer)/(tabs)/plan';
-import SettingsScreen from '@/app/(drawer)/(tabs)/settings';
+import ProfileScreen from '@/app/(drawer)/(tabs)/profile';
 import DrawerLayout from '@/app/(drawer)/_layout';
 import RootLayout from '@/app/_layout';
 import i18n from '@/i18n';
@@ -38,7 +38,7 @@ const ROUTES = {
   '(drawer)/(tabs)/expenses': ExpensesScreen,
   '(drawer)/(tabs)/places': PlacesScreen,
   '(drawer)/(tabs)/plan': PlanScreen,
-  '(drawer)/(tabs)/settings': SettingsScreen,
+  '(drawer)/(tabs)/profile': ProfileScreen,
   'trips/new/index': () => null,
 };
 
@@ -55,7 +55,7 @@ describe('Side panel only on the home screen (pill-nav-and-dialog R3)', () => {
     expect(mockSwipeEnabled).toBe(true);
   });
 
-  it.each(['/expenses', '/places', '/plan', '/settings'])('turns the edge swipe off on %s', async (path) => {
+  it.each(['/expenses', '/places', '/plan', '/profile'])('turns the edge swipe off on %s', async (path) => {
     const app = renderRouter(ROUTES, { initialUrl: path });
     await app;
     expect(app.getPathname()).toBe(path);

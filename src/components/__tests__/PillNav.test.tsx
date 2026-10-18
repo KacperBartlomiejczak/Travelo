@@ -16,7 +16,7 @@ jest.mock('react-native/Libraries/Utilities/useWindowDimensions', () => ({
 }));
 
 const metrics = { frame: { x: 0, y: 0, width: 360, height: 812 }, insets: { top: 47, left: 0, right: 0, bottom: 34 } };
-const PL = ['Podróż', 'Wydatki', 'Miejsca', 'Plan', 'Ustawienia'];
+const PL = ['Podróż', 'Wydatki', 'Miejsca', 'Plan', 'Profil'];
 
 function items() {
   return NAV_TABS.map(({ key, labelKey, Icon }) => ({ key, label: i18n.t(labelKey), Icon }));
@@ -72,7 +72,7 @@ describe('PillNav (design-context §10.2, pill-nav-and-dialog D1, D2, D4)', () =
         'Expenses',
         'Places',
         'Plan',
-        'Settings',
+        'Profile',
       ]);
     });
 
@@ -121,10 +121,10 @@ describe('PillNav (design-context §10.2, pill-nav-and-dialog D1, D2, D4)', () =
       expect(icon('expenses').props.stroke).toBe(lightTheme.colors.nav.active);
       expect(icon('expenses').props.width).toBe(lightTheme.size.iconPrimary);
       expect(icon('expenses').props.strokeWidth).toBe(lightTheme.size.iconStroke);
-      ['Podróż', 'Miejsca', 'Plan', 'Ustawienia'].forEach((label) => {
+      ['Podróż', 'Miejsca', 'Plan', 'Profil'].forEach((label) => {
         expect(screen.getByText(label)).toHaveStyle({ color: lightTheme.colors.nav.textInactive });
       });
-      ['index', 'places', 'plan', 'settings'].forEach((key) => {
+      ['index', 'places', 'plan', 'profile'].forEach((key) => {
         expect(icon(key).props.width).toBe(lightTheme.size.iconStandard);
         expect(icon(key).props.height).toBe(lightTheme.size.iconStandard);
         expect(icon(key).props.strokeWidth).toBe(lightTheme.size.iconStroke);
@@ -211,7 +211,7 @@ describe('PillNav (design-context §10.2, pill-nav-and-dialog D1, D2, D4)', () =
       mockFontScale = 2;
       await render(ui('expenses'));
       expect(screen.getByText('Wydatki')).toBeTruthy();
-      ['Podróż', 'Miejsca', 'Plan', 'Ustawienia'].forEach((label) => {
+      ['Podróż', 'Miejsca', 'Plan', 'Profil'].forEach((label) => {
         expect(screen.queryByText(label)).toBeNull();
         expect(navButton(label)).toBeTruthy();
       });

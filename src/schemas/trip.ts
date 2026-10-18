@@ -1,6 +1,7 @@
 import { z } from 'zod';
 
 import { CurrencyCodeSchema, IataCodeSchema, IsoDateSchema, IsoDateTimeSchema, MoneySchema } from './common';
+import { CoverSchema, CoverUrlsSchema } from './cover';
 import { FlightSegmentSchema } from './flight';
 import { TripMemberSchema } from './member';
 
@@ -11,8 +12,8 @@ const tripShape = {
   ownerId: z.string().min(1),
   /** The organizer's name; defaults to "<from city> → <destination city>" (trip-flight-tabs-name-cover D3). */
   name: z.string().min(1).max(TRIP_NAME_MAX_LENGTH),
-  /** Device-local image URI while trips live in memory (trip-flight-tabs-name-cover A3). */
-  coverImageUri: z.string().min(1).optional(),
+  /** The trip's cover: a bundled `preset:<id>` or a gallery photo in Storage `photo:<uuid>`; always set (trip-covers D1, D4, D5). */
+  coverImageUri: CoverSchema,
   /** Airport where the outbound flight finally lands. */
   destination: IataCodeSchema,
   /** Derived from flights: outbound arrival date … return departure date (D4). */
@@ -27,6 +28,13 @@ const tripShape = {
 
 type TripShape = z.infer<z.ZodObject<typeof tripShape>>;
 
+/** Signed URLs exist only for a gallery cover (trip-covers D5); a preset has nothing to sign. */
+function addCoverUrlsIssue(trip: { coverImageUri: string; coverUrls?: unknown }, ctx: z.RefinementCtx) {
+  if (trip.coverUrls !== undefined && !trip.coverImageUri.startsWith('photo:')) {
+    ctx.addIssue({ code: 'custom', path: ['coverUrls'], message: 'Only a gallery cover has signed URLs' });
+  }
+}
+
 function addTripIssues(trip: TripShape, ctx: z.RefinementCtx) {
   if (trip.endDate < trip.startDate) {
     ctx.addIssue({ code: 'custom', path: ['endDate'], message: 'End date is before start date' });
@@ -39,10 +47,13 @@ function addTripIssues(trip: TripShape, ctx: z.RefinementCtx) {
 export const TripSchema = z.object(tripShape).superRefine(addTripIssues);
 export type Trip = z.infer<typeof TripSchema>;
 
-/** Trip as shown in the trips list. */
+/** Trip as shown in the trips list. `coverUrls` come from the server for a gallery cover; a copy kept offline may lack them. */
 export const TripSummarySchema = z
-  .object({ ...tripShape, travellerCount: z.int().min(1) })
-  .superRefine(addTripIssues);
+  .object({ ...tripShape, travellerCount: z.int().min(1), coverUrls: CoverUrlsSchema.optional() })
+  .superRefine((trip, ctx) => {
+    addTripIssues(trip, ctx);
+    addCoverUrlsIssue(trip, ctx);
+  });
 export type TripSummary = z.infer<typeof TripSummarySchema>;
 
 /** Everything the home screen shows about one trip (trip-flight-tabs-name-cover D4). */
@@ -59,10 +70,14 @@ export const TripListItemSchema = z
     id: tripShape.id,
     name: tripShape.name,
     coverImageUri: tripShape.coverImageUri,
+    coverUrls: CoverUrlsSchema.optional(),
     startDate: tripShape.startDate,
     endDate: tripShape.endDate,
   })
-  .refine((trip) => trip.endDate >= trip.startDate, { path: ['endDate'], message: 'End date is before start date' });
+  .superRefine((trip, ctx) => {
+    if (trip.endDate < trip.startDate) ctx.addIssue({ code: 'custom', path: ['endDate'], message: 'End date is before start date' });
+    addCoverUrlsIssue(trip, ctx);
+  });
 export type TripListItem = z.infer<typeof TripListItemSchema>;
 
 /** The side panel's list, also what the device keeps as its copy (trips-drawer D3). */

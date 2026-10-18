@@ -8,21 +8,21 @@ import { PrimaryButton } from '@/components/PrimaryButton';
 import { TextField } from '@/components/TextField';
 import { useUpdateTripDetails } from '@/hooks/useTrips';
 import { useIsOffline } from '@/providers/BudgetSync';
-import { TRIP_NAME_MAX_LENGTH, TripDetailsInputSchema, type TripSummary } from '@/schemas';
+import { TRIP_NAME_MAX_LENGTH, TripDetailsInputSchema, type CoverChoice, type TripSummary } from '@/schemas';
 import { useTheme } from '@/theme/useTheme';
 
 type Props = { trip: TripSummary; onClose: () => void };
 
 // Changing the name and cover of an existing trip (trip-edit-menu A2, D5, D12): the same form as the wizard's summary
-// card, checked with the same schema and messages. Server-first, so offline saving is disabled (D5); the cover can be
-// removed (A3). Mounting opens the sheet, like BudgetSheet.
+// card, checked with the same schema and messages. Server-first, so offline saving is disabled (D5); the cover is always
+// one of the presets or a gallery photo (trip-covers D1). Mounting opens the sheet, like BudgetSheet.
 export function TripDetailsSheet({ trip, onClose }: Props) {
   const { t } = useTranslation();
   const theme = useTheme();
   const update = useUpdateTripDetails();
   const offline = useIsOffline();
   const [name, setName] = useState(trip.name);
-  const [coverImageUri, setCoverImageUri] = useState(trip.coverImageUri);
+  const [coverImageUri, setCoverImageUri] = useState<CoverChoice>(trip.coverImageUri);
   // The name error appears after the first "Zapisz" and then follows every change (as on the wizard's summary).
   const [submitted, setSubmitted] = useState(false);
 
@@ -35,10 +35,8 @@ export function TripDetailsSheet({ trip, onClose }: Props) {
       AccessibilityInfo.announceForAccessibility(t('newTrip.fixErrors'));
       return;
     }
-    // A removed cover is left out, not sent as `undefined`: the repository then clears it on the server (A3).
-    const { name: trimmed, coverImageUri: cover } = result.data;
     update.mutate(
-      { tripId: trip.id, input: cover ? { name: trimmed, coverImageUri: cover } : { name: trimmed } },
+      { tripId: trip.id, input: result.data },
       { onSuccess: onClose, onError: () => AccessibilityInfo.announceForAccessibility(t('tripDetails.saveError')) },
     );
   }
@@ -54,7 +52,7 @@ export function TripDetailsSheet({ trip, onClose }: Props) {
           maxLength={TRIP_NAME_MAX_LENGTH}
           error={nameError ? t(nameError, { max: TRIP_NAME_MAX_LENGTH }) : undefined}
         />
-        <CoverPicker value={coverImageUri} onChange={setCoverImageUri} />
+        <CoverPicker value={coverImageUri} onChange={setCoverImageUri} urls={trip.coverUrls} />
       </ScrollView>
       {update.isError && (
         <Text accessibilityLiveRegion="polite" style={[theme.typography.bodyS, { color: theme.colors.status.error }]}>

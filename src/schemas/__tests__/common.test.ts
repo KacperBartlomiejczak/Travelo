@@ -1,4 +1,4 @@
-import { CurrencyCodeSchema, IanaTimezoneSchema, IataCodeSchema, IsoDateSchema, IsoDateTimeSchema, LocalDateTimeSchema, MoneySchema } from '@/schemas';
+import { CurrencyCodeSchema, HttpUrlSchema, IanaTimezoneSchema, IataCodeSchema, IsoDateSchema, IsoDateTimeSchema, LocalDateTimeSchema, MoneySchema } from '@/schemas';
 
 describe('CurrencyCode', () => {
   it('accepts an ISO 4217 code', () => {
@@ -82,4 +82,17 @@ describe('Money', () => {
   ])('rejects %s', (_, value) => {
     expect(MoneySchema.safeParse(value).success).toBe(false);
   });
+});
+
+describe('HttpUrl', () => {
+  it.each(['https://example.com/a.jpg', 'http://127.0.0.1:54321/a.jpg'])('accepts %p', (value) => {
+    expect(HttpUrlSchema.safeParse(value).success).toBe(true);
+  });
+
+  it.each(['file:///data/user/0/x.jpg', 'javascript:alert(1)', 'data:image/jpeg;base64,AAAA', 'ftp://example.com/a.jpg', '', 'not a url'])(
+    'rejects %p',
+    (value) => {
+      expect(HttpUrlSchema.safeParse(value).success).toBe(false);
+    },
+  );
 });

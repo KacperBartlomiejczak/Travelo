@@ -4,13 +4,15 @@ import { defaultCurrency } from '@/lib/airport-search';
 import { parseAmountToMinor } from '@/lib/money';
 import { defaultTripName } from '@/lib/trip-name';
 
-import type {
-  CreateTripInputSchema,
-  FlightsStepInputSchema,
-  FriendInputSchema,
-  FriendsStepInputSchema,
-  SegmentInputSchema,
-  TripDetailsInputSchema,
+import {
+  DEFAULT_COVER,
+  type CoverChoice,
+  type CreateTripInputSchema,
+  type FlightsStepInputSchema,
+  type FriendInputSchema,
+  type FriendsStepInputSchema,
+  type SegmentInputSchema,
+  type TripDetailsInputSchema,
 } from '@/schemas';
 
 // What the wizard holds while it is being filled in. Validated with the step schemas on "Next".
@@ -26,7 +28,8 @@ export type TripDraft = Omit<z.input<typeof FlightsStepInputSchema>, 'outbound' 
     budget: { amountText: string; currency: string };
     /** null = not typed yet: the default name follows the flights (trip-flight-tabs-name-cover A2). */
     name: DetailsInput['name'] | null;
-    coverImageUri?: DetailsInput['coverImageUri'];
+    /** Always set: a preset from the start (trip-covers D4), or a gallery photo picked on this phone. */
+    coverImageUri: CoverChoice;
   };
 
 let nextSegmentKey = 0;
@@ -44,6 +47,7 @@ export function emptyDraft(): TripDraft {
     friends: [],
     budget: { amountText: '', currency: '' },
     name: null,
+    coverImageUri: DEFAULT_COVER,
   };
 }
 
@@ -112,6 +116,6 @@ export function toCreateTripInput(draft: TripDraft, locale: string): z.input<typ
     friends: { friends: draft.friends },
     // The budget step only lets valid amounts through; 0 makes the schema reject anything else.
     budget: { budgetPerPerson: { amountMinor: parseAmountToMinor(draft.budget.amountText, currency, locale) ?? 0, currency } },
-    details: { name: tripName(draft), ...(draft.coverImageUri ? { coverImageUri: draft.coverImageUri } : {}) },
+    details: { name: tripName(draft), coverImageUri: draft.coverImageUri },
   };
 }

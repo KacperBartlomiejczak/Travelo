@@ -1,10 +1,12 @@
 import { useFonts } from 'expo-font';
 import { useRouter } from 'expo-router';
-import { act, fireEvent, renderRouter, screen, within } from 'expo-router/testing-library';
+import { act, fireEvent, renderRouter, screen, waitFor, within } from 'expo-router/testing-library';
 import { launchImageLibraryAsync } from 'expo-image-picker';
+import type { ReactElement } from 'react';
 import { AccessibilityInfo, Pressable, Text } from 'react-native';
 
 import TabsLayout from '@/app/(drawer)/(tabs)/_layout';
+import HomeScreen from '@/app/(drawer)/(tabs)/index';
 import DrawerLayout from '@/app/(drawer)/_layout';
 import RootLayout from '@/app/_layout';
 import BudgetStep from '@/app/trips/new/budget';
@@ -15,6 +17,7 @@ import { emptySegment, withCompanionCount } from '@/features/trip-create/draft';
 import { useTripDraft } from '@/features/trip-create/TripDraftContext';
 import { useCurrentTrip } from '@/hooks/useTrips';
 import i18n from '@/i18n';
+import { lightTheme } from '@/theme/theme';
 
 jest.mock('expo-font', () => ({ ...jest.requireActual('expo-font'), useFonts: jest.fn() }));
 jest.mocked(useFonts).mockReturnValue([true, null]);
@@ -23,6 +26,8 @@ jest.mock('expo-crypto', () => ({ randomUUID: () => jest.requireActual('crypto')
 jest.mock('expo-image-picker', () => ({ launchImageLibraryAsync: jest.fn() }));
 
 let mockSaveFails = false;
+// The repository answers with the default cover, as when sending a gallery photo failed (trip-covers Q1).
+let mockCoverUploadFails = false;
 // When set, saving waits until the test calls it.
 let mockReleaseSave: (() => void) | null = null;
 let mockHoldSave = false;
@@ -36,19 +41,21 @@ jest.mock('@/data/app-trip-repository', () => {
         create: async (input: unknown) => {
           if (mockHoldSave) await new Promise<void>((resolve) => (mockReleaseSave = resolve));
           if (mockSaveFails) throw new Error('down');
-          return repository.create(input);
+          const trip = await repository.create(input);
+          return mockCoverUploadFails ? { ...trip, coverImageUri: 'preset:auckland' } : trip;
         },
       };
     },
   };
 });
 
-// Home screen stand-in: the saved trip's name and cover.
+// Home screen stand-in: the saved trip's name, and its cover on a line of its own.
 function TripsProbe() {
   const trip = useCurrentTrip().data?.overview.trip;
   return (
     <>
-      <Text>{`trips: ${trip ? trip.name + (trip.coverImageUri ? ` [${trip.coverImageUri}]` : '') : ''}`}</Text>
+      <Text>{`trips: ${trip ? trip.name : ''}`}</Text>
+      <Text>{`cover: ${trip?.coverImageUri ?? ''}`}</Text>
       <Text>Utwórz podróż</Text>
     </>
   );
@@ -87,13 +94,13 @@ function filledSteps(companions: number) {
   };
 }
 
-async function openSummary(companions = 2) {
+async function openSummary(companions = 2, home: () => ReactElement | null = TripsProbe) {
   const rendered = renderRouter(
     {
       _layout: RootLayout,
       '(drawer)/_layout': DrawerLayout,
       '(drawer)/(tabs)/_layout': TabsLayout,
-      '(drawer)/(tabs)/index': TripsProbe,
+      '(drawer)/(tabs)/index': home,
       'trips/new/_layout': NewTripLayout,
       'trips/new/index': filledSteps(companions),
       'trips/new/friends': FriendsStep,
@@ -104,13 +111,14 @@ async function openSummary(companions = 2) {
   );
   await rendered;
   await fireEvent.press(screen.getByText('test: fill all and go to summary'));
-  return { getPathname: () => rendered.getPathname() };
+  return { getPathname: () => rendered.getPathname(), getSearchParams: () => rendered.getSearchParams() };
 }
 
 const section = (name: string) => within(screen.getByTestId(`summary-${name}`));
 
 beforeEach(async () => {
   mockSaveFails = false;
+  mockCoverUploadFails = false;
   mockHoldSave = false;
   mockReleaseSave = null;
   jest.useFakeTimers({ now: new Date('2026-10-04T12:00:00+02:00'), advanceTimers: true });
@@ -208,7 +216,28 @@ describe('Summary step', () => {
       expect(screen.getAllByTestId(/^summary-/)[0].props.testID).toBe('summary-details');
       expect(details().getByRole('header', { name: 'Nazwa i zdjęcie' })).toBeTruthy();
       expect(details().getByLabelText('Nazwa podróży').props.value).toBe('Warsaw → Bangkok');
-      expect(details().getByRole('button', { name: 'Wybierz z galerii' })).toBeTruthy();
+      expect(details().getByRole('button', { name: 'Z galerii' })).toBeTruthy();
+    });
+
+    it('starts with the default cover selected, so the organizer never has to pick one (trip-covers D4)', async () => {
+      await openSummary();
+      expect(details().getByText('Zdjęcie okładki')).toBeTruthy();
+      expect(details().queryByText(/opcjonalnie/)).toBeNull();
+      expect(details().getByRole('radio', { name: 'Auckland', checked: true })).toBeTruthy();
+    });
+
+    it('saves the default cover when it was not touched', async () => {
+      await openSummary();
+      await fireEvent.press(screen.getByRole('button', { name: 'Utwórz podróż' }));
+      expect(await screen.findByText('cover: preset:auckland')).toBeTruthy();
+    });
+
+    it('saves the preset the organizer tapped', async () => {
+      await openSummary();
+      await fireEvent.press(details().getByRole('radio', { name: 'Bali' }));
+      expect(details().getByRole('radio', { name: 'Bali', checked: true })).toBeTruthy();
+      await fireEvent.press(screen.getByRole('button', { name: 'Utwórz podróż' }));
+      expect(await screen.findByText('cover: preset:bali')).toBeTruthy();
     });
 
     it('saves the name the organizer typed', async () => {
@@ -236,10 +265,78 @@ describe('Summary step', () => {
         assets: [{ uri: 'file:///cache/cover.jpg', width: 1600, height: 900 }],
       });
       await openSummary();
-      await fireEvent.press(details().getByRole('button', { name: 'Wybierz z galerii' }));
-      expect(await details().findByLabelText('Wybrane zdjęcie okładki')).toBeTruthy();
+      await fireEvent.press(details().getByRole('button', { name: 'Z galerii' }));
+      expect(await details().findByRole('radio', { name: 'Twoje zdjęcie', checked: true })).toBeTruthy();
       await fireEvent.press(screen.getByRole('button', { name: 'Utwórz podróż' }));
-      expect(await screen.findByText('trips: Warsaw → Bangkok [file:///cache/cover.jpg]')).toBeTruthy();
+      // The repository uploads the photo and keeps it as a stored cover, so the saved trip has photo:<id>, not the picked file.
+      expect(await screen.findByText(/^cover: photo:[0-9a-f-]{36}$/)).toBeTruthy();
+    });
+  });
+
+  describe('a cover photo that could not be sent (trip-covers Q1)', () => {
+    const MESSAGE = 'Nie udało się wysłać zdjęcia okładki. Zmień je w „Nazwa i zdjęcie”.';
+    const pickPhoto = async () => {
+      const gallery = i18n.t('coverPicker.gallery');
+      const yours = i18n.t('coverPicker.yourPhoto');
+      jest.mocked(launchImageLibraryAsync).mockResolvedValue({
+        canceled: false,
+        assets: [{ uri: 'file:///cache/cover.jpg', width: 1600, height: 900 }],
+      });
+      await fireEvent.press(section('details').getByRole('button', { name: gallery }));
+      await section('details').findByRole('radio', { name: yours, checked: true });
+    };
+    const create = () => fireEvent.press(screen.getByRole('button', { name: i18n.t('newTrip.summary.create') }));
+
+    it('lands on the home screen with the snackbar once, and clears the flag', async () => {
+      mockCoverUploadFails = true;
+      const app = await openSummary(2, HomeScreen);
+      await pickPhoto();
+      await create();
+      expect(await screen.findByText(MESSAGE)).toBeTruthy();
+      expect(app.getPathname()).toBe('/');
+      await waitFor(() => expect(app.getSearchParams()).toEqual({}));
+      // Gone after its time (cleared by the screen, then faded out), and not shown again by a later render.
+      const { snackbarAutoDismiss, small } = lightTheme.duration;
+      await act(async () => {
+        await jest.advanceTimersByTimeAsync(snackbarAutoDismiss);
+      });
+      await act(async () => {
+        await jest.advanceTimersByTimeAsync(small + 50);
+      });
+      expect(screen.queryByText(MESSAGE)).toBeNull();
+      await act(async () => {
+        await jest.advanceTimersByTimeAsync(snackbarAutoDismiss);
+      });
+      expect(screen.queryByText(MESSAGE)).toBeNull();
+    });
+
+    it('reads in English', async () => {
+      await i18n.changeLanguage('en');
+      mockCoverUploadFails = true;
+      await openSummary(2, HomeScreen);
+      await pickPhoto();
+      await create();
+      expect(await screen.findByText("Couldn't upload the cover photo. Change it in “Name and photo”.")).toBeTruthy();
+    });
+
+    it('shows nothing when the photo was sent', async () => {
+      const app = await openSummary(2, HomeScreen);
+      await pickPhoto();
+      await create();
+      await waitFor(() => expect(app.getPathname()).toBe('/'));
+      expect(await screen.findByText('Warsaw → Bangkok')).toBeTruthy();
+      expect(screen.queryByText(MESSAGE)).toBeNull();
+      expect(app.getSearchParams()).toEqual({});
+    });
+
+    it('shows nothing for a preset, even if the repository answered with the default', async () => {
+      mockCoverUploadFails = true;
+      const app = await openSummary(2, HomeScreen);
+      await fireEvent.press(section('details').getByRole('radio', { name: 'Bali' }));
+      await create();
+      await waitFor(() => expect(app.getPathname()).toBe('/'));
+      expect(await screen.findByText('Warsaw → Bangkok')).toBeTruthy();
+      expect(screen.queryByText(MESSAGE)).toBeNull();
     });
   });
 

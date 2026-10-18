@@ -1,6 +1,6 @@
 import { z } from 'zod';
 
-import { IsoDateTimeSchema, LocalDateTimeSchema } from './common';
+import { HttpUrlSchema, IsoDateTimeSchema, LocalDateTimeSchema } from './common';
 
 /** One photo of a trip (trip-photos D2). Files in Storage: photoPaths(photo); GPS is never stored. */
 export const TripPhotoSchema = z.object({
@@ -17,9 +17,6 @@ export const TripPhotoSchema = z.object({
   createdAt: IsoDateTimeSchema,
 });
 export type TripPhoto = z.infer<typeof TripPhotoSchema>;
-
-/** Only http(s): signed Supabase URLs always are, and `file:`, `javascript:`, `data:` or `ftp:` must never reach an image source. */
-const HttpUrlSchema = z.url({ protocol: /^https?$/ });
 
 /**
  * A photo as the app shows it: signed URLs of the file and its thumbnail (trip-photos A2, D14).

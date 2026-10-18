@@ -39,3 +39,6 @@ export const MoneySchema = z.object({
   currency: CurrencyCodeSchema,
 });
 export type Money = z.infer<typeof MoneySchema>;
+
+/** Only http(s): signed Supabase URLs always are, and `file:`, `javascript:`, `data:` or `ftp:` must never reach an image source. */
+export const HttpUrlSchema = z.url({ protocol: /^https?$/ });

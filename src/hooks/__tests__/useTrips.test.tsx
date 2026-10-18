@@ -82,7 +82,7 @@ describe('useTripList (trips-drawer D4)', () => {
     const trip = await repository.create(createTripInputFixture());
     const { result } = await renderHook(() => useTripList(), { wrapper: setup(repository) });
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
-    expect(result.current.data).toEqual([{ id: trip.id, name: 'Warsaw → Bangkok', startDate: '2026-11-03', endDate: '2026-11-15' }]);
+    expect(result.current.data).toEqual([{ id: trip.id, name: 'Warsaw → Bangkok', coverImageUri: 'preset:auckland', startDate: '2026-11-03', endDate: '2026-11-15' }]);
   });
 
   it('still asks the repository offline, which answers from the device copy', async () => {
@@ -249,10 +249,10 @@ describe('useUpdateTripDetails (trip-edit-menu step 3)', () => {
     await waitFor(() => expect(result.current.list.isSuccess).toBe(true));
 
     await act(async () => {
-      await result.current.update.mutateAsync({ tripId: trip.id, input: { name: 'Thailand 2026', coverImageUri: 'file:///cover.jpg' } });
+      await result.current.update.mutateAsync({ tripId: trip.id, input: { name: 'Thailand 2026', coverImageUri: 'preset:bali' } });
     });
 
-    expect(updateDetails).toHaveBeenCalledWith(trip.id, { name: 'Thailand 2026', coverImageUri: 'file:///cover.jpg' });
+    expect(updateDetails).toHaveBeenCalledWith(trip.id, { name: 'Thailand 2026', coverImageUri: 'preset:bali' });
     await waitFor(() => expect(result.current.current.data?.overview.trip.name).toBe('Thailand 2026'));
     await waitFor(() => expect(result.current.list.data?.[0]?.name).toBe('Thailand 2026'));
   });
@@ -267,7 +267,7 @@ describe('useUpdateTripDetails (trip-edit-menu step 3)', () => {
     await waitFor(() => expect(result.current.current.data?.overview.trip.name).toBe('Warsaw → Bangkok'));
 
     await act(async () => {
-      await result.current.update.mutateAsync({ tripId: trip.id, input: { name: 'Thailand 2026' } }).catch(() => {});
+      await result.current.update.mutateAsync({ tripId: trip.id, input: { name: 'Thailand 2026', coverImageUri: 'preset:bali' } }).catch(() => {});
     });
 
     await waitFor(() => expect(result.current.update.isError).toBe(true));

@@ -4,7 +4,7 @@ import type { TripListItem } from '@/schemas';
 const TODAY = '2026-10-08';
 
 function trip(id: string, startDate: string, endDate: string): TripListItem {
-  return { id, name: id, startDate, endDate };
+  return { id, name: id, coverImageUri: 'preset:auckland', startDate, endDate };
 }
 
 const ids = (trips: TripListItem[]) => trips.map((t) => t.id);

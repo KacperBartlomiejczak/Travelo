@@ -16,7 +16,8 @@
     "expenses": "Wydatki",
     "places": "Miejsca",
     "plan": "Plan",
-    "settings": "Ustawienia",
+    "profile": "Profil",
+    "profileTitle": "Profil użytkownika",
     "comingSoon": "Ten ekran pojawi się wkrótce."
   },
   "drawer": {
@@ -91,6 +92,7 @@
       "perDay": "~{{perDay}} dziennie",
       "create": "Utwórz podróż",
       "saveError": "Nie udało się zapisać podróży. Spróbuj ponownie.",
+      "coverUploadFailed": "Nie udało się wysłać zdjęcia okładki. Zmień je w „Nazwa i zdjęcie”.",
       "budgetTitle": "Budżet",
       "changeSection": "Zmień: {{section}}",
       "detailsTitle": "Nazwa i zdjęcie",
@@ -165,11 +167,16 @@
   },
   "coverPicker": {
     "label": "Zdjęcie okładki",
-    "choose": "Wybierz z galerii",
-    "change": "Zmień zdjęcie",
-    "remove": "Usuń zdjęcie",
-    "preview": "Wybrane zdjęcie okładki",
-    "error": "Nie udało się otworzyć galerii. Spróbuj ponownie."
+    "gallery": "Z galerii",
+    "yourPhoto": "Twoje zdjęcie",
+    "error": "Nie udało się otworzyć galerii. Spróbuj ponownie.",
+    "presets": {
+      "auckland": "Auckland",
+      "bali": "Bali",
+      "beijing": "Pekin",
+      "jakarta": "Dżakarta",
+      "majorka": "Majorka"
+    }
   },
   "home": {
     "flights": "Loty",

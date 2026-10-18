@@ -55,7 +55,7 @@ create function test_helpers.trip_payload(trip_id uuid, overrides jsonb default 
   select jsonb_build_object(
     'id', trip_id,
     'name', 'Warsaw → Bangkok',
-    'cover_image_uri', null,
+    'cover_image_uri', 'preset:auckland',
     'destination', 'BKK',
     'start_date', '2026-11-03',
     'end_date', '2026-11-15',
@@ -299,7 +299,7 @@ select test_helpers.ok(
 -- Uses its own trip, so the fixture trip above and the checks around it are not affected.
 -- ---------------------------------------------------------------------------
 select public.create_trip(
-  test_helpers.trip_payload('10000000-0000-4000-8000-0000000000e1', '{"name": "Old name", "cover_image_uri": "file:///old.jpg"}'),
+  test_helpers.trip_payload('10000000-0000-4000-8000-0000000000e1', '{"name": "Old name", "cover_image_uri": "preset:bali"}'),
   jsonb_build_array(
     jsonb_build_object('id', '20000000-0000-4000-8000-0000000000e1', 'trip_id', '10000000-0000-4000-8000-0000000000e1',
       'user_id', null, 'display_name', 'Basia', 'role', 'viewer', 'interests', jsonb_build_array('museums'))),
@@ -310,20 +310,22 @@ select public.create_trip(
       'arrive_at', '2026-11-03T12:45:00+07:00', 'arrive_tz', 'Asia/Bangkok'))
 );
 
-update public.trips set name = 'Thailand 2026', cover_image_uri = 'file:///new.jpg'
+update public.trips set name = 'Thailand 2026', cover_image_uri = 'photo:5b1f0f6a-2c7d-4a8e-9b3c-1d2e3f4a5b6c'
 where id = '10000000-0000-4000-8000-0000000000e1';
 select test_helpers.ok(
   (select name from public.trips where id = '10000000-0000-4000-8000-0000000000e1') = 'Thailand 2026'
-    and (select cover_image_uri from public.trips where id = '10000000-0000-4000-8000-0000000000e1') = 'file:///new.jpg',
+    and (select cover_image_uri from public.trips where id = '10000000-0000-4000-8000-0000000000e1') = 'photo:5b1f0f6a-2c7d-4a8e-9b3c-1d2e3f4a5b6c',
   'A can change the name and the cover of their trip'
 );
 
-update public.trips set cover_image_uri = null where id = '10000000-0000-4000-8000-0000000000e1';
+-- A cover is required now (trip-covers); the cases are in trip_covers.sql.
+select test_helpers.throws(
+  $$update public.trips set cover_image_uri = null where id = '10000000-0000-4000-8000-0000000000e1'$$,
+  '23502', 'A cannot remove the cover (null)');
 select test_helpers.ok(
-  (select count(*) from public.trips where id = '10000000-0000-4000-8000-0000000000e1') = 1
-    and (select cover_image_uri from public.trips where id = '10000000-0000-4000-8000-0000000000e1') is null
+  (select cover_image_uri from public.trips where id = '10000000-0000-4000-8000-0000000000e1') = 'photo:5b1f0f6a-2c7d-4a8e-9b3c-1d2e3f4a5b6c'
     and (select name from public.trips where id = '10000000-0000-4000-8000-0000000000e1') = 'Thailand 2026',
-  'A can remove the cover (null) and the name stays'
+  'the refused update left the cover and the name as they were'
 );
 
 delete from public.trips where id = '10000000-0000-4000-8000-0000000000e1';

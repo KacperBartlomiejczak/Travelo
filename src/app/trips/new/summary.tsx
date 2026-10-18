@@ -49,11 +49,15 @@ function Summary() {
   const locale = i18n.language;
   // The name error appears after the first "Utwórz podróż" and then follows every change.
   const [submitted, setSubmitted] = useState(false);
+  // A gallery photo that could not be sent leaves the trip on a preset (trip-covers Q1); home says so.
+  const [coverUploadFailed, setCoverUploadFailed] = useState(false);
 
   // Leave only after the guard knows the trip was saved (D38: no discard question).
   useEffect(() => {
-    if (isComplete) router.dismissTo('/');
-  }, [isComplete, router]);
+    if (!isComplete) return;
+    if (coverUploadFailed) router.dismissTo({ pathname: '/', params: { coverUploadFailed: '1' } });
+    else router.dismissTo('/');
+  }, [isComplete, coverUploadFailed, router]);
 
   const destination = draft.outbound[draft.outbound.length - 1].toIata;
   const { startDate, endDate } = deriveTripDates(draft);
@@ -75,7 +79,10 @@ function Summary() {
       return;
     }
     createTrip.mutate(input, {
-      onSuccess: complete,
+      onSuccess: (trip) => {
+        setCoverUploadFailed(input.details.coverImageUri.startsWith('file://') && trip.coverImageUri.startsWith('preset:'));
+        complete();
+      },
       // The message is also shown above the button; VoiceOver needs it announced.
       onError: () => AccessibilityInfo.announceForAccessibility(t('newTrip.summary.saveError')),
     });

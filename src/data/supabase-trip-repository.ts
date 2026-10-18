@@ -6,6 +6,7 @@ import { z } from 'zod';
 import { photoPaths, sortTripPhotos } from '@/lib/trip-photos';
 import { defaultTripId, deviceToday } from '@/lib/trip-sections';
 import {
+  CoverSchema,
   CreateTripInputSchema,
   CurrentTripSchema,
   PickedPhotoSchema,
@@ -14,6 +15,8 @@ import {
   TripDetailsInputSchema,
   TripPhotoListSchema,
   TripPhotoSchema,
+  type Cover,
+  type CoverUrls,
   type CurrentTrip,
   type LocalTripBudgetChange,
   type TripList,
@@ -53,6 +56,14 @@ const PathIdSchema = z.uuid().regex(/^[0-9a-f-]+$/);
 /** A trip id becomes a Storage folder and a photo id a file name: only lowercase UUIDs may get there. Throws otherwise. */
 function assertPathIds(...ids: string[]): void {
   for (const id of ids) PathIdSchema.parse(id);
+}
+
+const PHOTO_COVER_PREFIX = 'photo:';
+
+/** The id in a `photo:<id>` cover; null for a preset or any value that is no stored cover. */
+function photoCoverId(cover: string): string | null {
+  const parsed = CoverSchema.safeParse(cover);
+  return parsed.success && parsed.data.startsWith(PHOTO_COVER_PREFIX) ? parsed.data.slice(PHOTO_COVER_PREFIX.length) : null;
 }
 
 /** Puts a local image into expo-image's disk cache under `cacheKey`, so showing it later needs no download. */
@@ -113,7 +124,8 @@ export function createSupabaseTripRepository({
       .order('start_date')
       .order('created_at');
     if (error) throw failure(error, status);
-    const list = data.map(listItemFromRow);
+    const coverUrls = await signCovers(data);
+    const list = data.map((row) => listItemFromRow(row, coverUrls.get(row.id)));
     await local.cacheList(list, now().toISOString());
     return list;
   }
@@ -129,7 +141,7 @@ export function createSupabaseTripRepository({
     if (error) throw failure(error, status);
     if (!data) return null;
     const { trip_members: members, flight_segments: segments, ...trip } = data;
-    const overview = overviewFromRows(trip, members, segments);
+    const overview = overviewFromRows(trip, members, segments, (await signCovers([trip])).get(trip.id));
     await local.cacheOverview(overview, now().toISOString());
     return overview;
   }
@@ -191,18 +203,42 @@ export function createSupabaseTripRepository({
     return list;
   }
 
-  /** The photos with the urls of their file and thumbnail; one that cannot get both is left out, it cannot be shown. */
-  async function showPhotos(photos: TripPhoto[]): Promise<TripPhotoList> {
-    const paths = photos.map(photoPaths);
+  /** Signed urls by path, in batches Storage accepts. A path it cannot sign (missing, or not ours) is left out. */
+  async function signPaths(wanted: string[]): Promise<Map<string, string>> {
     const urls = new Map<string, string>();
-    const wanted = [...paths.map(({ file }) => file), ...paths.map(({ thumbnail }) => thumbnail)];
-    // No photos, no batches: Storage is never asked to sign an empty list (it answers 400).
+    // No paths, no batches: Storage is never asked to sign an empty list (it answers 400).
     for (const batch of chunks(wanted, STORAGE_BATCH_SIZE)) {
       const { data, error } = await supabase.storage.from(PHOTO_BUCKET).createSignedUrls(batch, SIGNED_URL_SECONDS);
       if (error) throw storageFailure(error);
       // An object it cannot sign (missing, or not ours) comes back with its own `error` and no url.
       for (const item of data) if (item.path && item.signedUrl && !item.error) urls.set(item.path, item.signedUrl);
     }
+    return urls;
+  }
+
+  /**
+   * The signed urls of the file and thumbnail of every gallery cover (trip-covers D5), by trip id. A preset has none,
+   * and a cover Storage cannot sign gets none (the app then shows the default preset). A Storage failure rejects, like for photos.
+   */
+  async function signCovers(trips: { id: string; cover_image_uri: string }[]): Promise<Map<string, CoverUrls>> {
+    const covers = trips.flatMap(({ id: tripId, cover_image_uri: cover }) => {
+      const id = photoCoverId(cover);
+      return id ? [{ tripId, ...photoPaths({ id, tripId }) }] : [];
+    });
+    const signed = await signPaths([...covers.map(({ file }) => file), ...covers.map(({ thumbnail }) => thumbnail)]);
+    const urls = new Map<string, CoverUrls>();
+    for (const { tripId, file, thumbnail } of covers) {
+      const url = signed.get(file);
+      const thumbnailUrl = signed.get(thumbnail);
+      if (url && thumbnailUrl) urls.set(tripId, { url, thumbnailUrl });
+    }
+    return urls;
+  }
+
+  /** The photos with the urls of their file and thumbnail; one that cannot get both is left out, it cannot be shown. */
+  async function showPhotos(photos: TripPhoto[]): Promise<TripPhotoList> {
+    const paths = photos.map(photoPaths);
+    const urls = await signPaths([...paths.map(({ file }) => file), ...paths.map(({ thumbnail }) => thumbnail)]);
     const shown = photos.flatMap((photo, i) => {
       const url = urls.get(paths[i].file);
       const thumbnailUrl = urls.get(paths[i].thumbnail);
@@ -228,6 +264,50 @@ export function createSupabaseTripRepository({
       const { error } = await bucket.remove(batch);
       if (error) throw storageFailure(error);
     }
+  }
+
+  /** Removes files from Storage and ignores any failure: used where the files are already unneeded or unusable. */
+  async function removeQuietly(paths: string[]): Promise<void> {
+    try {
+      await supabase.storage.from(PHOTO_BUCKET).remove(paths);
+    } catch {
+      // Ignored on purpose, see above.
+    }
+  }
+
+  /**
+   * Prepares a picked photo and uploads it as a cover of the trip under a new id: thumbnail first, then the file
+   * (trip-covers C2). Anything it uploaded is removed again if a later upload fails, then it rejects.
+   */
+  async function uploadCover(tripId: string, uri: string): Promise<{ cover: Cover; files: string[] }> {
+    const id = newId();
+    const cover = CoverSchema.parse(`${PHOTO_COVER_PREFIX}${id}`);
+    assertPathIds(tripId, id);
+    const prepared = await prepare(uri);
+    const paths = photoPaths({ id, tripId });
+    const bucket = supabase.storage.from(PHOTO_BUCKET);
+    const files = [paths.file, paths.thumbnail];
+    try {
+      for (const { path, bytes } of [
+        { path: paths.thumbnail, bytes: prepared.thumbnail },
+        { path: paths.file, bytes: prepared.file },
+      ]) {
+        // A fresh id every time, so nothing to overwrite: a retry is a new cover.
+        const { error } = await bucket.upload(path, bytes, { contentType: 'image/jpeg', upsert: false });
+        if (error) throw storageFailure(error);
+      }
+    } catch (error) {
+      await removeQuietly(files);
+      throw error;
+    }
+    return { cover, files };
+  }
+
+  /** Stores the trip's cover. Rejects when the server refuses or changes no row (RLS hides a trip that is not ours). */
+  async function storeCover(tripId: string, patch: { name?: string; cover_image_uri: string }): Promise<void> {
+    const { data, error, status } = await supabase.from('trips').update(patch).eq('id', tripId).select('id');
+    if (error) throw failure(error, status);
+    if (data.length === 0) throw new Error('trip-not-found');
   }
 
   // One sync at a time: a call made during a sync runs after it, so no change is sent twice in parallel.
@@ -272,7 +352,23 @@ export function createSupabaseTripRepository({
       const { error } = await supabase.rpc('create_trip', toCreateTripArgs(created));
       if (error) throw new Error(error.message);
       await (await localStore).selectTrip(created.trip.id);
-      return created.trip;
+      const asked = parsed.details.coverImageUri;
+      if (!asked.startsWith('file://')) return created.trip;
+      // The trip exists now, so the owner may upload into its folder. A photo that does not make it must not undo the
+      // trip: it stays on the default cover and the caller can tell by the cover it gets back (trip-covers Q1).
+      try {
+        const { cover, files } = await uploadCover(created.trip.id, asked);
+        try {
+          await storeCover(created.trip.id, { cover_image_uri: cover });
+        } catch (error) {
+          // Unreachable: the update may have been applied, so the files may be in use; leftovers go with the trip folder (trip-photos P7).
+          if (!(error instanceof ServerUnreachableError)) await removeQuietly(files);
+          throw error;
+        }
+        return { ...created.trip, coverImageUri: cover };
+      } catch {
+        return created.trip;
+      }
     },
 
     async setBudget(trip, amountMinor) {
@@ -283,15 +379,33 @@ export function createSupabaseTripRepository({
 
     async updateDetails(tripId, input) {
       const { name, coverImageUri } = TripDetailsInputSchema.parse(input);
+      assertPathIds(tripId);
       await signedIn();
-      // Asking the row back: RLS hides a trip that is not ours (or gone) by changing no row, not by an error.
-      const { data, error, status } = await supabase
-        .from('trips')
-        .update({ name, cover_image_uri: coverImageUri ?? null })
-        .eq('id', tripId)
-        .select('id');
+      // The stored cover is read first: a replaced gallery cover has its files removed afterwards, and a `photo:` choice
+      // is only valid when it is that very cover (the picker cannot make a new one). A stale or crafted value must not
+      // overwrite a newer cover, nor later get another cover's files removed on replacement.
+      const { data, error, status } = await supabase.from('trips').select('cover_image_uri').eq('id', tripId).maybeSingle();
       if (error) throw failure(error, status);
-      if (data.length === 0) throw new Error('trip-not-found');
+      if (!data) throw new Error('trip-not-found');
+      const replaced = data.cover_image_uri;
+      if (coverImageUri.startsWith(PHOTO_COVER_PREFIX) && coverImageUri !== replaced) throw new Error('cover-not-current');
+      const uploaded = coverImageUri.startsWith('file://') ? await uploadCover(tripId, coverImageUri) : null;
+      const cover = uploaded ? uploaded.cover : coverImageUri;
+      try {
+        // Asking the row back: RLS hides a trip that is not ours (or gone) by changing no row, not by an error.
+        await storeCover(tripId, { name, cover_image_uri: cover });
+      } catch (error) {
+        // Unreachable: the update may have been applied, so the files may be in use; leftovers go with the trip folder (trip-photos P7).
+        if (uploaded && !(error instanceof ServerUnreachableError)) await removeQuietly(uploaded.files);
+        throw error;
+      }
+      // Best effort: the cover is changed, so the old files are not shown anywhere; if they stay behind, the folder
+      // is still removed with the trip (trip-photos P7).
+      const oldId = replaced === cover ? null : photoCoverId(replaced);
+      if (oldId) {
+        const { file, thumbnail } = photoPaths({ id: oldId, tripId });
+        await removeQuietly([file, thumbnail]);
+      }
     },
 
     async delete(tripId) {

@@ -3,6 +3,7 @@ import type { z } from 'zod';
 import {
   BudgetStepInputSchema,
   CreateTripInputSchema,
+  DEFAULT_COVER,
   FlightsStepInputSchema,
   FriendInputSchema,
   MAX_COMPANIONS,
@@ -265,35 +266,51 @@ describe('BudgetStepInput', () => {
 });
 
 describe('TripDetailsInput', () => {
-  it('accepts a name without a cover photo', () => {
-    expect(TripDetailsInputSchema.parse({ name: 'Kraków → Barcelona' })).toEqual({ name: 'Kraków → Barcelona' });
-  });
+  const COVER_UUID = '5b1f0f6a-2c7d-4a8e-9b3c-1d2e3f4a5b6c';
 
-  it('accepts a name with a cover photo', () => {
-    const details = { name: 'Barcelona', coverImageUri: 'file:///cache/cover.jpg' };
+  it.each([
+    ['a preset', 'preset:bali'],
+    ['the default preset', DEFAULT_COVER],
+    ['a stored gallery cover', `photo:${COVER_UUID}`],
+    ['a gallery photo picked but not sent yet', 'file:///cache/cover.jpg'],
+  ])('accepts a name with %s as the cover', (_, coverImageUri) => {
+    const details = { name: 'Barcelona', coverImageUri };
     expect(TripDetailsInputSchema.parse(details)).toEqual(details);
   });
 
+  it('requires a cover (trip-covers D1)', () => {
+    expect(TripDetailsInputSchema.safeParse({ name: 'Kraków → Barcelona' }).success).toBe(false);
+  });
+
   it('trims the name', () => {
-    expect(TripDetailsInputSchema.parse({ name: '  Majówka  ' }).name).toBe('Majówka');
+    expect(TripDetailsInputSchema.parse({ name: '  Majówka  ', coverImageUri: DEFAULT_COVER }).name).toBe('Majówka');
   });
 
   it.each([
     ['empty', ''],
     ['whitespace-only', '   '],
   ])('rejects a name that is %s', (_, name) => {
-    expect(issues(TripDetailsInputSchema.safeParse({ name }))).toEqual([{ path: ['name'], message: 'validation.tripNameRequired' }]);
+    expect(issues(TripDetailsInputSchema.safeParse({ name, coverImageUri: DEFAULT_COVER }))).toEqual([
+      { path: ['name'], message: 'validation.tripNameRequired' },
+    ]);
   });
 
   it('accepts 60 characters and rejects 61', () => {
-    expect(TripDetailsInputSchema.safeParse({ name: 'a'.repeat(60) }).success).toBe(true);
-    expect(issues(TripDetailsInputSchema.safeParse({ name: 'a'.repeat(61) }))).toEqual([
+    expect(TripDetailsInputSchema.safeParse({ name: 'a'.repeat(60), coverImageUri: DEFAULT_COVER }).success).toBe(true);
+    expect(issues(TripDetailsInputSchema.safeParse({ name: 'a'.repeat(61), coverImageUri: DEFAULT_COVER }))).toEqual([
       { path: ['name'], message: 'validation.tripNameTooLong' },
     ]);
   });
 
-  it('rejects an empty cover photo URI', () => {
-    expect(TripDetailsInputSchema.safeParse({ name: 'Barcelona', coverImageUri: '' }).success).toBe(false);
+  it.each([
+    ['empty', ''],
+    ['an unknown preset', 'preset:paris'],
+    ['an uppercase gallery id', `photo:${COVER_UUID.toUpperCase()}`],
+    ['a web address', 'https://example.com/cover.jpg'],
+    ['a content URI', 'content://media/external/images/1'],
+    ['a bare file:// with no path', 'file://'],
+  ])('rejects a cover that is %s', (_, coverImageUri) => {
+    expect(TripDetailsInputSchema.safeParse({ name: 'Barcelona', coverImageUri }).success).toBe(false);
   });
 });
 
@@ -307,7 +324,7 @@ describe('CreateTripInput', () => {
       ],
     },
     budget: { budgetPerPerson: { amountMinor: 300000, currency: 'THB' } },
-    details: { name: 'Warszawa → Bangkok' },
+    details: { name: 'Warszawa → Bangkok', coverImageUri: DEFAULT_COVER },
   };
 
   it('accepts a complete wizard', () => {

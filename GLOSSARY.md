@@ -39,7 +39,7 @@ The organizer's name for a trip; by default the city the outbound starts from an
 _Avoid_: Title, label
 
 **Cover photo**:
-An optional picture the organizer chooses to represent a trip.
+The picture that represents a trip. Every trip has one. It is either one of five ready-made city photos that come with the app, or a photo from the phone's gallery, made smaller on the phone and kept online so it shows on other phones too. Not one of the trip photos.
 _Avoid_: Thumbnail, background, banner
 
 **Trip photo**:
