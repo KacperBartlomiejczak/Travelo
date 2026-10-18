@@ -73,6 +73,20 @@ export const palette = {
   },
 } as const;
 
+// The sign-in buttons wear their provider's official colours: written exceptions to the Sunline palette
+// (auth-onboarding D10 Google, D13 Discord), used for these two buttons and nowhere else, the same in both themes.
+// `pressed` is the provider's own pressed/hover colour (Google: a 12 % state layer of the text colour on white).
+export const partnerBrand = {
+  google: {
+    background: '#FFFFFF',
+    border: '#747775',
+    text: '#1F1F1F',
+    pressed: '#E4E4E4',
+    logo: { red: '#EA4335', blue: '#4285F4', yellow: '#FBBC05', green: '#34A853' },
+  },
+  discord: { background: '#5865F2', pressed: '#4752C4', text: '#FFFFFF' },
+} as const;
+
 export const spacing = {
   0: 0,
   1: 4,

@@ -7,6 +7,7 @@ import { AccessibilityInfo, Text } from 'react-native';
 import DrawerLayout from '@/app/(drawer)/_layout';
 import TabsLayout from '@/app/(drawer)/(tabs)/_layout';
 import AuthLayout from '@/app/(auth)/_layout';
+import EmailScreen from '@/app/(auth)/email';
 import WelcomeScreen from '@/app/(auth)/welcome';
 import RootLayout from '@/app/_layout';
 import AuthCallback from '@/app/auth/callback';
@@ -20,6 +21,10 @@ import { useFakeAppSession } from '@/test/fake-session-source';
 import { SIGNED_IN_USER_ID } from '@/test/fake-supabase';
 import { setNetwork } from '@/test/mock-network';
 import { allowGateToStayLoading } from '@/test/settle-gate';
+
+// The sign-in itself (Supabase + the system browser) is never reached: a test decides what it answers.
+const mockSignIn = jest.fn<Promise<'signed-in' | 'cancelled'>, ['google' | 'discord']>();
+jest.mock('@/data/app-auth', () => ({ appAuth: { signInWithProvider: (provider: 'google' | 'discord') => mockSignIn(provider) } }));
 
 jest.mock('expo-font', () => ({ ...jest.requireActual('expo-font'), useFonts: jest.fn() }));
 jest.mock('expo-splash-screen', () => ({ preventAutoHideAsync: jest.fn(), hideAsync: jest.fn() }));
@@ -39,6 +44,7 @@ function routes(overrides: Record<string, () => React.JSX.Element | null> = {}) 
     _layout: RootLayout,
     '(auth)/_layout': AuthLayout,
     '(auth)/welcome': WelcomeScreen,
+    '(auth)/email': EmailScreen,
     onboarding: OnboardingScreen,
     '(drawer)/_layout': DrawerLayout,
     '(drawer)/(tabs)/_layout': TabsLayout,
@@ -70,6 +76,7 @@ async function visit(href: string) {
 
 beforeEach(async () => {
   await i18n.changeLanguage('pl');
+  mockSignIn.mockReset();
   jest.mocked(SplashScreen.hideAsync).mockClear();
 });
 
@@ -151,6 +158,86 @@ describe('signed out', () => {
 
     await act(async () => session.emit({ type: 'signedIn', userId: SIGNED_IN_USER_ID }));
 
+    await expectOnly('home screen');
+  });
+});
+
+describe('signing in from the welcome screen (auth-onboarding step 6)', () => {
+  const openSheet = async () => fireEvent.press(screen.getByRole('button', { name: 'Zaloguj się' }));
+
+  it('shows the real welcome screen: the sentence and the sign-in button', async () => {
+    useFakeAppSession(signedOut);
+    await open();
+    await expectOnly(WELCOME);
+    expect(screen.getByText('Zaplanuj wyjazd dla całej ekipy — loty, budżet i dni w jednym miejscu.')).toBeTruthy();
+    expect(screen.getByTestId('welcome-screen')).toBeTruthy();
+  });
+
+  it.each([
+    ['Google', 'google', 'Kontynuuj z Google'],
+    ['Discord', 'discord', 'Kontynuuj z Discordem'],
+  ] as const)('%s success (a SIGNED_IN from the session source) moves a new user on to profile setup', async (_name, provider, label) => {
+    const session = useFakeAppSession(signedOut);
+    setAppProfileRepository(createInMemoryProfileRepository());
+    mockSignIn.mockImplementation(async () => {
+      session.emit({ type: 'signedIn', userId: SIGNED_IN_USER_ID });
+      return 'signed-in';
+    });
+    await open();
+    await expectOnly(WELCOME);
+    await openSheet();
+
+    await fireEvent.press(await screen.findByRole('button', { name: label }));
+
+    await expectOnly(ONBOARDING);
+    expect(mockSignIn).toHaveBeenCalledWith(provider);
+  });
+
+  it('Google success moves a returning user (profile exists) straight to the app', async () => {
+    const session = useFakeAppSession(signedOut);
+    mockSignIn.mockImplementation(async () => {
+      session.emit({ type: 'signedIn', userId: SIGNED_IN_USER_ID });
+      return 'signed-in';
+    });
+    await open();
+    await expectOnly(WELCOME);
+    await openSheet();
+
+    await fireEvent.press(await screen.findByRole('button', { name: 'Kontynuuj z Google' }));
+
+    await expectOnly('home screen');
+  });
+
+  it('cancelling the browser stays on the welcome screen with the sheet open and no error', async () => {
+    useFakeAppSession(signedOut);
+    mockSignIn.mockResolvedValue('cancelled');
+    await open();
+    await openSheet();
+
+    await fireEvent.press(await screen.findByRole('button', { name: 'Kontynuuj z Google' }));
+
+    await waitFor(() => expect(mockSignIn).toHaveBeenCalled());
+    await expectOnly(WELCOME);
+    expect(screen.getByRole('button', { name: 'Kontynuuj z Google' })).toBeEnabled();
+    expect(screen.queryByTestId('sign-in-error')).toBeNull();
+  });
+
+  it('the e-mail option opens the e-mail screen (still behind the gate: signed out)', async () => {
+    useFakeAppSession(signedOut);
+    const rendered = await open();
+    await openSheet();
+
+    await fireEvent.press(await screen.findByRole('button', { name: 'Kontynuuj z e-mailem' }));
+
+    await waitFor(() => expect(screen.getByTestId('email-screen')).toBeTruthy());
+    expect(rendered.getPathname()).toBe('/email');
+    expect(screen.getByText('Twój e-mail')).toBeTruthy();
+  });
+
+  it('the e-mail screen is not reachable when signed in', async () => {
+    await open();
+    await expectOnly('home screen');
+    await visit('/email');
     await expectOnly('home screen');
   });
 });

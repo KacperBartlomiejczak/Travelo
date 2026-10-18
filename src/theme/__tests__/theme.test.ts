@@ -112,6 +112,26 @@ describe('hero roles (trip-flight-tabs-name-cover D4, D7)', () => {
   });
 });
 
+describe('partner brand colours (auth-onboarding D10, D13)', () => {
+  it.each([
+    ['light', lightTheme],
+    ['dark', darkTheme],
+  ])('are the official Google and Discord colours in %s mode', (_, theme) => {
+    expect(theme.colors.brand.google).toEqual({
+      background: '#FFFFFF',
+      border: '#747775',
+      text: '#1F1F1F',
+      pressed: '#E4E4E4',
+      logo: { red: '#EA4335', blue: '#4285F4', yellow: '#FBBC05', green: '#34A853' },
+    });
+    expect(theme.colors.brand.discord).toEqual({ background: '#5865F2', pressed: '#4752C4', text: '#FFFFFF' });
+  });
+
+  it("are the same in both modes: a brand's button does not change with the theme", () => {
+    expect(darkTheme.colors.brand).toEqual(lightTheme.colors.brand);
+  });
+});
+
 describe('primary action states (D9)', () => {
   it('uses the border and tertiary text roles for a disabled primary action', () => {
     expect(lightTheme.colors.action.disabled).toBe('#DDD5C7');

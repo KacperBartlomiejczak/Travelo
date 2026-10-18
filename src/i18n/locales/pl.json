@@ -243,7 +243,22 @@
   },
   "auth": {
     "welcome": {
-      "title": "Witaj w Travelo"
+      "title": "Witaj w Travelo",
+      "body": "Zaplanuj wyjazd dla całej ekipy — loty, budżet i dni w jednym miejscu.",
+      "signIn": "Zaloguj się"
+    },
+    "signIn": {
+      "title": "Zaloguj się",
+      "google": "Kontynuuj z Google",
+      "discord": "Kontynuuj z Discordem",
+      "email": "Kontynuuj z e-mailem",
+      "error": {
+        "google": "Nie udało się zalogować przez Google. Spróbuj ponownie.",
+        "discord": "Nie udało się zalogować przez Discorda. Spróbuj ponownie."
+      }
+    },
+    "email": {
+      "title": "Twój e-mail"
     },
     "profile": {
       "title": "Utwórz profil"

@@ -1,6 +1,6 @@
 import type { ViewStyle } from 'react-native';
 
-import { breakpoints, duration, elevation, gradient, opacity, palette, radius, size, spacing } from './tokens';
+import { breakpoints, duration, elevation, gradient, opacity, palette, partnerBrand, radius, size, spacing } from './tokens';
 import { typography } from './typography';
 
 // §6.1: shadows in light mode; dark mode relies on surface contrast.
@@ -60,6 +60,8 @@ const light = {
     category: palette.category.light,
     hero,
     nav,
+    // Sign-in buttons of Google and Discord (D10, D13): the same in both themes.
+    brand: partnerBrand,
     overlay: palette.overlay,
     // Snackbar is inverse: ink on light, light on dark (trip-edit-menu D11).
     snackbar: { background: palette.neutral[900], text: palette.neutral[50] },
@@ -112,6 +114,7 @@ export const darkTheme: Theme = {
     category: palette.category.dark,
     hero,
     nav,
+    brand: partnerBrand,
     overlay: palette.overlay,
     snackbar: { background: palette.neutral[50], text: palette.neutral[900] },
   },

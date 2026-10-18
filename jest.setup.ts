@@ -11,6 +11,15 @@ jest.mock('@/data/app-session-source', () => ({
 jest.mock('@/data/app-profile-repository', () => ({
   createAppProfileRepository: () => jest.requireActual('@/test/fake-profile-repository').delegatingProfileRepository,
 }));
+// The sign-in screens (auth-onboarding step 6) import the app's auth, which builds the Supabase client and opens the system
+// browser: tests never reach either. A test that needs a sign-in to succeed or fail mocks `@/data/app-auth` itself.
+jest.mock('@/data/app-auth', () => ({
+  appAuth: {
+    signInWithProvider: jest.fn(async () => 'cancelled'),
+    sendEmailCode: jest.fn(async () => {}),
+    verifyEmailCode: jest.fn(async () => {}),
+  },
+}));
 // Route tests wait for the gate to leave its loading view after rendering (src/test/settle-gate.ts).
 jest.mock('expo-router/testing-library', () => {
   const testingLibrary = jest.requireActual('expo-router/testing-library');

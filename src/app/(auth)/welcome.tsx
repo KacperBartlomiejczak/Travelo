@@ -1,24 +1,4 @@
-import { useTranslation } from 'react-i18next';
-import { StyleSheet, Text, View } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { WelcomeScreen } from '@/features/auth/WelcomeScreen';
 
-import { useTheme } from '@/theme/useTheme';
-
-// Placeholder until the welcome screen is built (auth-onboarding step 6).
-export default function WelcomeScreen() {
-  const { t } = useTranslation();
-  const { colors, typography, spacing } = useTheme();
-  const insets = useSafeAreaInsets();
-  return (
-    <View
-      testID="welcome-screen"
-      style={[styles.screen, { backgroundColor: colors.background, paddingTop: insets.top + spacing[4], paddingHorizontal: spacing[5] }]}
-    >
-      <Text accessibilityRole="header" style={[typography.heading1, { color: colors.text.primary }]}>
-        {t('auth.welcome.title')}
-      </Text>
-    </View>
-  );
-}
-
-const styles = StyleSheet.create({ screen: { flex: 1 } });
+// What a signed-out user sees first (auth-onboarding step 6).
+export default WelcomeScreen;
