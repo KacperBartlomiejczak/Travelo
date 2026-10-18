@@ -30,6 +30,14 @@ describe('createAppTripRepository', () => {
     await expect(local).resolves.toEqual({ store: mockDb });
   });
 
+  it('shares the app\'s one SQLite store with the profile repository (the database is opened once)', async () => {
+    const { appLocalStore } = require('@/data/app-local-store') as typeof import('@/data/app-local-store'); // eslint-disable-line @typescript-eslint/no-require-imports
+    load().createAppTripRepository();
+    const { createSupabaseTripRepository } = deps().repository;
+    const [{ local }] = jest.mocked(createSupabaseTripRepository).mock.calls[0];
+    expect(local).toBe(appLocalStore());
+  });
+
   it('keeps the session fresh with the app state on phones', () => {
     load().createAppTripRepository();
     expect(deps().auth.keepSessionFresh).toHaveBeenCalledWith(mockClient.auth, AppState);

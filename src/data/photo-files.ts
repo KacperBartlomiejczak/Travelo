@@ -1,6 +1,7 @@
 import { File } from 'expo-file-system';
 import { ImageManipulator, type ImageRef, SaveFormat } from 'expo-image-manipulator';
 
+import { AVATAR_MAX_SIDE } from '@/lib/avatar';
 import { fitWithin, PHOTO_MAX_SIDE, THUMBNAIL_MAX_SIDE } from '@/lib/trip-photos';
 
 /** JPEG quality of the file and of the thumbnail (trip-photos D7, D14). */
@@ -63,4 +64,26 @@ export async function preparePhoto(uri: string): Promise<{ file: Uint8Array; thu
     thumbnail: await new File(thumbnailUri).bytes(),
     thumbnailUri,
   };
+}
+
+/**
+ * A picked profile photo made ready to send (auth-onboarding P2): longer side at most 512 px, never enlarged, always
+ * re-encoded as JPEG, so the new file carries none of the original's EXIF and no GPS leaves the phone. The picked file
+ * itself is never read. Also returns the saved file's uri, so the image cache can be seeded with it.
+ * Rejects when rendering, saving or reading fails; every native context and image made here is released (also on failure).
+ */
+export async function prepareAvatar(uri: string): Promise<{ file: Uint8Array; uri: string }> {
+  // The picker's width and height can be 0, so the real size comes from rendering the file once.
+  const context = ImageManipulator.manipulate(uri);
+  try {
+    const rendered = await context.renderAsync();
+    try {
+      const savedUri = await makeOutput(rendered, AVATAR_MAX_SIDE);
+      return { file: await new File(savedUri).bytes(), uri: savedUri };
+    } finally {
+      rendered.release();
+    }
+  } finally {
+    context.release();
+  }
 }

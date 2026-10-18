@@ -41,6 +41,12 @@ const MIGRATIONS = [
      photos_json text not null,
      cached_at text not null
    );`,
+  // auth-onboarding: the signed-in user's own profile (one row), so the app opens offline after a restart.
+  `create table my_profile_cache (
+     id integer primary key not null check (id = 1),
+     profile_json text not null,
+     cached_at text not null
+   );`,
 ];
 
 export async function migrateLocalDb(db: LocalDb): Promise<void> {
@@ -57,7 +63,7 @@ export async function migrateLocalDb(db: LocalDb): Promise<void> {
 
 /**
  * The app's SQLite database (budget changes and trip copies, trips-supabase D1, D6; the chosen trip, trips-drawer D2, D3;
- * photo list copies, trip-photos D8).
+ * photo list copies, trip-photos D8; the own profile copy, auth-onboarding D9).
  */
 export async function openLocalDb(): Promise<LocalDb> {
   const db = await openDatabaseAsync('travelo.db');

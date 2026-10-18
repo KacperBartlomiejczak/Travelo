@@ -1,7 +1,7 @@
 import { File } from 'expo-file-system';
 import { ImageManipulator, SaveFormat } from 'expo-image-manipulator';
 
-import { preparePhoto } from '@/data/photo-files';
+import { prepareAvatar, preparePhoto } from '@/data/photo-files';
 
 const PICKED_URI = 'file:///picked/IMG_0001.heic';
 
@@ -301,5 +301,124 @@ describe('preparePhoto', () => {
     jest.spyOn(File.prototype, 'bytes').mockRejectedValue(new Error('read failed'));
 
     await expect(preparePhoto(PICKED_URI)).rejects.toThrow('read failed');
+  });
+});
+
+describe('prepareAvatar (auth-onboarding P2)', () => {
+  afterEach(() => {
+    jest.restoreAllMocks();
+  });
+
+  it('shrinks a landscape photo to 512 px wide', async () => {
+    const manipulator = fakeManipulator({ width: 2000, height: 1500 });
+    fakeFiles();
+
+    await prepareAvatar(PICKED_URI);
+
+    expect(manipulator.resizeCalls).toEqual([{ width: 512 }]);
+    expect(manipulator.refs.slice(1).map((ref) => [ref.width, ref.height])).toEqual([[512, 384]]);
+  });
+
+  it('shrinks a portrait photo to 512 px tall', async () => {
+    const manipulator = fakeManipulator({ width: 1500, height: 2000 });
+    fakeFiles();
+
+    await prepareAvatar(PICKED_URI);
+
+    expect(manipulator.resizeCalls).toEqual([{ height: 512 }]);
+  });
+
+  it('does not enlarge a small photo, but still re-encodes it as JPEG (that is what drops EXIF and GPS)', async () => {
+    const manipulator = fakeManipulator({ width: 300, height: 300 });
+    fakeFiles();
+
+    await prepareAvatar(PICKED_URI);
+
+    expect(manipulator.resizeCalls).toEqual([]);
+    expect(manipulator.saves.map((save) => save.options)).toEqual([JPEG]);
+  });
+
+  it('always saves one JPEG at quality 0.8, also after a resize', async () => {
+    const manipulator = fakeManipulator({ width: 2000, height: 1500 });
+    fakeFiles();
+
+    await prepareAvatar(PICKED_URI);
+
+    expect(manipulator.saves.map((save) => save.options)).toEqual([JPEG]);
+  });
+
+  it('returns the bytes and the uri of the saved file, and never reads the picked file itself', async () => {
+    const manipulator = fakeManipulator({ width: 2000, height: 1500 });
+    const files = fakeFiles();
+
+    const prepared = await prepareAvatar(PICKED_URI);
+
+    expect(prepared.uri).toBe(manipulator.saves[0].uri);
+    expect(prepared.file).toEqual(bytesOf(manipulator.saves[0].uri));
+    expect(files.readUris).toEqual([manipulator.saves[0].uri]);
+  });
+
+  it('renders the picked file once to learn its real size, then works from that image', async () => {
+    const manipulator = fakeManipulator({ width: 2000, height: 1500 });
+    fakeFiles();
+
+    await prepareAvatar(PICKED_URI);
+
+    expect(manipulator.manipulateCalls).toEqual([PICKED_URI, manipulator.refs[0]]);
+  });
+
+  describe('native memory', () => {
+    const releasedOnce = (objects: { release: jest.Mock<void, []> }[]) =>
+      objects.map((object) => object.release.mock.calls.length);
+
+    it('releases every context and every rendered image exactly once after a resize', async () => {
+      const manipulator = fakeManipulator({ width: 2000, height: 1500 });
+      fakeFiles();
+
+      await prepareAvatar(PICKED_URI);
+
+      expect(releasedOnce(manipulator.contexts)).toEqual([1, 1]);
+      expect(releasedOnce(manipulator.refs)).toEqual([1, 1]);
+    });
+
+    it('releases the single rendered image of a small photo exactly once', async () => {
+      const manipulator = fakeManipulator({ width: 300, height: 300 });
+      fakeFiles();
+
+      await prepareAvatar(PICKED_URI);
+
+      expect(manipulator.saves).toHaveLength(1);
+      expect(releasedOnce(manipulator.contexts)).toEqual([1]);
+      expect(releasedOnce(manipulator.refs)).toEqual([1]);
+    });
+
+    it('releases the context when the picked file cannot be rendered', async () => {
+      const manipulator = fakeManipulator({ width: 2000, height: 1500 }, { render: true });
+      fakeFiles();
+
+      await expect(prepareAvatar(PICKED_URI)).rejects.toThrow('decode failed');
+
+      expect(releasedOnce(manipulator.contexts)).toEqual([1]);
+    });
+
+    it('releases everything made so far when saving fails', async () => {
+      const manipulator = fakeManipulator({ width: 2000, height: 1500 }, { saveNumber: 1 });
+      fakeFiles();
+
+      await expect(prepareAvatar(PICKED_URI)).rejects.toThrow('disk full');
+
+      expect(releasedOnce(manipulator.contexts)).toEqual([1, 1]);
+      expect(releasedOnce(manipulator.refs)).toEqual([1, 1]);
+    });
+
+    it('has released everything when the saved file cannot be read', async () => {
+      const manipulator = fakeManipulator({ width: 2000, height: 1500 });
+      jest.spyOn(File.prototype, 'bytes').mockRejectedValue(new Error('read failed'));
+
+      await expect(prepareAvatar(PICKED_URI)).rejects.toThrow('read failed');
+
+      expect(releasedOnce(manipulator.contexts)).toEqual([1, 1]);
+      expect(releasedOnce(manipulator.refs)).toEqual([1, 1]);
+    });
   });
 });
