@@ -1,4 +1,4 @@
-import { useNavigation, useRouter } from 'expo-router';
+import { useLocalSearchParams, useNavigation, useRouter } from 'expo-router';
 import type { DrawerNavigationProp } from 'expo-router/drawer';
 import { CircleX, Menu, Plus } from 'lucide-react-native';
 import { useEffect, useState, type ReactNode } from 'react';
@@ -38,8 +38,18 @@ export default function HomeScreen() {
   const trips = useCurrentTrip();
   const offline = useIsOffline();
   const [snackbar, setSnackbar] = useState<string | null>(null);
+  const { coverUploadFailed } = useLocalSearchParams<{ coverUploadFailed?: string }>();
   const create = () => router.push('/trips/new');
   const openMenu = () => navigation.openDrawer();
+
+  // The wizard closes with this flag when the gallery cover could not be sent (trip-covers Q1). The message is taken
+  // once and the flag cleared on this screen's own route (`router.setParams` does not reach it from here), so a re-render
+  // or coming back to this screen does not show it again.
+  const coverFailedPending = coverUploadFailed === '1';
+  if (coverFailedPending && snackbar === null) setSnackbar(t('newTrip.summary.coverUploadFailed'));
+  useEffect(() => {
+    if (coverFailedPending) navigation.setParams({ coverUploadFailed: undefined });
+  }, [coverFailedPending, navigation]);
 
   // The error replaces the skeleton without focus moving; VoiceOver needs it announced.
   useEffect(() => {

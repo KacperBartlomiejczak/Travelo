@@ -1,6 +1,6 @@
 import type { z } from 'zod';
 
-import type { CreateTripInputSchema } from '@/schemas';
+import { DEFAULT_COVER, type CreateTripInputSchema } from '@/schemas';
 
 // Shared wizard input for data-layer and screen tests: WAW → DXB → BKK, BKK → WAW, 2 friends.
 export function createTripInputFixture(): z.input<typeof CreateTripInputSchema> {
@@ -44,6 +44,6 @@ export function createTripInputFixture(): z.input<typeof CreateTripInputSchema> 
       ],
     },
     budget: { budgetPerPerson: { amountMinor: 3000000, currency: 'THB' } },
-    details: { name: 'Warsaw → Bangkok' },
+    details: { name: 'Warsaw → Bangkok', coverImageUri: DEFAULT_COVER },
   };
 }

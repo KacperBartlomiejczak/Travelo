@@ -9,6 +9,7 @@ import {
   withCompanionCount,
   withOutbound,
 } from '@/features/trip-create/draft';
+import { DEFAULT_COVER } from '@/schemas';
 
 describe('emptyDraft', () => {
   it('starts with one empty outbound and one empty return segment, alone, no budget', () => {
@@ -30,10 +31,11 @@ describe('emptyDraft', () => {
     expect(draft.budget).toEqual({ amountText: '', currency: '' });
   });
 
-  it('has no name of its own yet and no cover photo', () => {
+  it('has no name of its own yet, and starts on the default cover (trip-covers D4, D7)', () => {
     const draft = emptyDraft();
     expect(draft.name).toBeNull();
-    expect(draft).not.toHaveProperty('coverImageUri');
+    expect(draft.coverImageUri).toBe(DEFAULT_COVER);
+    expect(DEFAULT_COVER).toBe('preset:auckland');
   });
 });
 
@@ -178,12 +180,16 @@ describe('toCreateTripInput', () => {
     expect(input.flights.companionCount).toBe(1);
     expect(input.friends).toEqual({ friends: [{ displayName: 'Kasia', interests: ['beaches'] }] });
     expect(input.flights.outbound[0]).toEqual(expect.objectContaining({ fromIata: 'WAW', toIata: 'BKK' }));
-    expect(input.details).toEqual({ name: 'Warsaw → Bangkok' });
+    expect(input.details).toEqual({ name: 'Warsaw → Bangkok', coverImageUri: DEFAULT_COVER });
   });
 
-  it('sends the typed name and the cover photo', () => {
-    const draft = { ...emptyDraft(), name: 'Tajlandia', coverImageUri: 'file:///cache/cover.jpg' };
+  it('sends the typed name and the chosen cover', () => {
+    const draft = { ...emptyDraft(), name: 'Tajlandia', coverImageUri: 'file:///cache/cover.jpg' as const };
     expect(toCreateTripInput(draft, 'pl').details).toEqual({ name: 'Tajlandia', coverImageUri: 'file:///cache/cover.jpg' });
+  });
+
+  it('always sends a cover: the default when none was chosen', () => {
+    expect(toCreateTripInput(emptyDraft(), 'pl').details.coverImageUri).toBe(DEFAULT_COVER);
   });
 });
 

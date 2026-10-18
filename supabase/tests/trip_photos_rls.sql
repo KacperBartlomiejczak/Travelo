@@ -210,7 +210,11 @@ select test_helpers.throws(
 delete from public.trip_photos;
 
 reset role;
-select test_helpers.ok((select count(*) from public.trip_photos) = 2, 'C''s delete removed no photo');
+-- Counted without RLS, so only the photos of this test's own trips (a real database may hold others).
+select test_helpers.ok(
+  (select count(*) from public.trip_photos
+    where trip_id in ('10000000-0000-4000-8000-000000000001', '10000000-0000-4000-8000-000000000002', '10000000-0000-4000-8000-000000000003')) = 2,
+  'C''s delete removed no photo');
 
 -- ---------------------------------------------------------------------------
 -- Nothing B or C tried changed A's photos

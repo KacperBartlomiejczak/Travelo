@@ -6,6 +6,7 @@ import {
   TripOverviewSchema,
   TripPhotoSchema,
   TripSummarySchema,
+  type CoverUrls,
   type FlightDirection,
   type FlightSegment,
   type TripListItem,
@@ -35,7 +36,7 @@ export function toCreateTripArgs({ trip, members, segments }: CreatedTrip): Crea
   const tripPayload: TripPayload = {
     id: trip.id,
     name: trip.name,
-    cover_image_uri: trip.coverImageUri ?? null,
+    cover_image_uri: trip.coverImageUri,
     destination: trip.destination,
     start_date: trip.startDate,
     end_date: trip.endDate,
@@ -107,8 +108,16 @@ function segmentFromRow(row: SegmentRow): FlightSegment {
   });
 }
 
-/** One trip as the home screen shows it, from Supabase rows. Every row is parsed with its Zod schema. */
-export function overviewFromRows(tripRow: TripRow, memberRows: MemberRow[], segmentRows: SegmentRow[]): TripOverview {
+/**
+ * One trip as the home screen shows it, from Supabase rows. Every row is parsed with its Zod schema.
+ * `coverUrls` are the signed urls of a gallery cover (trip-covers D5), signed by the caller; a preset has none.
+ */
+export function overviewFromRows(
+  tripRow: TripRow,
+  memberRows: MemberRow[],
+  segmentRows: SegmentRow[],
+  coverUrls?: CoverUrls,
+): TripOverview {
   const members = memberRows.map(memberFromRow).sort((a, b) => a.displayName.localeCompare(b.displayName));
   const segments = segmentRows
     .map(segmentFromRow)
@@ -117,7 +126,8 @@ export function overviewFromRows(tripRow: TripRow, memberRows: MemberRow[], segm
     id: tripRow.id,
     ownerId: tripRow.owner_id,
     name: tripRow.name,
-    ...(tripRow.cover_image_uri !== null ? { coverImageUri: tripRow.cover_image_uri } : {}),
+    coverImageUri: tripRow.cover_image_uri,
+    ...(coverUrls ? { coverUrls } : {}),
     destination: tripRow.destination,
     startDate: tripRow.start_date,
     endDate: tripRow.end_date,
@@ -154,12 +164,16 @@ export function toPhotoRow(photo: TripPhoto): Tables['trip_photos']['Insert'] {
   };
 }
 
-/** One trip for the side panel, from the columns `list()` selects (trips-drawer D4). Parsed with Zod. */
-export function listItemFromRow(row: TripListRow): TripListItem {
+/**
+ * One trip for the side panel, from the columns `list()` selects (trips-drawer D4). Parsed with Zod.
+ * `coverUrls` are the signed urls of a gallery cover (trip-covers D5), signed by the caller; a preset has none.
+ */
+export function listItemFromRow(row: TripListRow, coverUrls?: CoverUrls): TripListItem {
   return TripListItemSchema.parse({
     id: row.id,
     name: row.name,
-    ...(row.cover_image_uri !== null ? { coverImageUri: row.cover_image_uri } : {}),
+    coverImageUri: row.cover_image_uri,
+    ...(coverUrls ? { coverUrls } : {}),
     startDate: row.start_date,
     endDate: row.end_date,
   });

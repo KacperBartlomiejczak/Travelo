@@ -60,6 +60,7 @@ function overview(): TripOverview {
       id: TRIP_ID,
       ownerId: 'local-user',
       name: 'Warsaw → Bangkok',
+      coverImageUri: 'preset:auckland',
       destination: 'BKK',
       startDate: '2026-11-03',
       endDate: '2026-11-15',

@@ -1,9 +1,9 @@
-import { Image } from 'expo-image';
-import { Check, CircleX, Plane, Plus } from 'lucide-react-native';
+import { Check, CircleX, Plus } from 'lucide-react-native';
 import { useTranslation } from 'react-i18next';
 import { Pressable, ScrollView, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { CoverImage } from '@/components/CoverImage';
 import { OfflineBanner } from '@/components/OfflineBanner';
 import { PrimaryButton } from '@/components/PrimaryButton';
 import { TextButton } from '@/components/TextButton';
@@ -132,7 +132,8 @@ function TripRow({ trip, selected, divider, onPress }: RowProps) {
   const theme = useTheme();
   const { spacing, colors, size } = theme;
   const dates = formatDateRange(trip.startDate, trip.endDate, i18n.language);
-  // The placeholder's surface also sits behind a cover, so a photo the phone has since cleared is not a hole.
+  // The placeholder surface sits behind the cover while it loads; a cover that fails to load falls back to the default
+  // preset in `CoverImage`, so the thumbnail is never a hole.
   // On the selected row (secondary surface) it takes the panel's surface instead, so it stays visible (D8).
   const thumbnail = {
     width: size.thumbnail,
@@ -159,17 +160,7 @@ function TripRow({ trip, selected, divider, onPress }: RowProps) {
         backgroundColor: pressed || selected ? colors.surface.secondary : undefined,
       })}
     >
-      {trip.coverImageUri ? (
-        <Image testID="trip-row-cover" aria-hidden source={{ uri: trip.coverImageUri }} contentFit="cover" style={thumbnail} />
-      ) : (
-        <View
-          testID="trip-row-placeholder"
-          aria-hidden
-          style={[thumbnail, { alignItems: 'center', justifyContent: 'center' }]}
-        >
-          <Plane size={size.iconStandard} strokeWidth={size.iconStroke} color={colors.text.secondary} />
-        </View>
-      )}
+      <CoverImage testID="trip-row-cover" cover={trip.coverImageUri} urls={trip.coverUrls} variant="thumbnail" style={thumbnail} />
       <View style={{ flex: 1, gap: spacing[1] }}>
         <Text numberOfLines={2} style={[theme.typography.bodyMMedium, { color: colors.text.primary }]}>
           {trip.name}

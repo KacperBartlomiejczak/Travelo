@@ -214,7 +214,7 @@ select test_helpers.ok(
     '00000000-0000-4000-a000-00000000000a', true)) = 1,
   'A can upload the same photo again with upsert (replaces the file)');
 select test_helpers.ok(
-  (select count(*) from storage.objects where bucket_id = 'trip-photos') = 3,
+  (select count(*) from storage.objects where bucket_id = 'trip-photos' and owner_id in ('00000000-0000-4000-a000-00000000000a', '00000000-0000-4000-a000-00000000000b', '00000000-0000-4000-a000-00000000000c')) = 3,
   'the upsert replaced the row, it did not add one');
 
 -- Update in place.
@@ -323,7 +323,7 @@ select test_helpers.ok(
     where bucket_id = 'trip-photos' and name = '1a000000-0000-4000-8000-0000000000a1/5f000000-0000-4000-8000-000000000002.jpg'$$) = 1,
   'A can delete their own file');
 select test_helpers.ok(
-  (select count(*) from storage.objects where bucket_id = 'trip-photos') = 3,
+  (select count(*) from storage.objects where bucket_id = 'trip-photos' and owner_id in ('00000000-0000-4000-a000-00000000000a', '00000000-0000-4000-a000-00000000000b', '00000000-0000-4000-a000-00000000000c')) = 3,
   'A''s other files are still there after deleting one');
 
 -- ---------------------------------------------------------------------------
@@ -381,7 +381,7 @@ select test_helpers.ok(
 select test_helpers.login('00000000-0000-4000-a000-00000000000b');
 
 select test_helpers.ok(
-  (select count(*) from storage.objects where bucket_id = 'trip-photos') = 0,
+  (select count(*) from storage.objects where bucket_id = 'trip-photos' and owner_id in ('00000000-0000-4000-a000-00000000000a', '00000000-0000-4000-a000-00000000000b', '00000000-0000-4000-a000-00000000000c')) = 0,
   'B cannot read A''s files');
 select test_helpers.ok(
   (select count(*) from storage.objects) = 0,
@@ -435,7 +435,7 @@ select test_helpers.ok(
   'B''s update with no WHERE changes only B''s own file');
 
 -- Counted without RLS (back to the connecting role), so "nothing changed" cannot be a side effect of the policies
--- hiding rows.
+-- hiding rows. Counts are limited to the files of this test's own users: a real database may hold other files.
 reset role;
 select test_helpers.ok(
   (select count(*) from storage.objects where bucket_id = 'trip-photos' and owner_id = '00000000-0000-4000-a000-00000000000a') = 3
@@ -452,7 +452,7 @@ select test_helpers.ok(
 
 reset role;
 select test_helpers.ok(
-  (select count(*) from storage.objects where bucket_id = 'trip-photos') = 3
+  (select count(*) from storage.objects where bucket_id = 'trip-photos' and owner_id in ('00000000-0000-4000-a000-00000000000a', '00000000-0000-4000-a000-00000000000b', '00000000-0000-4000-a000-00000000000c')) = 3
     and (select count(*) from storage.objects where bucket_id = 'trip-photos' and owner_id = '00000000-0000-4000-a000-00000000000a') = 3
     and (select count(*) from storage.objects where bucket_id = 'other-bucket') = 1,
   'B''s delete removed none of A''s files (nor the other bucket''s object)');
@@ -502,8 +502,8 @@ select test_helpers.ok(
 
 reset role;
 select test_helpers.ok(
-  (select count(*) from storage.objects where bucket_id = 'trip-photos') = 3
-    and not exists (select 1 from storage.objects where metadata ? 'hacked')
+  (select count(*) from storage.objects where bucket_id = 'trip-photos' and owner_id in ('00000000-0000-4000-a000-00000000000a', '00000000-0000-4000-a000-00000000000b', '00000000-0000-4000-a000-00000000000c')) = 3
+    and not exists (select 1 from storage.objects where owner_id in ('00000000-0000-4000-a000-00000000000a', '00000000-0000-4000-a000-00000000000b', '00000000-0000-4000-a000-00000000000c') and metadata ? 'hacked')
     and exists (select 1 from storage.objects
                 where name = '1a000000-0000-4000-8000-0000000000a1/5f000000-0000-4000-8000-000000000001.jpg'),
   'C changed and removed none of A''s files');
@@ -527,8 +527,8 @@ select test_helpers.ok(
 
 reset role;
 select test_helpers.ok(
-  (select count(*) from storage.objects where bucket_id = 'trip-photos') = 3
-    and not exists (select 1 from storage.objects where metadata ? 'hacked'),
+  (select count(*) from storage.objects where bucket_id = 'trip-photos' and owner_id in ('00000000-0000-4000-a000-00000000000a', '00000000-0000-4000-a000-00000000000b', '00000000-0000-4000-a000-00000000000c')) = 3
+    and not exists (select 1 from storage.objects where owner_id in ('00000000-0000-4000-a000-00000000000a', '00000000-0000-4000-a000-00000000000b', '00000000-0000-4000-a000-00000000000c') and metadata ? 'hacked'),
   'anon changed and removed nothing');
 
 -- ---------------------------------------------------------------------------
@@ -551,7 +551,7 @@ select test_helpers.ok(
 
 reset role;
 select test_helpers.ok(
-  (select count(*) from storage.objects where bucket_id = 'trip-photos') = 0
+  (select count(*) from storage.objects where bucket_id = 'trip-photos' and owner_id in ('00000000-0000-4000-a000-00000000000a', '00000000-0000-4000-a000-00000000000b', '00000000-0000-4000-a000-00000000000c')) = 0
     and (select count(*) from storage.objects where bucket_id = 'other-bucket') = 1,
   'the other bucket''s object survived A''s delete with no WHERE');
 

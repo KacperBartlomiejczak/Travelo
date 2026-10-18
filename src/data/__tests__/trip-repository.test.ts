@@ -40,6 +40,7 @@ describe('buildTrip', () => {
       id: '00000000-0000-4000-8000-000000000001',
       ownerId: OWNER_ID,
       name: 'Warsaw → Bangkok',
+      coverImageUri: 'preset:auckland',
       destination: 'BKK',
       startDate: '2026-11-03',
       endDate: '2026-11-15',
@@ -58,12 +59,22 @@ describe('buildTrip', () => {
     expect(trip.name).toBe('Tajlandia z ekipą');
   });
 
-  it('keeps the cover photo, and has no cover field without one', () => {
-    const withCover = build((input) => {
+  it('keeps a preset or a stored gallery cover as chosen', () => {
+    const preset = build((input) => {
+      input.details.coverImageUri = 'preset:bali';
+    });
+    expect(preset.trip.coverImageUri).toBe('preset:bali');
+    const stored = build((input) => {
+      input.details.coverImageUri = 'photo:5b1f0f6a-2c7d-4a8e-9b3c-1d2e3f4a5b6c';
+    });
+    expect(stored.trip.coverImageUri).toBe('photo:5b1f0f6a-2c7d-4a8e-9b3c-1d2e3f4a5b6c');
+  });
+
+  it('starts a trip whose gallery photo is not sent yet on the default cover (the photo needs the trip first, trip-covers Q1)', () => {
+    const { trip } = build((input) => {
       input.details.coverImageUri = 'file:///cache/cover.jpg';
     });
-    expect(withCover.trip.coverImageUri).toBe('file:///cache/cover.jpg');
-    expect(build().trip).not.toHaveProperty('coverImageUri');
+    expect(trip.coverImageUri).toBe('preset:auckland');
   });
 
   it('turns friends into members without an account', () => {
@@ -148,8 +159,8 @@ describe('in-memory trip repository', () => {
       const list = await repo.list();
       expect(TripListSchema.safeParse(list).success).toBe(true);
       expect(list).toEqual([
-        { id: sooner.id, name: 'Dubai', startDate: '2026-10-20', endDate: '2026-10-25' },
-        { id: later.id, name: 'Warsaw → Bangkok', startDate: '2026-11-03', endDate: '2026-11-15' },
+        { id: sooner.id, name: 'Dubai', coverImageUri: 'preset:auckland', startDate: '2026-10-20', endDate: '2026-10-25' },
+        { id: later.id, name: 'Warsaw → Bangkok', coverImageUri: 'preset:auckland', startDate: '2026-11-03', endDate: '2026-11-15' },
       ]);
     });
 
@@ -230,32 +241,30 @@ describe('in-memory trip repository', () => {
     it('changes the name and cover, seen by current() and list(); the name is trimmed', async () => {
       const repo = repository();
       const created = await repo.create(createTripInputFixture());
-      await repo.updateDetails(created.id, { name: '  Bangkok 2026  ', coverImageUri: 'file:///cache/bkk.jpg' });
+      await repo.updateDetails(created.id, { name: '  Bangkok 2026  ', coverImageUri: 'preset:bali' });
       const current = await repo.current();
-      expect(current?.overview.trip).toEqual(expect.objectContaining({ id: created.id, name: 'Bangkok 2026', coverImageUri: 'file:///cache/bkk.jpg' }));
-      expect(await repo.list()).toEqual([expect.objectContaining({ id: created.id, name: 'Bangkok 2026', coverImageUri: 'file:///cache/bkk.jpg' })]);
+      expect(current?.overview.trip).toEqual(expect.objectContaining({ id: created.id, name: 'Bangkok 2026', coverImageUri: 'preset:bali' }));
+      expect(current?.overview.trip).not.toHaveProperty('coverUrls');
+      expect(await repo.list()).toEqual([expect.objectContaining({ id: created.id, name: 'Bangkok 2026', coverImageUri: 'preset:bali' })]);
     });
 
-    it('removes the cover when the input has none', async () => {
+    it('rejects input without a cover (a cover is required, trip-covers D1)', async () => {
       const repo = repository();
-      const input = createTripInputFixture();
-      input.details.coverImageUri = 'file:///cache/bkk.jpg';
-      const created = await repo.create(input);
-      await repo.updateDetails(created.id, { name: 'Bangkok' });
-      expect((await repo.current())?.overview.trip).not.toHaveProperty('coverImageUri');
-      expect((await repo.list())[0]).not.toHaveProperty('coverImageUri');
+      const created = await repo.create(createTripInputFixture());
+      await expect(repo.updateDetails(created.id, { name: 'Bangkok' } as never)).rejects.toThrow();
+      expect((await repo.current())?.overview.trip.coverImageUri).toBe('preset:auckland');
     });
 
     it('rejects an invalid name and changes nothing', async () => {
       const repo = repository();
       const created = await repo.create(createTripInputFixture());
-      await expect(repo.updateDetails(created.id, { name: '' })).rejects.toThrow();
-      await expect(repo.updateDetails(created.id, { name: 'x'.repeat(61) })).rejects.toThrow();
+      await expect(repo.updateDetails(created.id, { name: '', coverImageUri: 'preset:bali' })).rejects.toThrow();
+      await expect(repo.updateDetails(created.id, { name: 'x'.repeat(61), coverImageUri: 'preset:bali' })).rejects.toThrow();
       expect((await repo.current())?.overview.trip.name).toBe('Warsaw → Bangkok');
     });
 
     it('rejects an unknown trip, like the server changing no row', async () => {
-      await expect(repository().updateDetails(UNKNOWN_ID, { name: 'Rome' })).rejects.toThrow();
+      await expect(repository().updateDetails(UNKNOWN_ID, { name: 'Rome', coverImageUri: 'preset:bali' })).rejects.toThrow();
     });
 
     it('delete removes the trip; the next current() is the default trip', async () => {
@@ -284,6 +293,73 @@ describe('in-memory trip repository', () => {
       await expect(repo.delete(UNKNOWN_ID)).resolves.toBeUndefined();
       expect((await repo.list()).map((trip) => trip.id)).toEqual([kept.id]);
       expect((await repo.current())?.overview.trip.id).toBe(kept.id);
+    });
+  });
+
+  describe('covers (trip-covers D1, D5)', () => {
+    const url = (path: string) => `https://photos.invalid/${path}`;
+    const withCover = (coverImageUri: string) => {
+      const input = createTripInputFixture();
+      input.details.coverImageUri = coverImageUri as never;
+      return input;
+    };
+
+    it('stores a preset cover as is, with no signed URLs', async () => {
+      const repo = repository();
+      const trip = await repo.create(withCover('preset:jakarta'));
+      expect(trip.coverImageUri).toBe('preset:jakarta');
+      expect((await repo.current())?.overview.trip).not.toHaveProperty('coverUrls');
+      expect((await repo.list())[0]).toEqual(expect.objectContaining({ coverImageUri: 'preset:jakarta' }));
+      expect((await repo.list())[0]).not.toHaveProperty('coverUrls');
+    });
+
+    it('turns a gallery photo at creation into a stored cover photo:<new id>, shown with fake http(s) urls', async () => {
+      const repo = repository();
+      const trip = await repo.create(withCover('file:///gallery/IMG_1.jpg'));
+
+      expect(trip.coverImageUri).toMatch(/^photo:[0-9a-f-]{36}$/);
+      const id = trip.coverImageUri.slice('photo:'.length);
+      const urls = { url: url(`${trip.id}/${id}.jpg`), thumbnailUrl: url(`${trip.id}/${id}_thumb.jpg`) };
+      const current = (await repo.current())?.overview.trip;
+      expect(current).toEqual(expect.objectContaining({ coverImageUri: trip.coverImageUri, coverUrls: urls }));
+      expect(TripSummarySchema.safeParse(current).success).toBe(true);
+      expect((await repo.list())[0]).toEqual(expect.objectContaining({ coverImageUri: trip.coverImageUri, coverUrls: urls }));
+      expect(TripListSchema.safeParse(await repo.list()).success).toBe(true);
+    });
+
+    it('updateDetails: a new gallery photo becomes photo:<new id>; a preset replaces it and drops the urls', async () => {
+      const repo = repository();
+      const trip = await repo.create(createTripInputFixture());
+
+      await repo.updateDetails(trip.id, { name: 'Bangkok', coverImageUri: 'file:///gallery/IMG_2.jpg' });
+      const stored = (await repo.current())?.overview.trip;
+      expect(stored?.coverImageUri).toMatch(/^photo:[0-9a-f-]{36}$/);
+      expect(stored?.coverUrls).toBeDefined();
+
+      await repo.updateDetails(trip.id, { name: 'Bangkok', coverImageUri: 'preset:beijing' });
+      const preset = (await repo.current())?.overview.trip;
+      expect(preset?.coverImageUri).toBe('preset:beijing');
+      expect(preset).not.toHaveProperty('coverUrls');
+    });
+
+    it('updateDetails: a stored cover that is not the trip\'s current one is refused, and nothing changes', async () => {
+      const repo = repository();
+      const trip = await repo.create(withCover('file:///gallery/IMG_1.jpg'));
+      const other = 'photo:9a1c0000-0000-4000-8000-0000000000ff';
+      await expect(repo.updateDetails(trip.id, { name: 'Renamed', coverImageUri: other })).rejects.toThrow('cover-not-current');
+      const current = (await repo.current())?.overview.trip;
+      expect(current?.coverImageUri).toBe(trip.coverImageUri);
+      expect(current?.name).toBe('Warsaw → Bangkok');
+
+      const preset = await repo.create(withCover('preset:bali'));
+      await expect(repo.updateDetails(preset.id, { name: 'Renamed', coverImageUri: trip.coverImageUri })).rejects.toThrow('cover-not-current');
+    });
+
+    it('updateDetails: an unchanged stored cover stays the same (no new id)', async () => {
+      const repo = repository();
+      const trip = await repo.create(withCover('file:///gallery/IMG_1.jpg'));
+      await repo.updateDetails(trip.id, { name: 'Bangkok', coverImageUri: trip.coverImageUri });
+      expect((await repo.current())?.overview.trip.coverImageUri).toBe(trip.coverImageUri);
     });
   });
 

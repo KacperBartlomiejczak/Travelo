@@ -2,6 +2,7 @@ import { z } from 'zod';
 
 import { isExistingLocalTime, todayIn, zonedLocalToDate } from '@/lib/time';
 
+import { CoverChoiceSchema } from './cover';
 import { IATA_CODE_PATTERN, isLocalDateTime, isTimeZone, MoneySchema } from './common';
 import { FLIGHT_NUMBER_MAX_LENGTH } from './flight';
 import { InterestTagSchema } from './interests';
@@ -116,14 +117,14 @@ export const BudgetStepInputSchema = z.object({
 });
 export type BudgetStepInput = z.infer<typeof BudgetStepInputSchema>;
 
-/** Summary step: the trip's name and optional cover photo (trip-flight-tabs-name-cover D2). */
+/** Summary step: the trip's name and its cover, a preset or a gallery photo not yet sent (trip-covers D1). */
 export const TripDetailsInputSchema = z.object({
   name: z
     .string()
     .trim()
     .min(1, { error: 'validation.tripNameRequired' })
     .max(TRIP_NAME_MAX_LENGTH, { error: 'validation.tripNameTooLong' }),
-  coverImageUri: z.string().min(1).optional(),
+  coverImageUri: CoverChoiceSchema,
 });
 export type TripDetailsInput = z.infer<typeof TripDetailsInputSchema>;
 

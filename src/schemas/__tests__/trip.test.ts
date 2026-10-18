@@ -1,19 +1,31 @@
 import { SelectedTripSchema, TripListItemSchema, TripListSchema } from '@/schemas';
 
+const photoCover = 'photo:5b1f0f6a-2c7d-4a8e-9b3c-1d2e3f4a5b6c';
+const coverUrls = { url: 'https://example.supabase.co/a.jpg?token=1', thumbnailUrl: 'https://example.supabase.co/a_thumb.jpg?token=2' };
+
 const item = {
   id: '0b9e7c4e-6a43-4c4b-9a55-2f6f0f7e1a01',
   name: 'Warsaw → Bangkok',
-  coverImageUri: 'file:///cache/cover.jpg',
+  coverImageUri: 'preset:bali',
   startDate: '2026-11-03',
   endDate: '2026-11-15',
 };
 
 describe('TripListItem (trips-drawer D4)', () => {
-  it('accepts a trip with or without a cover photo, including a one-day trip', () => {
+  it('accepts a trip with a preset or a gallery cover, including a one-day trip', () => {
     expect(TripListItemSchema.parse(item)).toEqual(item);
-    const { coverImageUri: _omit, ...withoutCover } = item;
-    expect(TripListItemSchema.parse(withoutCover)).not.toHaveProperty('coverImageUri');
+    expect(TripListItemSchema.parse({ ...item, coverImageUri: photoCover, coverUrls })).toEqual({ ...item, coverImageUri: photoCover, coverUrls });
     expect(TripListItemSchema.safeParse({ ...item, endDate: item.startDate }).success).toBe(true);
+  });
+
+  it('requires a cover (trip-covers D1)', () => {
+    const { coverImageUri: _omit, ...withoutCover } = item;
+    expect(TripListItemSchema.safeParse(withoutCover).success).toBe(false);
+  });
+
+  it('accepts a gallery cover without signed URLs (an offline copy), but refuses URLs on a preset', () => {
+    expect(TripListItemSchema.parse({ ...item, coverImageUri: photoCover })).not.toHaveProperty('coverUrls');
+    expect(TripListItemSchema.safeParse({ ...item, coverUrls }).success).toBe(false);
   });
 
   it('keeps only what the side panel needs', () => {
@@ -28,6 +40,8 @@ describe('TripListItem (trips-drawer D4)', () => {
     ['an id that is not a UUID', { id: 'trip-1' }],
     ['an impossible date', { startDate: '2026-02-30' }],
     ['an empty cover URI', { coverImageUri: '' }],
+    ['a device URI as the cover', { coverImageUri: 'file:///cache/cover.jpg' }],
+    ['signed URLs that are not http(s)', { coverImageUri: photoCover, coverUrls: { url: 'file:///a.jpg', thumbnailUrl: coverUrls.thumbnailUrl } }],
   ])('rejects %s', (_, patch) => {
     expect(TripListItemSchema.safeParse({ ...item, ...patch }).success).toBe(false);
   });

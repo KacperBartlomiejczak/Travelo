@@ -27,6 +27,7 @@ const overview: TripOverview = {
     id: TRIP_ID,
     ownerId: '9d3c1b2a-0f4e-4d5c-8b6a-7e8f9a0b1c2d',
     name: 'Barcelona',
+    coverImageUri: 'preset:auckland',
     destination: 'BCN',
     startDate: '2026-11-02',
     endDate: '2026-11-09',
@@ -50,8 +51,8 @@ async function store() {
 
 describe('trip list copy (trips-drawer D3)', () => {
   const list: TripList = [
-    { id: TRIP_ID, name: 'Barcelona', startDate: '2026-11-02', endDate: '2026-11-09' },
-    { id: OTHER_TRIP_ID, name: 'Rome', coverImageUri: 'file:///cache/rome.jpg', startDate: '2026-12-01', endDate: '2026-12-05' },
+    { id: TRIP_ID, name: 'Barcelona', coverImageUri: 'preset:auckland', startDate: '2026-11-02', endDate: '2026-11-09' },
+    { id: OTHER_TRIP_ID, name: 'Rome', coverImageUri: 'preset:bali', startDate: '2026-12-01', endDate: '2026-12-05' },
   ];
 
   it('is empty at first', async () => {
@@ -366,8 +367,8 @@ describe('budget changes', () => {
 
 describe('forgetTrip (trip-edit-menu A5)', () => {
   const list: TripList = [
-    { id: TRIP_ID, name: 'Barcelona', startDate: '2026-11-02', endDate: '2026-11-09' },
-    { id: OTHER_TRIP_ID, name: 'Rome', startDate: '2026-12-01', endDate: '2026-12-05' },
+    { id: TRIP_ID, name: 'Barcelona', coverImageUri: 'preset:auckland', startDate: '2026-11-02', endDate: '2026-11-09' },
+    { id: OTHER_TRIP_ID, name: 'Rome', coverImageUri: 'preset:auckland', startDate: '2026-12-01', endDate: '2026-12-05' },
   ];
   const other = { ...overview, trip: { ...overview.trip, id: OTHER_TRIP_ID, name: 'Rome' } };
 
@@ -461,5 +462,45 @@ describe('forgetTrip (trip-edit-menu A5)', () => {
     await expect(local.cachedPhotos(TRIP_ID)).resolves.toEqual(photos);
     await expect(local.selectedTripId()).resolves.toBe(TRIP_ID);
     await expect(local.budgetChange(TRIP_ID)).resolves.not.toBeNull();
+  });
+});
+
+describe('copies from before covers were required (trip-covers)', () => {
+  const { coverImageUri: _cover, ...oldTrip } = overview.trip;
+  const oldOverview = { ...overview, trip: oldTrip };
+  const oldList = [{ id: TRIP_ID, name: 'Barcelona', startDate: '2026-11-02', endDate: '2026-11-09' }];
+
+  it('an old list copy without a cover counts as no copy, not a crash', async () => {
+    const { db, local } = await store();
+    await db.runAsync("insert into trip_list_cache (id, list_json, cached_at) values (1, ?, '2026-10-05T10:00:00.000Z')", [JSON.stringify(oldList)]);
+    await expect(local.cachedList()).resolves.toBeNull();
+  });
+
+  it('an old trip copy without a cover counts as no copy, not a crash', async () => {
+    const { db, local } = await store();
+    await db.runAsync("insert into trip_overview_cache (trip_id, overview_json, cached_at) values (?, ?, '2026-10-05T10:00:00.000Z')", [
+      TRIP_ID,
+      JSON.stringify(oldOverview),
+    ]);
+    await expect(local.cachedOverview(TRIP_ID)).resolves.toBeNull();
+  });
+
+  it('a copy with a device URI as the cover (from before this feature) counts as no copy too', async () => {
+    const { db, local } = await store();
+    await db.runAsync("insert into trip_list_cache (id, list_json, cached_at) values (1, ?, '2026-10-05T10:00:00.000Z')", [
+      JSON.stringify([{ ...oldList[0], coverImageUri: 'file:///cache/old.jpg' }]),
+    ]);
+    await expect(local.cachedList()).resolves.toBeNull();
+  });
+
+  it('a new copy replaces an old one, and keeps the signed urls of a gallery cover', async () => {
+    const { db, local } = await store();
+    await db.runAsync("insert into trip_list_cache (id, list_json, cached_at) values (1, ?, '2026-10-05T10:00:00.000Z')", [JSON.stringify(oldList)]);
+    const urls = { url: 'https://example.supabase.co/a.jpg?token=1', thumbnailUrl: 'https://example.supabase.co/a_thumb.jpg?token=2' };
+    const fresh: TripList = [
+      { id: TRIP_ID, name: 'Barcelona', coverImageUri: 'photo:5b1f0f6a-2c7d-4a8e-9b3c-1d2e3f4a5b6c', coverUrls: urls, startDate: '2026-11-02', endDate: '2026-11-09' },
+    ];
+    await local.cacheList(fresh, '2026-10-06T10:00:00.000Z');
+    await expect(local.cachedList()).resolves.toEqual(fresh);
   });
 });

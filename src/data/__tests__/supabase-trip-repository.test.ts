@@ -151,9 +151,10 @@ describe('list (trips-drawer D4)', () => {
 
     expect(supabase.queries).toEqual([LIST_QUERY]);
     expect(list).toEqual([
-      { id: PAST_ID, name: 'Lisbon', startDate: '2026-05-01', endDate: '2026-05-08' },
-      { id: ONGOING_ID, name: 'Rome', startDate: '2026-10-01', endDate: '2026-10-07' },
+      { id: PAST_ID, name: 'Lisbon', coverImageUri: 'preset:auckland', startDate: '2026-05-01', endDate: '2026-05-08' },
+      { id: ONGOING_ID, name: 'Rome', coverImageUri: 'preset:auckland', startDate: '2026-10-01', endDate: '2026-10-07' },
     ]);
+    expect(supabase.storageCalls).toEqual([]); // presets have nothing to sign
     await expect(local.cachedList()).resolves.toEqual(list);
   });
 
@@ -357,38 +358,49 @@ describe('select (trips-drawer D2)', () => {
   });
 });
 
+/** A gallery cover already stored for the trip: sending it again changes nothing in Storage (trip-covers). */
+const STORED_COVER = 'photo:5b1f0f6a-2c7d-4a8e-9b3c-1d2e3f4a5b6c';
+/** The answer of the read of the trip's current cover that every updateDetails starts with. */
+const currentCoverIs = (cover: string) => ({ data: { cover_image_uri: cover } });
+const READ_CURRENT_COVER = {
+  table: 'trips',
+  ops: [['select', ['cover_image_uri']], ['eq', ['id', PAST_ID]], ['maybeSingle', []]],
+};
+
 describe('updateDetails (trip-edit-menu D5)', () => {
   it('signs in, then changes the name and cover of that trip on the server', async () => {
     const { supabase, repository } = await setup();
-    supabase.respond('trips', { data: [{ id: PAST_ID }] });
+    supabase.respond('trips', currentCoverIs(STORED_COVER), { data: [{ id: PAST_ID }] });
 
-    await repository.updateDetails(PAST_ID, { name: 'Lisbon 2026', coverImageUri: 'file:///cache/lisbon.jpg' });
+    await repository.updateDetails(PAST_ID, { name: 'Lisbon 2026', coverImageUri: STORED_COVER });
 
     expect(supabase.auth.getSession).toHaveBeenCalled();
     expect(supabase.queries).toEqual([
+      READ_CURRENT_COVER,
       {
         table: 'trips',
         ops: [
-          ['update', [{ name: 'Lisbon 2026', cover_image_uri: 'file:///cache/lisbon.jpg' }]],
+          ['update', [{ name: 'Lisbon 2026', cover_image_uri: STORED_COVER }]],
           ['eq', ['id', PAST_ID]],
           ['select', ['id']],
         ],
       },
     ]);
+    expect(supabase.storageCalls).toEqual([]);
   });
 
   it('trims the name', async () => {
     const { supabase, repository } = await setup();
-    supabase.respond('trips', { data: [{ id: PAST_ID }] });
-    await repository.updateDetails(PAST_ID, { name: '  Lisbon 2026  ' });
-    expect(supabase.queries[0].ops[0]).toEqual(['update', [expect.objectContaining({ name: 'Lisbon 2026' })]]);
+    supabase.respond('trips', currentCoverIs(STORED_COVER), { data: [{ id: PAST_ID }] });
+    await repository.updateDetails(PAST_ID, { name: '  Lisbon 2026  ', coverImageUri: STORED_COVER });
+    expect(supabase.queries[1].ops[0]).toEqual(['update', [expect.objectContaining({ name: 'Lisbon 2026' })]]);
   });
 
-  it('removes the cover on the server (null) when the input has none (A3)', async () => {
+  it('rejects input without a cover (a cover is required, trip-covers D1) before any network call', async () => {
     const { supabase, repository } = await setup();
-    supabase.respond('trips', { data: [{ id: PAST_ID }] });
-    await repository.updateDetails(PAST_ID, { name: 'Lisbon' });
-    expect(supabase.queries[0].ops[0]).toEqual(['update', [{ name: 'Lisbon', cover_image_uri: null }]]);
+    await expect(repository.updateDetails(PAST_ID, { name: 'Lisbon' } as never)).rejects.toMatchObject({ name: 'ZodError' });
+    expect(supabase.queries).toHaveLength(0);
+    expect(supabase.auth.getSession).not.toHaveBeenCalled();
   });
 
   it.each([
@@ -397,21 +409,21 @@ describe('updateDetails (trip-edit-menu D5)', () => {
     ['61 characters', 'x'.repeat(61)],
   ])('rejects a name that is %s with a validation error, and sends nothing', async (_label, name) => {
     const { supabase, repository } = await setup();
-    await expect(repository.updateDetails(PAST_ID, { name })).rejects.toMatchObject({ name: 'ZodError' });
+    await expect(repository.updateDetails(PAST_ID, { name, coverImageUri: STORED_COVER })).rejects.toMatchObject({ name: 'ZodError' });
     expect(supabase.queries).toHaveLength(0);
     expect(supabase.auth.getSession).not.toHaveBeenCalled();
   });
 
   it('rejects when the server changed no row (deleted elsewhere, or not the owner), never a silent success', async () => {
     const { supabase, repository } = await setup();
-    supabase.respond('trips', { data: [] });
-    await expect(repository.updateDetails(PAST_ID, { name: 'Lisbon' })).rejects.toThrow();
+    supabase.respond('trips', currentCoverIs(STORED_COVER), { data: [] });
+    await expect(repository.updateDetails(PAST_ID, { name: 'Lisbon', coverImageUri: STORED_COVER })).rejects.toThrow();
   });
 
   it('rejects with the server\'s message when it refuses', async () => {
     const { supabase, repository } = await setup();
-    supabase.respond('trips', { error: { message: 'permission denied for table trips' }, status: 401 });
-    await expect(repository.updateDetails(PAST_ID, { name: 'Lisbon' })).rejects.toThrow('permission denied');
+    supabase.respond('trips', currentCoverIs(STORED_COVER), { error: { message: 'permission denied for table trips' }, status: 401 });
+    await expect(repository.updateDetails(PAST_ID, { name: 'Lisbon', coverImageUri: STORED_COVER })).rejects.toThrow('permission denied');
   });
 
   it('offline: rejects as unreachable, and never writes to the phone', async () => {
@@ -426,7 +438,7 @@ describe('updateDetails (trip-edit-menu D5)', () => {
     expect(listCopy).toEqual([expect.objectContaining({ id: PAST_ID, name: 'Lisbon' })]);
     expect(overviewCopy).not.toBeNull();
 
-    const rejected = repository.updateDetails(PAST_ID, { name: 'Lisbon 2026' });
+    const rejected = repository.updateDetails(PAST_ID, { name: 'Lisbon 2026', coverImageUri: STORED_COVER });
     await expect(rejected).rejects.toThrow('Network request failed');
     await expect(rejected).rejects.toMatchObject({ constructor: expect.objectContaining({ name: 'ServerUnreachableError' }) });
     await expect(local.cachedList()).resolves.toEqual(listCopy);
@@ -438,7 +450,7 @@ describe('updateDetails (trip-edit-menu D5)', () => {
     const { AuthRetryableFetchError } = jest.requireActual('@supabase/supabase-js');
     supabase.auth.getSession.mockResolvedValueOnce({ data: { session: null as never }, error: null });
     supabase.auth.signInAnonymously.mockResolvedValueOnce({ data: { session: null as never, user: null as never }, error: new AuthRetryableFetchError('Network request failed', 0) });
-    const rejected = repository.updateDetails(PAST_ID, { name: 'Lisbon' });
+    const rejected = repository.updateDetails(PAST_ID, { name: 'Lisbon', coverImageUri: STORED_COVER });
     await expect(rejected).rejects.toMatchObject({ constructor: expect.objectContaining({ name: 'ServerUnreachableError' }) });
     expect(supabase.queries).toHaveLength(0);
   });
@@ -1567,5 +1579,509 @@ describe('a request that never answers (real Supabase client with the 20 s timeo
     await expect(second).resolves.toEqual({ nextAttemptAt: null });
     expect(requests.filter((r) => r === 'PATCH /rest/v1/trips')).toHaveLength(2);
     await expect(local.budgetChange(trip.id)).resolves.toBeNull();
+  });
+});
+
+describe('covers (trip-covers D1, D4, D5)', () => {
+  const PICKED_URI = 'file:///gallery/IMG_7.jpg';
+  const PREPARED = { file: new Uint8Array([1, 2, 3]), thumbnail: new Uint8Array([4, 5]), thumbnailUri: 'file:///cache/cover-thumb.jpg' };
+  const JPEG_UPLOAD = { contentType: 'image/jpeg', upsert: false };
+  /** buildTrip takes the ids 1 to 6 (trip, two friends, three segments), so the cover is the 7th id of a create. */
+  const CREATED_COVER_ID = '00000000-0000-4000-8000-000000000007';
+  /** The first id an updateDetails draws. */
+  const FIRST_COVER_ID = '00000000-0000-4000-8000-000000000001';
+  const OLD_COVER_ID = '9a1c0000-0000-4000-8000-000000000001';
+  const OLD_COVER = `photo:${OLD_COVER_ID}`;
+  const paths = (id: string, tripId: string) => photoPaths({ id, tripId });
+  const calls = (supabase: Awaited<ReturnType<typeof setup>>['supabase'], method: 'upload' | 'remove') =>
+    supabase.storageCalls.filter((call) => call.method === method);
+  const coverUpdate = (cover: string) => ({
+    table: 'trips',
+    ops: [['update', [{ cover_image_uri: cover }]], ['eq', ['id', '00000000-0000-4000-8000-000000000001']], ['select', ['id']]],
+  });
+
+  async function setupCovers(extra: Partial<Parameters<typeof createSupabaseTripRepository>[0]> = {}) {
+    const prepare = jest.fn(async (_uri: string) => PREPARED);
+    const ctx = await setup({ preparePhoto: prepare, ...extra });
+    return { ...ctx, prepare };
+  }
+
+  async function createWith(repository: Awaited<ReturnType<typeof setup>>['repository'], coverImageUri: string) {
+    const input = createTripInputFixture();
+    input.details.coverImageUri = coverImageUri as never;
+    return repository.create(input);
+  }
+
+  describe('create', () => {
+    it('stores a preset as is and uploads nothing', async () => {
+      const { supabase, repository, prepare } = await setupCovers();
+      const trip = await createWith(repository, 'preset:bali');
+
+      expect(trip.coverImageUri).toBe('preset:bali');
+      expect(supabase.rpc.mock.calls[0][1]).toEqual(expect.objectContaining({ trip: expect.objectContaining({ cover_image_uri: 'preset:bali' }) }));
+      expect(prepare).not.toHaveBeenCalled();
+      expect(supabase.storageCalls).toEqual([]);
+      expect(supabase.queries).toEqual([]);
+    });
+
+    it('a gallery photo: the trip is created on the default cover first, because the Storage rules need the trip', async () => {
+      const { supabase, repository } = await setupCovers();
+      supabase.respond('trips', { data: [{ id: '00000000-0000-4000-8000-000000000001' }] });
+      await createWith(repository, PICKED_URI);
+      expect(supabase.rpc.mock.calls[0][1]).toEqual(expect.objectContaining({ trip: expect.objectContaining({ cover_image_uri: 'preset:auckland' }) }));
+    });
+
+    it('then prepares the photo, uploads thumbnail and file into the new trip\'s folder, and stores photo:<new id>', async () => {
+      const { supabase, repository, prepare, local } = await setupCovers();
+      supabase.respond('trips', { data: [{ id: '00000000-0000-4000-8000-000000000001' }] });
+
+      const trip = await createWith(repository, PICKED_URI);
+
+      const tripId = '00000000-0000-4000-8000-000000000001';
+      const files = paths(CREATED_COVER_ID, tripId);
+      expect(prepare).toHaveBeenCalledWith(PICKED_URI);
+      expect(supabase.storageCalls).toEqual([
+        { bucket: BUCKET, method: 'upload', args: [files.thumbnail, PREPARED.thumbnail, JPEG_UPLOAD] },
+        { bucket: BUCKET, method: 'upload', args: [files.file, PREPARED.file, JPEG_UPLOAD] },
+      ]);
+      expect(supabase.queries).toEqual([coverUpdate(`photo:${CREATED_COVER_ID}`)]);
+      expect(supabase.sequence).toEqual(['storage.upload', 'storage.upload', 'from:trips']);
+      expect(trip.id).toBe(tripId);
+      expect(trip.coverImageUri).toBe(`photo:${CREATED_COVER_ID}`);
+      await expect(local.selectedTripId()).resolves.toBe(tripId);
+    });
+
+    describe('when the photo does not make it (Q1): the trip stays on the default cover and create still resolves', () => {
+      const staysDefault = (trip: { coverImageUri: string }) => expect(trip.coverImageUri).toBe('preset:auckland');
+      const cleaned = (supabase: Awaited<ReturnType<typeof setupCovers>>['supabase']) => {
+        const files = paths(CREATED_COVER_ID, '00000000-0000-4000-8000-000000000001');
+        expect(calls(supabase, 'remove')).toEqual([{ bucket: BUCKET, method: 'remove', args: [[files.file, files.thumbnail]] }]);
+      };
+
+      it('the photo cannot be prepared: nothing is sent', async () => {
+        const { supabase, repository, prepare } = await setupCovers();
+        prepare.mockRejectedValueOnce(new Error('cannot read the photo'));
+        const trip = await createWith(repository, PICKED_URI);
+        staysDefault(trip);
+        expect(supabase.storageCalls).toEqual([]);
+        expect(supabase.queries).toEqual([]);
+      });
+
+      it('the thumbnail upload is refused: the trip row is not touched and any file is cleaned up', async () => {
+        const { supabase, repository } = await setupCovers();
+        supabase.respondStorage('upload', { error: { message: 'Payload too large', status: 413 } });
+        const trip = await createWith(repository, PICKED_URI);
+        staysDefault(trip);
+        expect(supabase.queries).toEqual([]);
+        cleaned(supabase);
+      });
+
+      it('the file upload fails after the thumbnail went: both paths are removed, best effort', async () => {
+        const { supabase, repository } = await setupCovers();
+        supabase.respondStorage('upload', {}, { error: { message: 'Bad gateway', status: 502 } });
+        const trip = await createWith(repository, PICKED_URI);
+        staysDefault(trip);
+        expect(calls(supabase, 'upload')).toHaveLength(2);
+        expect(supabase.queries).toEqual([]);
+        cleaned(supabase);
+      });
+
+      it('offline during the upload', async () => {
+        const { supabase, repository } = await setupCovers();
+        supabase.respondStorage('upload', STORAGE_NETWORK_FAILURE);
+        staysDefault(await createWith(repository, PICKED_URI));
+        expect(supabase.queries).toEqual([]);
+      });
+
+      it('the trip update is refused: the uploaded files are removed', async () => {
+        const { supabase, repository } = await setupCovers();
+        supabase.respond('trips', { error: { message: 'permission denied for table trips' }, status: 401 });
+        staysDefault(await createWith(repository, PICKED_URI));
+        cleaned(supabase);
+      });
+
+      it('the trip update changes no row: the uploaded files are removed', async () => {
+        const { supabase, repository } = await setupCovers();
+        supabase.respond('trips', { data: [] });
+        staysDefault(await createWith(repository, PICKED_URI));
+        cleaned(supabase);
+      });
+
+      it('a failing cleanup changes nothing for the caller', async () => {
+        const { supabase, repository } = await setupCovers();
+        supabase.respondStorage('upload', {}, { error: { message: 'Bad gateway', status: 502 } });
+        supabase.respondStorage('remove', { error: { message: 'Bad gateway', status: 502 } });
+        staysDefault(await createWith(repository, PICKED_URI));
+      });
+
+      it('an id that is not a lowercase UUID would make a path Storage refuses: nothing is sent', async () => {
+        let n = 0;
+        const newId = () => (++n === 7 ? 'AAAAAAAA-0000-4000-8000-000000000007' : `00000000-0000-4000-8000-${String(n).padStart(12, '0')}`);
+        const { supabase, repository, prepare } = await setupCovers({ newId });
+        staysDefault(await createWith(repository, PICKED_URI));
+        expect(prepare).not.toHaveBeenCalled();
+        expect(supabase.storageCalls).toEqual([]);
+      });
+
+      it('the trip is still the chosen one', async () => {
+        const { supabase, repository, local } = await setupCovers();
+        supabase.respondStorage('upload', STORAGE_NETWORK_FAILURE);
+        const trip = await createWith(repository, PICKED_URI);
+        await expect(local.selectedTripId()).resolves.toBe(trip.id);
+      });
+    });
+
+    it('a trip the server refuses is not created, and nothing is uploaded', async () => {
+      const { supabase, repository, prepare } = await setupCovers();
+      supabase.rpc.mockResolvedValueOnce({ data: null, error: { message: 'new row violates row-level security policy' }, status: 403 });
+      await expect(createWith(repository, PICKED_URI)).rejects.toThrow('row-level security');
+      expect(prepare).not.toHaveBeenCalled();
+      expect(supabase.storageCalls).toEqual([]);
+    });
+  });
+
+  describe('updateDetails', () => {
+    const oldCoverRow = (cover: string | null) => ({ data: cover === null ? null : { cover_image_uri: cover } });
+    const readOldCover = {
+      table: 'trips',
+      ops: [['select', ['cover_image_uri']], ['eq', ['id', PAST_ID]], ['maybeSingle', []]],
+    };
+    const update = (cover: string) => ({
+      table: 'trips',
+      ops: [['update', [{ name: 'Lisbon', cover_image_uri: cover }]], ['eq', ['id', PAST_ID]], ['select', ['id']]],
+    });
+    const input = (coverImageUri: string) => ({ name: 'Lisbon', coverImageUri }) as Parameters<Awaited<ReturnType<typeof setup>>['repository']['updateDetails']>[1];
+
+    it('a preset replacing a preset: the old cover is read, the new one stored, nothing uploaded or removed', async () => {
+      const { supabase, repository, prepare } = await setupCovers();
+      supabase.respond('trips', oldCoverRow('preset:auckland'), { data: [{ id: PAST_ID }] });
+
+      await repository.updateDetails(PAST_ID, input('preset:bali'));
+
+      expect(supabase.queries).toEqual([readOldCover, update('preset:bali')]);
+      expect(prepare).not.toHaveBeenCalled();
+      expect(supabase.storageCalls).toEqual([]);
+    });
+
+    it('a preset replacing a gallery cover: its two files are removed after the update', async () => {
+      const { supabase, repository } = await setupCovers();
+      supabase.respond('trips', oldCoverRow(OLD_COVER), { data: [{ id: PAST_ID }] });
+
+      await repository.updateDetails(PAST_ID, input('preset:bali'));
+
+      const old = paths(OLD_COVER_ID, PAST_ID);
+      expect(supabase.storageCalls).toEqual([{ bucket: BUCKET, method: 'remove', args: [[old.file, old.thumbnail]] }]);
+      expect(supabase.sequence).toEqual(['from:trips', 'from:trips', 'storage.remove']);
+    });
+
+    it('a gallery cover equal to the stored one: read, then only the update; no upload, no removal', async () => {
+      const { supabase, repository, prepare } = await setupCovers();
+      supabase.respond('trips', oldCoverRow(OLD_COVER), { data: [{ id: PAST_ID }] });
+
+      await repository.updateDetails(PAST_ID, input(OLD_COVER));
+
+      expect(supabase.queries).toEqual([readOldCover, update(OLD_COVER)]);
+      expect(prepare).not.toHaveBeenCalled();
+      expect(supabase.storageCalls).toEqual([]);
+    });
+
+    describe('a gallery cover that is not the trip\'s stored cover is refused before anything is written', () => {
+      const OTHER_COVER = 'photo:9a1c0000-0000-4000-8000-0000000000ff';
+
+      it.each([
+        ['another gallery cover (a stale or crafted value)', OLD_COVER, OTHER_COVER],
+        ['a gallery cover on a trip that has a preset', 'preset:bali', OLD_COVER],
+      ])('%s: rejects, writes nothing, uploads and removes nothing', async (_label, current, asked) => {
+        const { supabase, repository, prepare } = await setupCovers();
+        supabase.respond('trips', oldCoverRow(current));
+
+        await expect(repository.updateDetails(PAST_ID, input(asked))).rejects.toThrow('cover-not-current');
+
+        expect(supabase.queries).toEqual([readOldCover]);
+        expect(supabase.storageCalls).toEqual([]);
+        expect(prepare).not.toHaveBeenCalled();
+      });
+
+      it('a trip the server does not show rejects as not found', async () => {
+        const { supabase, repository } = await setupCovers();
+        supabase.respond('trips', oldCoverRow(null));
+        await expect(repository.updateDetails(PAST_ID, input(OLD_COVER))).rejects.toThrow('trip-not-found');
+        expect(supabase.queries).toEqual([readOldCover]);
+      });
+
+      it('reading the stored cover offline rejects as unreachable', async () => {
+        const { supabase, repository } = await setupCovers();
+        supabase.respond('trips', NETWORK_FAILURE);
+        await expect(repository.updateDetails(PAST_ID, input(OLD_COVER))).rejects.toMatchObject({
+          constructor: expect.objectContaining({ name: 'ServerUnreachableError' }),
+        });
+      });
+    });
+
+    it('a new gallery photo on a trip with a preset: prepared, uploaded, stored as photo:<new id>, nothing removed', async () => {
+      const { supabase, repository, prepare } = await setupCovers();
+      supabase.respond('trips', oldCoverRow('preset:auckland'), { data: [{ id: PAST_ID }] });
+
+      await repository.updateDetails(PAST_ID, input(PICKED_URI));
+
+      const files = paths(FIRST_COVER_ID, PAST_ID);
+      expect(prepare).toHaveBeenCalledWith(PICKED_URI);
+      expect(supabase.storageCalls).toEqual([
+        { bucket: BUCKET, method: 'upload', args: [files.thumbnail, PREPARED.thumbnail, JPEG_UPLOAD] },
+        { bucket: BUCKET, method: 'upload', args: [files.file, PREPARED.file, JPEG_UPLOAD] },
+      ]);
+      expect(supabase.queries).toEqual([readOldCover, update(`photo:${FIRST_COVER_ID}`)]);
+    });
+
+    it('a new gallery photo replacing a gallery cover: upload, then update, then the old two files go', async () => {
+      const { supabase, repository } = await setupCovers();
+      supabase.respond('trips', oldCoverRow(OLD_COVER), { data: [{ id: PAST_ID }] });
+
+      await repository.updateDetails(PAST_ID, input(PICKED_URI));
+
+      const old = paths(OLD_COVER_ID, PAST_ID);
+      expect(supabase.sequence).toEqual(['from:trips', 'storage.upload', 'storage.upload', 'from:trips', 'storage.remove']);
+      expect(calls(supabase, 'remove')).toEqual([{ bucket: BUCKET, method: 'remove', args: [[old.file, old.thumbnail]] }]);
+    });
+
+    it('a failed removal of the old files does not reject: the cover is already changed', async () => {
+      const { supabase, repository } = await setupCovers();
+      supabase.respond('trips', oldCoverRow(OLD_COVER), { data: [{ id: PAST_ID }] });
+      supabase.respondStorage('remove', { error: { message: 'Bad gateway', status: 502 } });
+      await expect(repository.updateDetails(PAST_ID, input(PICKED_URI))).resolves.toBeUndefined();
+    });
+
+    it('a removal that cannot even reach Storage does not reject either', async () => {
+      const { supabase, repository } = await setupCovers();
+      supabase.respond('trips', oldCoverRow(OLD_COVER), { data: [{ id: PAST_ID }] });
+      supabase.respondStorage('remove', STORAGE_NETWORK_FAILURE);
+      await expect(repository.updateDetails(PAST_ID, input('preset:bali'))).resolves.toBeUndefined();
+    });
+
+    it('an upload that fails rejects and changes nothing: no update, the old cover stays and its files are not removed', async () => {
+      const { supabase, repository } = await setupCovers();
+      supabase.respond('trips', oldCoverRow(OLD_COVER));
+      supabase.respondStorage('upload', {}, { error: { message: 'Bad gateway', status: 502 } });
+
+      await expect(repository.updateDetails(PAST_ID, input(PICKED_URI))).rejects.toThrow('Bad gateway');
+
+      expect(supabase.queries).toEqual([readOldCover]);
+      const fresh = paths(FIRST_COVER_ID, PAST_ID);
+      // Only what this attempt uploaded is cleaned up; the old cover's files are never touched.
+      expect(calls(supabase, 'remove')).toEqual([{ bucket: BUCKET, method: 'remove', args: [[fresh.file, fresh.thumbnail]] }]);
+    });
+
+    it('offline during the upload rejects as unreachable', async () => {
+      const { supabase, repository } = await setupCovers();
+      supabase.respond('trips', oldCoverRow('preset:auckland'));
+      supabase.respondStorage('upload', STORAGE_NETWORK_FAILURE);
+      await expect(repository.updateDetails(PAST_ID, input(PICKED_URI))).rejects.toMatchObject({
+        constructor: expect.objectContaining({ name: 'ServerUnreachableError' }),
+      });
+    });
+
+    it('a photo that cannot be prepared rejects and sends nothing', async () => {
+      const { supabase, repository, prepare } = await setupCovers();
+      supabase.respond('trips', oldCoverRow('preset:auckland'));
+      prepare.mockRejectedValueOnce(new Error('cannot read the photo'));
+      await expect(repository.updateDetails(PAST_ID, input(PICKED_URI))).rejects.toThrow('cannot read the photo');
+      expect(supabase.storageCalls).toEqual([]);
+      expect(supabase.queries).toEqual([readOldCover]);
+    });
+
+    it('an update the server refuses after the upload rejects and removes the new files, not the old ones', async () => {
+      const { supabase, repository } = await setupCovers();
+      supabase.respond('trips', oldCoverRow(OLD_COVER), { error: { message: 'permission denied for table trips' }, status: 401 });
+
+      await expect(repository.updateDetails(PAST_ID, input(PICKED_URI))).rejects.toThrow('permission denied');
+
+      const fresh = paths(FIRST_COVER_ID, PAST_ID);
+      expect(calls(supabase, 'remove')).toEqual([{ bucket: BUCKET, method: 'remove', args: [[fresh.file, fresh.thumbnail]] }]);
+    });
+
+    it('an update that changes no row after the upload rejects and removes the new files', async () => {
+      const { supabase, repository } = await setupCovers();
+      supabase.respond('trips', oldCoverRow(OLD_COVER), { data: [] });
+
+      await expect(repository.updateDetails(PAST_ID, input(PICKED_URI))).rejects.toThrow('trip-not-found');
+
+      const fresh = paths(FIRST_COVER_ID, PAST_ID);
+      expect(calls(supabase, 'remove')).toEqual([{ bucket: BUCKET, method: 'remove', args: [[fresh.file, fresh.thumbnail]] }]);
+    });
+
+    it('a trip the server does not show rejects before anything is prepared or sent', async () => {
+      const { supabase, repository, prepare } = await setupCovers();
+      supabase.respond('trips', oldCoverRow(null));
+      await expect(repository.updateDetails(PAST_ID, input(PICKED_URI))).rejects.toThrow('trip-not-found');
+      expect(prepare).not.toHaveBeenCalled();
+      expect(supabase.storageCalls).toEqual([]);
+    });
+
+    it('reading the old cover offline rejects as unreachable', async () => {
+      const { repository, supabase } = await setupCovers();
+      supabase.respond('trips', NETWORK_FAILURE);
+      await expect(repository.updateDetails(PAST_ID, input('preset:bali'))).rejects.toMatchObject({
+        constructor: expect.objectContaining({ name: 'ServerUnreachableError' }),
+      });
+    });
+
+    it('a trip id that is not a lowercase UUID is refused before any network call (it becomes a folder)', async () => {
+      const { supabase, repository } = await setupCovers();
+      await expect(repository.updateDetails(PAST_ID.toUpperCase(), input(PICKED_URI))).rejects.toThrow();
+      expect(supabase.queries).toEqual([]);
+      expect(supabase.storageCalls).toEqual([]);
+    });
+  });
+
+  describe('list and current sign gallery covers (D5)', () => {
+    const COVER_A = '9a1c0000-0000-4000-8000-00000000000a';
+    const COVER_B = '9a1c0000-0000-4000-8000-00000000000b';
+    const withCover = (trip: ReturnType<typeof past>, cover: string) => ({ ...trip, row: { ...trip.row, cover_image_uri: cover } });
+    const urlsOf = (id: string, tripId: string) => {
+      const files = paths(id, tripId);
+      return { url: fakeSignedUrl(BUCKET, files.file), thumbnailUrl: fakeSignedUrl(BUCKET, files.thumbnail) };
+    };
+
+    it('list: signs the file and thumbnail of every gallery cover in one call for an hour; presets get nothing', async () => {
+      const { supabase, repository } = await setupCovers();
+      supabase.respond('trips', { data: [listRow(withCover(past(), `photo:${COVER_A}`)), listRow(ongoing()), listRow(withCover(later(), `photo:${COVER_B}`))] });
+
+      const list = await repository.list();
+
+      expect(supabase.storageCalls).toEqual([
+        {
+          bucket: BUCKET,
+          method: 'createSignedUrls',
+          args: [[paths(COVER_A, PAST_ID).file, paths(COVER_B, LATER_ID).file, paths(COVER_A, PAST_ID).thumbnail, paths(COVER_B, LATER_ID).thumbnail], 3600],
+        },
+      ]);
+      expect(list).toEqual([
+        expect.objectContaining({ id: PAST_ID, coverImageUri: `photo:${COVER_A}`, coverUrls: urlsOf(COVER_A, PAST_ID) }),
+        expect.objectContaining({ id: ONGOING_ID, coverImageUri: 'preset:auckland' }),
+        expect.objectContaining({ id: LATER_ID, coverImageUri: `photo:${COVER_B}`, coverUrls: urlsOf(COVER_B, LATER_ID) }),
+      ]);
+      expect(list[1]).not.toHaveProperty('coverUrls');
+    });
+
+    it('list: keeps the urls in the copy on the phone, which is what an offline start shows', async () => {
+      const { supabase, local, repository } = await setupCovers();
+      supabase.respond('trips', { data: [listRow(withCover(past(), `photo:${COVER_A}`))] }, NETWORK_FAILURE);
+      const online = await repository.list();
+      await expect(local.cachedList()).resolves.toEqual(online);
+      await expect(repository.list()).resolves.toEqual(online);
+    });
+
+    it('list: with Storage unreachable it shows the copy', async () => {
+      const { supabase, repository } = await setupCovers();
+      supabase.respond('trips', { data: [listRow(withCover(past(), `photo:${COVER_A}`))] }, { data: [listRow(withCover(past(), `photo:${COVER_A}`))] });
+      const online = await repository.list();
+      supabase.respondStorage('createSignedUrls', STORAGE_NETWORK_FAILURE);
+      await expect(repository.list()).resolves.toEqual(online);
+    });
+
+    it('list: a cover Storage cannot sign shows no urls (the app falls back to the default preset) instead of failing the list', async () => {
+      const { supabase, repository } = await setupCovers();
+      supabase.respond('trips', { data: [listRow(withCover(past(), `photo:${COVER_A}`))] });
+      const files = paths(COVER_A, PAST_ID);
+      supabase.respondStorage('createSignedUrls', { data: [refusedItem(files.file), signedItem(files.thumbnail)] });
+      const [item] = await repository.list();
+      expect(item).toEqual(expect.objectContaining({ id: PAST_ID, coverImageUri: `photo:${COVER_A}` }));
+      expect(item).not.toHaveProperty('coverUrls');
+    });
+
+    it('list: a signed url that is not http(s) rejects, also from the server', async () => {
+      const { supabase, repository } = await setupCovers();
+      supabase.respond('trips', { data: [listRow(withCover(past(), `photo:${COVER_A}`))] });
+      const files = paths(COVER_A, PAST_ID);
+      supabase.respondStorage('createSignedUrls', {
+        data: [{ ...signedItem(files.file), signedUrl: 'javascript:alert(1)' }, signedItem(files.thumbnail)],
+      });
+      await expect(repository.list()).rejects.toThrow();
+    });
+
+    it('list: signs at most 1000 paths per call', async () => {
+      const { supabase, repository } = await setupCovers();
+      const rows = Array.from({ length: 501 }, (_, i) => {
+        const id = `00000000-0000-4000-8000-${String(i + 1).padStart(12, '0')}`;
+        return { ...listRow(withCover(past(), `photo:${COVER_A}`)), id };
+      });
+      supabase.respond('trips', { data: rows });
+      const list = await repository.list();
+      const signCalls = supabase.storageCalls.filter((call) => call.method === 'createSignedUrls');
+      expect(signCalls.map((call) => (call.args[0] as string[]).length)).toEqual([1000, 2]);
+      expect(list.every((item) => item.coverUrls !== undefined)).toBe(true);
+    });
+
+    it('current: signs the shown trip\'s gallery cover and keeps it in the trip\'s copy', async () => {
+      const { supabase, local, repository } = await setupCovers();
+      await repository.select(PAST_ID);
+      supabase.respond('trips', { data: withCover(past(), `photo:${COVER_A}`).row });
+
+      const current = await repository.current();
+
+      expect(supabase.storageCalls).toEqual([
+        { bucket: BUCKET, method: 'createSignedUrls', args: [[paths(COVER_A, PAST_ID).file, paths(COVER_A, PAST_ID).thumbnail], 3600] },
+      ]);
+      expect(current?.overview.trip).toEqual(expect.objectContaining({ coverImageUri: `photo:${COVER_A}`, coverUrls: urlsOf(COVER_A, PAST_ID) }));
+      await expect(local.cachedOverview(PAST_ID)).resolves.toEqual(current?.overview);
+    });
+
+    it('current: a preset cover signs nothing', async () => {
+      const { supabase, repository } = await setupCovers();
+      await repository.select(PAST_ID);
+      supabase.respond('trips', { data: past().row });
+      const current = await repository.current();
+      expect(supabase.storageCalls).toEqual([]);
+      expect(current?.overview.trip.coverImageUri).toBe('preset:auckland');
+      expect(current?.overview.trip).not.toHaveProperty('coverUrls');
+    });
+
+    it('current: offline it shows the copy with the urls it was saved with', async () => {
+      const { supabase, repository } = await setupCovers();
+      await repository.select(PAST_ID);
+      supabase.respond('trips', { data: withCover(past(), `photo:${COVER_A}`).row }, NETWORK_FAILURE);
+      const online = await repository.current();
+      await expect(repository.current()).resolves.toEqual({ ...online, fromCache: true });
+    });
+
+    it('current: a trip row with a cover that is not a valid cover rejects (a device URI from before this feature)', async () => {
+      const { supabase, repository } = await setupCovers();
+      await repository.select(PAST_ID);
+      supabase.respond('trips', { data: { ...past().row, cover_image_uri: 'file:///cache/old.jpg' } });
+      await expect(repository.current()).rejects.toThrow();
+    });
+  });
+
+  describe('delete', () => {
+    it('a trip with a photo: cover loses <tripId>/<uuid>.jpg and <tripId>/<uuid>_thumb.jpg (the folder removal)', async () => {
+      const { supabase, repository } = await setupCovers();
+      const uuid = '9a1c0000-0000-4000-8000-000000000001';
+      supabase.respondStorage('list', { data: [{ name: `${uuid}.jpg` }, { name: `${uuid}_thumb.jpg` }] });
+      supabase.respond('trips', { data: [{ id: PAST_ID }] });
+
+      await repository.delete(PAST_ID);
+
+      expect(calls(supabase, 'remove')).toEqual([
+        { bucket: BUCKET, method: 'remove', args: [[`${PAST_ID}/${uuid}.jpg`, `${PAST_ID}/${uuid}_thumb.jpg`]] },
+      ]);
+      expect(supabase.sequence.indexOf('storage.remove')).toBeLessThan(supabase.sequence.indexOf('from:trips'));
+    });
+
+    it('removes the cover files with the rest of the trip\'s folder (no separate step: they are in it)', async () => {
+      const { supabase, repository } = await setupCovers();
+      const cover = paths(OLD_COVER_ID, PAST_ID);
+      const names = [cover.file, cover.thumbnail, photoPathsOf(1).file, photoPathsOf(1).thumbnail].map((path) => path.slice(PAST_ID.length + 1));
+      supabase.respondStorage('list', { data: names.map((name) => ({ name })) });
+      supabase.respond('trips', { data: [{ id: PAST_ID }] });
+
+      await repository.delete(PAST_ID);
+
+      expect(calls(supabase, 'remove')[0]).toEqual({
+        bucket: BUCKET,
+        method: 'remove',
+        args: [[cover.file, cover.thumbnail, photoPathsOf(1).file, photoPathsOf(1).thumbnail]],
+      });
+      expect(supabase.sequence.indexOf('storage.remove')).toBeLessThan(supabase.sequence.indexOf('from:trips'));
+    });
   });
 });

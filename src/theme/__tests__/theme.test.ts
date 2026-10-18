@@ -302,3 +302,12 @@ describe('trip photo tile (trip-photos P2)', () => {
     expect(darkTheme.size.photoTile).toBe(lightTheme.size.photoTile);
   });
 });
+
+describe('cover tile (trip-covers P1)', () => {
+  it('is 112dp wide on the 4dp grid, big enough to touch, the same in both themes', () => {
+    expect(lightTheme.size.coverTile).toBe(112);
+    expect(lightTheme.size.coverTile % 4).toBe(0);
+    expect(lightTheme.size.coverTile).toBeGreaterThanOrEqual(lightTheme.size.touchTarget);
+    expect(darkTheme.size.coverTile).toBe(lightTheme.size.coverTile);
+  });
+});

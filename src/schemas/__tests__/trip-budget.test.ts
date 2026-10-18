@@ -84,6 +84,7 @@ describe('CurrentTrip', () => {
         id: TRIP_ID,
         ownerId: '9d3c1b2a-0f4e-4d5c-8b6a-7e8f9a0b1c2d',
         name: 'Barcelona',
+        coverImageUri: 'preset:auckland',
         destination: 'BCN',
         startDate: '2026-11-02',
         endDate: '2026-11-09',

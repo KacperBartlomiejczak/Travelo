@@ -64,13 +64,13 @@ isOneToOne: false
                   ]
                 },"trips": {
                   Row: {
-                    "base_currency": string,"budget_per_person_minor": number,"budget_updated_at": string,"cover_image_uri": string | null,"created_at": string,"destination": string,"end_date": string,"id": string,"name": string,"owner_id": string,"start_date": string
+                    "base_currency": string,"budget_per_person_minor": number,"budget_updated_at": string,"cover_image_uri": string,"created_at": string,"destination": string,"end_date": string,"id": string,"name": string,"owner_id": string,"start_date": string
                   }
                   Insert: {
-                    "base_currency": string,"budget_per_person_minor": number,"budget_updated_at": string,"cover_image_uri"?: string | null,"created_at"?: string,"destination": string,"end_date": string,"id": string,"name": string,"owner_id"?: string,"start_date": string
+                    "base_currency": string,"budget_per_person_minor": number,"budget_updated_at": string,"cover_image_uri"?: string,"created_at"?: string,"destination": string,"end_date": string,"id": string,"name": string,"owner_id"?: string,"start_date": string
                   }
                   Update: {
-                    "base_currency"?: string,"budget_per_person_minor"?: number,"budget_updated_at"?: string,"cover_image_uri"?: string | null,"created_at"?: string,"destination"?: string,"end_date"?: string,"id"?: string,"name"?: string,"owner_id"?: string,"start_date"?: string
+                    "base_currency"?: string,"budget_per_person_minor"?: number,"budget_updated_at"?: string,"cover_image_uri"?: string,"created_at"?: string,"destination"?: string,"end_date"?: string,"id"?: string,"name"?: string,"owner_id"?: string,"start_date"?: string
                   }
                   Relationships: [
                     

@@ -1,4 +1,4 @@
-import { act, fireEvent, render, screen } from '@testing-library/react-native';
+import { act, fireEvent, render, screen, within } from '@testing-library/react-native';
 import { AccessibilityInfo } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
@@ -12,7 +12,8 @@ import { TripDetailsSheet } from '../TripDetailsSheet';
 
 const metrics = { frame: { x: 0, y: 0, width: 390, height: 844 }, insets: { top: 47, left: 0, right: 0, bottom: 34 } };
 const TRIP_ID = '0b9e7c4e-6a43-4c4b-9a55-2f6f0f7e1a01';
-const COVER = 'file:///covers/bangkok.jpg';
+const COVER_ID = '5b1f0f6a-2c7d-4a8e-9b3c-1d2e3f4a5b6c';
+const COVER = `photo:${COVER_ID}` as const;
 
 function trip(patch: Partial<TripSummary> = {}): TripSummary {
   return {
@@ -67,14 +68,25 @@ describe('TripDetailsSheet (trip-edit-menu A2, A3, D5, D12)', () => {
     await setup();
     expect(screen.getByRole('header', { name: 'Nazwa i zdjęcie' })).toBeTruthy();
     expect(screen.getByLabelText(NAME).props.value).toBe('Warsaw → Bangkok');
-    expect(screen.getByLabelText('Wybrane zdjęcie okładki')).toBeTruthy();
+    expect(screen.getByRole('radio', { name: 'Twoje zdjęcie', checked: true })).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Zapisz' })).toBeEnabled();
   });
 
-  it('shows the picker without a photo when the trip has no cover', async () => {
-    await setup({ coverImageUri: undefined });
-    expect(screen.queryByLabelText('Wybrane zdjęcie okładki')).toBeNull();
-    expect(screen.getByRole('button', { name: 'Wybierz z galerii' })).toBeTruthy();
+  it("starts on the trip's own preset cover", async () => {
+    await setup({ coverImageUri: 'preset:bali' });
+    expect(screen.getByRole('radio', { name: 'Bali', checked: true })).toBeTruthy();
+    expect(screen.queryByRole('radio', { name: 'Twoje zdjęcie' })).toBeNull();
+  });
+
+  it('shows the trip\'s gallery cover as the first tile and the preview, from its signed URLs (trip-covers step 5)', async () => {
+    const coverUrls = { url: 'https://example.com/signed/cover.jpg?token=a', thumbnailUrl: 'https://example.com/signed/cover_thumb.jpg?token=a' };
+    await setup({ coverUrls });
+    const radios = screen.getAllByRole('radio');
+    expect(radios[0]).toHaveAccessibleName('Twoje zdjęcie');
+    expect(radios[0]).toBeChecked();
+    const hidden = { includeHiddenElements: true };
+    expect(within(radios[0]).getByTestId('cover-tile-image', hidden).props.source).toEqual([{ uri: coverUrls.thumbnailUrl, cacheKey: `cover:${COVER_ID}:thumbnail` }]);
+    expect(screen.getByTestId('cover-preview', hidden).props.source).toEqual([{ uri: coverUrls.url, cacheKey: `cover:${COVER_ID}:full` }]);
   });
 
   it('saves the trimmed name with the cover, then closes', async () => {
@@ -121,15 +133,14 @@ describe('TripDetailsSheet (trip-edit-menu A2, A3, D5, D12)', () => {
     expect(screen.queryByText('Podaj nazwę podróży')).toBeNull();
   });
 
-  it('removes the cover: saving sends no coverImageUri', async () => {
+  it('cannot remove the cover: choosing another preset saves that one', async () => {
     const { updateDetails } = await setup();
-    await fireEvent.press(screen.getByRole('button', { name: 'Usuń zdjęcie' }));
-    expect(screen.queryByLabelText('Wybrane zdjęcie okładki')).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Usuń zdjęcie' })).toBeNull();
+    await fireEvent.press(screen.getByRole('radio', { name: 'Pekin' }));
+    expect(screen.getByRole('radio', { name: 'Pekin', checked: true })).toBeTruthy();
     await fireEvent.press(save());
     expect(updateDetails).toHaveBeenCalledTimes(1);
-    expect(updateDetails.mock.calls[0][0]).toBe(TRIP_ID);
-    expect(updateDetails.mock.calls[0][1]).toEqual({ name: 'Warsaw → Bangkok' });
-    expect(updateDetails.mock.calls[0][1]).not.toHaveProperty('coverImageUri');
+    expect(updateDetails).toHaveBeenCalledWith(TRIP_ID, { name: 'Warsaw → Bangkok', coverImageUri: 'preset:beijing' });
   });
 
   it('shows the button loading while saving, and does not save twice', async () => {
@@ -155,6 +166,17 @@ describe('TripDetailsSheet (trip-edit-menu A2, A3, D5, D12)', () => {
     expect(updateDetails).toHaveBeenCalledTimes(1);
     expect(onClose).not.toHaveBeenCalled();
     expect(screen.getByLabelText(NAME).props.value).toBe('Nowa nazwa');
+    expect(screen.getByRole('button', { name: 'Zapisz' })).toBeEnabled();
+  });
+
+  it('shows the same error and keeps the sheet open when the cover is no longer the stored one (cover-not-current)', async () => {
+    const announce = jest.spyOn(AccessibilityInfo, 'announceForAccessibility');
+    const { onClose, updateDetails } = await setup({}, update(() => Promise.reject(new Error('cover-not-current'))));
+    await fireEvent.press(save());
+    expect(await screen.findByText('Nie udało się zapisać. Spróbuj ponownie.')).toBeTruthy();
+    expect(announce).toHaveBeenCalledWith('Nie udało się zapisać. Spróbuj ponownie.');
+    expect(updateDetails).toHaveBeenCalledWith(TRIP_ID, { name: 'Warsaw → Bangkok', coverImageUri: COVER });
+    expect(onClose).not.toHaveBeenCalled();
     expect(screen.getByRole('button', { name: 'Zapisz' })).toBeEnabled();
   });
 
