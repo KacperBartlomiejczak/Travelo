@@ -24,6 +24,19 @@ isOneToOne: false
       referencedColumns: ["id"]
     }
                   ]
+                },"profiles": {
+                  Row: {
+                    "avatar_id": string | null,"created_at": string,"friend_code": string,"id": string,"interests": (string)[],"updated_at": string,"username": string
+                  }
+                  Insert: {
+                    "avatar_id"?: string | null,"created_at"?: string,"friend_code"?: string,"id": string,"interests": (string)[],"updated_at"?: string,"username": string
+                  }
+                  Update: {
+                    "avatar_id"?: string | null,"created_at"?: string,"friend_code"?: string,"id"?: string,"interests"?: (string)[],"updated_at"?: string,"username"?: string
+                  }
+                  Relationships: [
+                    
+                  ]
                 },"trip_members": {
                   Row: {
                     "budget_level": string | null,"dietary_notes": string | null,"display_name": string,"id": string,"interests": (string)[],"pace": string | null,"role": string,"trip_id": string,"user_id": string | null
