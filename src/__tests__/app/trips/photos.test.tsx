@@ -5,7 +5,8 @@ import { focusManager } from '@tanstack/react-query';
 import { Dimensions, FlatList, StyleSheet } from 'react-native';
 
 import DrawerLayout from '@/app/(drawer)/_layout';
-import HomeScreen from '@/app/(drawer)/index';
+import TabsLayout from '@/app/(drawer)/(tabs)/_layout';
+import HomeScreen from '@/app/(drawer)/(tabs)/index';
 import RootLayout from '@/app/_layout';
 import PhotosScreen from '@/app/trips/[tripId]/photos';
 import { createInMemoryTripRepository, type TripRepository } from '@/data/trip-repository';
@@ -59,7 +60,8 @@ function renderApp(initialUrl = '/') {
     {
       _layout: RootLayout,
       '(drawer)/_layout': DrawerLayout,
-      '(drawer)/index': HomeScreen,
+      '(drawer)/(tabs)/_layout': TabsLayout,
+      '(drawer)/(tabs)/index': HomeScreen,
       'trips/[tripId]/photos': PhotosScreen,
       'trips/new/index': () => null,
     },

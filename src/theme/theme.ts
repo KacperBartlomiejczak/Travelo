@@ -4,8 +4,12 @@ import { breakpoints, duration, elevation, gradient, opacity, palette, radius, s
 import { typography } from './typography';
 
 // §6.1: shadows in light mode; dark mode relies on surface contrast.
-const lightElevation: { card: ViewStyle } = { card: elevation.card };
-const darkElevation: { card: ViewStyle } = { card: {} };
+const lightElevation: { card: ViewStyle; floating: ViewStyle; dialog: ViewStyle } = {
+  card: elevation.card,
+  floating: elevation.floating,
+  dialog: elevation.dialog,
+};
+const darkElevation: { card: ViewStyle; floating: ViewStyle; dialog: ViewStyle } = { card: {}, floating: {}, dialog: {} };
 
 // Trip hero (trip-flight-tabs-name-cover D4, D7): the photo fades into ink in both modes,
 // so its text uses the dark-mode text colours on light and dark devices alike.
@@ -15,6 +19,14 @@ const hero = {
   textSecondary: palette.dark.textSecondary,
   // Behind the menu button over the photo: ink at 50 %, the scrim value, readable on a bright photo (trips-drawer P5).
   control: palette.overlay.scrim,
+};
+
+// Pill navigation (pill-nav-and-dialog D2): always ink with a brand-coloured active item, in both modes.
+const nav = {
+  background: palette.neutral[900],
+  border: palette.dark.border,
+  textInactive: palette.dark.textSecondary,
+  active: palette.dark.brand,
 };
 
 // Semantic color roles from context/design-context.md §3.
@@ -47,6 +59,7 @@ const light = {
     budget: palette.budget.light,
     category: palette.category.light,
     hero,
+    nav,
     overlay: palette.overlay,
     // Snackbar is inverse: ink on light, light on dark (trip-edit-menu D11).
     snackbar: { background: palette.neutral[900], text: palette.neutral[50] },
@@ -98,6 +111,7 @@ export const darkTheme: Theme = {
     budget: palette.budget.dark,
     category: palette.category.dark,
     hero,
+    nav,
     overlay: palette.overlay,
     snackbar: { background: palette.neutral[50], text: palette.neutral[900] },
   },

@@ -1,6 +1,7 @@
 import { renderHook } from '@testing-library/react-native';
 
 import { darkTheme, lightTheme } from '../theme';
+import { palette } from '../tokens';
 import { DarkThemeScope, useTheme } from '../useTheme';
 
 let mockScheme: 'light' | 'dark' | null = null;
@@ -214,6 +215,13 @@ describe('snackbar roles (trip-edit-menu D11)', () => {
   });
 });
 
+describe('dialog duration (pill-nav-and-dialog step 2)', () => {
+  it('has the §9.1 dialog transition of 220 ms as a token, shared by both themes', () => {
+    expect(lightTheme.duration.dialog).toBe(220);
+    expect(darkTheme.duration.dialog).toBe(220);
+  });
+});
+
 describe('side panel and hero menu button (trips-drawer P1, P5)', () => {
   it.each([
     ['light', lightTheme],
@@ -239,6 +247,50 @@ describe('disabled opacity (trip-photos D25, §10.2)', () => {
 
   it('is shared between light and dark', () => {
     expect(darkTheme.opacity).toBe(lightTheme.opacity);
+  });
+});
+
+describe('pill nav and dialog tokens (pill-nav-and-dialog)', () => {
+  it.each([
+    ['light', lightTheme],
+    ['dark', darkTheme],
+  ])('has the always-dark nav roles from the palette in %s mode (D2)', (_, theme) => {
+    expect(theme.colors.nav.background).toBe(palette.neutral[900]);
+    expect(theme.colors.nav.border).toBe(palette.dark.border);
+    expect(theme.colors.nav.textInactive).toBe(palette.dark.textSecondary);
+    expect(theme.colors.nav.active).toBe(palette.dark.brand);
+  });
+
+  it('keeps the nav colours identical in light and dark mode', () => {
+    expect(darkTheme.colors.nav).toEqual(lightTheme.colors.nav);
+  });
+
+  it('gives the floating pill elevation level 2 and dialogs level 4 in light mode (§6.1)', () => {
+    expect(lightTheme.elevation.floating).toEqual({
+      shadowColor: '#17211B',
+      shadowOpacity: 0.12,
+      shadowRadius: 6,
+      shadowOffset: { width: 0, height: 2 },
+      elevation: 3,
+    });
+    expect(lightTheme.elevation.dialog).toEqual({
+      shadowColor: '#17211B',
+      shadowOpacity: 0.2,
+      shadowRadius: 20,
+      shadowOffset: { width: 0, height: 8 },
+      elevation: 12,
+    });
+  });
+
+  it('uses surface contrast instead of shadows for the pill and dialogs in dark mode (§6.1)', () => {
+    expect(darkTheme.elevation.floating).toEqual({});
+    expect(darkTheme.elevation.dialog).toEqual({});
+  });
+
+  it('makes the pill 64dp high, on the 4dp grid, shared by both themes', () => {
+    expect(lightTheme.size.navPill).toBe(64);
+    expect(lightTheme.size.navPill % 4).toBe(0);
+    expect(darkTheme.size.navPill).toBe(lightTheme.size.navPill);
   });
 });
 

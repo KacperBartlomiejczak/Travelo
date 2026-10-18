@@ -11,6 +11,14 @@
     "loading": "Loading trips",
     "openList": "Open trips list"
   },
+  "nav": {
+    "trip": "Trip",
+    "expenses": "Expenses",
+    "places": "Places",
+    "plan": "Plan",
+    "settings": "Settings",
+    "comingSoon": "This screen is coming soon."
+  },
   "drawer": {
     "upcoming": "Upcoming",
     "past": "Past",

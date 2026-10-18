@@ -3,7 +3,8 @@ import { fireEvent, renderRouter, screen, within } from 'expo-router/testing-lib
 import { AccessibilityInfo, ScrollView } from 'react-native';
 
 import DrawerLayout from '@/app/(drawer)/_layout';
-import HomeScreen from '@/app/(drawer)/index';
+import TabsLayout from '@/app/(drawer)/(tabs)/_layout';
+import HomeScreen from '@/app/(drawer)/(tabs)/index';
 import RootLayout from '@/app/_layout';
 import BudgetStep from '@/app/trips/new/budget';
 import FriendsStep from '@/app/trips/new/friends';
@@ -34,7 +35,8 @@ async function openFlights() {
     {
       _layout: RootLayout,
       '(drawer)/_layout': DrawerLayout,
-      '(drawer)/index': HomeScreen,
+      '(drawer)/(tabs)/_layout': TabsLayout,
+      '(drawer)/(tabs)/index': HomeScreen,
       'trips/new/_layout': NewTripLayout,
       'trips/new/index': FlightsStep,
       'trips/new/friends': FriendsStep,

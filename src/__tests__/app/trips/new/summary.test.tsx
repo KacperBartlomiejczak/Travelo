@@ -2,8 +2,9 @@ import { useFonts } from 'expo-font';
 import { useRouter } from 'expo-router';
 import { act, fireEvent, renderRouter, screen, within } from 'expo-router/testing-library';
 import { launchImageLibraryAsync } from 'expo-image-picker';
-import { AccessibilityInfo, Alert, Pressable, Text } from 'react-native';
+import { AccessibilityInfo, Pressable, Text } from 'react-native';
 
+import TabsLayout from '@/app/(drawer)/(tabs)/_layout';
 import DrawerLayout from '@/app/(drawer)/_layout';
 import RootLayout from '@/app/_layout';
 import BudgetStep from '@/app/trips/new/budget';
@@ -91,7 +92,8 @@ async function openSummary(companions = 2) {
     {
       _layout: RootLayout,
       '(drawer)/_layout': DrawerLayout,
-      '(drawer)/index': TripsProbe,
+      '(drawer)/(tabs)/_layout': TabsLayout,
+      '(drawer)/(tabs)/index': TripsProbe,
       'trips/new/_layout': NewTripLayout,
       'trips/new/index': filledSteps(companions),
       'trips/new/friends': FriendsStep,
@@ -190,12 +192,12 @@ describe('Summary step', () => {
   });
 
   it('saves the trip and returns to the trips list without asking to discard (D6)', async () => {
-    const alert = jest.spyOn(Alert, 'alert');
     const app = await openSummary();
     await fireEvent.press(screen.getByRole('button', { name: 'Utwórz podróż' }));
     expect(await screen.findByText('trips: Warsaw → Bangkok')).toBeTruthy();
     expect(app.getPathname()).toBe('/');
-    expect(alert).not.toHaveBeenCalled();
+    expect(screen.queryByTestId('confirm-dialog')).toBeNull();
+    expect(screen.queryByText('Odrzucić wpisane dane?')).toBeNull();
   });
 
   describe('name and cover photo (D2)', () => {
@@ -269,7 +271,8 @@ describe('Summary step', () => {
       {
         _layout: RootLayout,
         '(drawer)/_layout': DrawerLayout,
-        '(drawer)/index': TripsProbe,
+        '(drawer)/(tabs)/_layout': TabsLayout,
+        '(drawer)/(tabs)/index': TripsProbe,
         'trips/new/_layout': NewTripLayout,
         'trips/new/index': LongNameFlights,
         'trips/new/summary': SummaryStep,
@@ -291,7 +294,8 @@ describe('Summary step', () => {
       {
         _layout: RootLayout,
         '(drawer)/_layout': DrawerLayout,
-        '(drawer)/index': TripsProbe,
+        '(drawer)/(tabs)/_layout': TabsLayout,
+        '(drawer)/(tabs)/index': TripsProbe,
         'trips/new/_layout': NewTripLayout,
         'trips/new/index': filledSteps(2),
         'trips/new/summary': SummaryStep,

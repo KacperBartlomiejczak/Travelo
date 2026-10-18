@@ -119,6 +119,8 @@ export const size = {
   // §10.16 snackbar: at least 48dp high, at most 360dp wide.
   snackbarMinHeight: 48,
   snackbarMaxWidth: 360,
+  // pill-nav-and-dialog: height of the floating pill navigation.
+  navPill: 64,
 } as const;
 
 // §10.2: a disabled control is drawn at this opacity (trip-photos D25).
@@ -129,6 +131,8 @@ export const opacity = {
 // §9.1 durations in ms (only the ones in use).
 export const duration = {
   small: 180,
+  // §9.1: a dialog fades in and out over 220 ms.
+  dialog: 220,
   // §10.16: a snackbar hides itself after 3500 ms.
   snackbarAutoDismiss: 3500,
 } as const;
@@ -146,6 +150,22 @@ export const elevation = {
     shadowRadius: 3,
     shadowOffset: { width: 0, height: 1 },
     elevation: 1,
+  },
+  // pill-nav-and-dialog: level 2, the floating pill navigation.
+  floating: {
+    shadowColor: '#17211B',
+    shadowOpacity: 0.12,
+    shadowRadius: 6,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 3,
+  },
+  // pill-nav-and-dialog: level 4, dialogs.
+  dialog: {
+    shadowColor: '#17211B',
+    shadowOpacity: 0.2,
+    shadowRadius: 20,
+    shadowOffset: { width: 0, height: 8 },
+    elevation: 12,
   },
 } as const;
 

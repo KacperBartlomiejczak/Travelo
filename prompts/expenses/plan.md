@@ -6,7 +6,7 @@ What Kacper first called "updating the budget" means **adding expenses during th
 
 ## Decisions (Kacper, 2026-10-08)
 - **D1 — Separate screen** for expenses.
-- **D2 — Pill nav** switches between the screens. It has icons **and** text. The active item changes colour, and its icon and text grow, with an animation.
+- **D2 — Pill nav** switches between the screens. It has icons **and** text. The active item changes colour, and its icon and text grow, with an animation. **Built in `prompts/pill-nav-and-dialog/plan.md`** (2026-10-18): floating, always dark, five items; „Wydatki” is an empty placeholder screen until this feature.
 - **D3 — Add-expense form:**
   - name (what it was);
   - amount;
@@ -41,11 +41,7 @@ To be drafted.
 
 ## Risks & open questions
 To ask Kacper when this plan is drafted:
-- **Pill nav:**
-  - which items (Podróż, Wydatki, …?);
-  - floating or attached to the bottom edge;
-  - colours and sizes. The design context has no pill nav, and glassmorphism is not allowed.
-  - Reduced motion: no growing animation?
+- ~~**Pill nav:** items, floating or attached, colours and sizes, reduced motion.~~ **Resolved** in `prompts/pill-nav-and-dialog/plan.md` (2026-10-17): five items (A7), floating (D1), always ink with a brand active item (D2), height `size.navPill` 64; with reduced motion the active item switches without animation.
 - **Payer:**
   - The organizer is not a `TripMember` row (trips-supabase A4). How is "Ty" stored as the payer?
   - Is "for whom" (`forMemberIds`) needed now? Settlements are out of scope.
