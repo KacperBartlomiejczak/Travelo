@@ -15,6 +15,12 @@ export interface SessionSource {
    * Rejects for any failure that is not "no connection" (the app then offers a retry).
    */
   current(): Promise<SessionSnapshot>;
+  /**
+   * Asks Supabase once whether the stored session is still valid (D22). Never rejects and never shows anything: the user stays signed in
+   * for every answer except a session that is gone (Supabase signs out by itself, `onChange` hears it) or a user that no longer
+   * exists (signed out on this phone here, D23).
+   */
+  checkStoredSession(): Promise<void>;
   /** Calls the listener, outside of Supabase's own callback, whenever someone signs in or out. Returns the function that stops it. */
   onChange(listener: (change: SessionChange) => void): () => void;
   /** Forgets everything of the previous user on the phone (trip copies, chosen trip, budget changes, profile copy; D14). */
@@ -22,7 +28,7 @@ export interface SessionSource {
 }
 
 type Deps = {
-  auth: SessionAuth & Pick<SupabaseClient['auth'], 'onAuthStateChange'>;
+  auth: SessionAuth & Pick<SupabaseClient['auth'], 'onAuthStateChange' | 'getClaims'>;
   clearUserData: () => Promise<void>;
 };
 
@@ -39,6 +45,24 @@ export function createSupabaseSessionSource({ auth, clearUserData }: Deps): Sess
         // The user stays signed in; the profile comes from the copy on the phone, which D14 guarantees is theirs.
         if (isAuthRetryableFetchError(error)) return { status: 'signedIn', userId: null };
         throw error;
+      }
+    },
+
+    async checkStoredSession() {
+      try {
+        // The check is about the session stored now, by its token: the answer comes over the network, and by then someone else may be signed in.
+        const checked = (await auth.getSession()).data.session;
+        if (!checked) return;
+        // On React Native this asks the server (`GET /user`), as there is no `crypto.subtle`. Supabase itself removes the session and fires
+        // SIGNED_OUT for `session_not_found`; every other answer (no connection, a timeout, a server error, an invalid token) changes nothing.
+        const { error } = await auth.getClaims(checked.access_token);
+        if (error?.code !== 'user_not_found') return;
+        // The server answers `user_not_found` for a deleted user, and Supabase leaves that session in place: sign out here, on this phone only.
+        // `signOut` ends whatever is stored when it runs, so only when that is still the same user (a refresh changes the token, not the user).
+        const now = (await auth.getSession()).data.session;
+        if (now?.user.id === checked.user.id) await auth.signOut({ scope: 'local' });
+      } catch {
+        // A check that fails is never shown; the next start checks again.
       }
     },
 

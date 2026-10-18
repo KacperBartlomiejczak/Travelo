@@ -1,4 +1,4 @@
-import { AppState, Platform } from 'react-native';
+import { AppState } from 'react-native';
 
 jest.unmock('@/data/app-trip-repository');
 
@@ -38,19 +38,14 @@ describe('createAppTripRepository', () => {
     expect(local).toBe(appLocalStore());
   });
 
-  it('keeps the session fresh with the app state on phones', () => {
-    load().createAppTripRepository();
-    expect(deps().auth.keepSessionFresh).toHaveBeenCalledWith(mockClient.auth, AppState);
-  });
-
-  it('does not tie token refresh to the app state on web (Supabase guidance)', () => {
-    const os = Platform.OS;
-    Platform.OS = 'web';
+  it('does not register the app state listener (it is registered once, next to the client; auth-onboarding D22)', () => {
+    const addEventListener = jest.spyOn(AppState, 'addEventListener');
     try {
       load().createAppTripRepository();
       expect(deps().auth.keepSessionFresh).not.toHaveBeenCalled();
+      expect(addEventListener).not.toHaveBeenCalled();
     } finally {
-      Platform.OS = os;
+      addEventListener.mockRestore();
     }
   });
 });

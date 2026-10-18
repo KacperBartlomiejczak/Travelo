@@ -51,6 +51,8 @@ export function SessionProvider({ source, children }: Props) {
   // True from the moment the phone may hold data of a user who is gone until a clear has succeeded.
   const needsClear = useRef(false);
   const clearing = useRef<Promise<void> | null>(null);
+  // The stored session is checked once per start of the app (D22), not again after a retry or a sign-in.
+  const checked = useRef(false);
 
   useEffect(() => {
     latestSync.current = requestBudgetSync;
@@ -119,6 +121,12 @@ export function SessionProvider({ source, children }: Props) {
     // A clear that failed earlier is still owed: whoever is signed in now must not inherit what is on the phone.
     if (needsClear.current) await leave({ userId: snapshot.userId });
     else apply(snapshot);
+    // The gate is open already; Supabase now checks the stored session in the background, once per app start and only when the user is
+    // known (without a connection there is nothing to ask). If it ends the session, `onChange` takes it from there (D22, D23).
+    if (!checked.current && snapshot.userId !== null && current.current.status === 'signedIn') {
+      checked.current = true;
+      void source.checkStoredSession();
+    }
   }, [source, apply, leave]);
 
   const change = useCallback(

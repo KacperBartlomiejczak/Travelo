@@ -2,9 +2,11 @@ import 'react-native-url-polyfill/auto';
 import 'expo-sqlite/localStorage/install';
 
 import { createClient } from '@supabase/supabase-js';
+import { AppState, Platform } from 'react-native';
 
 import { SupabaseConfigSchema, type SupabaseConfig } from '@/schemas';
 
+import { keepSessionFresh } from './auth';
 import { REQUEST_TIMEOUT_MS, withTimeout } from './fetch-timeout';
 
 const ENV_NAMES: Record<keyof SupabaseConfig, string> = {
@@ -38,3 +40,7 @@ export const supabase = createClient(config.data.url, config.data.key, {
   },
   global: { fetch: withTimeout(fetch, REQUEST_TIMEOUT_MS) },
 });
+
+// Supabase React Native guidance: refresh the token only while the app is in the foreground, with the listener registered once, here
+// next to the client (auth-onboarding D22). The browser handles it on web.
+if (Platform.OS !== 'web') keepSessionFresh(supabase.auth, AppState);

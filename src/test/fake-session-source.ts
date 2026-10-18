@@ -6,7 +6,7 @@ type Listener = (change: SessionChange) => void;
 
 /**
  * A session the test drives (auth-onboarding step 5): what `current()` answers, when the clear finishes or fails, and
- * sign-ins / sign-outs that happen later. `log` records the calls in order, as `current`, `clear:start`, `clear:done`, `clear:failed`.
+ * sign-ins / sign-outs that happen later. `log` records the calls in order, as `current`, `check`, `clear:start`, `clear:done`, `clear:failed`.
  */
 export function createFakeSessionSource(initial: SessionSnapshot | Error = { status: 'signedIn', userId: SIGNED_IN_USER_ID }) {
   const listeners = new Set<Listener>();
@@ -15,6 +15,7 @@ export function createFakeSessionSource(initial: SessionSnapshot | Error = { sta
   let clearFailure: Error | null = null;
   let held: Promise<void> | null = null;
   let currentHeld: Promise<void> | null = null;
+  let checkHeld: Promise<void> | null = null;
 
   const current = jest.fn(async () => {
     log.push('current');
@@ -22,6 +23,11 @@ export function createFakeSessionSource(initial: SessionSnapshot | Error = { sta
     await currentHeld;
     if (answer instanceof Error) throw answer;
     return answer;
+  });
+  const checkStoredSession = jest.fn(async () => {
+    log.push('check');
+    await Promise.resolve();
+    await checkHeld;
   });
   const clearUserData = jest.fn(async () => {
     log.push('clear:start');
@@ -35,6 +41,7 @@ export function createFakeSessionSource(initial: SessionSnapshot | Error = { sta
   });
   const source: SessionSource = {
     current,
+    checkStoredSession,
     clearUserData,
     onChange(listener) {
       listeners.add(listener);
@@ -45,6 +52,7 @@ export function createFakeSessionSource(initial: SessionSnapshot | Error = { sta
   return {
     source,
     current,
+    checkStoredSession,
     clearUserData,
     log,
     /** What `current()` answers from now on; an `Error` makes it reject. */
@@ -61,6 +69,17 @@ export function createFakeSessionSource(initial: SessionSnapshot | Error = { sta
       currentHeld = new Promise<void>((resolve) => {
         release = () => {
           currentHeld = null;
+          resolve();
+        };
+      });
+      return release;
+    },
+    /** Makes `checkStoredSession()` wait until the returned function is called (the gate must not wait for it). */
+    holdCheck(): () => void {
+      let release = () => {};
+      checkHeld = new Promise<void>((resolve) => {
+        release = () => {
+          checkHeld = null;
           resolve();
         };
       });
@@ -102,6 +121,7 @@ export function resetFakeAppSession() {
 /** What the mocked `appSessionSource` delegates to: always the current fake, so a test can replace it before rendering. */
 export const delegatingSessionSource: SessionSource = {
   current: () => active.source.current(),
+  checkStoredSession: () => active.source.checkStoredSession(),
   onChange: (listener) => active.source.onChange(listener),
   clearUserData: () => active.source.clearUserData(),
 };

@@ -1,4 +1,4 @@
-import type { SupabaseClient } from '@supabase/supabase-js';
+import type { AuthError, SupabaseClient } from '@supabase/supabase-js';
 
 import type { Database } from '@/data/database.types';
 
@@ -30,11 +30,14 @@ export function fakeSupabase() {
   const storageQueued: Partial<Record<StorageMethod, FakeStorageResponse[]>> = {};
   /** Every `from(table)` and Storage call in the order it was made: `from:<table>`, `storage.<method>`. */
   const sequence: string[] = [];
-  const session = { user: { id: SIGNED_IN_USER_ID, is_anonymous: false } };
+  type StoredSession = { access_token?: string; user: { id: string; is_anonymous: boolean } };
+  const session: StoredSession = { access_token: 'access', user: { id: SIGNED_IN_USER_ID, is_anonymous: false } };
   const authSession = { access_token: 'access', refresh_token: 'refresh', user: session.user };
   /** The Supabase auth calls the app makes. Every call succeeds unless a test says otherwise; there is no anonymous sign-in. */
   const auth = {
     getSession: jest.fn(async () => ({ data: { session }, error: null as Error | null })),
+    /** The background check of the stored session (auth-onboarding D22): the claims, or the error the server's answer became. */
+    getClaims: jest.fn(async (_jwt?: string) => ({ data: { claims: { sub: SIGNED_IN_USER_ID } } as unknown, error: null as AuthError | null })),
     signInWithOAuth: jest.fn(async (_credentials: unknown) => ({
       data: { provider: 'google', url: 'https://example.supabase.co/auth/v1/authorize?provider=google' },
       error: null as Error | null,
@@ -103,7 +106,7 @@ export function fakeSupabase() {
     /** What `getSession` answers from now on: nobody signed in, a leftover anonymous session, or a normal user. */
     storedSession(kind: 'none' | 'anonymous' | 'signed-in') {
       const stored = kind === 'none' ? null : kind === 'anonymous' ? { user: { ...session.user, is_anonymous: true } } : session;
-      auth.getSession.mockImplementation(async () => ({ data: { session: stored as typeof session }, error: null as Error | null }));
+      auth.getSession.mockImplementation(async () => ({ data: { session: stored as StoredSession }, error: null as Error | null }));
     },
     /** Answers the next `from(table)` chains, in order. */
     respond(table: string, ...responses: FakeResponse[]) {
