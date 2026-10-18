@@ -8,8 +8,26 @@ Built with React Native + Expo, Supabase and Zod. It runs on iOS and Android, in
 
 > **Status:** early development. The trip setup, trip list, photos and the offline budget work today. Expenses, AI day plans and the budget summary are still to come (see [Roadmap](#roadmap)).
 
+## Screenshots
+
+Taken on an Android emulator with test data. The app is shown in Polish.
+
+<table>
+  <tr>
+    <td align="center"><img src="docs/screenshots/home-details.png" width="220" alt="Home screen with flights, travellers and the budget card"><br><sub><b>Trip</b><br>flights, travellers, budget</sub></td>
+    <td align="center"><img src="docs/screenshots/side-panel.png" width="220" alt="Side panel with the list of trips"><br><sub><b>Side panel</b><br>all your trips</sub></td>
+    <td align="center"><img src="docs/screenshots/trip-menu.png" width="220" alt="Trip menu with rename, budget and delete"><br><sub><b>Trip menu</b><br>rename, budget, delete</sub></td>
+  </tr>
+  <tr>
+    <td align="center"><img src="docs/screenshots/wizard-budget.png" width="220" alt="Create-trip wizard, budget step"><br><sub><b>New trip: budget</b><br>per person, with a daily figure</sub></td>
+    <td align="center"><img src="docs/screenshots/wizard-summary.png" width="220" alt="Create-trip wizard, summary step"><br><sub><b>New trip: summary</b><br>name, cover, flights</sub></td>
+    <td></td>
+  </tr>
+</table>
+
 ## Table of contents
 
+- [Screenshots](#screenshots)
 - [What the app does](#what-the-app-does)
 - [Roadmap](#roadmap)
 - [Screens](#screens)
