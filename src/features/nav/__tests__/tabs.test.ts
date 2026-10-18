@@ -1,4 +1,4 @@
-import { CalendarDays, MapPin, Plane, Receipt, Settings } from 'lucide-react-native';
+import { CalendarDays, CircleUser, MapPin, Plane, Receipt } from 'lucide-react-native';
 
 import i18n from '@/i18n';
 
@@ -11,18 +11,18 @@ describe('NAV_TABS (pill-nav-and-dialog A7)', () => {
       ['expenses', 'nav.expenses', Receipt],
       ['places', 'nav.places', MapPin],
       ['plan', 'nav.plan', CalendarDays],
-      ['settings', 'nav.settings', Settings],
+      ['profile', 'nav.profile', CircleUser],
     ]);
   });
 
   it('has Polish labels', async () => {
     await i18n.changeLanguage('pl');
-    expect(NAV_TABS.map((tab) => i18n.t(tab.labelKey))).toEqual(['Podróż', 'Wydatki', 'Miejsca', 'Plan', 'Ustawienia']);
+    expect(NAV_TABS.map((tab) => i18n.t(tab.labelKey))).toEqual(['Podróż', 'Wydatki', 'Miejsca', 'Plan', 'Profil']);
   });
 
   it('has English labels', async () => {
     await i18n.changeLanguage('en');
-    expect(NAV_TABS.map((tab) => i18n.t(tab.labelKey))).toEqual(['Trip', 'Expenses', 'Places', 'Plan', 'Settings']);
+    expect(NAV_TABS.map((tab) => i18n.t(tab.labelKey))).toEqual(['Trip', 'Expenses', 'Places', 'Plan', 'Profile']);
     await i18n.changeLanguage('pl');
   });
 });

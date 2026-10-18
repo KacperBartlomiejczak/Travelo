@@ -16,7 +16,8 @@
     "expenses": "Expenses",
     "places": "Places",
     "plan": "Plan",
-    "settings": "Settings",
+    "profile": "Profile",
+    "profileTitle": "User profile",
     "comingSoon": "This screen is coming soon."
   },
   "drawer": {

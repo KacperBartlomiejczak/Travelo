@@ -7,7 +7,7 @@ import ExpensesScreen from '@/app/(drawer)/(tabs)/expenses';
 import HomeScreen from '@/app/(drawer)/(tabs)/index';
 import PlacesScreen from '@/app/(drawer)/(tabs)/places';
 import PlanScreen from '@/app/(drawer)/(tabs)/plan';
-import SettingsScreen from '@/app/(drawer)/(tabs)/settings';
+import ProfileScreen from '@/app/(drawer)/(tabs)/profile';
 import DrawerLayout from '@/app/(drawer)/_layout';
 import RootLayout from '@/app/_layout';
 import i18n from '@/i18n';
@@ -25,15 +25,18 @@ const ROUTES = {
   '(drawer)/(tabs)/expenses': ExpensesScreen,
   '(drawer)/(tabs)/places': PlacesScreen,
   '(drawer)/(tabs)/plan': PlanScreen,
-  '(drawer)/(tabs)/settings': SettingsScreen,
+  '(drawer)/(tabs)/profile': ProfileScreen,
   'trips/new/index': () => <Text>wizard</Text>,
   'trips/[tripId]/photos': () => <Text>photo viewer</Text>,
 };
 
-const PL = { index: 'Podróż', expenses: 'Wydatki', places: 'Miejsca', plan: 'Plan', settings: 'Ustawienia' };
-const EN = { index: 'Trip', expenses: 'Expenses', places: 'Places', plan: 'Plan', settings: 'Settings' };
-const PATHS = { index: '/', expenses: '/expenses', places: '/places', plan: '/plan', settings: '/settings' };
-const EMPTY = ['expenses', 'places', 'plan', 'settings'] as const;
+const PL = { index: 'Podróż', expenses: 'Wydatki', places: 'Miejsca', plan: 'Plan', profile: 'Profil' };
+const EN = { index: 'Trip', expenses: 'Expenses', places: 'Places', plan: 'Plan', profile: 'Profile' };
+const PATHS = { index: '/', expenses: '/expenses', places: '/places', plan: '/plan', profile: '/profile' };
+const EMPTY = ['expenses', 'places', 'plan', 'profile'] as const;
+// The screen title can differ from the pill label (the profile screen is "Profil użytkownika").
+const TITLE_PL = { ...PL, profile: 'Profil użytkownika' };
+const TITLE_EN = { ...EN, profile: 'User profile' };
 const SOON_PL = 'Ten ekran pojawi się wkrótce.';
 
 const pill = () => screen.queryByTestId('pill-nav');
@@ -59,7 +62,7 @@ describe('Pill navigation routes (pill-nav-and-dialog step 4)', () => {
       const app = renderRouter(ROUTES, { initialUrl: PATHS[key] });
       await app;
       expect(app.getPathname()).toBe(PATHS[key]);
-      expect(screen.getByRole('header', { name: PL[key] })).toBeTruthy();
+      expect(screen.getByRole('header', { name: TITLE_PL[key] })).toBeTruthy();
       expect(screen.getByText(SOON_PL)).toBeTruthy();
       expect(pill()).toBeTruthy();
       expect(tab(PL[key])).toBeSelected();
@@ -69,9 +72,24 @@ describe('Pill navigation routes (pill-nav-and-dialog step 4)', () => {
   it('shows the English title and sentence', async () => {
     await i18n.changeLanguage('en');
     await renderRouter(ROUTES, { initialUrl: '/places' });
-    expect(screen.getByRole('header', { name: EN.places })).toBeTruthy();
+    expect(screen.getByRole('header', { name: TITLE_EN.places })).toBeTruthy();
     expect(screen.getByText('This screen is coming soon.')).toBeTruthy();
     expect(tab(EN.places)).toBeSelected();
+  });
+
+  it('shows the English profile label in the pill and the English profile title', async () => {
+    await i18n.changeLanguage('en');
+    await renderRouter(ROUTES, { initialUrl: '/profile' });
+    expect(screen.getByRole('header', { name: TITLE_EN.profile })).toBeTruthy();
+    expect(screen.getByText('This screen is coming soon.')).toBeTruthy();
+    expect(tab(EN.profile)).toBeSelected();
+  });
+
+  it('has no "/settings" route any more: the profile screen is not shown there', async () => {
+    await renderRouter(ROUTES, { initialUrl: '/settings' });
+    expect(screen.queryByRole('header', { name: TITLE_PL.profile })).toBeNull();
+    expect(screen.queryByText(SOON_PL)).toBeNull();
+    expect(screen.queryByRole('button', { name: PL.profile, selected: true })).toBeNull();
   });
 
   it('navigates to each screen by tapping its pill item and marks it selected', async () => {
@@ -81,7 +99,7 @@ describe('Pill navigation routes (pill-nav-and-dialog step 4)', () => {
     for (const key of EMPTY) {
       await fireEvent.press(tab(PL[key]));
       await waitFor(() => expect(app.getPathname()).toBe(PATHS[key]));
-      expect(screen.getByRole('header', { name: PL[key] })).toBeTruthy();
+      expect(screen.getByRole('header', { name: TITLE_PL[key] })).toBeTruthy();
       expect(tab(PL[key])).toBeSelected();
       (Object.keys(PL) as (keyof typeof PL)[])
         .filter((other) => other !== key)
@@ -90,7 +108,7 @@ describe('Pill navigation routes (pill-nav-and-dialog step 4)', () => {
   });
 
   it('returns to the home screen at "/" when the home item is pressed', async () => {
-    const app = renderRouter(ROUTES, { initialUrl: '/settings' });
+    const app = renderRouter(ROUTES, { initialUrl: '/profile' });
     await app;
     await fireEvent.press(tab(PL.index));
     await waitFor(() => expect(app.getPathname()).toBe('/'));
