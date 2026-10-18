@@ -59,6 +59,11 @@ beforeEach(async () => {
 afterEach(() => jest.restoreAllMocks());
 
 describe('EmailScreen (auth-onboarding D6, P3, P5, D17)', () => {
+  it('has no fixed status-bar view: it sits under a header (D24)', async () => {
+    await openEmailScreen();
+    expect(screen.queryByTestId('email-screen-top-inset', { includeHiddenElements: true })).toBeNull();
+  });
+
   it('shows the heading, the hint, an e-mail field and "Wyślij kod"', async () => {
     await openEmailScreen();
     expect(screen.getByRole('header', { name: 'Twój e-mail' })).toBeTruthy();

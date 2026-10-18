@@ -77,6 +77,11 @@ describe('CodeScreen (auth-onboarding D6, P3, P5, D17)', () => {
     expect(signInButton()).toBeEnabled();
   });
 
+  it('has no fixed status-bar view: it sits under a header (D24)', async () => {
+    await openCodeScreen();
+    expect(screen.queryByTestId('code-screen-top-inset', { includeHiddenElements: true })).toBeNull();
+  });
+
   it('speaks English on an English phone', async () => {
     await i18n.changeLanguage('en');
     await openCodeScreen();

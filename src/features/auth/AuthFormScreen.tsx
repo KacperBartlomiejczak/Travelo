@@ -1,6 +1,6 @@
 import { useHeaderHeight } from 'expo-router/react-navigation';
 import { CircleX } from 'lucide-react-native';
-import type { ReactNode } from 'react';
+import type { ReactNode, Ref } from 'react';
 import { KeyboardAvoidingView, ScrollView, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -19,6 +19,8 @@ type Props = {
   footer: ReactNode;
   /** For a screen without a header (profile setup): the content starts below the status bar. */
   topInset?: boolean;
+  /** Lets a screen scroll the fields, e.g. to the first one with an error. */
+  scrollRef?: Ref<ScrollView>;
 };
 
 /**
@@ -26,7 +28,7 @@ type Props = {
  * scroll view, and the actions pinned at the bottom. Like the wizard, the frame is padded by the keyboard's height on both
  * platforms (with edge-to-edge Android does not resize the window), so the action stays above the keyboard.
  */
-export function AuthFormScreen({ testID, title, hint, children, footer, topInset = false }: Props) {
+export function AuthFormScreen({ testID, title, hint, children, footer, topInset = false, scrollRef }: Props) {
   const theme = useTheme();
   const insets = useSafeAreaInsets();
   // The frame sits under the stack header; the keyboard's position is measured from the top of the window.
@@ -43,12 +45,15 @@ export function AuthFormScreen({ testID, title, hint, children, footer, topInset
       keyboardVerticalOffset={headerHeight}
       style={[styles.screen, { backgroundColor: colors.background }]}
     >
+      {/* Without a header the status bar area is a solid, fixed strip, so what scrolls up is hidden behind it and never drawn under the clock (D24). */}
+      {topInset && <View testID={`${testID}-top-inset`} style={{ height: insets.top, backgroundColor: colors.background }} />}
       <ScrollView
+        ref={scrollRef}
         testID={`${testID}-scroll`}
         keyboardShouldPersistTaps="handled"
         contentContainerStyle={[
           styles.column,
-          { maxWidth: theme.size.maxContentWidth, paddingHorizontal: side, paddingTop: (topInset ? insets.top : 0) + spacing[4], gap: spacing[6] },
+          { maxWidth: theme.size.maxContentWidth, paddingHorizontal: side, paddingTop: spacing[4], gap: spacing[6] },
         ]}
       >
         <View style={{ gap: spacing[2] }}>

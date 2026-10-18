@@ -1,7 +1,7 @@
 import { Stack } from 'expo-router';
 import { act, fireEvent, renderRouter, screen, waitFor, within } from 'expo-router/testing-library';
 import { launchImageLibraryAsync } from 'expo-image-picker';
-import { AccessibilityInfo } from 'react-native';
+import { AccessibilityInfo, findNodeHandle, ScrollView } from 'react-native';
 import { ZodError } from 'zod';
 
 import { ServerUnreachableError } from '@/data/errors';
@@ -23,6 +23,17 @@ jest.mock('react-native-safe-area-context', () => ({
   ...jest.requireActual('react-native-safe-area-context'),
   useSafeAreaInsets: () => ({ top: 47, left: 0, right: 0, bottom: 34 }),
 }));
+
+// The screen reader focus is moved by node handle, and Jest has none: the handle of a node is made up here, so a test can tell which was focused.
+jest.mock('react-native/Libraries/ReactNative/RendererProxy', () => {
+  const actual = jest.requireActual('react-native/Libraries/ReactNative/RendererProxy');
+  return { ...actual, findNodeHandle: jest.fn(actual.findNodeHandle) };
+});
+const actualFindNodeHandle = jest.requireActual<typeof import('react-native/Libraries/ReactNative/RendererProxy')>(
+  'react-native/Libraries/ReactNative/RendererProxy',
+).findNodeHandle;
+const NICK_HANDLE = 1001;
+const INTERESTS_HANDLE = 1002;
 
 const hidden = { includeHiddenElements: true };
 const PHOTO = 'file:///cache/ImagePicker/photo-1.jpg';
@@ -118,6 +129,25 @@ async function fillValid(nick = 'Kacper') {
   await fireEvent.press(chip('Muzea'));
 }
 
+/** Where the nick block and the interests block sit in the scrolling content (Jest lays nothing out, so the test reports it). */
+const NICK_Y = 210;
+const INTERESTS_Y = 640;
+
+async function layOut(testID: string, y: number) {
+  await fireEvent(screen.getByTestId(testID), 'layout', { nativeEvent: { layout: { x: 0, y, width: 360, height: 120 } } });
+}
+
+/** The screen has been laid out: the nick block and the interests block at known places. */
+async function openLaidOut() {
+  const opened = await openSetup();
+  await layOut('profile-nick-block', NICK_Y);
+  await layOut('profile-interests-block', INTERESTS_Y);
+  return opened;
+}
+
+const scrollTo = () => jest.mocked(ScrollView.prototype.scrollTo);
+const screenReaderFocus = () => jest.mocked(AccessibilityInfo.setAccessibilityFocus);
+
 let announce: jest.SpyInstance;
 
 beforeEach(async () => {
@@ -128,6 +158,15 @@ beforeEach(async () => {
   // jest-expo already mocks it, so calls of earlier tests would still be counted.
   announce = jest.spyOn(AccessibilityInfo, 'announceForAccessibility');
   announce.mockClear();
+  scrollTo().mockClear();
+  screenReaderFocus().mockClear();
+  // The nick input is the node with the nick's label; the interests' node is the Text that holds their heading.
+  jest.mocked(findNodeHandle).mockImplementation((node) => {
+    const props = (node as { props?: { accessibilityLabel?: string; children?: unknown } } | null)?.props;
+    if (props?.accessibilityLabel === NICK_LABEL) return NICK_HANDLE;
+    if ([props?.children].flat().includes(INTERESTS_LABEL)) return INTERESTS_HANDLE;
+    return actualFindNodeHandle(node);
+  });
 });
 
 afterEach(() => {
@@ -824,6 +863,158 @@ describe('ProfileSetupScreen (auth-onboarding D7, D20, P1, P2, P4, P5)', () => {
     });
   });
 
+  describe('where the interests hint and error sit (D24, P5)', () => {
+    const tree = () => JSON.stringify(screen.toJSON());
+
+    it('the hint is right under the "Twoje zainteresowania" heading, before the first chip group', async () => {
+      await openSetup();
+      expect(tree().indexOf(INTERESTS_LABEL)).toBeLessThan(tree().indexOf(INTERESTS_HINT));
+      expect(tree().indexOf(INTERESTS_HINT)).toBeLessThan(tree().indexOf('Zabawa'));
+    });
+
+    it("the error takes the hint's place under the heading, before the first group, with its icon, as the only copy", async () => {
+      await openSetup();
+      await fireEvent.changeText(nickField(), 'kacper');
+
+      await fireEvent.press(saveButton());
+
+      expect(tree().indexOf(INTERESTS_LABEL)).toBeLessThan(tree().indexOf(INTERESTS_HINT));
+      expect(tree().indexOf(INTERESTS_HINT)).toBeLessThan(tree().indexOf('Zabawa'));
+      expect(screen.getAllByText(INTERESTS_HINT)).toHaveLength(1);
+      expect(screen.getByText(INTERESTS_HINT)).toHaveStyle({ color: lightTheme.colors.status.error });
+      expect(screen.getAllByTestId('field-error-icon', hidden)).toHaveLength(1);
+      expect(screen.getByText(INTERESTS_HINT).props.accessibilityLiveRegion).toBe('polite');
+    });
+
+    /**
+     * The nick's Field frame holds the label, the input and then the message as siblings. Walks up from the input to the frame (the first
+     * ancestor that also holds the message) and returns the position of the input and of the message among the frame's children.
+     */
+    function nickSiblingOrder(message: string) {
+      // A node holds the message when it is, or contains, the Text that shows it.
+      const holds = (node: ReturnType<typeof nickField>) =>
+        [node.props.children].flat().includes(message) || within(node).queryByText(message) !== null;
+      let inputChild = nickField();
+      while (inputChild.parent && !holds(inputChild.parent)) inputChild = inputChild.parent;
+      const frame = inputChild.parent;
+      if (!frame) throw new Error('The nick input has no Field frame');
+      const children = frame.children.filter((child) => typeof child !== 'string');
+      return {
+        input: children.indexOf(inputChild),
+        message: children.findIndex((child) => child !== inputChild && holds(child)),
+      };
+    }
+
+    it('the nick keeps its hint and its error under the input: siblings after the input in its Field', async () => {
+      await openSetup();
+      const hint = nickSiblingOrder(NICK_HINT);
+      expect(hint.input).toBeGreaterThanOrEqual(0);
+      expect(hint.message).toBeGreaterThan(hint.input);
+
+      await fireEvent.press(saveButton());
+
+      const error = nickSiblingOrder(NICK_REQUIRED);
+      expect(error.input).toBeGreaterThanOrEqual(0);
+      expect(error.message).toBeGreaterThan(error.input);
+    });
+  });
+
+  describe('a failed save scrolls to the first error and focuses it (D24)', () => {
+    it('an empty nick and no interest: the nick is first', async () => {
+      await openLaidOut();
+
+      await fireEvent.press(saveButton());
+
+      expect(scrollTo()).toHaveBeenCalledTimes(1);
+      expect(scrollTo()).toHaveBeenCalledWith({ y: NICK_Y, animated: false });
+      expect(screenReaderFocus()).toHaveBeenCalledTimes(1);
+      expect(screenReaderFocus()).toHaveBeenCalledWith(NICK_HANDLE);
+    });
+
+    it('a badly formatted nick: the nick', async () => {
+      await openLaidOut();
+      await fireEvent.changeText(nickField(), 'ab');
+      await fireEvent.press(chip('Muzea'));
+
+      await fireEvent.press(saveButton());
+
+      expect(scrollTo()).toHaveBeenCalledWith({ y: NICK_Y, animated: false });
+      expect(screenReaderFocus()).toHaveBeenCalledWith(NICK_HANDLE);
+    });
+
+    it('a good nick and no interest: the interests', async () => {
+      await openLaidOut();
+      await fireEvent.changeText(nickField(), 'kacper');
+
+      await fireEvent.press(saveButton());
+
+      expect(scrollTo()).toHaveBeenCalledTimes(1);
+      expect(scrollTo()).toHaveBeenCalledWith({ y: INTERESTS_Y, animated: false });
+      expect(screenReaderFocus()).toHaveBeenCalledTimes(1);
+      expect(screenReaderFocus()).toHaveBeenCalledWith(INTERESTS_HANDLE);
+    });
+
+    it('a taken nick counts as a nick error: it scrolls to the nick and focuses it', async () => {
+      useRepository({ takenUsernames: ['kacper'] });
+      await openLaidOut();
+      await fillValid('kacper');
+      expect(scrollTo()).not.toHaveBeenCalled();
+
+      await fireEvent.press(saveButton());
+
+      await waitFor(() => expect(screen.getByText(NICK_TAKEN)).toBeTruthy());
+      expect(scrollTo()).toHaveBeenCalledTimes(1);
+      expect(scrollTo()).toHaveBeenCalledWith({ y: NICK_Y, animated: false });
+      expect(screenReaderFocus()).toHaveBeenCalledTimes(1);
+      expect(screenReaderFocus()).toHaveBeenCalledWith(NICK_HANDLE);
+    });
+
+    it('scrolls to where the block is now, not where it first was', async () => {
+      await openLaidOut();
+      await layOut('profile-interests-block', INTERESTS_Y + 100); // e.g. a bigger font, or the offline banner appearing
+      await fireEvent.changeText(nickField(), 'kacper');
+
+      await fireEvent.press(saveButton());
+
+      expect(scrollTo()).toHaveBeenCalledWith({ y: INTERESTS_Y + 100, animated: false });
+    });
+
+    it('does not scroll or move focus when the save succeeds', async () => {
+      const create = useRepository();
+      await openLaidOut();
+      await fillValid();
+
+      await fireEvent.press(saveButton());
+
+      await waitFor(() => expect(create).toHaveBeenCalledTimes(1));
+      await act(async () => {});
+      expect(scrollTo()).not.toHaveBeenCalled();
+      expect(screenReaderFocus()).not.toHaveBeenCalled();
+    });
+
+    it('does not scroll or move focus when the save fails with the general error: it sits above the button', async () => {
+      failSave(new Error('x'));
+      await openLaidOut();
+      await fillValid();
+
+      await fireEvent.press(saveButton());
+
+      await waitFor(() => expect(screen.getByText(SAVE_ERROR)).toBeTruthy());
+      expect(scrollTo()).not.toHaveBeenCalled();
+      expect(screenReaderFocus()).not.toHaveBeenCalled();
+    });
+
+    it('does not scroll while offline, where nothing is checked', async () => {
+      setNetwork({ isConnected: false, isInternetReachable: false });
+      await openLaidOut();
+
+      await fireEvent.press(saveButton());
+
+      expect(scrollTo()).not.toHaveBeenCalled();
+      expect(screenReaderFocus()).not.toHaveBeenCalled();
+    });
+  });
+
   describe('offline (P4)', () => {
     it('shows the offline banner and disables the save button: no request', async () => {
       setNetwork({ isConnected: false, isInternetReachable: false });
@@ -887,12 +1078,23 @@ describe('ProfileSetupScreen (auth-onboarding D7, D20, P1, P2, P4, P5)', () => {
       expect(within(scroll).queryByRole('button', { name: SAVE })).toBeNull();
     });
 
-    it('starts below the status bar: this screen has no header, so it adds the top inset itself', async () => {
+    it('keeps the status bar area solid: a fixed view the height of the top inset, outside the scroll view, in the screen colour (D24)', async () => {
+      await openSetup();
+      const scroll = screen.getByTestId('profile-setup-screen-scroll');
+      const inset = screen.getByTestId('profile-setup-screen-top-inset', hidden);
+      expect(inset).toHaveStyle({ height: INSET_TOP, backgroundColor: lightTheme.colors.background });
+      // Outside the scroll view, so what scrolls up is hidden behind it; and above it.
+      expect(within(scroll).queryByTestId('profile-setup-screen-top-inset', hidden)).toBeNull();
+      const tree = JSON.stringify(screen.toJSON());
+      expect(tree.indexOf('profile-setup-screen-top-inset')).toBeLessThan(tree.indexOf('profile-setup-screen-scroll'));
+    });
+
+    it('no longer pads the scrolling content by the top inset: the fixed view above it does that', async () => {
       await openSetup();
       const style = Object.assign({}, ...[screen.getByTestId('profile-setup-screen-scroll').props.contentContainerStyle].flat(2)) as {
         paddingTop: number;
       };
-      expect(style.paddingTop).toBe(INSET_TOP + lightTheme.spacing[4]);
+      expect(style.paddingTop).toBe(lightTheme.spacing[4]);
     });
   });
 });
