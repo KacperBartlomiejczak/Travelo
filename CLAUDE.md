@@ -11,23 +11,9 @@ You are the lead engineer and **orchestrator** on a group trip planner app, work
 
 # What you're building
 
-A mobile app for the person who organizes a trip for a group of friends. **Only the organizer needs the app.** Friends are added to a trip by name and interests, without an account. Friends who do have an account can optionally be added by user ID to follow the plan read-only.
+**The full description of the app is in [`context/app-context.md`](context/app-context.md)** — what it is, the MVP features and roadmap (done / in progress / next), what is out of scope, every screen and flow, the domain model, offline behavior and the backend. **Read it before planning or building any feature.**
 
-### Core features (MVP)
-1. **Trip setup** — destination, dates, base currency, daily budget.
-2. **Members** — friends (no account, just data) or linked users (added by ID). Each has interests, budget level, pace, dietary notes.
-3. **Flights & layovers** — manual entry of flight segments; layovers are derived and long ones get planned too ("9h in Dubai — worth leaving the airport?").
-4. **AI day plans** — per-day schedule built from **real places** (attractions + where to eat), with estimated costs as ranges. Can split the group when interests diverge ("afternoon: Kasia + Ola → beach, rest → museum, dinner together").
-5. **Expenses during the trip** — adding one must take seconds. Multi-currency. **Works offline**: expenses are saved locally first and synced when the connection is back.
-6. **Plan vs reality** — live daily budget ("120 PLN left today") and an end-of-trip summary (total spent, by category, most expensive day), shareable as an image.
-
-### Next (after MVP)
-- "Rebuild the rest of today" (rain, closed place, tired group) — keeps locked activities.
-- Receipt photo / one-sentence expense entry parsed by AI.
-
-### Out of scope — do not build
-- Flight/hotel booking, social feed, user reviews.
-- Settlements ("who owes whom") — not in MVP.
+Short version: a mobile app for the person who organizes a trip for a group of friends. Only the organizer needs the app; friends are added by name and interests, without an account. Out of scope (do not build): flight/hotel booking, social feed, user reviews, settlements.
 
 ### Decisions made
 - **Offline scope (MVP):** **expenses** and **changes to a trip's budget per person** work offline, stored locally in SQLite and synced to Supabase (last write wins by `budgetUpdatedAt`; decided 2026-10-06, `prompts/trips-supabase/plan.md` D1). Everything else (trips, members, flights, plans) is server-first; creating a trip needs internet. The trip list and every trip opened on the phone are also kept as read-only copies in SQLite, and the trip chosen in the side panel is remembered on the phone, so the home screen and the side panel work offline after a restart (D6, extended 2026-10-08 by `prompts/trips-drawer/plan.md` D2, D3). Extending offline to other entities is a new decision for Kacper, not something to do on your own.
