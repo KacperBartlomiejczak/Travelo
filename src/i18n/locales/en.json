@@ -119,6 +119,8 @@
   },
   "layover": "{{duration}} layover in {{airport}}",
   "validation": {
+    "emailFormat": "Enter a valid e-mail address.",
+    "otpFormat": "The code has 6 digits.",
     "airportRequired": "Choose an airport",
     "dateTimeRequired": "Choose date and time",
     "sameAirport": "Arrival airport must differ from departure",
@@ -257,8 +259,24 @@
         "discord": "Couldn't sign in with Discord. Try again."
       }
     },
+    "back": "Back",
     "email": {
-      "title": "Your e-mail"
+      "title": "Your e-mail",
+      "label": "E-mail address",
+      "hint": "We'll send you a 6-digit code.",
+      "send": "Send code",
+      "sendError": "Couldn't send the code. Try again."
+    },
+    "code": {
+      "title": "Enter the code",
+      "label": "Code from the e-mail",
+      "sentTo": "We sent it to {{email}}.",
+      "signIn": "Sign in",
+      "resend": "Send the code again",
+      "resendIn": "Send the code again ({{time}})",
+      "resendWait": "Send the code again, in {{seconds}} seconds",
+      "invalid": "The code is wrong or has expired.",
+      "signInError": "Couldn't sign in. Try again."
     },
     "profile": {
       "title": "Create your profile"

@@ -136,7 +136,9 @@
     "amountRequired": "Wpisz kwotę",
     "amountInvalid": "Wpisz kwotę liczbą, np. 2500 lub 2500,50",
     "amountPositive": "Kwota musi być większa od zera",
-    "amountInvalidWhole": "Wpisz kwotę liczbą, np. 2500"
+    "amountInvalidWhole": "Wpisz kwotę liczbą, np. 2500",
+    "emailFormat": "Podaj poprawny adres e-mail.",
+    "otpFormat": "Kod ma 6 cyfr."
   },
   "interests": {
     "nightlife": "Imprezy i nocne życie",
@@ -257,8 +259,24 @@
         "discord": "Nie udało się zalogować przez Discorda. Spróbuj ponownie."
       }
     },
+    "back": "Wstecz",
     "email": {
-      "title": "Twój e-mail"
+      "title": "Twój e-mail",
+      "label": "Adres e-mail",
+      "hint": "Wyślemy Ci 6-cyfrowy kod.",
+      "send": "Wyślij kod",
+      "sendError": "Nie udało się wysłać kodu. Spróbuj ponownie."
+    },
+    "code": {
+      "title": "Wpisz kod",
+      "label": "Kod z e-maila",
+      "sentTo": "Wysłaliśmy go na {{email}}.",
+      "signIn": "Zaloguj się",
+      "resend": "Wyślij kod ponownie",
+      "resendIn": "Wyślij kod ponownie ({{time}})",
+      "resendWait": "Wyślij kod ponownie, za {{seconds}} sekund",
+      "invalid": "Kod jest nieprawidłowy albo wygasł.",
+      "signInError": "Nie udało się zalogować. Spróbuj ponownie."
     },
     "profile": {
       "title": "Utwórz profil"

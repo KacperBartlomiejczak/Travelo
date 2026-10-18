@@ -7,11 +7,14 @@ import { AccessibilityInfo, Text } from 'react-native';
 import DrawerLayout from '@/app/(drawer)/_layout';
 import TabsLayout from '@/app/(drawer)/(tabs)/_layout';
 import AuthLayout from '@/app/(auth)/_layout';
+import CodeScreen from '@/app/(auth)/code';
 import EmailScreen from '@/app/(auth)/email';
 import WelcomeScreen from '@/app/(auth)/welcome';
 import RootLayout from '@/app/_layout';
 import AuthCallback from '@/app/auth/callback';
 import OnboardingScreen from '@/app/onboarding';
+import { appAuth } from '@/data/app-auth';
+import { InvalidCodeError } from '@/data/auth';
 import { ServerUnreachableError } from '@/data/errors';
 import { createInMemoryProfileRepository, type ProfileRepository } from '@/data/profile-repository';
 import { useCreateProfile } from '@/hooks/useProfile';
@@ -24,7 +27,13 @@ import { allowGateToStayLoading } from '@/test/settle-gate';
 
 // The sign-in itself (Supabase + the system browser) is never reached: a test decides what it answers.
 const mockSignIn = jest.fn<Promise<'signed-in' | 'cancelled'>, ['google' | 'discord']>();
-jest.mock('@/data/app-auth', () => ({ appAuth: { signInWithProvider: (provider: 'google' | 'discord') => mockSignIn(provider) } }));
+jest.mock('@/data/app-auth', () => ({
+  appAuth: {
+    signInWithProvider: (provider: 'google' | 'discord') => mockSignIn(provider),
+    sendEmailCode: jest.fn(async () => {}),
+    verifyEmailCode: jest.fn(async () => {}),
+  },
+}));
 
 jest.mock('expo-font', () => ({ ...jest.requireActual('expo-font'), useFonts: jest.fn() }));
 jest.mock('expo-splash-screen', () => ({ preventAutoHideAsync: jest.fn(), hideAsync: jest.fn() }));
@@ -45,6 +54,7 @@ function routes(overrides: Record<string, () => React.JSX.Element | null> = {}) 
     '(auth)/_layout': AuthLayout,
     '(auth)/welcome': WelcomeScreen,
     '(auth)/email': EmailScreen,
+    '(auth)/code': CodeScreen,
     onboarding: OnboardingScreen,
     '(drawer)/_layout': DrawerLayout,
     '(drawer)/(tabs)/_layout': TabsLayout,
@@ -57,9 +67,9 @@ function routes(overrides: Record<string, () => React.JSX.Element | null> = {}) 
 
 async function open(initialUrl?: string, overrides?: Record<string, () => React.JSX.Element | null>) {
   const rendered = renderRouter(routes(overrides), initialUrl ? { initialUrl } : undefined);
-  await rendered;
+  const { container } = await rendered;
   // renderRouter attaches getPathname to the returned promise, not to the awaited result.
-  return { getPathname: () => rendered.getPathname() };
+  return { getPathname: () => rendered.getPathname(), container };
 }
 
 const shown = (text: string) => screen.queryByText(text) !== null;
@@ -231,7 +241,7 @@ describe('signing in from the welcome screen (auth-onboarding step 6)', () => {
 
     await waitFor(() => expect(screen.getByTestId('email-screen')).toBeTruthy());
     expect(rendered.getPathname()).toBe('/email');
-    expect(screen.getByText('Twój e-mail')).toBeTruthy();
+    expect(screen.getByRole('header', { name: 'Twój e-mail' })).toBeTruthy();
   });
 
   it('the e-mail screen is not reachable when signed in', async () => {
@@ -239,6 +249,110 @@ describe('signing in from the welcome screen (auth-onboarding step 6)', () => {
     await expectOnly('home screen');
     await visit('/email');
     await expectOnly('home screen');
+  });
+});
+
+describe('signing in with an e-mail code (auth-onboarding step 7)', () => {
+  const sendEmailCode = jest.mocked(appAuth.sendEmailCode);
+  const verifyEmailCode = jest.mocked(appAuth.verifyEmailCode);
+
+  beforeEach(() => {
+    sendEmailCode.mockReset();
+    sendEmailCode.mockResolvedValue(undefined);
+    verifyEmailCode.mockReset();
+    verifyEmailCode.mockResolvedValue(undefined);
+  });
+
+  /** welcome → the sheet → "Kontynuuj z e-mailem" → the address → the code screen. */
+  async function reachCodeScreen(rendered: Awaited<ReturnType<typeof open>>) {
+    await expectOnly(WELCOME);
+    await fireEvent.press(screen.getByRole('button', { name: 'Zaloguj się' }));
+    await fireEvent.press(await screen.findByRole('button', { name: 'Kontynuuj z e-mailem' }));
+    await waitFor(() => expect(screen.getByTestId('email-screen')).toBeTruthy());
+    await fireEvent.changeText(screen.getByLabelText('Adres e-mail'), ' Kacper@Example.com ');
+    await fireEvent.press(screen.getByRole('button', { name: 'Wyślij kod' }));
+    await waitFor(() => expect(screen.getByTestId('code-screen')).toBeTruthy());
+    expect(rendered.getPathname()).toBe('/code');
+  }
+
+  it('welcome → sheet → e-mail → code → SIGNED_IN moves a new user on to profile setup, with nothing of the e-mail flow left', async () => {
+    const session = useFakeAppSession(signedOut);
+    setAppProfileRepository(createInMemoryProfileRepository());
+    verifyEmailCode.mockImplementation(async () => {
+      session.emit({ type: 'signedIn', userId: SIGNED_IN_USER_ID });
+    });
+    const rendered = await open();
+    await reachCodeScreen(rendered);
+    expect(screen.getByText('Wysłaliśmy go na kacper@example.com.')).toBeTruthy();
+
+    await fireEvent.changeText(screen.getByLabelText('Kod z e-maila'), '123456');
+
+    await expectOnly(ONBOARDING);
+    expect(verifyEmailCode).toHaveBeenCalledWith({ email: 'kacper@example.com', code: '123456' });
+    expect(screen.queryByTestId('code-screen')).toBeNull();
+    expect(screen.queryByTestId('email-screen')).toBeNull();
+  });
+
+  it('a returning user (profile exists) goes straight to the app', async () => {
+    const session = useFakeAppSession(signedOut);
+    verifyEmailCode.mockImplementation(async () => {
+      session.emit({ type: 'signedIn', userId: SIGNED_IN_USER_ID });
+    });
+    const rendered = await open();
+    await reachCodeScreen(rendered);
+
+    await fireEvent.changeText(screen.getByLabelText('Kod z e-maila'), '123456');
+
+    await expectOnly('home screen');
+  });
+
+  it('a wrong code keeps the user on the code screen, still signed out', async () => {
+    useFakeAppSession(signedOut);
+    verifyEmailCode.mockRejectedValue(new InvalidCodeError('expired'));
+    const rendered = await open();
+    await reachCodeScreen(rendered);
+
+    await fireEvent.changeText(screen.getByLabelText('Kod z e-maila'), '123456');
+
+    await waitFor(() => expect(screen.getByText('Kod jest nieprawidłowy albo wygasł.')).toBeTruthy());
+    expect(rendered.getPathname()).toBe('/code');
+    expect(shown('home screen')).toBe(false);
+  });
+
+  it('the code screen opened signed out without an address leaves for the e-mail screen', async () => {
+    useFakeAppSession(signedOut);
+    const rendered = await open('/code');
+    await waitFor(() => expect(rendered.getPathname()).toBe('/email'));
+    expect(screen.getByTestId('email-screen')).toBeTruthy();
+  });
+
+  it.each(['/email', '/code'])('%s is not reachable when signed in', async (href) => {
+    await open();
+    await expectOnly('home screen');
+    await visit(href);
+    await expectOnly('home screen');
+  });
+
+  it('the welcome screen is still the first one of the group, with the e-mail screens declared', async () => {
+    useFakeAppSession(signedOut);
+    const rendered = await open();
+    await expectOnly(WELCOME);
+    expect(rendered.getPathname()).toBe('/welcome');
+    expect(screen.queryByTestId('email-screen')).toBeNull();
+    expect(screen.queryByTestId('code-screen')).toBeNull();
+  });
+
+  it('the welcome screen has no header, the e-mail screens have one', async () => {
+    useFakeAppSession(signedOut);
+    const rendered = await open();
+    await expectOnly(WELCOME);
+    const headers = () => rendered.container.queryAll((node) => node.type === 'RNSScreenStackHeaderConfig' && !node.props.hidden);
+    expect(headers()).toHaveLength(0);
+
+    await fireEvent.press(screen.getByRole('button', { name: 'Zaloguj się' }));
+    await fireEvent.press(await screen.findByRole('button', { name: 'Kontynuuj z e-mailem' }));
+    await waitFor(() => expect(screen.getByTestId('email-screen')).toBeTruthy());
+    expect(headers()).toHaveLength(1);
   });
 });
 
@@ -286,6 +400,7 @@ describe('signed in without a profile', () => {
     await expectOnly(ONBOARDING);
     expect(session.clearUserData).not.toHaveBeenCalled();
   });
+
 });
 
 describe('a profile save that finishes after the sign-out', () => {
