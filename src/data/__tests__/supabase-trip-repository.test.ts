@@ -1700,6 +1700,14 @@ describe('covers (trip-covers D1, D4, D5)', () => {
         cleaned(supabase);
       });
 
+      it('the trip update is unreachable: the uploaded files are kept', async () => {
+        // The update may have been applied before the connection dropped, so the row may now point at these files.
+        const { supabase, repository } = await setupCovers();
+        supabase.respond('trips', NETWORK_FAILURE);
+        staysDefault(await createWith(repository, PICKED_URI));
+        expect(calls(supabase, 'remove')).toEqual([]);
+      });
+
       it('the trip update changes no row: the uploaded files are removed', async () => {
         const { supabase, repository } = await setupCovers();
         supabase.respond('trips', { data: [] });
@@ -1897,6 +1905,18 @@ describe('covers (trip-covers D1, D4, D5)', () => {
 
       const fresh = paths(FIRST_COVER_ID, PAST_ID);
       expect(calls(supabase, 'remove')).toEqual([{ bucket: BUCKET, method: 'remove', args: [[fresh.file, fresh.thumbnail]] }]);
+    });
+
+    it('an update that is unreachable after the upload rejects as unreachable and removes no files', async () => {
+      // The update may have been applied before the connection dropped, so the row may now point at the new files.
+      const { supabase, repository } = await setupCovers();
+      supabase.respond('trips', oldCoverRow(OLD_COVER), NETWORK_FAILURE);
+
+      await expect(repository.updateDetails(PAST_ID, input(PICKED_URI))).rejects.toMatchObject({
+        constructor: expect.objectContaining({ name: 'ServerUnreachableError' }),
+      });
+
+      expect(calls(supabase, 'remove')).toEqual([]);
     });
 
     it('an update that changes no row after the upload rejects and removes the new files', async () => {

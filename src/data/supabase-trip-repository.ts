@@ -361,7 +361,8 @@ export function createSupabaseTripRepository({
         try {
           await storeCover(created.trip.id, { cover_image_uri: cover });
         } catch (error) {
-          await removeQuietly(files);
+          // Unreachable: the update may have been applied, so the files may be in use; leftovers go with the trip folder (trip-photos P7).
+          if (!(error instanceof ServerUnreachableError)) await removeQuietly(files);
           throw error;
         }
         return { ...created.trip, coverImageUri: cover };
@@ -394,7 +395,8 @@ export function createSupabaseTripRepository({
         // Asking the row back: RLS hides a trip that is not ours (or gone) by changing no row, not by an error.
         await storeCover(tripId, { name, cover_image_uri: cover });
       } catch (error) {
-        if (uploaded) await removeQuietly(uploaded.files);
+        // Unreachable: the update may have been applied, so the files may be in use; leftovers go with the trip folder (trip-photos P7).
+        if (uploaded && !(error instanceof ServerUnreachableError)) await removeQuietly(uploaded.files);
         throw error;
       }
       // Best effort: the cover is changed, so the old files are not shown anywhere; if they stay behind, the folder
