@@ -323,6 +323,15 @@ describe('trip photo tile (trip-photos P2)', () => {
   });
 });
 
+describe('profile photo in the profile setup (auth-onboarding step 8)', () => {
+  it('is a 96dp circle on the 4dp grid, big enough to touch, the same in both themes', () => {
+    expect(lightTheme.size.avatarSetup).toBe(96);
+    expect(lightTheme.size.avatarSetup % 4).toBe(0);
+    expect(lightTheme.size.avatarSetup).toBeGreaterThanOrEqual(lightTheme.size.touchTarget);
+    expect(darkTheme.size.avatarSetup).toBe(lightTheme.size.avatarSetup);
+  });
+});
+
 describe('cover tile (trip-covers P1)', () => {
   it('is 112dp wide on the 4dp grid, big enough to touch, the same in both themes', () => {
     expect(lightTheme.size.coverTile).toBe(112);

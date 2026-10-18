@@ -17,6 +17,8 @@ type Props = {
   children: ReactNode;
   /** The buttons (and an error above them), pinned in the thumb zone above the keyboard. */
   footer: ReactNode;
+  /** For a screen without a header (profile setup): the content starts below the status bar. */
+  topInset?: boolean;
 };
 
 /**
@@ -24,7 +26,7 @@ type Props = {
  * scroll view, and the actions pinned at the bottom. Like the wizard, the frame is padded by the keyboard's height on both
  * platforms (with edge-to-edge Android does not resize the window), so the action stays above the keyboard.
  */
-export function AuthFormScreen({ testID, title, hint, children, footer }: Props) {
+export function AuthFormScreen({ testID, title, hint, children, footer, topInset = false }: Props) {
   const theme = useTheme();
   const insets = useSafeAreaInsets();
   // The frame sits under the stack header; the keyboard's position is measured from the top of the window.
@@ -46,7 +48,7 @@ export function AuthFormScreen({ testID, title, hint, children, footer }: Props)
         keyboardShouldPersistTaps="handled"
         contentContainerStyle={[
           styles.column,
-          { maxWidth: theme.size.maxContentWidth, paddingHorizontal: side, paddingTop: spacing[4], gap: spacing[6] },
+          { maxWidth: theme.size.maxContentWidth, paddingHorizontal: side, paddingTop: (topInset ? insets.top : 0) + spacing[4], gap: spacing[6] },
         ]}
       >
         <View style={{ gap: spacing[2] }}>

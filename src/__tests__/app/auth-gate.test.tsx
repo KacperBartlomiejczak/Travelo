@@ -401,6 +401,45 @@ describe('signed in without a profile', () => {
     expect(session.clearUserData).not.toHaveBeenCalled();
   });
 
+  // auth-onboarding step 8: the real profile setup screen behind the gate.
+  it('shows the real profile setup screen: the nick field, the interests and "Zapisz i zaczynamy"', async () => {
+    await open();
+    await expectOnly(ONBOARDING);
+    expect(screen.getByTestId('profile-setup-screen')).toBeTruthy();
+    expect(screen.getByLabelText('Nazwa użytkownika')).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Zapisz i zaczynamy' })).toBeTruthy();
+  });
+
+  it('saving the real profile setup form lands on the app at /, and the screen navigates nowhere by itself', async () => {
+    const base = createInMemoryProfileRepository();
+    const createProfile = jest.fn((input: Parameters<ProfileRepository['createProfile']>[0]) => base.createProfile(input));
+    setAppProfileRepository({ myProfile: () => base.myProfile(), createProfile });
+    const rendered = await open();
+    await expectOnly(ONBOARDING);
+
+    await fireEvent.changeText(screen.getByLabelText('Nazwa użytkownika'), 'Kacper');
+    await fireEvent.press(screen.getByRole('checkbox', { name: 'Muzea' }));
+    await fireEvent.press(screen.getByRole('button', { name: 'Zapisz i zaczynamy' }));
+
+    await expectOnly('home screen');
+    expect(rendered.getPathname()).toBe('/');
+    expect(createProfile).toHaveBeenCalledTimes(1);
+    expect(createProfile).toHaveBeenCalledWith({ username: 'kacper', interests: ['museums'], avatarUri: null });
+  });
+
+  it('a form that is not valid stays on profile setup and does not save', async () => {
+    const base = createInMemoryProfileRepository();
+    const createProfile = jest.fn((input: Parameters<ProfileRepository['createProfile']>[0]) => base.createProfile(input));
+    setAppProfileRepository({ myProfile: () => base.myProfile(), createProfile });
+    await open();
+    await expectOnly(ONBOARDING);
+
+    await fireEvent.press(screen.getByRole('button', { name: 'Zapisz i zaczynamy' }));
+
+    expect(screen.getByText('Wpisz nick.')).toBeTruthy();
+    await expectOnly(ONBOARDING);
+    expect(createProfile).not.toHaveBeenCalled();
+  });
 });
 
 describe('a profile save that finishes after the sign-out', () => {

@@ -3,12 +3,12 @@ import { Pressable, Text } from 'react-native';
 
 import { useTheme } from '@/theme/useTheme';
 
-type Props = { label: string; selected: boolean; onToggle: () => void };
+type Props = { label: string; selected: boolean; onToggle: () => void; disabled?: boolean };
 
 const CHIP_HEIGHT = 36; // §10.6 (minimum; grows with large text, §4.4)
 
 // Selectable chip (§10.6, D32). Selected adds a check mark, so the state is not shown by colour alone.
-export function Chip({ label, selected, onToggle }: Props) {
+export function Chip({ label, selected, onToggle, disabled = false }: Props) {
   const theme = useTheme();
   const { colors } = theme;
   const contentColor = selected ? colors.action.onPrimary : colors.text.primary;
@@ -19,9 +19,12 @@ export function Chip({ label, selected, onToggle }: Props) {
       accessibilityRole="checkbox"
       accessibilityLabel={label}
       aria-checked={selected}
+      disabled={disabled}
       hitSlop={{ top: slop, bottom: slop, left: 0, right: 0 }}
       onPress={onToggle}
       style={({ pressed }) => ({
+        // §10.2: a disabled control is drawn at the disabled opacity.
+        opacity: disabled ? theme.opacity.disabled : 1,
         minHeight: CHIP_HEIGHT,
         maxWidth: '100%',
         paddingHorizontal: theme.spacing[3],

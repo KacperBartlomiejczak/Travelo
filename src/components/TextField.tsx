@@ -23,21 +23,23 @@ type Props = Pick<
   value: string;
   onChangeText: (text: string) => void;
   optional?: boolean;
+  /** Shown under the field until an error replaces it. */
+  hint?: string;
   error?: string;
   /** Lets a screen focus the input, e.g. to correct a wrong code. */
   inputRef?: Ref<TextInput>;
 };
 
-export function TextField({ label, value, onChangeText, optional, error, inputRef, ...inputProps }: Props) {
+export function TextField({ label, value, onChangeText, optional, hint, error, inputRef, ...inputProps }: Props) {
   const theme = useTheme();
   const [focused, setFocused] = useState(false);
   return (
-    <Field label={label} optional={optional} error={error}>
+    <Field label={label} optional={optional} hint={hint} error={error}>
       <TextInput
         {...inputProps}
         ref={inputRef}
         accessibilityLabel={label}
-        accessibilityHint={error}
+        accessibilityHint={error ?? hint}
         value={value}
         onChangeText={onChangeText}
         onFocus={() => setFocused(true)}

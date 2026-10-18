@@ -132,6 +132,8 @@ export const size = {
   photoTile: 80,
   // trip-covers P1: width of a 16:9 cover tile in the picker (height follows from the ratio).
   coverTile: 112,
+  // auth-onboarding P2: the round profile photo on the profile setup screen (bigger than the 48dp large avatar of §10.7).
+  avatarSetup: 96,
   // §10.16 snackbar: at least 48dp high, at most 360dp wide.
   snackbarMinHeight: 48,
   snackbarMaxWidth: 360,

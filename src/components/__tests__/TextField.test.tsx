@@ -53,6 +53,27 @@ describe('TextField', () => {
   });
 });
 
+describe('TextField hint (auth-onboarding step 8)', () => {
+  it('shows a hint under the field and reads it to screen readers', async () => {
+    await render(<TextField label="Nick" hint="3–20 znaków" value="" onChangeText={() => {}} />);
+    expect(screen.getByText('3–20 znaków')).toBeTruthy();
+    expect(screen.getByText('3–20 znaków')).toHaveStyle({ color: lightTheme.colors.text.secondary });
+    expect(screen.getByLabelText('Nick').props.accessibilityHint).toBe('3–20 znaków');
+  });
+
+  it('hides the hint while the error shows, and the error is what is read', async () => {
+    await render(<TextField label="Nick" hint="3–20 znaków" error="Wpisz nick." value="" onChangeText={() => {}} />);
+    expect(screen.queryByText('3–20 znaków')).toBeNull();
+    expect(screen.getByText('Wpisz nick.')).toBeTruthy();
+    expect(screen.getByLabelText('Nick').props.accessibilityHint).toBe('Wpisz nick.');
+  });
+
+  it('shows no hint by default', async () => {
+    await render(<TextField label="Nick" value="" onChangeText={() => {}} />);
+    expect(screen.getByLabelText('Nick').props.accessibilityHint).toBeUndefined();
+  });
+});
+
 describe('TextField input behaviour (auth-onboarding step 7)', () => {
   it('passes the keyboard hints, autofill hints and focus request on to the input', async () => {
     await render(

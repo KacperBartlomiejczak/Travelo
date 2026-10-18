@@ -138,7 +138,10 @@
     "amountPositive": "Kwota musi być większa od zera",
     "amountInvalidWhole": "Wpisz kwotę liczbą, np. 2500",
     "emailFormat": "Podaj poprawny adres e-mail.",
-    "otpFormat": "Kod ma 6 cyfr."
+    "otpFormat": "Kod ma 6 cyfr.",
+    "usernameFormat": "Nick: 3–20 znaków, zaczyna się literą; litery, cyfry, _ i .",
+    "usernameRequired": "Wpisz nick.",
+    "interestsRequired": "Wybierz co najmniej jedno."
   },
   "interests": {
     "nightlife": "Imprezy i nocne życie",
@@ -279,7 +282,17 @@
       "signInError": "Nie udało się zalogować. Spróbuj ponownie."
     },
     "profile": {
-      "title": "Utwórz profil"
+      "title": "Utwórz profil",
+      "avatar": "Dodaj zdjęcie",
+      "avatarChange": "Zmień zdjęcie",
+      "avatarError": "Nie udało się otworzyć galerii. Spróbuj ponownie.",
+      "username": "Nazwa użytkownika",
+      "usernameHint": "3–20 znaków: litery, cyfry, _ i .",
+      "usernameTaken": "Ten nick jest zajęty.",
+      "interests": "Twoje zainteresowania",
+      "interestsHint": "Wybierz co najmniej jedno.",
+      "save": "Zapisz i zaczynamy",
+      "saveError": "Nie udało się zapisać profilu. Spróbuj ponownie."
     },
     "startError": "Nie udało się uruchomić aplikacji.",
     "profileLoadError": "Nie udało się wczytać profilu.",
