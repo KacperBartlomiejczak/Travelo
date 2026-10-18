@@ -1,5 +1,5 @@
 # Architecture
-Last updated: 2026-10-18 · after task: pill-nav-and-dialog (steps 1–6 verified; device checks pending)
+Last updated: 2026-10-18 · after task: pill-nav-and-dialog (steps 1–7 verified; Android emulator run passed, some device checks pending)
 
 ## Overview
 Traveling is a mobile app for the person who organizes a trip for a group of friends: trip setup, members, flights and layovers, AI day plans built from real places, offline expenses, and a plan-vs-reality budget summary. The product scope and rules are defined in `CLAUDE.md`; the visual system ("Sunline") is defined in `context/design-context.md`.
@@ -376,8 +376,9 @@ The airport list is a static bundled file, validated row by row in its test (not
 - 2026-10-03 — Design-context gaps decided by Kacper: back button label (D7), native header style (D8), dark disabled button colours (D9), focus ring offset (D10), screen spacing (D11), empty-state illustration (D12) — see `prompts/trips-empty-state/plan.md`.
 
 ## Known limitations & tech debt
-- Pill nav and dialog (`prompts/pill-nav-and-dialog/plan.md`; the device checks listed there are pending):
-  - Only Jest was run: the overlay of the pill, touches passing through its wrapper, the status bar when switching tabs, the real edge swipe, Android back from a non-home tab, and TalkBack / VoiceOver order are unverified on a device.
+- Pill nav and dialog (`prompts/pill-nav-and-dialog/plan.md`; some device checks listed there are pending):
+  - The Android emulator run (2026-10-18) checked the pill floating over the screens, the four empty screens, the side panel opening over the pill on „Podróż” and not on „Wydatki”, Android back from „Wydatki” to „Podróż”, and the wizard's leave dialog. Still unverified on a device: touches passing through the pill's wrapper, the status bar when switching tabs, dark mode, large font size, English labels, the offline banner and the empty-state button above the pill, reduce motion, TalkBack / VoiceOver order, and iOS.
+  - A swipe from the very left edge triggers Android's own back gesture; on the emulator the panel opened only from about x = 80 px (open point for Kacper).
   - On Android TalkBack the invisible „Zamknij” scrim of `ConfirmDialog` may be read before its title; if so, move the scrim after the dialog in the tree.
   - The active pill label can truncate at very large font scale (R1).
   - The snackbar covers the offline banner while visible (pre-existing).

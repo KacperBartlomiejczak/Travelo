@@ -1,5 +1,5 @@
 # Task: Pill navigation (5 screens) + confirm dialog
-Status: in progress — steps 1–7 done and verified, `Architecture.md` updated; waiting for Kacper's device check (approved 2026-10-17, incl. R1, R3, A8)
+Status: in progress — steps 1–7 done and verified, `Architecture.md` updated; Android emulator run 2026-10-18 passed (see Progress log); the remaining device checks and open point 2 (left-edge swipe) wait for Kacper (approved 2026-10-17, incl. R1, R3, A8)
 
 ## Understanding & assumptions
 Kacper wants two things:
@@ -25,7 +25,7 @@ Kacper wants two things:
 - A5 — The pill is visible only on the 5 main screens. The wizard and the photo viewer sit in the root stack above them, so they show no pill.
 - A6 — The pill has no unread badges, and no "add expense" quick-add button yet (comes with the expenses feature).
 - A7 — Tab labels (PL / EN): Podróż / Trip, Wydatki / Expenses, Miejsca / Places, Plan / Plan, Ustawienia / Settings. Icons (lucide, outline, stroke 2): `Plane`, `Receipt`, `MapPin`, `CalendarDays`, `Settings`.
-- A8 — The empty screens do not implement loading / error / offline states: there is nothing to load. These states arrive with each screen's real feature. This is a deliberate exception to design-context §12; please confirm.
+- A8 — The empty screens do not implement loading / error / offline states: there is nothing to load. These states arrive with each screen's real feature. This is a deliberate exception to design-context §12; **confirmed by Kacper (2026-10-17).**
 
 ## Approach
 - **Navigation:** expo-router `Tabs` (already in `expo-router`, no new dependency) with a custom `tabBar` that renders the pill. Layout:
@@ -90,7 +90,7 @@ Written **before** each step's code, seen failing for the expected reason.
 Created:
 - `src/components/ConfirmDialog.tsx` (+ `src/components/__tests__/ConfirmDialog.test.tsx`)
 - `src/components/PillNav.tsx` (+ test) and the tab config next to it
-- `src/features/nav/` — `usePillClearance` (context + hook), `EmptyScreen` (title + sentence)
+- `src/features/nav/` — `usePillClearance` (planned as context + hook; built as a pure hook, see Step 3), `EmptyScreen` (title + sentence)
 - `src/app/(drawer)/(tabs)/_layout.tsx`, `expenses.tsx`, `places.tsx`, `plan.tsx`, `settings.tsx`
 - `src/__tests__/app/tabs.test.tsx`
 
@@ -149,10 +149,11 @@ Per step: red seen first, then `pnpm typecheck`, `pnpm lint`, full `pnpm test`, 
     2. A swipe starting at the very left edge triggers Android's own back gesture; the panel opened only from about x = 80 px on this emulator (the system gesture zone, a pre-existing property of the drawer). Acceptable, or widen the drawer's edge zone?
     3. Expo Go's dev "Tools" bubble overlaps the „Podróż” label in screenshots (dev tool only).
 - Step 7: `Architecture.md` updated (overview, folder tree, modules, routes, components, theme, data flow, testing, key decisions, limitations, changelog); `prompts/expenses/plan.md` D2 points here.
+- CodeRabbit review on PR #13 (2026-10-18), docs only: `Architecture.md` header and device-check limitation matched to the emulator run; the pill questions in `prompts/expenses/plan.md` Risks marked resolved; A8, R1, R3, R4 and the `usePillClearance` Files line here updated to what was decided and built. No code change.
 
 ## Risks & open questions
-- **R1 — 5 labels + large text.** At 12dp "Ustawienia" is about 62dp wide; 5 items in a 328dp pill (360dp screen) leave ~65dp each — it just fits, but not at 200% font scale. Proposal: always show all labels; if the font scale is above ~1.3, inactive items show the icon only (the label stays for screen readers). **Do you accept this?**
+- **R1 — 5 labels + large text.** At 12dp "Ustawienia" is about 62dp wide; 5 items in a 328dp pill (360dp screen) leave ~65dp each — it just fits, but not at 200% font scale. Proposal: always show all labels; if the font scale is above ~1.3, inactive items show the icon only (the label stays for screen readers). **Accepted by Kacper (2026-10-17).**
 - **R2 — Pill sits over the hero photo** on Podróż. The dark pill with a 1dp border should stay readable, but I cannot judge it before seeing it on a device; I will show screenshots after step 4.
-- **R3 — Drawer swipe only on `/`.** Alternative: allow it everywhere (panel selects a trip, then you stay on the current tab). I recommend "only on Podróż" because the panel has no button elsewhere.
-- **R4 — A8 above** (no loading / error / offline states on empty screens).
+- **R3 — Drawer swipe only on `/`.** Alternative: allow it everywhere (panel selects a trip, then you stay on the current tab). I recommend "only on Podróż" because the panel has no button elsewhere. **Accepted by Kacper (2026-10-17): only on Podróż.**
+- **R4 — A8 above** (no loading / error / offline states on empty screens). **Confirmed (2026-10-17).**
 - **R5 — Test churn:** moving the home route to `(tabs)` touches ~10 route test files (path strings only). No assertion is weakened.
