@@ -1,5 +1,5 @@
 # Task: Trip covers (preset covers, required cover)
-Status: done — 2026-10-18 (device checks B4–B6 left for Kacper)
+Status: done — 2026-10-18 (device checks B4–B6 left for Kacper) · review fixes (PR #18): done 2026-10-18, see "Review fixes" at the end
 
 ## Understanding & assumptions
 Every trip has a cover photo. The organizer picks it from ready-made photos bundled in the app, or from the phone's gallery. One preset is selected from the start, so the wizard never blocks on the cover.
@@ -226,3 +226,112 @@ SQLite: no migration. The trip copies are JSON parsed with Zod (`local-store.ts`
 - **R6 — A failed gallery upload on create is silent in the repository** (Q1): the caller tells it by "asked `file://`, got a preset". `CreateTripInputSchema` also accepts `photo:` on create without a file check; the UI never sends one.
 - **R7 — `updateDetails` reads, then writes** (not atomic): two of the owner's own phones changing the cover at once could overwrite each other.
 - **R4 — Originals in `assets/template-images/`** are not tracked by git yet. Do we commit them (source for re-running C1) or leave them out?
+
+---
+
+# Review fixes (PR #18, CodeRabbit review of 39f3d72)
+Status: done — 2026-10-18 (approved by Kacper 2026-10-18; not committed yet)
+
+## Understanding & assumptions
+CodeRabbit left two comments. Both were checked against the code (explorer, 2026-10-18) and both are valid.
+
+- **RF1: the new cover files are removed when the result of the row update is unknown.**
+  - `storeCover` (`src/data/supabase-trip-repository.ts:307-311`) turns a postgrest `status: 0` into `ServerUnreachableError` (`failure()`, :107). That includes the 20 s client-side timeout (`src/data/fetch-timeout.ts`). The abort happens only on the phone, so the server may already have applied the update.
+  - Both catch blocks call `removeQuietly` for every error: create at :363-366, `updateDetails` at :396-399.
+  - Result: the row can hold `photo:<id>` while its files are gone. `signCovers` then returns no `coverUrls`, and the hero, the side panel and the „Twoje zdjęcie” tile fall back to Auckland, so the photo is lost.
+  - A refusal (status > 0) and a 0-row update are plain `Error`s, so they can be told apart from unreachable.
+  - Files left behind are harmless: deleting a trip removes its whole folder (`removeTripFiles`, :252-267, trip-photos P7).
+  - No test covers `status: 0` on the trips update in create or `updateDetails`.
+- **RF2: `Architecture.md` contradicts itself and the code.** The stale lines are:
+  - :135 — "optional cover URI". `TripDetailsInputSchema` requires `CoverChoiceSchema` (`src/schemas/create-trip-form.ts:127`).
+  - :137 — the server tables list leaves out `20261018120000_trip_covers.sql`.
+  - :186 — "the URI returned by the gallery picker". The draft starts on `DEFAULT_COVER` (`draft.ts:50`), and a preset is a valid cover.
+  - :203 — only three SQL test files and "All three migrations are pushed". There are now four migrations, and `trip_covers.sql` exists.
+  - :223 — `CoverPicker` described as "optional cover photo … preview + change / remove". :247 and the code describe a required radio group with no remove action.
+  - :224 — `coverImageUri?` in the draft types. The field is required (`draft.ts:32`).
+  - :372 and :479 are dated history (marked superseded, or a changelog entry) and stay as they are.
+
+"Done" means:
+- An unknown update result keeps the uploaded files.
+- A refusal or a 0-row update still removes them.
+- `Architecture.md` matches the code.
+- The full suite, typecheck and lint are green.
+
+Assumptions:
+- What the caller sees does not change. Create still returns the trip with the default cover, and the summary still sends `coverUploadFailed` (Q1). `updateDetails` still rejects with `ServerUnreachableError`. See RQ1.
+- In `updateDetails` the old cover's files are already kept on any error, because they are removed only after `storeCover` succeeds (:402-406). That part does not change.
+
+## Approach
+- In both catch blocks, skip `removeQuietly` when the error is a `ServerUnreachableError`, with a one-line comment saying why: the update may have been applied, so the files may be in use.
+- Fix only the stale `Architecture.md` lines listed above. Add the new rule to the cover data flow (an unknown result keeps the files; they go with the trip folder), and add one changelog line.
+- *Rejected:* after an unknown result, read the row back to learn whether the update was applied. That needs another network call while the network is failing, and it adds a branch for a rare case. A leftover file costs nothing.
+
+## Data structures (Zod)
+No change. No schema, migration or SQLite change.
+
+## Tests
+Step 1 adds to `src/data/__tests__/supabase-trip-repository.test.ts`, in the existing cover sections, using `NETWORK_FAILURE`, `calls()` and `staysDefault()`:
+- **create:** "the trip update is unreachable: the uploaded files are kept". The upload succeeds and the trips update returns `NETWORK_FAILURE`. The trip comes back on the default cover (Q1 unchanged), and `calls(supabase, 'remove')` is `[]`. Expected red: `remove` is called with the new file and thumbnail.
+- **updateDetails:** "an update that is unreachable after the upload rejects as unreachable and removes no files". The old cover is a `photo:`, the upload succeeds, and the update returns `NETWORK_FAILURE`. The call rejects with `ServerUnreachableError`, and `remove` is never called, for the new files or the old ones. Expected red: `remove` is called with the new files.
+- These existing tests stay and must stay green, as the guard that refusals still clean up:
+  - the 401 refusal on create;
+  - the 0-row update on create;
+  - the 401 refusal on `updateDetails`;
+  - the 0-row update on `updateDetails`.
+
+Step 2 changes only documentation, so it has no tests (see Steps).
+
+## Files
+- Step 1: `src/data/supabase-trip-repository.ts` (two catch blocks) and `src/data/__tests__/supabase-trip-repository.test.ts` (two tests).
+- Step 2: `Architecture.md` (orchestrator only).
+- Both steps: this `plan.md`.
+
+## Skills
+- test-driven-development — step 1 — the red → green loop for the two new cases.
+- doubt-driven-development — step 1 — the change decides when Storage files are deleted.
+- debugging-and-error-recovery — any step, if something fails for an unclear reason.
+
+## Steps
+- [x] RF-1. [backend] Keep the uploaded cover files when `storeCover` fails as `ServerUnreachableError`, in create and in `updateDetails`. Skill: test-driven-development, doubt-driven-development. Tests first: the two tests above, seen red for the expected reason (`remove` was called). Verify: red → green, full suite, typecheck, lint; verifier.
+- [x] RF-2. [orchestrator] Bring `Architecture.md` in line with the code:
+  - fix :135, :137, :186, :203, :223 and :224;
+  - describe the RF-1 rule in the cover data flow;
+  - add a changelog line.
+
+  Skill: none. **No tests first: documentation only, with no behaviour**, named here so it can be approved. Verify: the verifier checks every changed line against the code it names.
+
+No manual device steps: a timeout that the server still applied cannot be produced reliably on a device. The unit tests cover it.
+
+## Progress log
+- RF-1 (2026-10-18, `backend`):
+  - Tests written, red ✓. Both new tests failed because `remove` was called:
+    - create: expected `[]`, received the new `<tripId>/<uuid>.jpg` and `_thumb.jpg`;
+    - `updateDetails`: the same, with the new files.
+  - `src/data/supabase-trip-repository.ts`: the create inner catch and the `updateDetails` catch skip `removeQuietly` on `ServerUnreachableError`, each with a one-line comment.
+  - `src/data/__tests__/supabase-trip-repository.test.ts`: 2 new tests. The 401 and 0-row cleanup tests for create and `updateDetails` are unchanged and green.
+  - Green ✓. Full suite 89 suites / 1576 tests, typecheck ✓, lint ✓.
+  - Verifier PASS. It also checked `@supabase/postgrest-js@2.117.2`: an aborted request resolves with `status: 0`, so the 20 s timeout reaches the guard.
+  - Skills used: test-driven-development, doubt-driven-development. No deviations.
+- RF-2 (2026-10-18, orchestrator):
+  - No tests (approved: documentation only).
+  - `Architecture.md` changes:
+    - :135 — the cover is a required `CoverChoiceSchema`;
+    - :137 — all four migrations;
+    - :165, :166 — the RF-1 rule in the cover data flow;
+    - :186 — the draft starts on `DEFAULT_COVER`;
+    - :203 — four SQL test files, four migrations pushed;
+    - :223 — the short `CoverPicker` entry is no longer optional / remove;
+    - :224 — a required `coverImageUri: CoverChoice`;
+    - "Current suite", the changelog line and "Last updated".
+  - :372 and :479 stay as dated history.
+  - Verifier PASS: every changed line checked against the code; typecheck, lint and the full suite (89 suites / 1576 tests) green.
+  - Skill used: none.
+  - Deviation: the stale "Current suite" count (86 / 1369) was also updated, because this task changed it.
+
+## Risks & open questions
+- **RQ1 — decided 2026-10-18: (a), the snackbar stays as it is.** The question was: the snackbar after an unknown result on create. When the update result is unknown, create still returns the default cover, so the home screen shows „Nie udało się wysłać zdjęcia okładki…”. If the server did apply the update, the photo appears after the next refresh, which contradicts the message. Options:
+  - (a) Keep it as it is. This is rare (it needs the 20 s timeout after the server applied the write), and the message is true from the phone's point of view. **Recommended.**
+  - (b) A separate message for an unknown result. That is a new i18n key and a frontend step for a rare case.
+- **RR1 — Leftover files** when the update really was not applied. They stay in the trip's folder until the trip is deleted. Accepted, the same as an old cover after an unknown result today (:400-401).
+- **RR2 — After an unknown result the cached trip can be out of date.** It shows the old cover while the server holds the new one. The next refresh fixes it, and this rule does not change it.
+- Committing (one commit per step on `feature/trip-covers`), pushing to PR #18 and replying to the CodeRabbit threads happen only after the steps are done, and each needs Kacper's go-ahead.
