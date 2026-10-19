@@ -24,7 +24,7 @@ jest.mock('react-native-safe-area-context', () => ({
   useSafeAreaInsets: () => ({ top: 47, left: 0, right: 0, bottom: 34 }),
 }));
 
-// The screen reader focus is moved by node handle, and Jest has none: the handle of a node is made up here, so a test can tell which was focused.
+// The screen reader focus is moved by node handle, and Jest has none: the handle of the nick is made up here, so a test can tell it was focused.
 jest.mock('react-native/Libraries/ReactNative/RendererProxy', () => {
   const actual = jest.requireActual('react-native/Libraries/ReactNative/RendererProxy');
   return { ...actual, findNodeHandle: jest.fn(actual.findNodeHandle) };
@@ -33,7 +33,6 @@ const actualFindNodeHandle = jest.requireActual<typeof import('react-native/Libr
   'react-native/Libraries/ReactNative/RendererProxy',
 ).findNodeHandle;
 const NICK_HANDLE = 1001;
-const INTERESTS_HANDLE = 1002;
 
 const hidden = { includeHiddenElements: true };
 const PHOTO = 'file:///cache/ImagePicker/photo-1.jpg';
@@ -129,19 +128,17 @@ async function fillValid(nick = 'Kacper') {
   await fireEvent.press(chip('Muzea'));
 }
 
-/** Where the nick block and the interests block sit in the scrolling content (Jest lays nothing out, so the test reports it). */
+/** Where the nick block sits in the scrolling content (Jest lays nothing out, so the test reports it). */
 const NICK_Y = 210;
-const INTERESTS_Y = 640;
 
 async function layOut(testID: string, y: number) {
   await fireEvent(screen.getByTestId(testID), 'layout', { nativeEvent: { layout: { x: 0, y, width: 360, height: 120 } } });
 }
 
-/** The screen has been laid out: the nick block and the interests block at known places. */
+/** The screen has been laid out: the nick block at a known place. */
 async function openLaidOut() {
   const opened = await openSetup();
   await layOut('profile-nick-block', NICK_Y);
-  await layOut('profile-interests-block', INTERESTS_Y);
   return opened;
 }
 
@@ -160,11 +157,10 @@ beforeEach(async () => {
   announce.mockClear();
   scrollTo().mockClear();
   screenReaderFocus().mockClear();
-  // The nick input is the node with the nick's label; the interests' node is the Text that holds their heading.
+  // The nick input is the node with the nick's label.
   jest.mocked(findNodeHandle).mockImplementation((node) => {
-    const props = (node as { props?: { accessibilityLabel?: string; children?: unknown } } | null)?.props;
+    const props = (node as { props?: { accessibilityLabel?: string } } | null)?.props;
     if (props?.accessibilityLabel === NICK_LABEL) return NICK_HANDLE;
-    if ([props?.children].flat().includes(INTERESTS_LABEL)) return INTERESTS_HANDLE;
     return actualFindNodeHandle(node);
   });
 });
@@ -185,8 +181,8 @@ describe('ProfileSetupScreen (auth-onboarding D7, D20, P1, P2, P4, P5)', () => {
       expect(screen.getByText(NICK_HINT)).toBeTruthy();
       expect(screen.getByText(INTERESTS_LABEL)).toBeTruthy();
       expect(screen.getByText(INTERESTS_HINT)).toBeTruthy();
-      expect(saveButton()).toBeEnabled();
-      // Nothing is wrong yet: validation happens on save (D20).
+      // The button waits for a complete form (D4), and nothing is wrong yet: nothing is checked.
+      expect(saveButton()).toBeDisabled();
       expect(screen.queryByText(NICK_REQUIRED)).toBeNull();
       expect(screen.queryByText(NICK_FORMAT_ERROR)).toBeNull();
       expect(screen.queryByText(SAVE_ERROR)).toBeNull();
@@ -201,20 +197,14 @@ describe('ProfileSetupScreen (auth-onboarding D7, D20, P1, P2, P4, P5)', () => {
       expect(screen.getByText('3–20 characters: letters, digits, _ and .')).toBeTruthy();
       expect(screen.getByText('Your interests')).toBeTruthy();
       expect(screen.getByText('Pick at least one.')).toBeTruthy();
-      expect(screen.getByRole('button', { name: 'Save and start' })).toBeEnabled();
+      expect(screen.getByRole('button', { name: 'Save and start' })).toBeDisabled();
     });
 
-    it('speaks English for every error', async () => {
+    it('speaks English for the taken nick', async () => {
       await i18n.changeLanguage('en');
       useRepository({ takenUsernames: ['taken'] });
       await openSetup();
-      await fireEvent.press(screen.getByRole('button', { name: 'Save and start' }));
-      expect(screen.getByText('Enter a username.')).toBeTruthy();
-      expect(screen.getByText('Pick at least one.')).toBeTruthy();
-
-      await fireEvent.changeText(screen.getByLabelText('Username'), 'ab');
-      await fireEvent.press(screen.getByRole('button', { name: 'Save and start' }));
-      expect(screen.getByText('Username: 3–20 characters, starts with a letter; letters, digits, _ and .')).toBeTruthy();
+      expect(screen.getByRole('button', { name: 'Save and start' })).toBeDisabled();
 
       await fireEvent.changeText(screen.getByLabelText('Username'), 'taken');
       await fireEvent.press(screen.getByRole('checkbox', { name: 'Museums' }));
@@ -249,131 +239,138 @@ describe('ProfileSetupScreen (auth-onboarding D7, D20, P1, P2, P4, P5)', () => {
       await fireEvent.changeText(nickField(), 'KaCper_1.X');
       expect(nickField().props.value).toBe('kacper_1.x');
     });
-
-    it('hides the hint while the format error shows, and brings it back when the user types', async () => {
-      await openSetup();
-      await fireEvent.changeText(nickField(), 'ab');
-      await fireEvent.press(saveButton());
-      expect(screen.getByText(NICK_FORMAT_ERROR)).toBeTruthy();
-      expect(screen.queryByText(NICK_HINT)).toBeNull();
-
-      await fireEvent.changeText(nickField(), 'abc');
-
-      expect(screen.queryByText(NICK_FORMAT_ERROR)).toBeNull();
-      expect(screen.getByText(NICK_HINT)).toBeTruthy();
-    });
   });
 
-  describe('validation on save: field errors and no request', () => {
-    it('an empty nick: "Wpisz nick."', async () => {
-      const create = useRepository();
-      await openSetup();
-      await fireEvent.press(chip('Muzea'));
-
-      await fireEvent.press(saveButton());
-
-      expect(screen.getByText(NICK_REQUIRED)).toBeTruthy();
-      expect(screen.getByText(NICK_REQUIRED)).toHaveStyle({ color: lightTheme.colors.status.error });
-      expect(nickField().props.accessibilityHint).toBe(NICK_REQUIRED);
-      expect(nickField()).toHaveStyle({ borderWidth: 2, borderColor: lightTheme.colors.status.error });
+  describe('an incomplete form (D4, P4): the button waits, nothing is checked and nothing is sent', () => {
+    const expectNoErrors = () => {
+      expect(screen.queryByText(NICK_REQUIRED)).toBeNull();
       expect(screen.queryByText(NICK_FORMAT_ERROR)).toBeNull();
-      expect(create).not.toHaveBeenCalled();
-    });
+      expect(screen.queryAllByTestId('field-error-icon', hidden)).toHaveLength(0);
+      // The hints stay what they are, in their own colour.
+      expect(screen.getByText(NICK_HINT)).toBeTruthy();
+      expect(screen.getByText(INTERESTS_HINT)).toHaveStyle({ color: lightTheme.colors.text.secondary });
+    };
 
-    it('a nick of only spaces counts as empty', async () => {
+    it('an empty form: the button is disabled, a tap and the keyboard key do nothing', async () => {
       const create = useRepository();
       await openSetup();
-      await fireEvent.changeText(nickField(), '   ');
-      await fireEvent.press(chip('Muzea'));
+      expect(saveButton()).toBeDisabled();
 
       await fireEvent.press(saveButton());
+      await fireEvent(nickField(), 'submitEditing');
 
-      expect(screen.getByText(NICK_REQUIRED)).toBeTruthy();
       expect(create).not.toHaveBeenCalled();
+      expectNoErrors();
     });
 
-    it.each([['ab'], ['1abc'], ['a'.repeat(21)], ['ab..cd'], ['abc.'], ['ab cd'], ['ab-cd'], ['żółw1']])(
-      'the nick "%s" has a bad format: the format error, no request',
+    it('a valid nick and no interest: the button is disabled', async () => {
+      const create = useRepository();
+      await openSetup();
+      await fireEvent.changeText(nickField(), 'kacper');
+
+      expect(saveButton()).toBeDisabled();
+      await fireEvent.press(saveButton());
+      await fireEvent(nickField(), 'submitEditing');
+
+      expect(create).not.toHaveBeenCalled();
+      expectNoErrors();
+    });
+
+    it('an interest and no nick: the button is disabled', async () => {
+      const create = useRepository();
+      await openSetup();
+      await fireEvent.press(chip('Muzea'));
+
+      expect(saveButton()).toBeDisabled();
+      await fireEvent.press(saveButton());
+      await fireEvent(nickField(), 'submitEditing');
+
+      expect(create).not.toHaveBeenCalled();
+      expect(screen.queryByText(NICK_REQUIRED)).toBeNull();
+      expect(screen.queryAllByTestId('field-error-icon', hidden)).toHaveLength(0);
+    });
+
+    it.each([['ab'], ['1abc'], ['a..b'], ['a'.repeat(21)], ['ab..cd'], ['abc.'], ['ab cd'], ['ab-cd'], ['żółw1'], ['   ']])(
+      'the nick "%s" is not valid, so with an interest the button is still disabled and nothing is sent',
       async (nick) => {
         const create = useRepository();
         await openSetup();
         await fireEvent.changeText(nickField(), nick);
         await fireEvent.press(chip('Muzea'));
 
+        expect(saveButton()).toBeDisabled();
         await fireEvent.press(saveButton());
+        await fireEvent(nickField(), 'submitEditing');
 
-        expect(screen.getByText(NICK_FORMAT_ERROR)).toBeTruthy();
-        expect(screen.getByText(NICK_FORMAT_ERROR)).toHaveStyle({ color: lightTheme.colors.status.error });
-        expect(screen.queryByText(NICK_HINT)).toBeNull();
-        expect(screen.queryByText(NICK_REQUIRED)).toBeNull();
         expect(create).not.toHaveBeenCalled();
+        expect(screen.queryByText(NICK_REQUIRED)).toBeNull();
+        expect(screen.queryByText(NICK_FORMAT_ERROR)).toBeNull();
+        expect(screen.queryAllByTestId('field-error-icon', hidden)).toHaveLength(0);
+        expect(screen.getByText(NICK_HINT)).toBeTruthy();
       },
     );
 
-    it('no interest: "Wybierz co najmniej jedno." as the error of the interests, in the error colour and with an icon', async () => {
-      const create = useRepository();
+    it('a valid nick and one interest: the button is enabled', async () => {
       await openSetup();
-      await fireEvent.changeText(nickField(), 'kacper');
-      expect(screen.queryAllByTestId('field-error-icon', hidden)).toHaveLength(0);
-
-      await fireEvent.press(saveButton());
-
-      // The hint and the error say the same, so the error takes the hint's place: the text is there once.
-      const error = screen.getByText(INTERESTS_HINT);
-      expect(error).toHaveStyle({ color: lightTheme.colors.status.error });
-      expect(screen.getAllByText(INTERESTS_HINT)).toHaveLength(1);
-      // Not by colour alone: the error comes with an icon, hidden from screen readers (the text is read).
-      expect(screen.getAllByTestId('field-error-icon', hidden)).toHaveLength(1);
-      expect(create).not.toHaveBeenCalled();
+      await fillValid();
+      expect(saveButton()).toBeEnabled();
     });
 
-    it('shows the nick error and the interests error together', async () => {
-      const create = useRepository();
+    it('turns on as soon as the form is complete, whichever half comes last', async () => {
       await openSetup();
-
-      await fireEvent.press(saveButton());
-
-      expect(screen.getByText(NICK_REQUIRED)).toBeTruthy();
-      expect(screen.getByText(INTERESTS_HINT)).toHaveStyle({ color: lightTheme.colors.status.error });
-      expect(screen.getAllByTestId('field-error-icon', hidden)).toHaveLength(2);
-      expect(create).not.toHaveBeenCalled();
-    });
-
-    it('does not read the field errors twice: they are live regions already, so nothing is announced as well', async () => {
-      await openSetup();
-
-      await fireEvent.press(saveButton());
-
-      expect(screen.getByText(NICK_REQUIRED).props.accessibilityLiveRegion).toBe('polite');
-      expect(screen.getByText(INTERESTS_HINT).props.accessibilityLiveRegion).toBe('polite');
-      expect(announce).not.toHaveBeenCalled();
-    });
-
-    it('the nick error goes away when the user types, the interests error when they pick one', async () => {
-      await openSetup();
-      await fireEvent.press(saveButton());
-      expect(screen.getByText(NICK_REQUIRED)).toBeTruthy();
-
-      await fireEvent.changeText(nickField(), 'k');
-      expect(screen.queryByText(NICK_REQUIRED)).toBeNull();
-      expect(screen.getByText(INTERESTS_HINT)).toHaveStyle({ color: lightTheme.colors.status.error });
-
       await fireEvent.press(chip('Muzea'));
-      expect(screen.getByText(INTERESTS_HINT)).toHaveStyle({ color: lightTheme.colors.text.secondary });
-      expect(screen.queryAllByTestId('field-error-icon', hidden)).toHaveLength(0);
+      expect(saveButton()).toBeDisabled();
+      await fireEvent.changeText(nickField(), 'ka');
+      expect(saveButton()).toBeDisabled();
+      await fireEvent.changeText(nickField(), 'kac');
+      expect(saveButton()).toBeEnabled();
     });
 
-    it('a picked interest can be taken back, and then the next save complains again', async () => {
+    it('is disabled again when the last interest is taken back, and the keyboard key does nothing', async () => {
       const create = useRepository();
       await openSetup();
       await fillValid();
+      await fireEvent.press(chip('Plaże'));
       await fireEvent.press(chip('Muzea'));
-      expect(chip('Muzea')).not.toBeChecked();
+      expect(saveButton()).toBeEnabled();
 
-      await fireEvent.press(saveButton());
+      await fireEvent.press(chip('Plaże'));
 
-      expect(screen.getByText(INTERESTS_HINT)).toHaveStyle({ color: lightTheme.colors.status.error });
+      expect(chip('Plaże')).not.toBeChecked();
+      expect(saveButton()).toBeDisabled();
+      await fireEvent(nickField(), 'submitEditing');
       expect(create).not.toHaveBeenCalled();
+      expectNoErrors();
+    });
+
+    it('is disabled again when the nick stops being valid', async () => {
+      await openSetup();
+      await fillValid();
+      expect(saveButton()).toBeEnabled();
+
+      await fireEvent.changeText(nickField(), 'k');
+
+      expect(saveButton()).toBeDisabled();
+    });
+
+    it('keeps the nick hint and shows no format error while the nick is not valid', async () => {
+      await openSetup();
+      await fireEvent.changeText(nickField(), 'ab');
+      expect(screen.getByText(NICK_HINT)).toBeTruthy();
+      expect(screen.queryByText(NICK_FORMAT_ERROR)).toBeNull();
+
+      await fireEvent.changeText(nickField(), 'abc');
+
+      expect(screen.getByText(NICK_HINT)).toBeTruthy();
+    });
+
+    it('the picked photo does not complete the form', async () => {
+      launch.mockResolvedValue(picked(PHOTO));
+      await openSetup();
+      await fireEvent.press(avatarButton());
+      await waitFor(() => expect(screen.getByTestId('avatar-preview', hidden)).toBeTruthy());
+
+      expect(saveButton()).toBeDisabled();
     });
   });
 
@@ -751,6 +748,7 @@ describe('ProfileSetupScreen (auth-onboarding D7, D20, P1, P2, P4, P5)', () => {
       expect(saveButton()).toBeEnabled();
       expect(saveButton()).not.toBeBusy();
       // The field error is a live region; nothing else is announced.
+      expect(screen.getByText(NICK_TAKEN).props.accessibilityLiveRegion).toBe('polite');
       expect(announce).not.toHaveBeenCalled();
     });
 
@@ -872,18 +870,17 @@ describe('ProfileSetupScreen (auth-onboarding D7, D20, P1, P2, P4, P5)', () => {
       expect(tree().indexOf(INTERESTS_HINT)).toBeLessThan(tree().indexOf('Zabawa'));
     });
 
-    it("the error takes the hint's place under the heading, before the first group, with its icon, as the only copy", async () => {
+    it('while no interest is picked the hint stays a plain hint: its own colour, no error icon, never an error (D4, P4)', async () => {
       await openSetup();
       await fireEvent.changeText(nickField(), 'kacper');
 
-      await fireEvent.press(saveButton());
+      await fireEvent(nickField(), 'submitEditing');
 
       expect(tree().indexOf(INTERESTS_LABEL)).toBeLessThan(tree().indexOf(INTERESTS_HINT));
       expect(tree().indexOf(INTERESTS_HINT)).toBeLessThan(tree().indexOf('Zabawa'));
       expect(screen.getAllByText(INTERESTS_HINT)).toHaveLength(1);
-      expect(screen.getByText(INTERESTS_HINT)).toHaveStyle({ color: lightTheme.colors.status.error });
-      expect(screen.getAllByTestId('field-error-icon', hidden)).toHaveLength(1);
-      expect(screen.getByText(INTERESTS_HINT).props.accessibilityLiveRegion).toBe('polite');
+      expect(screen.getByText(INTERESTS_HINT)).toHaveStyle({ color: lightTheme.colors.text.secondary });
+      expect(screen.queryAllByTestId('field-error-icon', hidden)).toHaveLength(0);
     });
 
     /**
@@ -906,54 +903,23 @@ describe('ProfileSetupScreen (auth-onboarding D7, D20, P1, P2, P4, P5)', () => {
     }
 
     it('the nick keeps its hint and its error under the input: siblings after the input in its Field', async () => {
+      useRepository({ takenUsernames: ['kacper'] });
       await openSetup();
       const hint = nickSiblingOrder(NICK_HINT);
       expect(hint.input).toBeGreaterThanOrEqual(0);
       expect(hint.message).toBeGreaterThan(hint.input);
 
+      await fillValid('kacper');
       await fireEvent.press(saveButton());
+      await waitFor(() => expect(screen.getByText(NICK_TAKEN)).toBeTruthy());
 
-      const error = nickSiblingOrder(NICK_REQUIRED);
+      const error = nickSiblingOrder(NICK_TAKEN);
       expect(error.input).toBeGreaterThanOrEqual(0);
       expect(error.message).toBeGreaterThan(error.input);
     });
   });
 
-  describe('a failed save scrolls to the first error and focuses it (D24)', () => {
-    it('an empty nick and no interest: the nick is first', async () => {
-      await openLaidOut();
-
-      await fireEvent.press(saveButton());
-
-      expect(scrollTo()).toHaveBeenCalledTimes(1);
-      expect(scrollTo()).toHaveBeenCalledWith({ y: NICK_Y, animated: false });
-      expect(screenReaderFocus()).toHaveBeenCalledTimes(1);
-      expect(screenReaderFocus()).toHaveBeenCalledWith(NICK_HANDLE);
-    });
-
-    it('a badly formatted nick: the nick', async () => {
-      await openLaidOut();
-      await fireEvent.changeText(nickField(), 'ab');
-      await fireEvent.press(chip('Muzea'));
-
-      await fireEvent.press(saveButton());
-
-      expect(scrollTo()).toHaveBeenCalledWith({ y: NICK_Y, animated: false });
-      expect(screenReaderFocus()).toHaveBeenCalledWith(NICK_HANDLE);
-    });
-
-    it('a good nick and no interest: the interests', async () => {
-      await openLaidOut();
-      await fireEvent.changeText(nickField(), 'kacper');
-
-      await fireEvent.press(saveButton());
-
-      expect(scrollTo()).toHaveBeenCalledTimes(1);
-      expect(scrollTo()).toHaveBeenCalledWith({ y: INTERESTS_Y, animated: false });
-      expect(screenReaderFocus()).toHaveBeenCalledTimes(1);
-      expect(screenReaderFocus()).toHaveBeenCalledWith(INTERESTS_HANDLE);
-    });
-
+  describe('a taken nick scrolls to the nick and focuses it (D24)', () => {
     it('a taken nick counts as a nick error: it scrolls to the nick and focuses it', async () => {
       useRepository({ takenUsernames: ['kacper'] });
       await openLaidOut();
@@ -969,14 +935,16 @@ describe('ProfileSetupScreen (auth-onboarding D7, D20, P1, P2, P4, P5)', () => {
       expect(screenReaderFocus()).toHaveBeenCalledWith(NICK_HANDLE);
     });
 
-    it('scrolls to where the block is now, not where it first was', async () => {
+    it('scrolls to where the nick block is now, not where it first was', async () => {
+      useRepository({ takenUsernames: ['kacper'] });
       await openLaidOut();
-      await layOut('profile-interests-block', INTERESTS_Y + 100); // e.g. a bigger font, or the offline banner appearing
-      await fireEvent.changeText(nickField(), 'kacper');
+      await layOut('profile-nick-block', NICK_Y + 100); // e.g. a bigger font, or the offline banner appearing
+      await fillValid('kacper');
 
       await fireEvent.press(saveButton());
 
-      expect(scrollTo()).toHaveBeenCalledWith({ y: INTERESTS_Y + 100, animated: false });
+      await waitFor(() => expect(screen.getByText(NICK_TAKEN)).toBeTruthy());
+      expect(scrollTo()).toHaveBeenCalledWith({ y: NICK_Y + 100, animated: false });
     });
 
     it('does not scroll or move focus when the save succeeds', async () => {
@@ -1004,9 +972,22 @@ describe('ProfileSetupScreen (auth-onboarding D7, D20, P1, P2, P4, P5)', () => {
       expect(screenReaderFocus()).not.toHaveBeenCalled();
     });
 
-    it('does not scroll while offline, where nothing is checked', async () => {
+    it('does not scroll or move focus for an incomplete form: nothing is checked, so there is no error to go to (D4, P4)', async () => {
+      await openLaidOut();
+
+      await fireEvent.press(saveButton());
+      await fireEvent(nickField(), 'submitEditing');
+      await fireEvent.changeText(nickField(), 'ab');
+      await fireEvent(nickField(), 'submitEditing');
+
+      expect(scrollTo()).not.toHaveBeenCalled();
+      expect(screenReaderFocus()).not.toHaveBeenCalled();
+    });
+
+    it('does not scroll while offline, where nothing is sent', async () => {
       setNetwork({ isConnected: false, isInternetReachable: false });
       await openLaidOut();
+      await fillValid();
 
       await fireEvent.press(saveButton());
 
