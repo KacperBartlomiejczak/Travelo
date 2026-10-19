@@ -58,7 +58,7 @@ describe('readProviderProfile', () => {
     await expect(readProviderProfile(auth)).resolves.toEqual(NOTHING);
   });
 
-  it('reads the stored session only, with no network call of its own', async () => {
+  it('uses only getSession: no sign-in or other auth call of its own', async () => {
     const { auth, getSession } = authWith(GOOGLE_USER);
     expect(Object.keys(auth)).toEqual(['getSession']);
     await readProviderProfile(auth);

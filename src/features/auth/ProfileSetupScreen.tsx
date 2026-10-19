@@ -24,7 +24,8 @@ import { AvatarPicker } from './AvatarPicker';
  * After a Google / Discord sign-in the nick and the photo are suggested from the account (theme-split-and-profile-prefill P5, P7): the
  * nick is filled in, the photo is downloaded into a local file while the circle shows a spinner, and the save button does not wait for it.
  * It is only a suggestion: whatever the user typed or picked first is never replaced, a photo that cannot be downloaded leaves the empty
- * circle with no error (the photo is optional), and nothing is set once the screen is gone. An e-mail sign-in suggests nothing.
+ * circle with no error (the photo is optional), and nothing is set once the screen is gone. A photo that arrives while a save is in flight
+ * is shown only if that save fails (D12), so the next try sends it; after a successful save it is dropped. An e-mail sign-in suggests nothing.
  * Whatever failed, the nick, the interests and the photo stay. A success needs nothing here: the profile query now holds the profile,
  * the gate moves on, and until then the screen stays busy so nothing can be sent twice. Offline the button is disabled under the
  * offline banner. The taken-nick error is a live region already, so only the general error and the photo error are announced by
@@ -39,9 +40,12 @@ export function ProfileSetupScreen() {
   const [interests, setInterests] = useState<InterestTag[]>([]);
   const [avatarUri, setAvatarUri] = useState<string | null>(null);
   const [avatarLoading, setAvatarLoading] = useState(false);
-  // What the user did themselves wins over the suggestion from the account, however late it arrives (P5).
+  // What the user did themselves wins over the suggestion from the account, however late it arrives (P5, D12): a typed nick, a gallery photo.
   const nickChosen = useRef(false);
   const avatarChosen = useRef(false);
+  // The account photo is applied only while no save has succeeded, and a photo that arrives while a save is in flight waits for its outcome (D12).
+  const saveOutcome = useRef<'idle' | 'saving' | 'saved'>('idle');
+  const latePhoto = useRef<string | null>(null);
   const [usernameError, setUsernameError] = useState<string>();
   // `create.isPending` only updates on the next render; this closes the gap between two taps in the same moment.
   const saving = useRef(false);
@@ -70,7 +74,10 @@ export function ProfileSetupScreen() {
       setAvatarLoading(true);
       try {
         const uri = await appProviderProfile.downloadAvatar(suggestion.avatarUrl);
-        if (mounted && !avatarChosen.current) setAvatarUri(uri);
+        if (mounted && !avatarChosen.current) {
+          if (saveOutcome.current === 'idle') setAvatarUri(uri);
+          else if (saveOutcome.current === 'saving') latePhoto.current = uri;
+        }
       } catch {
         // The photo is optional: the circle stays empty and nothing is shown.
       } finally {
@@ -104,10 +111,18 @@ export function ProfileSetupScreen() {
   function submit() {
     if (offline || busy || saving.current || !parsed.success) return;
     saving.current = true;
-    // A photo from the account that is still on its way is no longer wanted.
-    avatarChosen.current = true;
+    saveOutcome.current = 'saving';
     create.mutate(parsed.data, {
+      onSuccess: () => {
+        // The profile is saved and the gate moves on: a photo that is still on its way changes nothing any more.
+        saveOutcome.current = 'saved';
+        latePhoto.current = null;
+      },
       onError: (error) => {
+        // The form stays, so an account photo that arrived (or arrives) during the save is shown for the next try, unless the user has picked their own.
+        saveOutcome.current = 'idle';
+        if (latePhoto.current && !avatarChosen.current) setAvatarUri(latePhoto.current);
+        latePhoto.current = null;
         if (error instanceof UsernameTakenError) {
           setUsernameError(t('auth.profile.usernameTaken'));
           showNickError();

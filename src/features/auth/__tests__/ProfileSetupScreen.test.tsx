@@ -6,7 +6,7 @@ import { ZodError } from 'zod';
 
 import { appProviderProfile } from '@/data/app-provider-profile';
 import { ServerUnreachableError } from '@/data/errors';
-import { createInMemoryProfileRepository, type ProfileRepository } from '@/data/profile-repository';
+import { createInMemoryProfileRepository, UsernameTakenError, type ProfileRepository } from '@/data/profile-repository';
 import i18n from '@/i18n';
 import { AppProviders } from '@/providers/AppProviders';
 import { setAppProfileRepository } from '@/test/fake-profile-repository';
@@ -1244,6 +1244,126 @@ describe('ProfileSetupScreen (auth-onboarding D7, D20, P1, P2, P4, P5)', () => {
 
         await photo.resolve(DOWNLOADED);
         expect(screen.queryByTestId('avatar-preview', hidden)).toBeNull();
+      });
+
+      describe('a save that fails while the photo is still on its way (theme-split-and-profile-prefill D12)', () => {
+        /** Opens the screen, waits for the spinner, picks an interest and presses save: the save is in flight and the photo is not there yet. */
+        async function saveWhileDownloading() {
+          const photo = holdDownload(GOOGLE);
+          const save = holdSave();
+          await openSetup();
+          await waitFor(() => expect(screen.getByTestId(AVATAR_LOADING, hidden)).toBeTruthy());
+          await fireEvent.press(chip('Muzea'));
+          await fireEvent.press(saveButton());
+          await waitFor(() => expect(save.createProfile).toHaveBeenCalledTimes(1));
+          expect(save.createProfile).toHaveBeenLastCalledWith({ username: 'annanowak', interests: ['museums'], avatarUri: null });
+          return { photo, save };
+        }
+
+        const failing = () => act(async () => {});
+
+        it('the photo that arrives after the failure is shown with "Zmień zdjęcie", and the next save sends it', async () => {
+          const { photo, save } = await saveWhileDownloading();
+          await act(async () => save.fail(new ServerUnreachableError('offline')));
+          await waitFor(() => expect(screen.getByTestId('profile-save-error')).toBeTruthy());
+          expect(screen.queryByTestId('avatar-preview', hidden)).toBeNull();
+
+          await photo.resolve(DOWNLOADED);
+
+          expect(preview().props.source).toEqual([{ uri: DOWNLOADED }]);
+          expect(avatarButton().props.accessibilityLabel).toBe(AVATAR_CHANGE);
+          expect(screen.queryByTestId(AVATAR_LOADING, hidden)).toBeNull();
+          await fireEvent.press(saveButton());
+          await waitFor(() => expect(save.createProfile).toHaveBeenCalledTimes(2));
+          expect(save.createProfile).toHaveBeenLastCalledWith({ username: 'annanowak', interests: ['museums'], avatarUri: DOWNLOADED });
+        });
+
+        it('the photo that arrives before the failure settles is shown once the save has failed, not before', async () => {
+          const { photo, save } = await saveWhileDownloading();
+
+          await photo.resolve(DOWNLOADED);
+          expect(screen.queryByTestId('avatar-preview', hidden)).toBeNull();
+          expect(screen.queryByTestId(AVATAR_LOADING, hidden)).toBeNull();
+
+          await act(async () => save.fail(new ServerUnreachableError('offline')));
+          await failing();
+
+          expect(preview().props.source).toEqual([{ uri: DOWNLOADED }]);
+          expect(avatarButton().props.accessibilityLabel).toBe(AVATAR_CHANGE);
+          await fireEvent.press(saveButton());
+          await waitFor(() => expect(save.createProfile).toHaveBeenCalledTimes(2));
+          expect(save.createProfile).toHaveBeenLastCalledWith({ username: 'annanowak', interests: ['museums'], avatarUri: DOWNLOADED });
+        });
+
+        it('a taken nick counts as a failed save too: the photo is shown afterwards', async () => {
+          const { photo, save } = await saveWhileDownloading();
+          await photo.resolve(DOWNLOADED);
+
+          await act(async () => save.fail(new UsernameTakenError()));
+          await failing();
+
+          expect(screen.getByText(NICK_TAKEN)).toBeTruthy();
+          expect(preview().props.source).toEqual([{ uri: DOWNLOADED }]);
+        });
+
+        it('a save that succeeds changes nothing: the photo that arrives before or after it is never shown', async () => {
+          const { photo, save } = await saveWhileDownloading();
+          await photo.resolve(DOWNLOADED);
+
+          await act(async () => save.finish());
+          await failing();
+
+          expect(screen.queryByTestId('avatar-preview', hidden)).toBeNull();
+          expect(avatarButton().props.accessibilityLabel).toBe(AVATAR);
+        });
+
+        it('a save that succeeds before the photo arrives: the late photo is not shown', async () => {
+          const { photo, save } = await saveWhileDownloading();
+
+          await act(async () => save.finish());
+          await failing();
+          await photo.resolve(DOWNLOADED);
+
+          expect(screen.queryByTestId('avatar-preview', hidden)).toBeNull();
+          expect(avatarButton().props.accessibilityLabel).toBe(AVATAR);
+        });
+
+        it('a gallery photo picked afterwards stays, and the next save sends it', async () => {
+          launch.mockResolvedValue(picked(PHOTO));
+          const { photo, save } = await saveWhileDownloading();
+          await act(async () => save.fail(new ServerUnreachableError('offline')));
+          await photo.resolve(DOWNLOADED);
+          expect(preview().props.source).toEqual([{ uri: DOWNLOADED }]);
+
+          await fireEvent.press(avatarButton());
+          await waitFor(() => expect(preview().props.source).toEqual([{ uri: PHOTO }]));
+          await fireEvent.press(saveButton());
+
+          await waitFor(() => expect(save.createProfile).toHaveBeenCalledTimes(2));
+          expect(save.createProfile).toHaveBeenLastCalledWith({ username: 'annanowak', interests: ['museums'], avatarUri: PHOTO });
+        });
+
+        it('a gallery photo picked before the late photo arrives stays when the save fails', async () => {
+          const suggestion = deferred<Suggestion>();
+          read.mockReturnValue(suggestion.promise);
+          download.mockResolvedValue(DOWNLOADED);
+          launch.mockResolvedValue(picked(PHOTO));
+          const save = holdSave();
+          await openSetup();
+          await fireEvent.press(avatarButton());
+          await waitFor(() => expect(preview().props.source).toEqual([{ uri: PHOTO }]));
+          await fireEvent.changeText(nickField(), 'ania');
+          await fireEvent.press(chip('Muzea'));
+          await fireEvent.press(saveButton());
+          await waitFor(() => expect(save.createProfile).toHaveBeenCalledTimes(1));
+
+          await suggestion.resolve(GOOGLE);
+          await act(async () => save.fail(new ServerUnreachableError('offline')));
+          await failing();
+
+          expect(preview().props.source).toEqual([{ uri: PHOTO }]);
+          expect(download).not.toHaveBeenCalled();
+        });
       });
     });
 
