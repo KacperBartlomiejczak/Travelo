@@ -42,11 +42,11 @@ Platforms: iOS and Android (Expo / React Native). Languages: Polish (`pl`) and E
 9. **Offline reading** — the trip list and every trip opened on the phone are kept in SQLite.
 10. **Pill navigation** — a floating bottom pill with five screens (four of them are placeholders).
 11. **Confirm dialog** — in-app dialog used when leaving the wizard with entered data.
-12. **Sign-in and profile** (`prompts/auth-onboarding/`) — a required account: Google, Discord or e-mail with a 6-digit code; on first sign-in a profile with a unique nick, interests and an optional photo; a server-generated friend code, not shown yet. The device run (step 9) is partly done.
+12. **Trip covers** (`prompts/trip-covers/`) — every trip has a cover: one of five bundled photos (Auckland by default) or a photo from the gallery, uploaded to Storage.
+13. **Profile tab** (`prompts/profile-tab/`) — the fifth pill item is "Profil" (route `/profile`, title "Profil użytkownika", `CircleUser` icon); still an empty placeholder.
+14. **Sign-in and profile** (`prompts/auth-onboarding/`) — a required account: Google, Discord or e-mail with a 6-digit code; on first sign-in a profile with a unique nick, interests and an optional photo; a server-generated friend code, not shown yet. The device run (step 9) is partly done.
 
 ### In progress (plans in `prompts/`)
-- **Trip covers** (`prompts/trip-covers/`) — ready-made cover photos bundled in the app plus "from the gallery"; every trip always has a cover; gallery covers upload to Storage.
-- **Profile tab** (`prompts/profile-tab/`) — the fifth pill item "Ustawienia" becomes "Profil" (route `/profile`, person icon); still an empty placeholder.
 - **Expenses** (`prompts/expenses/`) — drafting; the "Wydatki" screen is an empty placeholder until then.
 
 ### Not started (MVP)
@@ -104,7 +104,7 @@ The trip view, top to bottom:
 "Twoje podróże", with sections "Nadchodzące" (not ended yet, soonest first) and "Minione" (most recently ended first). A row has a thumbnail, the name (2 lines) and the dates; the open trip is marked. Tapping another trip makes it the current trip and closes the panel. Footer: "Nowa podróż" (starts the wizard). Loading, error, empty and offline states exist.
 
 ### 3.4 Trip menu (⋮)
-A bottom sheet with: **"Nazwa i zdjęcie"** (rename up to 60 characters, change or remove the cover), **"Zmień budżet"** and **"Usuń podróż"** (a confirmation sheet; afterwards the home screen shows the default trip or the empty state and a "Podróż usunięta." snackbar). Rename, cover change and delete go straight to Supabase and are **disabled offline**.
+A bottom sheet with: **"Nazwa i zdjęcie"** (rename up to 60 characters, change the cover — a cover is always required), **"Zmień budżet"** and **"Usuń podróż"** (a confirmation sheet; afterwards the home screen shows the default trip or the empty state and a "Podróż usunięta." snackbar). Rename, cover change and delete go straight to Supabase and are **disabled offline**.
 
 ### 3.5 Create-trip wizard (`/trips/new`)
 Four steps. Each step validates its slice with a Zod schema on "Dalej". Leaving with entered data asks through the in-app confirm dialog ("Odrzucić wpisane dane?").
@@ -152,7 +152,8 @@ Money          { amountMinor: int, currency: ISO4217 }
 CostEstimate   { minMinor: int, maxMinor: int, currency: ISO4217, perPerson: boolean }
 
 Trip           { id, ownerId, name (1–60), destination: IATA,       // destination = outbound's final airport
-                 coverImageUri?, startDate, endDate,                // dates derived from flights
+                 coverImageUri,                                     // required: 'preset:<id>' | 'photo:<uuid>'
+                 startDate, endDate,                                // dates derived from flights
                  baseCurrency, budgetPerPerson: Money,              // whole trip, without flights
                  budgetUpdatedAt, createdAt }                       // last write wins on sync
 

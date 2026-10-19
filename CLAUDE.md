@@ -135,7 +135,7 @@ CostEstimate   { minMinor: int, maxMinor: int, currency: ISO4217, perPerson: boo
 
 Trip           { id, ownerId, name, destination: IATA,     // destination = outbound's final airport
                                                            // name: organizer's, default "<from city> → <destination city>", ≤ 60 chars
-                 coverImageUri?,                           // optional cover photo (device-local URI, stored as-is in Supabase)
+                 coverImageUri,                            // required cover: 'preset:<id>' (bundled) | 'photo:<uuid>' (Storage)
                  startDate, endDate,                       // derived from flights
                  baseCurrency, budgetPerPerson: Money,     // whole trip, without flights; daily budget is derived
                  budgetUpdatedAt,                          // last budget change; last write wins on sync
