@@ -4,6 +4,7 @@ import { launchImageLibraryAsync } from 'expo-image-picker';
 import { AccessibilityInfo, findNodeHandle, ScrollView } from 'react-native';
 import { ZodError } from 'zod';
 
+import { appProviderProfile } from '@/data/app-provider-profile';
 import { ServerUnreachableError } from '@/data/errors';
 import { createInMemoryProfileRepository, type ProfileRepository } from '@/data/profile-repository';
 import i18n from '@/i18n';
@@ -1076,6 +1077,351 @@ describe('ProfileSetupScreen (auth-onboarding D7, D20, P1, P2, P4, P5)', () => {
         paddingTop: number;
       };
       expect(style.paddingTop).toBe(lightTheme.spacing[4]);
+    });
+  });
+
+  describe('pre-filled from a Google / Discord sign-in (theme-split-and-profile-prefill P5, P7)', () => {
+    const GOOGLE_URL = 'https://lh3.googleusercontent.com/a/ACg8ocAnnaNowakPhoto=s512-c';
+    const DISCORD_URL = 'https://cdn.discordapp.com/avatars/123456789012345678/abcdef0123456789.png?size=512';
+    const GOOGLE = { suggestedUsername: 'annanowak', avatarUrl: GOOGLE_URL };
+    const DISCORD = { suggestedUsername: 'jan_kowalski', avatarUrl: DISCORD_URL };
+    const DOWNLOADED = 'file:///data/cache/avatar-1';
+    const AVATAR_LOADING = 'avatar-loading';
+
+    const read = jest.mocked(appProviderProfile.read);
+    const download = jest.mocked(appProviderProfile.downloadAvatar);
+
+    type Suggestion = Awaited<ReturnType<typeof appProviderProfile.read>>;
+
+    /** A promise the test settles when it wants. */
+    function deferred<T>() {
+      let resolve: (value: T) => void = () => {};
+      let reject: (error: Error) => void = () => {};
+      const promise = new Promise<T>((res, rej) => {
+        resolve = res;
+        reject = rej;
+      });
+      return { promise, resolve: (value: T) => act(async () => resolve(value)), reject: (error: Error) => act(async () => reject(error)) };
+    }
+
+    /** The sign-in told us this; the photo downloads at once. */
+    function suggest(suggestion: Suggestion) {
+      read.mockResolvedValue(suggestion);
+      download.mockResolvedValue(DOWNLOADED);
+    }
+
+    /** The sign-in told us this; the photo stays on its way until the test finishes it. */
+    function holdDownload(suggestion: Suggestion) {
+      const photo = deferred<string>();
+      read.mockResolvedValue(suggestion);
+      download.mockReturnValue(photo.promise);
+      return photo;
+    }
+
+    const preview = () => screen.getByTestId('avatar-preview', hidden);
+
+    beforeEach(() => {
+      read.mockReset();
+      read.mockResolvedValue({ suggestedUsername: null, avatarUrl: null });
+      download.mockReset();
+      download.mockRejectedValue(new Error('No download expected'));
+    });
+
+    it('a Google user: the nick is filled in, the photo is downloaded from the 512 px address and shown, and the button says "Zmień zdjęcie"', async () => {
+      suggest(GOOGLE);
+      await openSetup();
+
+      await waitFor(() => expect(preview().props.source).toEqual([{ uri: DOWNLOADED }]));
+      expect(nickField().props.value).toBe('annanowak');
+      expect(download).toHaveBeenCalledTimes(1);
+      expect(download).toHaveBeenCalledWith(GOOGLE_URL);
+      expect(avatarButton().props.accessibilityLabel).toBe(AVATAR_CHANGE);
+      expect(screen.getByText(AVATAR_CHANGE)).toBeTruthy();
+      expect(screen.queryByTestId(AVATAR_LOADING, hidden)).toBeNull();
+      expect(screen.queryByTestId('avatar-error', hidden)).toBeNull();
+    });
+
+    it('a Discord user: the same with the Discord nick and photo', async () => {
+      suggest(DISCORD);
+      await openSetup();
+
+      await waitFor(() => expect(preview().props.source).toEqual([{ uri: DOWNLOADED }]));
+      expect(nickField().props.value).toBe('jan_kowalski');
+      expect(download).toHaveBeenCalledWith(DISCORD_URL);
+      expect(avatarButton().props.accessibilityLabel).toBe(AVATAR_CHANGE);
+    });
+
+    it('a user with a nick but no photo: only the nick is filled in and nothing is downloaded', async () => {
+      suggest({ suggestedUsername: 'annanowak', avatarUrl: null });
+      await openSetup();
+
+      await waitFor(() => expect(nickField().props.value).toBe('annanowak'));
+      expect(download).not.toHaveBeenCalled();
+      expect(avatarButton().props.accessibilityLabel).toBe(AVATAR);
+      expect(screen.getByTestId('avatar-placeholder')).toBeTruthy();
+    });
+
+    it('an e-mail user: the form starts empty as before, "Dodaj zdjęcie", and nothing is downloaded', async () => {
+      await openSetup();
+      await act(async () => {});
+
+      expect(read).toHaveBeenCalledTimes(1);
+      expect(nickField().props.value).toBe('');
+      expect(avatarButton().props.accessibilityLabel).toBe(AVATAR);
+      expect(screen.getByTestId('avatar-placeholder')).toBeTruthy();
+      expect(download).not.toHaveBeenCalled();
+      expect(saveButton()).toBeDisabled();
+    });
+
+    it('speaks English on an English phone', async () => {
+      await i18n.changeLanguage('en');
+      suggest(GOOGLE);
+      await openSetup();
+
+      await waitFor(() => expect(screen.getByRole('button', { name: 'Change photo' })).toBeTruthy());
+      expect(screen.getByLabelText('Username').props.value).toBe('annanowak');
+    });
+
+    it('only suggests: the interests are still to pick, so the button waits for them', async () => {
+      suggest(GOOGLE);
+      await openSetup();
+      await waitFor(() => expect(preview()).toBeTruthy());
+
+      expect(saveButton()).toBeDisabled();
+      await fireEvent.press(chip('Muzea'));
+      expect(saveButton()).toBeEnabled();
+    });
+
+    describe('while the photo downloads', () => {
+      it('the circle shows a spinner instead of the camera and is busy for screen readers; the button cannot open the gallery', async () => {
+        holdDownload(GOOGLE);
+        await openSetup();
+
+        await waitFor(() => expect(screen.getByTestId(AVATAR_LOADING, hidden)).toBeTruthy());
+        expect(screen.queryByTestId('avatar-camera', hidden)).toBeNull();
+        expect(avatarButton().props.accessibilityLabel).toBe(AVATAR);
+        expect(avatarButton()).toBeBusy();
+        expect(avatarButton()).toBeDisabled();
+        expect(screen.getByTestId('avatar-placeholder')).toHaveStyle({
+          width: lightTheme.size.avatarSetup,
+          height: lightTheme.size.avatarSetup,
+        });
+
+        await fireEvent.press(avatarButton());
+        expect(launch).not.toHaveBeenCalled();
+      });
+
+      it('the nick is filled in at once and the button follows the form, not the download', async () => {
+        const photo = holdDownload(GOOGLE);
+        await openSetup();
+        await waitFor(() => expect(screen.getByTestId(AVATAR_LOADING, hidden)).toBeTruthy());
+        expect(nickField().props.value).toBe('annanowak');
+        expect(saveButton()).toBeDisabled();
+
+        await fireEvent.press(chip('Muzea'));
+
+        expect(screen.getByTestId(AVATAR_LOADING, hidden)).toBeTruthy();
+        expect(saveButton()).toBeEnabled();
+
+        await photo.resolve(DOWNLOADED);
+        expect(screen.queryByTestId(AVATAR_LOADING, hidden)).toBeNull();
+        expect(preview().props.source).toEqual([{ uri: DOWNLOADED }]);
+        expect(avatarButton()).not.toBeBusy();
+        expect(avatarButton()).toBeEnabled();
+        expect(saveButton()).toBeEnabled();
+      });
+
+      it('saving before the photo arrives sends no photo, and the late photo is not shown afterwards', async () => {
+        const photo = holdDownload(GOOGLE);
+        const create = useRepository();
+        await openSetup();
+        await waitFor(() => expect(screen.getByTestId(AVATAR_LOADING, hidden)).toBeTruthy());
+        await fireEvent.press(chip('Muzea'));
+
+        await fireEvent.press(saveButton());
+        await waitFor(() => expect(create).toHaveBeenCalledTimes(1));
+        expect(create).toHaveBeenCalledWith({ username: 'annanowak', interests: ['museums'], avatarUri: null });
+
+        await photo.resolve(DOWNLOADED);
+        expect(screen.queryByTestId('avatar-preview', hidden)).toBeNull();
+      });
+    });
+
+    describe('when the photo cannot be downloaded (the photo is optional)', () => {
+      it('the circle stays empty, the button says "Dodaj zdjęcie", and no error is shown or announced', async () => {
+        read.mockResolvedValue(GOOGLE);
+        download.mockRejectedValue(new Error('response has status 404'));
+        await openSetup();
+
+        await waitFor(() => expect(download).toHaveBeenCalledTimes(1));
+        await waitFor(() => expect(screen.queryByTestId(AVATAR_LOADING, hidden)).toBeNull());
+        expect(screen.getByTestId('avatar-placeholder')).toBeTruthy();
+        expect(screen.getByTestId('avatar-camera', hidden)).toBeTruthy();
+        expect(screen.queryByTestId('avatar-preview', hidden)).toBeNull();
+        expect(avatarButton().props.accessibilityLabel).toBe(AVATAR);
+        expect(avatarButton()).toBeEnabled();
+        expect(avatarButton()).not.toBeBusy();
+        expect(screen.queryByTestId('avatar-error', hidden)).toBeNull();
+        expect(screen.queryByText(PICK_ERROR)).toBeNull();
+        expect(screen.queryByText(/validation\./)).toBeNull();
+        expect(screen.queryByText(/avatarUrl/i)).toBeNull();
+        expect(screen.queryByText(SAVE_ERROR)).toBeNull();
+        expect(announce).not.toHaveBeenCalled();
+        // The nick from the account stays, and the photo can still be picked.
+        expect(nickField().props.value).toBe('annanowak');
+      });
+
+      it('the gallery still works after a failed download', async () => {
+        read.mockResolvedValue(GOOGLE);
+        download.mockRejectedValue(new Error('offline'));
+        launch.mockResolvedValue(picked(PHOTO));
+        await openSetup();
+        await waitFor(() => expect(download).toHaveBeenCalledTimes(1));
+        await waitFor(() => expect(screen.queryByTestId(AVATAR_LOADING, hidden)).toBeNull());
+
+        await fireEvent.press(avatarButton());
+
+        await waitFor(() => expect(preview().props.source).toEqual([{ uri: PHOTO }]));
+      });
+
+      it('a suggestion that cannot even be read leaves the form empty and shows no error', async () => {
+        read.mockRejectedValue(new Error('storage broken'));
+        await openSetup();
+        await act(async () => {});
+
+        expect(nickField().props.value).toBe('');
+        expect(avatarButton().props.accessibilityLabel).toBe(AVATAR);
+        expect(download).not.toHaveBeenCalled();
+        expect(screen.queryByTestId('avatar-error', hidden)).toBeNull();
+        expect(announce).not.toHaveBeenCalled();
+      });
+    });
+
+    describe("the user's own choices are never overwritten", () => {
+      it('text typed in the nick field before the suggestion arrives stays', async () => {
+        const suggestion = deferred<Suggestion>();
+        read.mockReturnValue(suggestion.promise);
+        download.mockResolvedValue(DOWNLOADED);
+        await openSetup();
+        await fireEvent.changeText(nickField(), 'moj.nick');
+
+        await suggestion.resolve(GOOGLE);
+
+        expect(nickField().props.value).toBe('moj.nick');
+        // The photo was not touched by the user, so it is still suggested.
+        await waitFor(() => expect(preview().props.source).toEqual([{ uri: DOWNLOADED }]));
+      });
+
+      it('a nick that was typed and then deleted is still the user\'s: it stays empty', async () => {
+        const suggestion = deferred<Suggestion>();
+        read.mockReturnValue(suggestion.promise);
+        await openSetup();
+        await fireEvent.changeText(nickField(), 'abc');
+        await fireEvent.changeText(nickField(), '');
+
+        await suggestion.resolve({ suggestedUsername: 'annanowak', avatarUrl: null });
+
+        expect(nickField().props.value).toBe('');
+      });
+
+      it('a gallery photo picked before the suggestion arrives stays, and the account photo is not even downloaded', async () => {
+        const suggestion = deferred<Suggestion>();
+        read.mockReturnValue(suggestion.promise);
+        download.mockResolvedValue(DOWNLOADED);
+        launch.mockResolvedValue(picked(PHOTO));
+        await openSetup();
+        await fireEvent.press(avatarButton());
+        await waitFor(() => expect(preview().props.source).toEqual([{ uri: PHOTO }]));
+
+        await suggestion.resolve(GOOGLE);
+
+        expect(preview().props.source).toEqual([{ uri: PHOTO }]);
+        expect(download).not.toHaveBeenCalled();
+        expect(screen.queryByTestId(AVATAR_LOADING, hidden)).toBeNull();
+        // The nick was not touched by the user, so it is still suggested.
+        expect(nickField().props.value).toBe('annanowak');
+      });
+
+      it('after the suggestion the user can change the nick and replace the photo from the gallery', async () => {
+        suggest(GOOGLE);
+        launch.mockResolvedValue(picked(PHOTO));
+        const create = useRepository();
+        await openSetup();
+        await waitFor(() => expect(preview().props.source).toEqual([{ uri: DOWNLOADED }]));
+
+        await fireEvent.changeText(nickField(), 'Ania');
+        await fireEvent.press(avatarButton());
+        await waitFor(() => expect(preview().props.source).toEqual([{ uri: PHOTO }]));
+        await fireEvent.press(chip('Muzea'));
+        await fireEvent.press(saveButton());
+
+        await waitFor(() => expect(create).toHaveBeenCalledTimes(1));
+        expect(create).toHaveBeenCalledWith({ username: 'ania', interests: ['museums'], avatarUri: PHOTO });
+      });
+    });
+
+    describe('leaving the screen', () => {
+      it('a photo that arrives after the screen is gone sets no state and logs nothing', async () => {
+        const errors = jest.spyOn(console, 'error').mockImplementation(() => {});
+        const photo = holdDownload(GOOGLE);
+        await openSetup();
+        await waitFor(() => expect(screen.getByTestId(AVATAR_LOADING, hidden)).toBeTruthy());
+
+        await act(async () => screen.unmount());
+        await photo.resolve(DOWNLOADED);
+
+        expect(errors).not.toHaveBeenCalled();
+      });
+
+      it('a failed download that ends after the screen is gone logs nothing', async () => {
+        const errors = jest.spyOn(console, 'error').mockImplementation(() => {});
+        const photo = holdDownload(GOOGLE);
+        await openSetup();
+        await waitFor(() => expect(screen.getByTestId(AVATAR_LOADING, hidden)).toBeTruthy());
+
+        await act(async () => screen.unmount());
+        await photo.reject(new Error('offline'));
+
+        expect(errors).not.toHaveBeenCalled();
+      });
+
+      it('a suggestion that arrives after the screen is gone starts no download', async () => {
+        const suggestion = deferred<Suggestion>();
+        read.mockReturnValue(suggestion.promise);
+        await openSetup();
+
+        await act(async () => screen.unmount());
+        await suggestion.resolve(GOOGLE);
+
+        expect(download).not.toHaveBeenCalled();
+      });
+    });
+
+    describe('saving', () => {
+      it('sends the downloaded local file as the photo, with the account nick and the picked interests', async () => {
+        suggest(GOOGLE);
+        const create = useRepository();
+        await openSetup();
+        await waitFor(() => expect(preview().props.source).toEqual([{ uri: DOWNLOADED }]));
+        await fireEvent.press(chip('Muzea'));
+
+        await fireEvent.press(saveButton());
+
+        await waitFor(() => expect(create).toHaveBeenCalledTimes(1));
+        expect(create).toHaveBeenCalledWith({ username: 'annanowak', interests: ['museums'], avatarUri: DOWNLOADED });
+        expect(DOWNLOADED.startsWith('file://')).toBe(true);
+      });
+
+      it('an e-mail user saves with no photo, as before', async () => {
+        const create = useRepository();
+        await openSetup();
+        await fillValid();
+
+        await fireEvent.press(saveButton());
+
+        await waitFor(() => expect(create).toHaveBeenCalledTimes(1));
+        expect(create).toHaveBeenCalledWith({ username: 'kacper', interests: ['museums'], avatarUri: null });
+      });
     });
   });
 });

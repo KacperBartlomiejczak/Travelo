@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { AccessibilityInfo, findNodeHandle, View, type ScrollView, type TextInput } from 'react-native';
 
@@ -6,6 +6,7 @@ import { Field } from '@/components/Field';
 import { InterestChips } from '@/components/InterestChips';
 import { PrimaryButton } from '@/components/PrimaryButton';
 import { TextField } from '@/components/TextField';
+import { appProviderProfile } from '@/data/app-provider-profile';
 import { UsernameTakenError } from '@/data/profile-repository';
 import { useCreateProfile } from '@/hooks/useProfile';
 import { useIsOffline } from '@/providers/BudgetSync';
@@ -20,6 +21,10 @@ import { AvatarPicker } from './AvatarPicker';
  * `ProfileSetupInputSchema` accepts the form (a valid nick and one interest), so nothing is ever checked on a tap: the nick hint and
  * the interests hint say what is needed, and the keyboard "done" key on an incomplete form does nothing, like the button. A taken nick
  * is an error on the nick field; any other failure is fixed copy above the button, announced, and never the error's own message.
+ * After a Google / Discord sign-in the nick and the photo are suggested from the account (theme-split-and-profile-prefill P5, P7): the
+ * nick is filled in, the photo is downloaded into a local file while the circle shows a spinner, and the save button does not wait for it.
+ * It is only a suggestion: whatever the user typed or picked first is never replaced, a photo that cannot be downloaded leaves the empty
+ * circle with no error (the photo is optional), and nothing is set once the screen is gone. An e-mail sign-in suggests nothing.
  * Whatever failed, the nick, the interests and the photo stay. A success needs nothing here: the profile query now holds the profile,
  * the gate moves on, and until then the screen stays busy so nothing can be sent twice. Offline the button is disabled under the
  * offline banner. The taken-nick error is a live region already, so only the general error and the photo error are announced by
@@ -33,6 +38,10 @@ export function ProfileSetupScreen() {
   const [username, setUsername] = useState('');
   const [interests, setInterests] = useState<InterestTag[]>([]);
   const [avatarUri, setAvatarUri] = useState<string | null>(null);
+  const [avatarLoading, setAvatarLoading] = useState(false);
+  // What the user did themselves wins over the suggestion from the account, however late it arrives (P5).
+  const nickChosen = useRef(false);
+  const avatarChosen = useRef(false);
   const [usernameError, setUsernameError] = useState<string>();
   // `create.isPending` only updates on the next render; this closes the gap between two taps in the same moment.
   const saving = useRef(false);
@@ -46,9 +55,43 @@ export function ProfileSetupScreen() {
   const busy = create.isPending || create.isSuccess;
   const saveFailed = create.isError && !(create.error instanceof UsernameTakenError);
 
+  useEffect(() => {
+    let mounted = true;
+    async function prefill() {
+      let suggestion;
+      try {
+        suggestion = await appProviderProfile.read();
+      } catch {
+        return;
+      }
+      if (!mounted) return;
+      if (suggestion.suggestedUsername && !nickChosen.current) setUsername(suggestion.suggestedUsername);
+      if (!suggestion.avatarUrl || avatarChosen.current) return;
+      setAvatarLoading(true);
+      try {
+        const uri = await appProviderProfile.downloadAvatar(suggestion.avatarUrl);
+        if (mounted && !avatarChosen.current) setAvatarUri(uri);
+      } catch {
+        // The photo is optional: the circle stays empty and nothing is shown.
+      } finally {
+        if (mounted) setAvatarLoading(false);
+      }
+    }
+    void prefill();
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
   function changeUsername(text: string) {
+    nickChosen.current = true;
     setUsername(text.toLowerCase());
     setUsernameError(undefined);
+  }
+
+  function pickAvatar(uri: string) {
+    avatarChosen.current = true;
+    setAvatarUri(uri);
   }
 
   /** Jumps to the nick (no animation, so reduced motion needs no special case) and moves the screen reader focus to it. */
@@ -61,6 +104,8 @@ export function ProfileSetupScreen() {
   function submit() {
     if (offline || busy || saving.current || !parsed.success) return;
     saving.current = true;
+    // A photo from the account that is still on its way is no longer wanted.
+    avatarChosen.current = true;
     create.mutate(parsed.data, {
       onError: (error) => {
         if (error instanceof UsernameTakenError) {
@@ -87,7 +132,7 @@ export function ProfileSetupScreen() {
         </>
       }
     >
-      <AvatarPicker uri={avatarUri} onPick={setAvatarUri} disabled={busy} />
+      <AvatarPicker uri={avatarUri} onPick={pickAvatar} disabled={busy} loading={avatarLoading} />
       <View testID="profile-nick-block" onLayout={(event) => (nickY.current = event.nativeEvent.layout.y)}>
         <TextField
           label={t('auth.profile.username')}

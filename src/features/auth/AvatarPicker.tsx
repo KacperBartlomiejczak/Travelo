@@ -3,9 +3,9 @@ import { launchImageLibraryAsync } from 'expo-image-picker';
 import { Camera } from 'lucide-react-native';
 import { useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { AccessibilityInfo, Pressable, Text, View } from 'react-native';
+import { AccessibilityInfo, ActivityIndicator, Pressable, Text, View } from 'react-native';
 
-import { ProfileSetupInputSchema } from '@/schemas';
+import { AvatarUriSchema } from '@/lib/avatar';
 import { useTheme } from '@/theme/useTheme';
 
 import { FormError } from './AuthFormScreen';
@@ -13,23 +13,23 @@ import { FormError } from './AuthFormScreen';
 // The profile photo is square-cropped in the system picker (P2); the app downsizes and re-encodes it when the profile is saved.
 const ASPECT: [number, number] = [1, 1];
 
-// Only a file on the phone can be uploaded later: the picker's uri is checked with the setup form's own rule.
-const AvatarUriSchema = ProfileSetupInputSchema.shape.avatarUri.unwrap();
-
 type Props = {
   /** The picked photo, a `file://` uri; null while there is none. */
   uri: string | null;
   onPick: (uri: string) => void;
   disabled?: boolean;
+  /** A photo is on its way (the account photo of a Google / Discord sign-in): a spinner in the circle, and the button waits. */
+  loading?: boolean;
 };
 
 /**
  * The optional profile photo of the profile setup (auth-onboarding P2, D20): a round placeholder with a camera icon that opens the
- * gallery, and a round preview of the picked photo in its place. Once a photo is chosen the label turns from "Dodaj zdjęcie" into "Zmień zdjęcie" (D21). Cancelling keeps what was chosen before; there is no way to
+ * gallery, and a round preview of the picked photo in its place. While a suggested photo downloads the circle shows a spinner (not a camera) and the button is busy and
+ * disabled (theme-split-and-profile-prefill P7). Once a photo is chosen the label turns from "Dodaj zdjęcie" into "Zmień zdjęcie" (D21). Cancelling keeps what was chosen before; there is no way to
  * remove a photo. A gallery that cannot be opened (or a uri that is not a local file) is a fixed, announced error under the
  * picture, and the earlier choice stays.
  */
-export function AvatarPicker({ uri, onPick, disabled = false }: Props) {
+export function AvatarPicker({ uri, onPick, disabled = false, loading = false }: Props) {
   const { t } = useTranslation();
   const theme = useTheme();
   const [focused, setFocused] = useState(false);
@@ -73,8 +73,8 @@ export function AvatarPicker({ uri, onPick, disabled = false }: Props) {
       <Pressable
         accessibilityRole="button"
         accessibilityLabel={label}
-        accessibilityState={{ disabled }}
-        disabled={disabled}
+        accessibilityState={{ disabled: disabled || loading, busy: loading }}
+        disabled={disabled || loading}
         onPress={pick}
         onFocus={() => setFocused(true)}
         onBlur={() => setFocused(false)}
@@ -112,13 +112,17 @@ export function AvatarPicker({ uri, onPick, disabled = false }: Props) {
                   },
                 ]}
               >
-                <Camera
-                  testID="avatar-camera"
-                  size={theme.size.iconFeature}
-                  strokeWidth={theme.size.iconStroke}
-                  color={colors.text.secondary}
-                  aria-hidden
-                />
+                {loading ? (
+                  <ActivityIndicator testID="avatar-loading" color={colors.text.secondary} />
+                ) : (
+                  <Camera
+                    testID="avatar-camera"
+                    size={theme.size.iconFeature}
+                    strokeWidth={theme.size.iconStroke}
+                    color={colors.text.secondary}
+                    aria-hidden
+                  />
+                )}
               </View>
             )}
             <Text style={[theme.typography.bodyMMedium, { color: colors.text.primary }]}>{label}</Text>
