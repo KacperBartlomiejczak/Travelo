@@ -16,8 +16,9 @@ import { darkTheme, lightTheme } from '@/theme/theme';
 jest.mock('expo-font', () => ({ ...jest.requireActual('expo-font'), useFonts: jest.fn() }));
 jest.mocked(useFonts).mockReturnValue([true, null]);
 
-// The light scheme proves the trip view is dark anyway (A4).
-jest.mock('react-native/Libraries/Utilities/useColorScheme', () => ({ __esModule: true, default: () => 'light' }));
+// The trip view follows the phone's theme (theme-split D1, D6); tests switch the scheme.
+let mockScheme: 'light' | 'dark' = 'light';
+jest.mock('react-native/Libraries/Utilities/useColorScheme', () => ({ __esModule: true, default: () => mockScheme }));
 
 // The style the home screen last gave the status bar.
 let mockStatusBarStyle: string | undefined;
@@ -110,6 +111,7 @@ beforeEach(async () => {
   mockUpdateDetails.mockReset();
   mockDelete.mockReset();
   mockStatusBarStyle = undefined;
+  mockScheme = 'light';
   await i18n.changeLanguage('pl');
 });
 
@@ -181,12 +183,56 @@ describe('Home screen — current trip (D4)', () => {
     expect(budget.getByText('Razem 9000 THB · ~231 THB dziennie na osobę')).toBeTruthy();
   });
 
-  it('is dark on a light device: ink background and dark-theme cards (A4)', async () => {
+  it.each([
+    ['light', lightTheme],
+    ['dark', darkTheme],
+  ] as const)('follows the phone theme: %s background and cards (theme-split D1, D6)', async (scheme, theme) => {
+    mockScheme = scheme;
     mockCurrent = () => Promise.resolve(overview());
     await renderHome();
-    expect(await screen.findByTestId('home-screen')).toHaveStyle({ backgroundColor: darkTheme.colors.hero.background });
-    expect(screen.getByTestId('home-flights')).toHaveStyle({ backgroundColor: darkTheme.colors.surface.secondary });
-    expect(screen.getByText('Ty')).toHaveStyle({ color: darkTheme.colors.text.primary });
+    expect(await screen.findByTestId('home-screen')).toHaveStyle({ backgroundColor: theme.colors.background });
+    expect(screen.getByTestId('trip-hero')).toHaveStyle({ backgroundColor: theme.colors.background });
+    expect(screen.getByText('Ty')).toHaveStyle({ color: theme.colors.text.primary });
+    expect(screen.getByRole('header', { name: 'Warsaw → Bangkok' })).toHaveStyle({ color: theme.colors.text.primary });
+  });
+
+  // theme-split D7: white cards with the card shadow in light mode, the secondary surface without a shadow in dark mode.
+  it.each([
+    ['light', lightTheme.colors.surface.default, true],
+    ['dark', darkTheme.colors.surface.secondary, false],
+  ] as const)('draws the cards in the %s theme on the right surface, with the shadow only in light (theme-split D7)', async (scheme, surface, shadow) => {
+    mockScheme = scheme;
+    mockCurrent = () => Promise.resolve(overview());
+    await renderHome();
+    await screen.findByTestId('home-screen');
+    for (const testID of ['home-flights', 'home-travellers', 'home-budget']) {
+      const style = StyleSheet.flatten(screen.getByTestId(testID).props.style);
+      expect(style.backgroundColor).toBe(surface);
+      if (shadow) {
+        expect(style).toMatchObject(lightTheme.elevation.card);
+      } else {
+        expect(style.shadowColor).toBeUndefined();
+        expect(style.shadowOpacity).toBeUndefined();
+        expect(style.shadowRadius).toBeUndefined();
+        expect(style.shadowOffset).toBeUndefined();
+        expect(style.elevation).toBeUndefined();
+      }
+    }
+  });
+
+  it.each([
+    ['light', lightTheme],
+    ['dark', darkTheme],
+  ] as const)('keeps ☰ and ⋮ dark over the photo in the %s theme (theme-split D1)', async (scheme, theme) => {
+    mockScheme = scheme;
+    mockCurrent = () => Promise.resolve(overview());
+    await renderHome();
+    await screen.findByTestId('home-screen');
+    for (const name of [MENU, 'Opcje podróży']) {
+      const button = screen.getByRole('button', { name });
+      expect(button).toHaveStyle({ backgroundColor: theme.colors.hero.control });
+      expect(within(button).getByTestId('hero-icon-button-icon', { includeHiddenElements: true }).props.stroke).toBe(theme.colors.hero.text);
+    }
   });
 
   it('has no pinned "Utwórz podróż" any more: a new trip starts from the side panel (trips-drawer D4)', async () => {
@@ -779,16 +825,16 @@ describe('Home screen — deleting the trip (trip-edit-menu D7, D8, D9, D11, D19
     expect(emptyBottom - tripBottom).toBe(lightTheme.size.buttonPrimary + lightTheme.spacing[3]);
   });
 
-  it('draws the snackbar in the theme of the screen behind it: dark over the trip view, the system theme over the empty state (D11)', async () => {
+  it('draws the snackbar in the theme of the screen behind it: the system theme over both the trip view and the empty state (D11, theme-split D1)', async () => {
     mockCurrent = () => Promise.resolve(overview());
     await renderHome();
     await openConfirmation();
     deletingLeaves(other);
     await confirm();
-    // The trip view is always dark (A4), also on this light device: the inverse snackbar is then the dark one.
+    // The trip view follows the phone's theme (theme-split D1): on this light device the snackbar is the light theme's.
     expect(await screen.findByRole('header', { name: 'Kraków → Rome' })).toBeTruthy();
-    expect(await screen.findByTestId('snackbar')).toHaveStyle({ backgroundColor: darkTheme.colors.snackbar.background });
-    expect(screen.getByText(SNACKBAR)).toHaveStyle({ color: darkTheme.colors.snackbar.text });
+    expect(await screen.findByTestId('snackbar')).toHaveStyle({ backgroundColor: lightTheme.colors.snackbar.background });
+    expect(screen.getByText(SNACKBAR)).toHaveStyle({ color: lightTheme.colors.snackbar.text });
 
     await openConfirmation('Kraków → Rome');
     deletingLeaves(null);

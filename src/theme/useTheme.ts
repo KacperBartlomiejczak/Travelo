@@ -6,7 +6,7 @@ import { darkTheme, lightTheme, type Theme } from './theme';
 // Set by DarkThemeScope; null = follow the device.
 const ForcedTheme = createContext<Theme | null>(null);
 
-/** Everything inside uses the dark theme, on light devices too (home screen with a trip, plan A4). */
+/** Everything inside uses the dark theme, on light devices too (the welcome screen and the photo viewer). */
 export function DarkThemeScope({ children }: { children: ReactNode }) {
   return createElement(ForcedTheme.Provider, { value: darkTheme }, children);
 }

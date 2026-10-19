@@ -1,10 +1,15 @@
 import { render, screen } from '@testing-library/react-native';
+import { processColor } from 'react-native';
 
 import { TripHero } from '@/components/TripHero';
 import { TripHeroSkeleton } from '@/components/TripHeroSkeleton';
 import i18n from '@/i18n';
 import type { TripSummary } from '@/schemas';
-import { lightTheme } from '@/theme/theme';
+import { darkTheme, lightTheme } from '@/theme/theme';
+
+// The hero follows the phone's theme (theme-split D1, D6); tests switch the scheme.
+let mockScheme: 'light' | 'dark' = 'light';
+jest.mock('react-native/Libraries/Utilities/useColorScheme', () => ({ __esModule: true, default: () => mockScheme }));
 
 jest.mock('react-native/Libraries/Utilities/useWindowDimensions', () => ({
   __esModule: true,
@@ -49,16 +54,21 @@ function gradientStops(): number[] {
 }
 
 beforeEach(async () => {
+  mockScheme = 'light';
   await i18n.changeLanguage('pl');
 });
 
 describe('TripHero (D4)', () => {
-  it('takes half of the screen height on an ink background', async () => {
+  it.each([
+    ['light', lightTheme],
+    ['dark', darkTheme],
+  ] as const)('takes half of the screen height on the %s theme background', async (scheme, theme) => {
+    mockScheme = scheme;
     await render(<TripHero trip={trip} />);
-    expect(screen.getByTestId('trip-hero')).toHaveStyle({ height: 406, backgroundColor: lightTheme.colors.hero.background });
+    expect(screen.getByTestId('trip-hero')).toHaveStyle({ height: 406, backgroundColor: theme.colors.background });
   });
 
-  it('shows the cover photo, hidden from screen readers, fading into ink', async () => {
+  it('shows the cover photo, hidden from screen readers, fading into the theme background', async () => {
     await render(<TripHero trip={{ ...trip, coverImageUri: 'preset:bali' }} />);
     const hidden = { includeHiddenElements: true };
     expect(screen.queryByTestId('trip-hero-photo')).toBeNull(); // not reachable for screen readers
@@ -71,11 +81,30 @@ describe('TripHero (D4)', () => {
     expect(offsets).toEqual([lightTheme.gradient.heroFade.start, 1]);
   });
 
-  it('shows a preset cover from its bundled full-size file, on ink while it loads (trip-covers C3)', async () => {
+  it.each([
+    ['light', lightTheme],
+    ['dark', darkTheme],
+  ] as const)('fades the photo into the %s theme background (theme-split D1, D6)', async (scheme, theme) => {
+    mockScheme = scheme;
+    await render(<TripHero trip={{ ...trip, coverImageUri: 'preset:bali' }} />);
+    // Both stops carry the background's colour (the first fully transparent): compare the colour channels, not the alpha.
+    const rgb = (value: unknown) => Number(value) & 0xffffff;
+    const colours = gradientStops().filter((_, i) => i % 2 === 1);
+    expect(colours).toHaveLength(2);
+    expect(colours.map(rgb)).toEqual([rgb(processColor(theme.colors.background)), rgb(processColor(theme.colors.background))]);
+  });
+
+  it('shows a preset cover from its bundled full-size file, on the background colour while it loads (trip-covers C3, theme-split D1)', async () => {
     await render(<TripHero trip={{ ...trip, coverImageUri: 'preset:bali' }} />);
     const image = screen.getByTestId('trip-hero-image', { includeHiddenElements: true });
     expect(image.props.source).toEqual([{ uri: 'bundled/bali.jpg' }]);
-    expect(image).toHaveStyle({ backgroundColor: lightTheme.colors.hero.background });
+    expect(image).toHaveStyle({ backgroundColor: lightTheme.colors.background });
+  });
+
+  it('shows the placeholder on the dark background in dark mode', async () => {
+    mockScheme = 'dark';
+    await render(<TripHero trip={{ ...trip, coverImageUri: 'preset:bali' }} />);
+    expect(screen.getByTestId('trip-hero-image', { includeHiddenElements: true })).toHaveStyle({ backgroundColor: darkTheme.colors.background });
   });
 
   it('shows a gallery cover from its signed full-size URL, cached under the cover\'s own id (trip-covers C3)', async () => {
@@ -86,11 +115,15 @@ describe('TripHero (D4)', () => {
     expect(image.props.source).toEqual([{ uri: coverUrls.url, cacheKey: `cover:${photoId}:full` }]);
   });
 
-  it('names the trip in Display XL (§4.2 "Trip hero") and light text, with dates and days below', async () => {
+  it.each([
+    ['light', lightTheme],
+    ['dark', darkTheme],
+  ] as const)('names the trip in Display XL (§4.2 "Trip hero") in the %s theme text colours, with dates and days below', async (scheme, theme) => {
+    mockScheme = scheme;
     await render(<TripHero trip={trip} />);
     const name = screen.getByRole('header', { name: 'Warsaw → Bangkok' });
-    expect(name).toHaveStyle({ ...lightTheme.typography.displayXL, color: lightTheme.colors.hero.text });
-    expect(screen.getByText('3 lis – 15 lis 2026 · 13 dni')).toHaveStyle({ color: lightTheme.colors.hero.textSecondary });
+    expect(name).toHaveStyle({ ...theme.typography.displayXL, color: theme.colors.text.primary });
+    expect(screen.getByText('3 lis – 15 lis 2026 · 13 dni')).toHaveStyle({ color: theme.colors.text.secondary });
   });
 
   it('reads in English', async () => {
