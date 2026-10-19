@@ -66,13 +66,15 @@ export function BottomSheet({ visible, title, onClose, dismissible = true, child
   return (
     <Modal testID="bottom-sheet-modal" visible={visible} transparent animationType={reduceMotion ? 'none' : 'slide'} onRequestClose={dismiss} statusBarTranslucent>
       {/* wizard-keyboard D5: `padding` on both platforms. Android's window resize does not reach an edge-to-edge dialog, and
-          the translucent modal starts at the top of the window like the keyboard's coordinates, so no offset is needed. */}
-      <KeyboardAvoidingView testID="bottom-sheet-keyboard" behavior="padding" style={styles.fill}>
+          the translucent modal starts at the top of the window like the keyboard's coordinates, so no offset is needed.
+          theme-split D14: the scrim is absolutely positioned, so it fills the whole window (keyboard padding included) and lies
+          under the sheet, which is pushed to the bottom; dimming also covers the gaps beside the rounded top corners. */}
+      <KeyboardAvoidingView testID="bottom-sheet-keyboard" behavior="padding" style={styles.frame}>
         <Pressable
           accessibilityRole="button"
           accessibilityLabel={t('common.close')}
           onPress={dismiss}
-          style={[styles.fill, { backgroundColor: theme.colors.overlay.scrim }]}
+          style={[StyleSheet.absoluteFill, { backgroundColor: theme.colors.overlay.scrim }]}
         />
         <Animated.View
           testID="bottom-sheet"
@@ -115,5 +117,5 @@ export function BottomSheet({ visible, title, onClose, dismissible = true, child
 }
 
 const styles = StyleSheet.create({
-  fill: { flex: 1 },
+  frame: { flex: 1, justifyContent: 'flex-end' },
 });
