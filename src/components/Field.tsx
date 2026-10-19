@@ -1,5 +1,5 @@
 import { CircleX } from 'lucide-react-native';
-import type { ReactNode, Ref } from 'react';
+import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Text, View, type TextStyle } from 'react-native';
 
@@ -13,13 +13,11 @@ type Props = {
   error?: string;
   /** For a control that is long (a list of chips): the hint and the error sit right under the label instead of under the control. */
   messagesFirst?: boolean;
-  /** Lets a screen move the screen reader focus to the label, e.g. to a field with an error. */
-  labelRef?: Ref<Text>;
   children: ReactNode;
 };
 
 // Label above, control, error below (§10.4, D27). A hint sits where the error would; while an error shows, the hint is hidden.
-export function Field({ label, optional = false, hint, error, messagesFirst = false, labelRef, children }: Props) {
+export function Field({ label, optional = false, hint, error, messagesFirst = false, children }: Props) {
   const { t } = useTranslation();
   const theme = useTheme();
   const messages = (
@@ -43,7 +41,7 @@ export function Field({ label, optional = false, hint, error, messagesFirst = fa
   );
   return (
     <View style={{ gap: theme.spacing[1] }}>
-      <Text ref={labelRef} style={[theme.typography.bodyMMedium, { color: theme.colors.text.primary }]}>
+      <Text style={[theme.typography.bodyMMedium, { color: theme.colors.text.primary }]}>
         {label}
         {optional && <Text style={{ color: theme.colors.text.secondary }}>{` ${t('common.optional')}`}</Text>}
       </Text>

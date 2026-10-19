@@ -1,4 +1,5 @@
 import { fireEvent, render, screen } from '@testing-library/react-native';
+import { StyleSheet } from 'react-native';
 
 import { Chip } from '@/components/Chip';
 import { lightTheme } from '@/theme/theme';
@@ -13,11 +14,10 @@ describe('Chip', () => {
     expect(onToggle).toHaveBeenCalledTimes(1);
   });
 
-  it('unselected: outlined, at least 36dp, fully rounded (§10.6, D32)', async () => {
+  it('unselected: outlined, at least 32dp, fully rounded (§10.6 exception, D32, theme-split D9)', async () => {
     await render(<Chip label="Plaże" selected={false} onToggle={() => {}} />);
     expect(screen.getByRole('checkbox')).toHaveStyle({
-      minHeight: 36,
-      paddingHorizontal: 12,
+      minHeight: 32,
       borderRadius: lightTheme.radius.full,
       borderWidth: 1,
       borderColor: lightTheme.colors.input.border,
@@ -38,14 +38,46 @@ describe('Chip', () => {
 
   it('grows and wraps with large text instead of clipping (§4.4)', async () => {
     await render(<Chip label="Aquaparki i parki rozrywki" selected={false} onToggle={() => {}} />);
-    expect(screen.getByRole('checkbox')).not.toHaveStyle({ height: 36 });
+    expect(screen.getByRole('checkbox')).not.toHaveStyle({ height: 32 });
     expect(screen.getByRole('checkbox')).toHaveStyle({ maxWidth: '100%' });
     expect(screen.getByText('Aquaparki i parki rozrywki')).toHaveStyle({ flexShrink: 1 });
   });
 
-  it('has a 44dp touch target although it is 36dp tall', async () => {
+  it('has a 44dp touch target although it is 32dp tall', async () => {
     await render(<Chip label="Plaże" selected={false} onToggle={() => {}} />);
-    expect(screen.getByRole('checkbox').props.hitSlop).toEqual({ top: 4, bottom: 4, left: 0, right: 0 });
+    const { hitSlop } = screen.getByRole('checkbox').props;
+    expect(hitSlop).toEqual({ top: 6, bottom: 6, left: 0, right: 0 });
+    expect(32 + hitSlop.top + hitSlop.bottom).toBeGreaterThanOrEqual(lightTheme.size.touchTarget);
+  });
+
+  describe('constant width (theme-split D9)', () => {
+    const sides = (selected: boolean) => {
+      const style = StyleSheet.flatten(screen.getByRole('checkbox').props.style);
+      return { left: style.paddingLeft as number, right: style.paddingRight as number, gap: style.gap as number };
+    };
+
+    it('reserves the room of the check mark in the padding of an unselected chip, so toggling does not change the width', async () => {
+      const { spacing, size } = lightTheme;
+      await render(<Chip label="Plaże" selected={false} onToggle={() => {}} />);
+      const unselected = sides(false);
+      await screen.rerender(<Chip label="Plaże" selected onToggle={() => {}} />);
+      const selected = sides(true);
+
+      expect(selected.left).toBe(spacing[2]);
+      expect(selected.right).toBe(spacing[2]);
+      expect(unselected.left).toBe(unselected.right);
+      // unselected padding = selected padding + (check + gap), content = label only; selected content = check + gap + label
+      expect(unselected.left + unselected.right).toBe(selected.left + selected.right + size.iconInline + selected.gap);
+      expect(unselected.gap).toBe(selected.gap);
+    });
+
+    it('shows the check mark only when selected, left of the label', async () => {
+      await render(<Chip label="Plaże" selected={false} onToggle={() => {}} />);
+      expect(screen.queryByTestId('chip-check', { includeHiddenElements: true })).toBeNull();
+      await screen.rerender(<Chip label="Plaże" selected onToggle={() => {}} />);
+      expect(screen.getByTestId('chip-check', { includeHiddenElements: true })).toBeTruthy();
+      expect(screen.getByRole('checkbox')).toHaveStyle({ borderColor: lightTheme.colors.action.primary });
+    });
   });
 
   it('can be disabled: it does not toggle, is announced as disabled and drawn at the disabled opacity (§10.2)', async () => {
