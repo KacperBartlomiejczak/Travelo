@@ -1,8 +1,8 @@
 import { useIsFocused } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import { useId, useState } from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { ScrollView, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
+import { AccessibilityInfo, Animated, Easing, ScrollView, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Svg, { Defs, LinearGradient, Rect, Stop } from 'react-native-svg';
 
@@ -16,6 +16,63 @@ import { SignInSheet } from './SignInSheet';
 
 // The bundled cover behind the welcome screen (auth-onboarding P6): no new asset.
 const WELCOME_COVER = 'preset:bali';
+
+// Entrance (theme-split-and-profile-prefill P3, design-context §9): the title, the sentence and the button each fade in and
+// rise 16dp (spacing[4]) over the standard transition, 80 ms apart, on the enter easing (0.2, 0.8, 0.2, 1) of §9.2.
+const ENTRANCE_STAGGER_MS = 80;
+const ENTER_EASING = Easing.bezier(0.2, 0.8, 0.2, 1);
+const ENTRANCE_PARTS = 3;
+
+/**
+ * One progress value (0 → 1) per part of the column. Once, on mount, they run one after another; with reduce motion (§9.4)
+ * nothing moves or fades: they jump to 1. Until the system answers whether to reduce motion, they wait at 0, so a phone
+ * that asks for it never shows a part sliding. They only drive opacity and translateY, so the button is pressable at once.
+ */
+function useEntrance(): Animated.Value[] {
+  const { duration } = useTheme();
+  const [progress] = useState(() => Array.from({ length: ENTRANCE_PARTS }, () => new Animated.Value(0)));
+  const [reduceMotion, setReduceMotion] = useState<boolean | null>(null);
+  const played = useRef(false);
+
+  useEffect(() => {
+    let active = true;
+    // If the system cannot answer (the call can reject), play it safe: no decorative motion, the content shows at once.
+    AccessibilityInfo.isReduceMotionEnabled()
+      .then((enabled) => active && setReduceMotion(enabled))
+      .catch(() => active && setReduceMotion(true));
+    const subscription = AccessibilityInfo.addEventListener('reduceMotionChanged', setReduceMotion);
+    return () => {
+      active = false;
+      subscription.remove();
+    };
+  }, []);
+
+  useEffect(() => {
+    if (reduceMotion === null) return;
+    if (reduceMotion) {
+      // Also settles an entrance that was running when reduce motion came on (its cleanup stopped it mid-way).
+      progress.forEach((value) => value.setValue(1));
+      played.current = true;
+      return;
+    }
+    if (played.current) return;
+    played.current = true;
+    const entrance = progress.map((value, index) =>
+      Animated.timing(value, {
+        toValue: 1,
+        delay: index * ENTRANCE_STAGGER_MS,
+        duration: duration.standard,
+        easing: ENTER_EASING,
+        // JS driver, like the pill navigation: three short, one-off tweens, and the native driver does not update the rendered style under Jest.
+        useNativeDriver: false,
+      }),
+    );
+    entrance.forEach((animation) => animation.start());
+    return () => entrance.forEach((animation) => animation.stop());
+  }, [reduceMotion, progress, duration.standard]);
+
+  return progress;
+}
 
 /**
  * The first screen of a signed-out user (auth-onboarding D5, D6, P4, P5): a full-screen cover photo fading into ink like the
@@ -40,9 +97,14 @@ function Welcome() {
   const [sheetOpen, setSheetOpen] = useState(false);
   // Pushed screens stay mounted under the next one (the e-mail screens): only the focused screen keeps the bar light.
   const focused = useIsFocused();
+  const [titleProgress, bodyProgress, actionProgress] = useEntrance();
   const { spacing, colors, typography } = theme;
   const { hero } = colors;
   const side = width < theme.breakpoints.compact ? spacing[4] : spacing[5];
+  const enter = (progress: Animated.Value) => ({
+    opacity: progress,
+    transform: [{ translateY: progress.interpolate({ inputRange: [0, 1], outputRange: [spacing[4], 0] }) }],
+  });
 
   return (
     <View testID="welcome-screen" style={[styles.screen, { backgroundColor: hero.background }]}>
@@ -55,6 +117,8 @@ function Welcome() {
           variant="full"
           style={[StyleSheet.absoluteFill, { backgroundColor: hero.background }]}
         />
+        {/* Darkens the whole photo evenly, so the sheet's rounded corners do not show where the photo ends. */}
+        <View testID="welcome-dim" style={[StyleSheet.absoluteFill, { backgroundColor: colors.overlay.scrim }]} />
         <Svg testID="welcome-gradient" style={StyleSheet.absoluteFill} width="100%" height="100%">
           <Defs>
             <LinearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
@@ -84,13 +148,19 @@ function Welcome() {
           }}
         >
           <View style={{ gap: spacing[2] }}>
-            <Text accessibilityRole="header" style={[typography.displayXL, { color: hero.text }]}>
-              {t('auth.welcome.title')}
-            </Text>
-            <Text style={[typography.bodyL, { color: hero.textSecondary }]}>{t('auth.welcome.body')}</Text>
+            <Animated.View testID="welcome-title" style={enter(titleProgress)}>
+              <Text accessibilityRole="header" style={[typography.displayXL, { color: hero.text }]}>
+                {t('auth.welcome.title')}
+              </Text>
+            </Animated.View>
+            <Animated.View testID="welcome-body" style={enter(bodyProgress)}>
+              <Text style={[typography.bodyL, { color: hero.textSecondary }]}>{t('auth.welcome.body')}</Text>
+            </Animated.View>
           </View>
           {offline && <OfflineBanner />}
-          <PrimaryButton label={t('auth.welcome.signIn')} onPress={() => setSheetOpen(true)} disabled={offline} />
+          <Animated.View testID="welcome-action" style={enter(actionProgress)}>
+            <PrimaryButton label={t('auth.welcome.signIn')} onPress={() => setSheetOpen(true)} disabled={offline} />
+          </Animated.View>
         </View>
       </ScrollView>
       {sheetOpen && <SignInSheet onClose={() => setSheetOpen(false)} />}
