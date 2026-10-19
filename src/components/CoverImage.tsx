@@ -1,7 +1,8 @@
 import { Image } from 'expo-image';
-import { useEffect, useState } from 'react';
-import { AccessibilityInfo, type ImageStyle, type StyleProp } from 'react-native';
+import { useState } from 'react';
+import type { ImageStyle, StyleProp } from 'react-native';
 
+import { useReduceMotion } from '@/hooks/useReduceMotion';
 import { resolveCoverSource, type CoverVariant } from '@/lib/cover-presets';
 import type { CoverUrls } from '@/schemas';
 import { useTheme } from '@/theme/useTheme';
@@ -24,19 +25,9 @@ type Props = {
 // of its own id so it shows offline, and a file that fails to load is replaced by the default preset (never a hole).
 export function CoverImage({ cover, urls, variant, style, testID, accessibilityLabel }: Props) {
   const theme = useTheme();
-  const [reduceMotion, setReduceMotion] = useState(false);
+  const reduceMotion = useReduceMotion() === true;
   // What failed, so the default shows once and a changed cover is tried afresh.
   const [failed, setFailed] = useState<string | null>(null);
-
-  useEffect(() => {
-    let active = true;
-    void AccessibilityInfo.isReduceMotionEnabled().then((enabled) => active && setReduceMotion(enabled));
-    const subscription = AccessibilityInfo.addEventListener('reduceMotionChanged', setReduceMotion);
-    return () => {
-      active = false;
-      subscription.remove();
-    };
-  }, []);
 
   const identity = `${cover}|${variant}|${urls?.url ?? ''}`;
   const requested = resolveCoverSource(cover, urls, variant);

@@ -286,6 +286,18 @@ describe('PillNav (design-context §10.2, pill-nav-and-dialog D1, D2, D4)', () =
       expect(icon('index').props.width).toBe(lightTheme.size.iconStandard);
     });
 
+    it('when the system cannot say whether to reduce motion, it shows without animation', async () => {
+      jest.spyOn(AccessibilityInfo, 'isReduceMotionEnabled').mockRejectedValue(new Error('no native module'));
+      const view = await render(ui('index'));
+      const timing = jest.spyOn(Animated, 'timing');
+      await view.rerender(ui('expenses'));
+      expect(timing).not.toHaveBeenCalled();
+      expect(scaleOf('expenses')).toBe(1);
+      expect(scaleOf('index')).toBe(1);
+      expect(icon('expenses').props.width).toBe(lightTheme.size.iconPrimary);
+      expect(icon('index').props.width).toBe(lightTheme.size.iconStandard);
+    });
+
     it('settles both items at 1 when reduce motion switches on while the animation runs', async () => {
       let setReduceMotion: (enabled: boolean) => void = () => {};
       jest.spyOn(AccessibilityInfo, 'isReduceMotionEnabled').mockResolvedValue(false);
