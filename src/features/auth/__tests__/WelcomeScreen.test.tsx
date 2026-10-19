@@ -217,9 +217,9 @@ describe('WelcomeScreen (auth-onboarding D5, D6, P4, P5, P6)', () => {
   });
 
   describe('entrance animation (theme-split-and-profile-prefill P3, design-context §9)', () => {
-    const { standard } = darkTheme.duration;
+    const { celebration } = darkTheme.duration;
     const rise = darkTheme.spacing[4];
-    const STEP = 80;
+    const STEP = 150;
     const parts = ['welcome-title', 'welcome-body', 'welcome-action'] as const;
 
     const look = (testID: (typeof parts)[number]) => {
@@ -239,8 +239,8 @@ describe('WelcomeScreen (auth-onboarding D5, D6, P4, P5, P6)', () => {
       jest.restoreAllMocks();
     });
 
-    it('uses the standard transition: 240 ms, and a 16dp rise', () => {
-      expect(standard).toBe(240);
+    it('uses the celebration duration: 500 ms, and a 16dp rise', () => {
+      expect(celebration).toBe(500);
       expect(rise).toBe(16);
     });
 
@@ -256,32 +256,32 @@ describe('WelcomeScreen (auth-onboarding D5, D6, P4, P5, P6)', () => {
 
       it('fades and lifts each into place, one after another', async () => {
         await setup();
-        await pass(100); // the title is 100 ms in, the sentence 20 ms in, the button has not started
+        await pass(200); // the title is 200 ms in, the sentence 50 ms in, the button has not started
         expect(look('welcome-title').opacity).toBeGreaterThan(0);
         expect(look('welcome-body').opacity).toBeGreaterThan(0);
         expect(look('welcome-title').opacity).toBeGreaterThan(look('welcome-body').opacity);
         expect(look('welcome-action')).toEqual({ opacity: 0, translateY: rise });
 
-        await pass(20); // t = 120 ms, still before the button's 160 ms delay
+        await pass(100); // t = 300 ms: the button's 300 ms delay is just over, it is still invisible
         expect(look('welcome-action')).toEqual({ opacity: 0, translateY: rise });
 
-        await pass(100); // t = 220 ms: the button is 60 ms in; the title is nearly done
+        await pass(100); // t = 400 ms: the button is 100 ms in; the title is most of the way
         expect(look('welcome-action').opacity).toBeGreaterThan(0);
         expect(look('welcome-title').opacity).toBeGreaterThan(look('welcome-body').opacity);
         expect(look('welcome-body').opacity).toBeGreaterThan(look('welcome-action').opacity);
         expect(look('welcome-title').translateY).toBeLessThan(rise);
 
-        await pass(2 * STEP + standard); // well past 160 + 240 ms
+        await pass(2 * STEP + celebration); // well past 300 + 500 ms
         for (const part of parts) expect(look(part)).toEqual({ opacity: 1, translateY: 0 });
       });
 
-      it('times each one for 240 ms, delayed 0, 80 and 160 ms, with the enter easing', async () => {
+      it('times each one for 500 ms, delayed 0, 150 and 300 ms, with the enter easing', async () => {
         const timing = jest.spyOn(Animated, 'timing');
         await setup();
         const delays = timing.mock.calls.map(([, config]) => config.delay);
         expect(delays).toEqual([0, STEP, 2 * STEP]); // title, sentence, button
         for (const [, config] of timing.mock.calls) {
-          expect(config.duration).toBe(standard);
+          expect(config.duration).toBe(celebration);
           expect(typeof config.easing).toBe('function');
           expect(config.easing?.(0)).toBeCloseTo(0, 5);
           expect(config.easing?.(1)).toBeCloseTo(1, 5);
@@ -316,7 +316,7 @@ describe('WelcomeScreen (auth-onboarding D5, D6, P4, P5, P6)', () => {
         await setup();
         for (const part of parts) expect(look(part)).toEqual({ opacity: 1, translateY: 0 });
         expect(timing).not.toHaveBeenCalled();
-        await pass(2 * STEP + standard);
+        await pass(2 * STEP + celebration);
         for (const part of parts) expect(look(part)).toEqual({ opacity: 1, translateY: 0 });
       });
 
@@ -351,13 +351,13 @@ describe('WelcomeScreen (auth-onboarding D5, D6, P4, P5, P6)', () => {
         };
         jest.spyOn(AccessibilityInfo, 'addEventListener').mockImplementation(addListener as unknown as typeof AccessibilityInfo.addEventListener);
         await setup();
-        await pass(100);
+        await pass(200);
         expect(look('welcome-action').opacity).toBe(0);
         await act(async () => {
           setReduceMotion(true);
         });
         for (const part of parts) expect(look(part)).toEqual({ opacity: 1, translateY: 0 });
-        await pass(2 * STEP + standard);
+        await pass(2 * STEP + celebration);
         for (const part of parts) expect(look(part)).toEqual({ opacity: 1, translateY: 0 });
       });
     });
@@ -365,7 +365,7 @@ describe('WelcomeScreen (auth-onboarding D5, D6, P4, P5, P6)', () => {
     it('stays dark on a light phone while it animates', async () => {
       jest.spyOn(AccessibilityInfo, 'isReduceMotionEnabled').mockResolvedValue(false);
       await setup();
-      await pass(2 * STEP + standard);
+      await pass(2 * STEP + celebration);
       expect(screen.getByTestId('welcome-screen')).toHaveStyle({ backgroundColor: darkTheme.colors.hero.background });
       expect(screen.getByText('Witaj w Travelo')).toHaveStyle({ color: darkTheme.colors.hero.text });
     });

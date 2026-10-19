@@ -18,8 +18,9 @@ import { SignInSheet } from './SignInSheet';
 const WELCOME_COVER = 'preset:bali';
 
 // Entrance (theme-split-and-profile-prefill P3, design-context §9): the title, the sentence and the button each fade in and
-// rise 16dp (spacing[4]) over the standard transition, 80 ms apart, on the enter easing (0.2, 0.8, 0.2, 1) of §9.2.
-const ENTRANCE_STAGGER_MS = 80;
+// rise 16dp (spacing[4]) over the 500 ms celebration duration of §9.1, 150 ms apart (longer than first built, D13), on the
+// enter easing (0.2, 0.8, 0.2, 1) of §9.2.
+const ENTRANCE_STAGGER_MS = 150;
 const ENTER_EASING = Easing.bezier(0.2, 0.8, 0.2, 1);
 const ENTRANCE_PARTS = 3;
 
@@ -61,7 +62,7 @@ function useEntrance(): Animated.Value[] {
       Animated.timing(value, {
         toValue: 1,
         delay: index * ENTRANCE_STAGGER_MS,
-        duration: duration.standard,
+        duration: duration.celebration,
         easing: ENTER_EASING,
         // JS driver, like the pill navigation: three short, one-off tweens, and the native driver does not update the rendered style under Jest.
         useNativeDriver: false,
@@ -69,7 +70,7 @@ function useEntrance(): Animated.Value[] {
     );
     entrance.forEach((animation) => animation.start());
     return () => entrance.forEach((animation) => animation.stop());
-  }, [reduceMotion, progress, duration.standard]);
+  }, [reduceMotion, progress, duration.celebration]);
 
   return progress;
 }
