@@ -68,6 +68,12 @@ describe('BottomSheet (design-context §10.12)', () => {
     expect(screen.getByTestId('bottom-sheet-modal').props.animationType).toBe('none');
   });
 
+  it('when the system cannot say whether to reduce motion, it shows without animation', async () => {
+    jest.spyOn(AccessibilityInfo, 'isReduceMotionEnabled').mockRejectedValue(new Error('no native module'));
+    await renderSheet();
+    expect(screen.getByTestId('bottom-sheet-modal').props.animationType).toBe('none');
+  });
+
   it('closes on the system back button', async () => {
     const onClose = await renderSheet();
     await fireEvent(screen.getByTestId('bottom-sheet-modal'), 'requestClose');

@@ -1,8 +1,9 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
-import { AccessibilityInfo, Animated, KeyboardAvoidingView, Modal, PanResponder, Pressable, StyleSheet, Text, View, type PanResponderGestureState, type PanResponderInstance } from 'react-native';
+import { Animated, KeyboardAvoidingView, Modal, PanResponder, Pressable, StyleSheet, Text, View, type PanResponderGestureState, type PanResponderInstance } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { useReduceMotion } from '@/hooks/useReduceMotion';
 import { useTheme } from '@/theme/useTheme';
 
 type Props = {
@@ -28,16 +29,7 @@ export function BottomSheet({ visible, title, onClose, dismissible = true, child
   const theme = useTheme();
   const insets = useSafeAreaInsets();
   // §9.4: no slide when the system asks to reduce motion.
-  const [reduceMotion, setReduceMotion] = useState(false);
-  useEffect(() => {
-    let active = true;
-    void AccessibilityInfo.isReduceMotionEnabled().then((enabled) => active && setReduceMotion(enabled));
-    const subscription = AccessibilityInfo.addEventListener('reduceMotionChanged', setReduceMotion);
-    return () => {
-      active = false;
-      subscription.remove();
-    };
-  }, []);
+  const reduceMotion = useReduceMotion() === true;
   const [offset] = useState(() => new Animated.Value(0)); // how far the sheet is pulled down
   // The gesture lives as long as the sheet: callers pass new inline lambdas, and a PanResponder rebuilt on every render
   // would lose its state in the middle of a drag. So it is created once, after the first render (the handlers read the

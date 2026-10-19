@@ -105,4 +105,11 @@ describe('CoverImage (trip-covers C3)', () => {
     await act(async () => {});
     expect(screen.getByTestId('cover', hidden).props.transition).toEqual({ duration: 0 });
   });
+
+  it('when the system cannot say whether to reduce motion, it shows without animation', async () => {
+    jest.spyOn(AccessibilityInfo, 'isReduceMotionEnabled').mockRejectedValue(new Error('no native module'));
+    await render(<CoverImage testID="cover" cover="preset:bali" variant="full" />);
+    await act(async () => {});
+    expect(screen.getByTestId('cover', hidden).props.transition).toEqual({ duration: 0 });
+  });
 });

@@ -2,13 +2,14 @@ import { useIsFocused } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect, useId, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { AccessibilityInfo, Animated, Easing, ScrollView, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
+import { Animated, Easing, ScrollView, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Svg, { Defs, LinearGradient, Rect, Stop } from 'react-native-svg';
 
 import { CoverImage } from '@/components/CoverImage';
 import { OfflineBanner } from '@/components/OfflineBanner';
 import { PrimaryButton } from '@/components/PrimaryButton';
+import { useReduceMotion } from '@/hooks/useReduceMotion';
 import { useIsOffline } from '@/providers/BudgetSync';
 import { DarkThemeScope, useTheme } from '@/theme/useTheme';
 
@@ -32,21 +33,8 @@ const ENTRANCE_PARTS = 3;
 function useEntrance(): Animated.Value[] {
   const { duration } = useTheme();
   const [progress] = useState(() => Array.from({ length: ENTRANCE_PARTS }, () => new Animated.Value(0)));
-  const [reduceMotion, setReduceMotion] = useState<boolean | null>(null);
+  const reduceMotion = useReduceMotion();
   const played = useRef(false);
-
-  useEffect(() => {
-    let active = true;
-    // If the system cannot answer (the call can reject), play it safe: no decorative motion, the content shows at once.
-    AccessibilityInfo.isReduceMotionEnabled()
-      .then((enabled) => active && setReduceMotion(enabled))
-      .catch(() => active && setReduceMotion(true));
-    const subscription = AccessibilityInfo.addEventListener('reduceMotionChanged', setReduceMotion);
-    return () => {
-      active = false;
-      subscription.remove();
-    };
-  }, []);
 
   useEffect(() => {
     if (reduceMotion === null) return;
