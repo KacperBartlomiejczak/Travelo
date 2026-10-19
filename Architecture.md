@@ -1,5 +1,5 @@
 # Architecture
-Last updated: 2026-10-19 · after task: theme-split-and-profile-prefill (before it: pkce-sha256, use-reduce-motion; auth-onboarding step 9, the device run, is still partly done — see `prompts/auth-onboarding/plan.md`)
+Last updated: 2026-10-19 · after task: jest-ignore-worktrees (before it: theme-split-and-profile-prefill, pkce-sha256, use-reduce-motion; auth-onboarding step 9, the device run, is still partly done — see `prompts/auth-onboarding/plan.md`)
 
 ## Overview
 Traveling is a mobile app for the person who organizes a trip for a group of friends: trip setup, members, flights and layovers, AI day plans built from real places, offline expenses, and a plan-vs-reality budget summary. The product scope and rules are defined in `CLAUDE.md`; the visual system ("Sunline") is defined in `context/design-context.md`.
@@ -406,7 +406,7 @@ The airport list is a static bundled file, validated row by row in its test (not
 - **i18n**: `src/i18n/index.ts` creates its own i18next instance (`createInstance()` + `initReactI18next`, synchronous init). Language = the device's first preferred locale if it is `pl` or `en`, otherwise `en`. It is read once at startup. Dictionaries: `src/i18n/locales/pl.json`, `en.json` (same keys, checked by a test).
 
 ## Testing
-- Jest (`jest-expo` preset) + React Native Testing Library 14 (async `render` / `fireEvent`); route tests use `renderRouter` from `expo-router/testing-library` with the real root layout.
+- Jest (`jest-expo` preset) + React Native Testing Library 14 (async `render` / `fireEvent`); `testPathIgnorePatterns` / `modulePathIgnorePatterns` skip `.claude/worktrees/`, so a Claude session worktree inside the checkout does not add its tests or a second `package.json` to the run; route tests use `renderRouter` from `expo-router/testing-library` with the real root layout.
 - Test files never live under `src/app/` (Expo Router would turn them into routes); route tests sit in `src/__tests__/app/`.
 - `package.json` → `jest.moduleNameMapper` maps `lucide-react-native` to its CommonJS build, because its React Native entry is `.mjs`, which jest-expo does not transform.
 - `useColorScheme` / `useWindowDimensions` are mocked at `react-native/Libraries/Utilities/*` (RN imports them internally, so spying on `Appearance` / `Dimensions` does not work).
@@ -557,7 +557,6 @@ The airport list is a static bundled file, validated row by row in its test (not
 
 ## Known limitations & tech debt
 - Theme split and profile pre-fill (`prompts/theme-split-and-profile-prefill/plan.md`):
-  - Jest has no `testPathIgnorePatterns` for `.claude/worktrees/`: a Claude session worktree inside the checkout makes plain `pnpm test` also run that copy's tests. Run `pnpm test --testPathIgnorePatterns ".claude/worktrees"` meanwhile.
   - The downloaded account photo is not aborted on unmount; an unused `avatar-<uuid>` file may stay in the cache directory. The file has no extension (`ImageManipulator` decodes by content).
   - A Google photo URL with a size suffix other than `=sNN` / `=sNN-c` gets `=s512-c` appended and may fail to download (then the circle stays empty).
   - Unconfirmed (emulator, twice): a tap on a sheet / dialog button reached the control underneath (e.g. after „Usuń podróż” the wizard opened). Possibly emulator lag; not reproduced cleanly.
@@ -621,6 +620,7 @@ The airport list is a static bundled file, validated row by row in its test (not
 - Template images in `assets/images/` (React/Expo logos, `tabIcons/`, `tutorial-web.png`) are not referenced by any code.
 
 ## Changelog
+- 2026-10-19 — jest-ignore-worktrees — Jest config in `package.json` ignores `<rootDir>/.claude/worktrees/` (`testPathIgnorePatterns`, keeping `/node_modules/`, and `modulePathIgnorePatterns`); plain `pnpm test` no longer runs a session worktree's tests. Typecheck and `expo lint` already skipped it. No architectural change otherwise.
 - 2026-10-19 — theme-split-and-profile-prefill —
   - **Theme:** the home trip view leaves `DarkThemeScope` (`TripHero` / `CurrentTrip` on `colors.background` and `text.*`; cards `surface.default` + `elevation.card` in light); `colors.nav.*` per theme plus `nav.pressed`; `duration.celebration` (500) added, `duration.standard` removed.
   - **Components:** `WelcomeScreen` (`welcome-dim`, staggered entrance); `BottomSheet` (full-height absolute scrim, frame `justifyContent: 'flex-end'`); `Chip` (32dp, constant width); `InterestChips` (`Keyboard.dismiss()`); `AvatarPicker` (`loading`); `Field` (`labelRef` removed).
