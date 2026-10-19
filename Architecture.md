@@ -1,5 +1,5 @@
 # Architecture
-Last updated: 2026-10-19 · after task: auth-onboarding (steps 1–8c verified; the device run, step 9, is partly done — see `prompts/auth-onboarding/plan.md`)
+Last updated: 2026-10-19 · after task: pkce-sha256 (before it: auth-onboarding steps 1–8c verified; the device run, step 9, is partly done — see `prompts/auth-onboarding/plan.md`)
 
 ## Overview
 Traveling is a mobile app for the person who organizes a trip for a group of friends: trip setup, members, flights and layovers, AI day plans built from real places, offline expenses, and a plan-vs-reality budget summary. The product scope and rules are defined in `CLAUDE.md`; the visual system ("Sunline") is defined in `context/design-context.md`.
@@ -132,7 +132,7 @@ Travelo/
   - `forgetTrip`, `clearUserData`;
   - a serial queue and the user epoch.
 
-`budget-sync` (send, backoff). `photo-files` (`preparePhoto`; `prepareAvatar` ≤ 512 px). `supabase` client (also registers `keepSessionFresh`). | schemas, lib, `expo-crypto`, `@supabase/supabase-js`, `expo-sqlite`, `react-native-url-polyfill`, `expo-image-manipulator`, `expo-file-system`, `expo-image`, `expo-web-browser`, `expo-linking` |
+`budget-sync` (send, backoff). `photo-files` (`preparePhoto`; `prepareAvatar` ≤ 512 px). `supabase` client (also registers `keepSessionFresh`; installs `web-crypto` first). `web-crypto` (`installWebCrypto`: fills a missing global `crypto.getRandomValues` and `crypto.subtle.digest` — SHA-256 only — from `expo-crypto`, so auth-js PKCE uses S256). | schemas, lib, `expo-crypto`, `@supabase/supabase-js`, `expo-sqlite`, `react-native-url-polyfill`, `expo-image-manipulator`, `expo-file-system`, `expo-image`, `expo-web-browser`, `expo-linking` |
 | Lib | `src/lib/` | Pure functions: airport-local time ↔ instants and pickers (`isExistingLocalTime`: round-trip check for DST gaps; `isoToLocal`: stored instant → airport wall clock), date display formatters, layovers (`layoverMinutes` from wall clocks — none for an impossible or skipped time; `savedLayoverMinutes` from stored instants), trip dates/days, default trip name (`defaultTripName`), money parse/format (ISO 4217 digits), airport search, text folding, trip sections (`tripSections`, `defaultTripId`, `deviceToday`), trip photos (`takenAtFromExif`, `compareTakenAt`, `sortTripPhotos`, `photoPaths`, `fitWithin`; `PHOTO_MAX_SIDE` 2048, `THUMBNAIL_MAX_SIDE` 480), avatar (`AVATAR_MAX_SIDE` 512, `avatarPath`) | schemas, data (airports) |
 | Hooks | `src/hooks/` | `useTripList` (query `['trips', 'list']`), `useCurrentTrip` (query `['trips', 'current']`) — both `networkMode: 'always'`; `useSelectTrip` (mutation, `networkMode: 'always'`, resets `['trips', 'current']`), `useCreateTrip` (mutation, invalidates `['trips']`), `useSetTripBudget` (saves on the device, `networkMode: 'always'`, invalidates `['trips']`, requests a sync); `useUpdateTripDetails` (mutation, online, awaits the invalidation of `['trips']`); `useDeleteTrip` (mutation, online; cancels in-flight `['trips']` fetches, then resets `['trips', 'current']` and invalidates `['trips', 'list']`). Trip photos: `useTripPhotos` (query `['trip-photos', tripId]`, outside `['trips']`, `networkMode: 'always'`); `usePhotoUploads` (an in-memory queue per trip, one upload at a time; items `waiting \| sending \| failed`; retrying one or all reuses the same id; waiting items fail offline; invalidates the photos query after each success); `useDeleteTripPhoto` (online only, awaits the invalidation). Profile: `useMyProfile` (query `['profile', 'me']`, only while signed in, `networkMode: 'always'`, `retry: false`) and `useCreateProfile` (writes the query only if no sign-out began meanwhile, by the user epoch). Sign-in: `useSignIn` (OAuth provider), `useSendEmailCode`, `useVerifyEmailCode` | `@tanstack/react-query`, providers |
 | Providers | `src/providers/` | `AppProviders`: `QueryClientProvider` + trip repository context (`useTripRepository`; default `createAppTripRepository()`) + profile repository context (`useProfileRepository`; default `createAppProfileRepository()`) + `BudgetSyncProvider` (sync on start / reconnect / foreground / after save / backoff timer; `useRequestBudgetSync`, `useIsOffline`) + `SessionProvider` (`useSession`: `loading \| signedOut \| signedIn \| error`, `retry`; see Data flow) | data, `@tanstack/react-query`, `expo-network` |
@@ -256,7 +256,7 @@ The airport list is a static bundled file, validated row by row in its test (not
     - A failed clear shows "Spróbuj ponownie", never the welcome screen. A `SIGNED_IN` arriving in any state other than `signedOut` clears first.
     - After a sign-in, the budget sync and the trip / profile refetch run.
   - **Background check (D22, D23).** After the gate opens `signedIn` with a known user, `checkStoredSession()` runs once per start, never awaited:
-    1. it captures the stored session's user id and token, then calls `getClaims(token)`; on React Native that falls back to `GET /user`, a network call;
+    1. it captures the stored session's user id and token, then calls `getUser(token)` (`GET /user`, a network call). Not `getClaims`: with the `crypto.subtle` polyfill it would try a local JWT check with `importKey` / `verify`, which the polyfill does not have (pkce-sha256);
     2. `session_not_found`: auth-js itself removes the session and emits `SIGNED_OUT`;
     3. `user_not_found` (a deleted account): the app calls `signOut({ scope: 'local' })`, but only if the stored session still has the same user id;
     4. every other result, including offline, changes nothing.
@@ -484,6 +484,7 @@ The airport list is a static bundled file, validated row by row in its test (not
 | OurAirports, mwgg/Airports, datasets/country-codes | Airport list (generated once at dev time, bundled) | `scripts/build-airports.mjs` only | — |
 
 ## Key decisions
+- 2026-10-19 — PKCE uses S256: a small `crypto` polyfill on `expo-crypto` (no new dependency) instead of `react-native-quick-crypto`; the stored-session check moved from `getClaims` to `getUser` so it does not depend on `crypto.subtle` (`prompts/pkce-sha256/plan.md`). Closes auth-onboarding R16.
 - 2026-10-18/19 — Sign-in and profile (`prompts/auth-onboarding/plan.md` D1–D24):
   - **No anonymous accounts** (D2): a leftover anonymous session is signed out on launch.
   - **Sign-in methods:** Google and e-mail with a code (D1), plus Discord (D13). Supabase Auth through the system browser with PKCE; native Google Sign-In was rejected (a new native dependency, and no nonce support in its free version).
@@ -492,7 +493,7 @@ The airport list is a static bundled file, validated row by row in its test (not
   - **Offline:** the own profile is a read-only SQLite copy (D9).
   - **Sign-out:** the phone forgets all user data whenever it is signed out, before the welcome screen shows (D14). One serial JS queue plus a user epoch protect the SQLite store, because expo-sqlite does not order async calls (D15).
   - **Brand buttons:** Google's and Discord's colours are written exceptions to the design context (D10, D13, D16).
-  - **Supabase quickstart:** checked against Supabase's React Native quickstart (D22); added a one-time background `getClaims()` check and a single AppState refresh listener. A deleted account is signed out locally, only if the stored session is still the checked user's (D23).
+  - **Supabase quickstart:** checked against Supabase's React Native quickstart (D22); added a one-time background session check (`getClaims()` at first, `getUser(token)` since pkce-sha256) and a single AppState refresh listener. A deleted account is signed out locally, only if the stored session is still the checked user's (D23).
   - **Profile screen fixes** (D24): the interests hint under its heading; a failed save scrolls to the first error; a solid status-bar strip on the onboarding route.
 - 2026-10-18 — Trip covers (`prompts/trip-covers/plan.md` D1–D14): every trip has a cover, stored in `cover_image_uri` as `preset:<id>` (bundled, works offline; never a bundle path, which changes between builds) or `photo:<uuid>` (a gallery photo compressed on the phone, in the trip's Storage folder). Default `preset:auckland`, preselected in the wizard; old values were rewritten to it. A failed gallery upload on create keeps the default and shows a snackbar via a route param.
 - 2026-10-18 — The fifth pill tab is „Profil” (title „Profil użytkownika”, `CircleUser`, route `/profile`); still a placeholder (`prompts/profile-tab/plan.md`).
@@ -565,7 +566,7 @@ The airport list is a static bundled file, validated row by row in its test (not
   - **SQLite queue:** a native call that never returns would block it, because there is no timeout (R13).
   - **Background check:** residual races are left in it and in auth-js's own `session_not_found` path (R14).
   - **Expo Go over a LAN IP:** sign-in cannot come back to the app (R15). A dev build, or Expo Go through `127.0.0.1` with `adb reverse`, works.
-  - **PKCE strength:** PKCE runs with `code_challenge_method=plain`, because React Native has no `crypto.subtle` (R16). A fix needs a polyfill; Kacper's decision.
+  - **WebCrypto is partial:** the `web-crypto` polyfill gives only `getRandomValues` and `subtle.digest` (SHA-256). Anything in auth-js that needs more of `crypto.subtle` (`getClaims`' local JWT check) must not be used; the app calls `getUser` instead. auth-js also needs a global `TextEncoder` for S256 (Hermes has it; checked on the device run of pkce-sha256).
   - **Redirect lost on reload:** if the app is reloaded while the browser is open, the code in the returned URL is not exchanged, because `auth/callback` only redirects.
   - **Account deletion:** a future account deletion must also remove the user's files in `avatars` (R9).
   - **Device checks:** what is still pending is listed in the plan's step 9 (keyboard, TalkBack focus, Discord, the e-mail code, a taken nick, the save and the offline reopen, a revoked session).
@@ -607,6 +608,7 @@ The airport list is a static bundled file, validated row by row in its test (not
 - Template images in `assets/images/` (React/Expo logos, `tabIcons/`, `tutorial-web.png`) are not referenced by any code.
 
 ## Changelog
+- 2026-10-19 — pkce-sha256 — new `src/data/web-crypto.ts` (`installWebCrypto`, called in `supabase.ts` before `createClient`): PKCE challenge is S256 and the verifier comes from `expo-crypto` instead of `Math.random`; no more "WebCrypto API is not supported" warning. `session-source.checkStoredSession` calls `getUser(token)` instead of `getClaims`; the test fake auth has `getUser`, no `getClaims`.
 - 2026-10-19 — auth-onboarding (steps 1–8c; step 9 device run partly done):
   - **Schemas:** `profile.ts`, `auth.ts`.
   - **Database:** migration `20261018150000_profiles.sql` (`profiles`, friend-code and touch triggers, RLS, column grants, bucket `avatars` with policies), applied locally and to the project; `supabase/tests/profiles.sql`; the parity test; `config.toml` (anonymous off, redirect URLs, OTP templates); `supabase/templates/magic_link.html`; types regenerated.
