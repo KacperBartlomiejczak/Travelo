@@ -327,12 +327,8 @@ describe('WelcomeScreen (auth-onboarding D5, D6, P4, P5, P6)', () => {
       });
 
       it('shows everything in place, without animating, when the system cannot say whether to reduce motion', async () => {
-        // Only the welcome screen's own question fails: the cover image asks first (its effect runs before its parent's), the
-        // sign-in sheet asks later, and both answer true (their own handling of a failure is not under test here).
-        jest
-          .spyOn(AccessibilityInfo, 'isReduceMotionEnabled')
-          .mockResolvedValueOnce(true)
-          .mockRejectedValueOnce(new Error('no native module'));
+        // Every caller (welcome screen, cover image, sign-in sheet) asks through the shared hook, and the question fails for all.
+        jest.spyOn(AccessibilityInfo, 'isReduceMotionEnabled').mockRejectedValue(new Error('no native module'));
         const timing = jest.spyOn(Animated, 'timing');
         await setup();
         for (const part of parts) expect(look(part)).toEqual({ opacity: 1, translateY: 0 });

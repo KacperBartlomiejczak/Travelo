@@ -1,8 +1,9 @@
 import type { LucideIcon } from 'lucide-react-native';
-import { useEffect, useLayoutEffect, useRef, useState } from 'react';
-import { AccessibilityInfo, Animated, Pressable, Text, useWindowDimensions, View } from 'react-native';
+import { useLayoutEffect, useRef, useState } from 'react';
+import { Animated, Pressable, Text, useWindowDimensions, View } from 'react-native';
 
 import { usePillBottomOffset } from '@/features/nav/usePillClearance';
+import { useReduceMotion } from '@/hooks/useReduceMotion';
 import { useTheme } from '@/theme/useTheme';
 
 export type PillNavItem = { key: string; label: string; Icon: LucideIcon };
@@ -24,16 +25,7 @@ export function PillNav({ items, activeKey, onSelect }: Props) {
   const theme = useTheme();
   const bottomOffset = usePillBottomOffset();
   const { width, fontScale } = useWindowDimensions();
-  const [reduceMotion, setReduceMotion] = useState(false);
-  useEffect(() => {
-    let active = true;
-    void AccessibilityInfo.isReduceMotionEnabled().then((enabled) => active && setReduceMotion(enabled));
-    const subscription = AccessibilityInfo.addEventListener('reduceMotionChanged', setReduceMotion);
-    return () => {
-      active = false;
-      subscription.remove();
-    };
-  }, []);
+  const reduceMotion = useReduceMotion() === true;
 
   const { colors, spacing, size, radius, elevation } = theme;
   const labelsForAll = fontScale <= MAX_FONT_SCALE_WITH_LABELS;

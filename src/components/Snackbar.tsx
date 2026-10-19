@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { AccessibilityInfo, Animated, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { useReduceMotion } from '@/hooks/useReduceMotion';
 import { useTheme } from '@/theme/useTheme';
 
 type Props = {
@@ -26,16 +27,7 @@ export function Snackbar({ message, onHide, bottomOffset = 0 }: Props) {
   const [rendered, setRendered] = useState(message);
   if (message !== null && message !== rendered) setRendered(message);
   // §9.4: no fade when the system asks to reduce motion.
-  const [reduceMotion, setReduceMotion] = useState(false);
-  useEffect(() => {
-    let active = true;
-    void AccessibilityInfo.isReduceMotionEnabled().then((enabled) => active && setReduceMotion(enabled));
-    const subscription = AccessibilityInfo.addEventListener('reduceMotionChanged', setReduceMotion);
-    return () => {
-      active = false;
-      subscription.remove();
-    };
-  }, []);
+  const reduceMotion = useReduceMotion() === true;
 
   const visible = message !== null;
   const gone = !visible && (rendered === null || reduceMotion);
