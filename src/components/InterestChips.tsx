@@ -1,5 +1,5 @@
 import { useTranslation } from 'react-i18next';
-import { Text, View } from 'react-native';
+import { Keyboard, Text, View } from 'react-native';
 
 import { INTEREST_GROUPS, InterestGroupSchema, type InterestTag } from '@/schemas';
 import { useTheme } from '@/theme/useTheme';
@@ -18,6 +18,8 @@ export function InterestChips({ selected, onChange, disabled = false }: Props) {
   const theme = useTheme();
 
   function toggle(interest: InterestTag) {
+    // theme-split D11: the scroll view lets the first tap through, so the keyboard is closed here, along the way.
+    Keyboard.dismiss();
     onChange(selected.includes(interest) ? selected.filter((current) => current !== interest) : [...selected, interest]);
   }
 

@@ -1,4 +1,5 @@
 import { fireEvent, render, screen } from '@testing-library/react-native';
+import { Keyboard } from 'react-native';
 
 import { InterestChips } from '@/components/InterestChips';
 import i18n from '@/i18n';
@@ -49,6 +50,17 @@ describe('InterestChips (extracted from FriendCard, auth-onboarding step 8)', ()
     await render(<InterestChips selected={['museums', 'beaches']} onChange={onChange} />);
     await fireEvent.press(screen.getByRole('checkbox', { name: 'Muzea' }));
     expect(onChange).toHaveBeenCalledWith(['beaches']);
+  });
+
+  // theme-split D11: the first tap toggles the chip (the scroll view lets it through) and the keyboard closes along the way.
+  it('closes the keyboard when a chip is pressed, and still toggles the chip', async () => {
+    const dismiss = jest.spyOn(Keyboard, 'dismiss').mockImplementation(() => {});
+    const onChange = jest.fn<void, [InterestTag[]]>();
+    await render(<InterestChips selected={['museums']} onChange={onChange} />);
+    await fireEvent.press(screen.getByRole('checkbox', { name: 'Plaże' }));
+    expect(dismiss).toHaveBeenCalledTimes(1);
+    expect(onChange).toHaveBeenCalledWith(['museums', 'beaches']);
+    dismiss.mockRestore();
   });
 
   it('can be disabled: no chip reacts', async () => {
