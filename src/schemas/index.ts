@@ -7,6 +7,7 @@ export * from './flight';
 export * from './interests';
 export * from './member';
 export * from './profile';
+export * from './provider-profile';
 export * from './supabase-config';
 export * from './sync';
 export * from './trip';
