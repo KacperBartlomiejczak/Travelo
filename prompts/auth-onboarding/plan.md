@@ -221,7 +221,7 @@ Written first, run red for the expected reason, per step:
   Verify: full suite; verifier.
 - [x] 8c. [frontend] (D24, from step 9 run 1) Profile setup: the interests hint and error under the heading; a failed save scrolls to the first error and focuses it; a solid status-bar background on the onboarding route. Skill: frontend-ui-engineering, test-driven-development. Tests first. Verify: full suite; verifier; tester re-run of A, C, G, K.
 - [ ] 9. [tester] Device run (dev build, after step 0): the manual steps below — skill: none.
-- [ ] 10. Docs: `Architecture.md`, `context/app-context.md`, `CLAUDE.md` Data structures + offline decision line — no tests (docs only).
+- [x] 10. Docs: `Architecture.md`, `context/app-context.md`, `CLAUDE.md` Data structures + offline decision line — no tests (docs only).
 
 ### Step 0 — instructions (for Kacper)
 1. **Google Cloud Console** → APIs & Services → OAuth consent screen: app name "Travelo", your e-mail, scopes `email`, `profile`, `openid`; add yourself as a test user (R4).
@@ -691,6 +691,14 @@ Written first, run red for the expected reason, per step:
   - the e-mail and code screens in dark mode and English.
 
   Scenario 12 passed in run 2.
+
+- Step 10 (2026-10-19, orchestrator, docs only, no tests):
+  - **`Architecture.md`:** overview, folder tree, modules (incl. a new Auth feature row), data model (`profile.ts`, `auth.ts`, `profiles`, `avatars`, SQLite v4, `clearUserData`), data flow (session, leaving, background check, gate, OAuth, e-mail code, profile, local-store queue and epoch), backend (client, auth settings, RLS, Storage, migrations), routes (the gate, `(auth)`, welcome, email, code, onboarding, callback), components, theme, testing, dependencies, external services, a key decision, limitations (R1–R16), changelog. Anonymous sign-in removed everywhere it was described as current.
+  - **`context/app-context.md`:** roadmap item 12, recorded ideas, navigation shape, §3.8 sign-in and profile, `Profile` in the domain model, the offline table and auth, backend, frontend, known gaps.
+  - **`CLAUDE.md`:** `Profile` in Data structures, and the D9 line in "Decisions made".
+  - Every fact was checked against the code (routes, data modules, `Session.tsx`, `useGateView`, `local-store.ts`, `auth.ts`, `session-source.ts`, `supabase.ts`, `config.toml`, tokens, `jest.setup.ts`, `package.json`).
+  - **Not changed (outdated before this task, outside its scope):** `app-context.md` still lists "Trip covers" and "Profile tab" as in progress, and the trip menu as able to "remove the cover". Reported to Kacper.
+  - Step 9 stays open: the scenarios on Kacper's phone.
 
 ## Risks & open questions
 - **R1 — Existing data:** every trip created so far belongs to an anonymous user and becomes invisible after the switch (D2). Nothing migrates it.
