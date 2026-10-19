@@ -147,14 +147,15 @@ describe('onChange()', () => {
   });
 });
 
-// auth-onboarding D22 / D23: the stored session is checked once in the background. On React Native `getClaims()` asks the server
-// (`GET /user`); the library signs out by itself for `session_not_found` and does nothing for any other answer.
+// auth-onboarding D22 / D23: the stored session is checked once in the background. `getUser(token)` asks the server (`GET /user`) directly,
+// not `getClaims()`, whose local check depends on `crypto.subtle`; the library signs out by itself for `session_not_found` and does nothing
+// for any other answer.
 describe('checkStoredSession()', () => {
   it('asks Supabase to check the stored session, once per call, about the token that is stored now', async () => {
     const { source, auth } = setup();
     await source.checkStoredSession();
-    expect(auth.getClaims).toHaveBeenCalledTimes(1);
-    expect(auth.getClaims).toHaveBeenCalledWith('access');
+    expect(auth.getUser).toHaveBeenCalledTimes(1);
+    expect(auth.getUser).toHaveBeenCalledWith('access');
   });
 
   it('a valid session: nothing else happens', async () => {
@@ -165,7 +166,7 @@ describe('checkStoredSession()', () => {
 
   it('the user no longer exists (D23): signs out on this device only, once, so the app forgets them', async () => {
     const { source, auth } = setup();
-    auth.getClaims.mockResolvedValue({ data: null, error: new AuthApiError('User from sub claim in JWT does not exist', 403, 'user_not_found') });
+    auth.getUser.mockResolvedValue({ data: null, error: new AuthApiError('User from sub claim in JWT does not exist', 403, 'user_not_found') });
     await source.checkStoredSession();
     expect(auth.signOut).toHaveBeenCalledTimes(1);
     expect(auth.signOut).toHaveBeenCalledWith({ scope: 'local' });
@@ -173,7 +174,7 @@ describe('checkStoredSession()', () => {
 
   it('the session is gone on the server: the library signs out by itself, the app does not do it a second time', async () => {
     const { source, auth } = setup();
-    auth.getClaims.mockResolvedValue({ data: null, error: new AuthSessionMissingError() });
+    auth.getUser.mockResolvedValue({ data: null, error: new AuthSessionMissingError() });
     await source.checkStoredSession();
     expect(auth.signOut).not.toHaveBeenCalled();
   });
@@ -186,21 +187,21 @@ describe('checkStoredSession()', () => {
     ['an unknown error', new AuthUnknownError('???', new Error('???'))],
   ])('%s: nothing changes, the user stays signed in', async (_name, error) => {
     const { source, auth } = setup();
-    auth.getClaims.mockResolvedValue({ data: null, error });
+    auth.getUser.mockResolvedValue({ data: null, error });
     await expect(source.checkStoredSession()).resolves.toBeUndefined();
     expect(auth.signOut).not.toHaveBeenCalled();
   });
 
   it('a check that throws is swallowed too: nothing is shown, nobody is signed out', async () => {
     const { source, auth } = setup();
-    auth.getClaims.mockRejectedValue(new Error('storage broken'));
+    auth.getUser.mockRejectedValue(new Error('storage broken'));
     await expect(source.checkStoredSession()).resolves.toBeUndefined();
     expect(auth.signOut).not.toHaveBeenCalled();
   });
 
   it('a failing local sign-out is swallowed: the user stays signed in, nothing is shown', async () => {
     const { source, auth } = setup();
-    auth.getClaims.mockResolvedValue({ data: null, error: new AuthApiError('gone', 403, 'user_not_found') });
+    auth.getUser.mockResolvedValue({ data: null, error: new AuthApiError('gone', 403, 'user_not_found') });
     auth.signOut.mockResolvedValueOnce({ error: new Error('storage broken') });
     await expect(source.checkStoredSession()).resolves.toBeUndefined();
 
@@ -220,7 +221,7 @@ describe('checkStoredSession() — the stored session changes while the check is
   /** The server answers `user_not_found` for the token that was sent, after `meanwhile` happened on the phone. */
   function checkWhile(meanwhile: (auth: ReturnType<typeof setup>['auth']) => void) {
     const base = setup();
-    base.auth.getClaims.mockImplementation(async () => {
+    base.auth.getUser.mockImplementation(async () => {
       meanwhile(base.auth);
       return { data: null, error: gone };
     });
@@ -231,7 +232,7 @@ describe('checkStoredSession() — the stored session changes while the check is
     const { source, auth, storedSession } = setup();
     storedSession('none');
     await source.checkStoredSession();
-    expect(auth.getClaims).not.toHaveBeenCalled();
+    expect(auth.getUser).not.toHaveBeenCalled();
     expect(auth.signOut).not.toHaveBeenCalled();
   });
 
@@ -239,14 +240,14 @@ describe('checkStoredSession() — the stored session changes while the check is
     const { source, auth } = setup();
     auth.getSession.mockResolvedValue({ data: { session: null as never }, error: offline() });
     await source.checkStoredSession();
-    expect(auth.getClaims).not.toHaveBeenCalled();
+    expect(auth.getUser).not.toHaveBeenCalled();
     expect(auth.signOut).not.toHaveBeenCalled();
   });
 
   it('another user signs in while the check is in flight: the answer was about the first user, so the new one is NOT signed out', async () => {
     const { source, auth } = checkWhile((a) => a.getSession.mockResolvedValue(stored(OTHER_USER_ID, 'access-b')));
     await source.checkStoredSession();
-    expect(auth.getClaims).toHaveBeenCalledWith('access');
+    expect(auth.getUser).toHaveBeenCalledWith('access');
     expect(auth.signOut).not.toHaveBeenCalled();
   });
 

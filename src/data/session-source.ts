@@ -28,7 +28,7 @@ export interface SessionSource {
 }
 
 type Deps = {
-  auth: SessionAuth & Pick<SupabaseClient['auth'], 'onAuthStateChange' | 'getClaims'>;
+  auth: SessionAuth & Pick<SupabaseClient['auth'], 'onAuthStateChange' | 'getUser'>;
   clearUserData: () => Promise<void>;
 };
 
@@ -53,9 +53,9 @@ export function createSupabaseSessionSource({ auth, clearUserData }: Deps): Sess
         // The check is about the session stored now, by its token: the answer comes over the network, and by then someone else may be signed in.
         const checked = (await auth.getSession()).data.session;
         if (!checked) return;
-        // On React Native this asks the server (`GET /user`), as there is no `crypto.subtle`. Supabase itself removes the session and fires
+        // Asks the server (`GET /user`) directly, not `getClaims`, whose local check of a JWT depends on `crypto.subtle`. Supabase itself removes the session and fires
         // SIGNED_OUT for `session_not_found`; every other answer (no connection, a timeout, a server error, an invalid token) changes nothing.
-        const { error } = await auth.getClaims(checked.access_token);
+        const { error } = await auth.getUser(checked.access_token);
         if (error?.code !== 'user_not_found') return;
         // The server answers `user_not_found` for a deleted user, and Supabase leaves that session in place: sign out here, on this phone only.
         // `signOut` ends whatever is stored when it runs, so only when that is still the same user (a refresh changes the token, not the user).
