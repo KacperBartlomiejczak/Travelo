@@ -16,10 +16,10 @@ type Props = {
 // R1 (pill-nav-and-dialog): above this font scale five labels no longer fit, so inactive items keep only their icon.
 const MAX_FONT_SCALE_WITH_LABELS = 1.3;
 
-// Floating pill navigation (design-context §10.2, pill-nav-and-dialog D1, D2, D4): an ink capsule detached from the
-// bottom edge, in light and dark mode alike. The active item is brand coloured, its icon is larger, and the change
-// animates over `duration.small` (instantly with reduce motion, §9.4). The wrapper lets touches through everywhere
-// except the capsule.
+// Floating pill navigation (design-context §10.2, pill-nav-and-dialog D1, D2, D4): a capsule detached from the
+// bottom edge, white in light mode and ink in dark mode (theme-split-and-profile-prefill D2). The active item is
+// brand coloured, its icon is larger, and the change animates over `duration.small` (instantly with reduce motion,
+// §9.4). The wrapper lets touches through everywhere except the capsule.
 export function PillNav({ items, activeKey, onSelect }: Props) {
   const theme = useTheme();
   const bottomOffset = usePillBottomOffset();
@@ -118,7 +118,7 @@ function PillNavTab({ item, selected, showLabel, reduceMotion, onPress }: TabPro
           alignItems: 'center',
           justifyContent: 'center',
           borderRadius: radius.full,
-          backgroundColor: pressed ? colors.nav.border : undefined,
+          backgroundColor: pressed ? colors.nav.pressed : undefined,
         },
         focused && {
           outlineStyle: 'solid',

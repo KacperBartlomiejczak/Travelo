@@ -271,18 +271,33 @@ describe('disabled opacity (trip-photos D25, §10.2)', () => {
 });
 
 describe('pill nav and dialog tokens (pill-nav-and-dialog)', () => {
-  it.each([
-    ['light', lightTheme],
-    ['dark', darkTheme],
-  ])('has the always-dark nav roles from the palette in %s mode (D2)', (_, theme) => {
-    expect(theme.colors.nav.background).toBe(palette.neutral[900]);
-    expect(theme.colors.nav.border).toBe(palette.dark.border);
-    expect(theme.colors.nav.textInactive).toBe(palette.dark.textSecondary);
-    expect(theme.colors.nav.active).toBe(palette.dark.brand);
+  it('has a white pill with brand-coloured text in light mode (theme-split D2)', () => {
+    expect(lightTheme.colors.nav.background).toBe(palette.neutral[0]);
+    expect(lightTheme.colors.nav.border).toBe(palette.neutral[200]);
+    expect(lightTheme.colors.nav.textInactive).toBe(palette.neutral[600]);
+    expect(lightTheme.colors.nav.active).toBe(palette.brand[600]);
   });
 
-  it('keeps the nav colours identical in light and dark mode', () => {
-    expect(darkTheme.colors.nav).toEqual(lightTheme.colors.nav);
+  it('matches the light border and secondary text colours', () => {
+    expect(lightTheme.colors.nav.border).toBe(lightTheme.colors.border);
+    expect(lightTheme.colors.nav.textInactive).toBe(lightTheme.colors.text.secondary);
+    expect(lightTheme.colors.nav.active).toBe(lightTheme.colors.action.link);
+  });
+
+  it('has an ink pill in dark mode', () => {
+    expect(darkTheme.colors.nav.background).toBe(palette.neutral[900]);
+    expect(darkTheme.colors.nav.border).toBe(palette.dark.border);
+    expect(darkTheme.colors.nav.textInactive).toBe(palette.dark.textSecondary);
+    expect(darkTheme.colors.nav.active).toBe(palette.dark.brand);
+  });
+
+  it('has a pressed tab background that keeps both labels readable (theme-split-and-profile-prefill D8)', () => {
+    expect(lightTheme.colors.nav.pressed).toBe(palette.neutral[50]);
+    expect(darkTheme.colors.nav.pressed).toBe(palette.dark.border);
+  });
+
+  it('no longer shares the nav colours between light and dark mode', () => {
+    expect(darkTheme.colors.nav).not.toEqual(lightTheme.colors.nav);
   });
 
   it('gives the floating pill elevation level 2 and dialogs level 4 in light mode (§6.1)', () => {
