@@ -662,6 +662,8 @@ Height: 36dp.
 
 Horizontal padding: 12dp.
 
+Exception — interest chips (Kacper, 2026-10-19, `prompts/theme-split-and-profile-prefill/plan.md` D9): 32dp tall with the touch target kept at 44dp (hit slop), 8dp base horizontal padding, and the same width selected and unselected (the unselected chip reserves the check mark's room in its padding), so toggling never reflows the row.
+
 Radius: 999dp.
 
 States:
