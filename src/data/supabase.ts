@@ -8,6 +8,7 @@ import { SupabaseConfigSchema, type SupabaseConfig } from '@/schemas';
 
 import { keepSessionFresh } from './auth';
 import { REQUEST_TIMEOUT_MS, withTimeout } from './fetch-timeout';
+import { installWebCrypto } from './web-crypto';
 
 const ENV_NAMES: Record<keyof SupabaseConfig, string> = {
   url: 'EXPO_PUBLIC_SUPABASE_URL',
@@ -24,6 +25,9 @@ if (!config.success) {
   const names = config.error.issues.map((issue) => ENV_NAMES[issue.path[0] as keyof SupabaseConfig]);
   throw new Error(`Invalid Supabase env variables: ${names.join(', ')}`);
 }
+
+// Same spirit as the URL polyfill above: the PKCE challenge needs SHA-256, which Hermes lacks (pkce-sha256).
+installWebCrypto();
 
 /**
  * The app's only Supabase client. The auth session is kept in SQLite-backed localStorage. Every request

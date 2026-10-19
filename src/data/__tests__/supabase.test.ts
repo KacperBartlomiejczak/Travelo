@@ -1,10 +1,12 @@
 import { createClient } from '@supabase/supabase-js';
 
 import { withTimeout } from '@/data/fetch-timeout';
+import { installWebCrypto } from '@/data/web-crypto';
 
 const mockPolyfillLoaded = jest.fn();
 const mockTimedFetch = jest.fn();
 
+jest.mock('@/data/web-crypto', () => ({ installWebCrypto: jest.fn() }));
 jest.mock('@/data/fetch-timeout', () => ({ REQUEST_TIMEOUT_MS: 20_000, withTimeout: jest.fn(() => mockTimedFetch) }));
 
 const mockAuth = { startAutoRefresh: jest.fn(), stopAutoRefresh: jest.fn() };
@@ -65,6 +67,13 @@ describe('supabase client', () => {
     loadClient({ url: URL, key: KEY });
     expect(mockPolyfillLoaded).toHaveBeenCalled();
     expect(mockPolyfillLoaded.mock.invocationCallOrder[0]).toBeLessThan(jest.mocked(createClient).mock.invocationCallOrder[0]);
+  });
+
+  it('installs the WebCrypto polyfill before creating the client, so PKCE uses S256 (pkce-sha256)', () => {
+    jest.mocked(installWebCrypto).mockClear();
+    loadClient({ url: URL, key: KEY });
+    expect(installWebCrypto).toHaveBeenCalledTimes(1);
+    expect(jest.mocked(installWebCrypto).mock.invocationCallOrder[0]).toBeLessThan(jest.mocked(createClient).mock.invocationCallOrder[0]);
   });
 
   it('names the missing variable', () => {
