@@ -47,4 +47,20 @@ describe('Chip', () => {
     await render(<Chip label="Plaże" selected={false} onToggle={() => {}} />);
     expect(screen.getByRole('checkbox').props.hitSlop).toEqual({ top: 4, bottom: 4, left: 0, right: 0 });
   });
+
+  it('can be disabled: it does not toggle, is announced as disabled and drawn at the disabled opacity (§10.2)', async () => {
+    const onToggle = jest.fn();
+    await render(<Chip label="Plaże" selected={false} onToggle={onToggle} disabled />);
+    const chip = screen.getByRole('checkbox', { name: 'Plaże' });
+    expect(chip).toBeDisabled();
+    expect(chip).toHaveStyle({ opacity: lightTheme.opacity.disabled });
+    await fireEvent.press(chip);
+    expect(onToggle).not.toHaveBeenCalled();
+  });
+
+  it('is enabled and fully opaque by default', async () => {
+    await render(<Chip label="Plaże" selected={false} onToggle={() => {}} />);
+    expect(screen.getByRole('checkbox')).toBeEnabled();
+    expect(screen.getByRole('checkbox')).not.toHaveStyle({ opacity: lightTheme.opacity.disabled });
+  });
 });

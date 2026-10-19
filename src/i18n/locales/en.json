@@ -119,6 +119,11 @@
   },
   "layover": "{{duration}} layover in {{airport}}",
   "validation": {
+    "emailFormat": "Enter a valid e-mail address.",
+    "otpFormat": "The code has 6 digits.",
+    "usernameFormat": "Username: 3–20 characters, starts with a letter; letters, digits, _ and .",
+    "usernameRequired": "Enter a username.",
+    "interestsRequired": "Pick at least one.",
     "airportRequired": "Choose an airport",
     "dateTimeRequired": "Choose date and time",
     "sameAirport": "Arrival airport must differ from departure",
@@ -239,6 +244,58 @@
   "sync": {
     "pending": "Waiting to sync",
     "failed": "Couldn't sync",
+    "retry": "Try again"
+  },
+  "auth": {
+    "welcome": {
+      "title": "Welcome to Travelo",
+      "body": "Plan a trip for the whole crew — flights, budget and days in one place.",
+      "signIn": "Sign in"
+    },
+    "signIn": {
+      "title": "Sign in",
+      "google": "Continue with Google",
+      "discord": "Continue with Discord",
+      "email": "Continue with e-mail",
+      "error": {
+        "google": "Couldn't sign in with Google. Try again.",
+        "discord": "Couldn't sign in with Discord. Try again."
+      }
+    },
+    "back": "Back",
+    "email": {
+      "title": "Your e-mail",
+      "label": "E-mail address",
+      "hint": "We'll send you a 6-digit code.",
+      "send": "Send code",
+      "sendError": "Couldn't send the code. Try again."
+    },
+    "code": {
+      "title": "Enter the code",
+      "label": "Code from the e-mail",
+      "sentTo": "We sent it to {{email}}.",
+      "signIn": "Sign in",
+      "resend": "Send the code again",
+      "resendIn": "Send the code again ({{time}})",
+      "resendWait": "Send the code again, in {{seconds}} seconds",
+      "invalid": "The code is wrong or has expired.",
+      "signInError": "Couldn't sign in. Try again."
+    },
+    "profile": {
+      "title": "Create your profile",
+      "avatar": "Add photo",
+      "avatarChange": "Change photo",
+      "avatarError": "Couldn't open your photos. Try again.",
+      "username": "Username",
+      "usernameHint": "3–20 characters: letters, digits, _ and .",
+      "usernameTaken": "This username is taken.",
+      "interests": "Your interests",
+      "interestsHint": "Pick at least one.",
+      "save": "Save and start",
+      "saveError": "Couldn't save your profile. Try again."
+    },
+    "startError": "Couldn't start the app.",
+    "profileLoadError": "Couldn't load your profile.",
     "retry": "Try again"
   },
   "offline": {

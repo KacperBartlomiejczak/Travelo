@@ -1,27 +1,34 @@
 import { CircleX } from 'lucide-react-native';
-import type { ReactNode } from 'react';
+import type { ReactNode, Ref } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Text, View, type TextStyle } from 'react-native';
 
 import type { Theme } from '@/theme/theme';
 import { useTheme } from '@/theme/useTheme';
 
-type Props = { label: string; optional?: boolean; error?: string; children: ReactNode };
+type Props = {
+  label: string;
+  optional?: boolean;
+  hint?: string;
+  error?: string;
+  /** For a control that is long (a list of chips): the hint and the error sit right under the label instead of under the control. */
+  messagesFirst?: boolean;
+  /** Lets a screen move the screen reader focus to the label, e.g. to a field with an error. */
+  labelRef?: Ref<Text>;
+  children: ReactNode;
+};
 
-// Label above, control, error below (§10.4, D27).
-export function Field({ label, optional = false, error, children }: Props) {
+// Label above, control, error below (§10.4, D27). A hint sits where the error would; while an error shows, the hint is hidden.
+export function Field({ label, optional = false, hint, error, messagesFirst = false, labelRef, children }: Props) {
   const { t } = useTranslation();
   const theme = useTheme();
-  return (
-    <View style={{ gap: theme.spacing[1] }}>
-      <Text style={[theme.typography.bodyMMedium, { color: theme.colors.text.primary }]}>
-        {label}
-        {optional && <Text style={{ color: theme.colors.text.secondary }}>{` ${t('common.optional')}`}</Text>}
-      </Text>
-      {children}
+  const messages = (
+    <>
+      {hint && !error && <Text style={[theme.typography.bodyS, { color: theme.colors.text.secondary }]}>{hint}</Text>}
       {error && (
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: theme.spacing[1] }}>
           <CircleX
+            testID="field-error-icon"
             size={theme.size.iconInline}
             strokeWidth={theme.size.iconStroke}
             color={theme.colors.status.error}
@@ -32,6 +39,17 @@ export function Field({ label, optional = false, error, children }: Props) {
           </Text>
         </View>
       )}
+    </>
+  );
+  return (
+    <View style={{ gap: theme.spacing[1] }}>
+      <Text ref={labelRef} style={[theme.typography.bodyMMedium, { color: theme.colors.text.primary }]}>
+        {label}
+        {optional && <Text style={{ color: theme.colors.text.secondary }}>{` ${t('common.optional')}`}</Text>}
+      </Text>
+      {messagesFirst && messages}
+      {children}
+      {!messagesFirst && messages}
     </View>
   );
 }

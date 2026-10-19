@@ -34,7 +34,7 @@ Platforms: iOS and Android (Expo / React Native). Languages: Polish (`pl`) and E
 1. **Trip setup (create-trip wizard)** — flights, friends, budget per person, name and cover photo.
 2. **Members** — friends with interests (17 interest tags in 6 groups).
 3. **Flights and layovers** — manual entry of flight segments; layovers are derived from consecutive segments.
-4. **Trips in Supabase** — anonymous sign-in, Postgres with RLS, trip list and the current trip.
+4. **Trips in Supabase** — Postgres with RLS, trip list and the current trip.
 5. **Side panel with all trips** — "Nadchodzące" / "Minione", choose the current trip, start a new trip.
 6. **Trip menu** — rename, change the cover, change the budget, delete the trip.
 7. **Trip photos** — photo strip under the hero, full-screen viewer, upload to private Supabase Storage.
@@ -42,16 +42,22 @@ Platforms: iOS and Android (Expo / React Native). Languages: Polish (`pl`) and E
 9. **Offline reading** — the trip list and every trip opened on the phone are kept in SQLite.
 10. **Pill navigation** — a floating bottom pill with five screens (four of them are placeholders).
 11. **Confirm dialog** — in-app dialog used when leaving the wizard with entered data.
+12. **Trip covers** (`prompts/trip-covers/`) — every trip has a cover: one of five bundled photos (Auckland by default) or a photo from the gallery, uploaded to Storage.
+13. **Profile tab** (`prompts/profile-tab/`) — the fifth pill item is "Profil" (route `/profile`, title "Profil użytkownika", `CircleUser` icon); still an empty placeholder.
+14. **Sign-in and profile** (`prompts/auth-onboarding/`) — a required account: Google, Discord or e-mail with a 6-digit code; on first sign-in a profile with a unique nick, interests and an optional photo; a server-generated friend code, not shown yet. The device run (step 9) is partly done.
 
 ### In progress (plans in `prompts/`)
-- **Trip covers** (`prompts/trip-covers/`) — ready-made cover photos bundled in the app plus "from the gallery"; every trip always has a cover; gallery covers upload to Storage.
-- **Profile tab** (`prompts/profile-tab/`) — the fifth pill item "Ustawienia" becomes "Profil" (route `/profile`, person icon); still an empty placeholder.
 - **Expenses** (`prompts/expenses/`) — drafting; the "Wydatki" screen is an empty placeholder until then.
 
 ### Not started (MVP)
 - **AI day plans** — per-day schedule from real places, cost ranges, group splits (the "Plan" and "Miejsca" screens).
 - **Expenses during the trip** — fast to add, multi-currency, offline, with a visible sync status.
 - **Plan vs reality** — live daily budget ("120 PLN left today"), end-of-trip summary shareable as an image.
+
+### Ideas recorded, not planned yet
+- Showing the friend code, a QR code and adding friends by code (the next feature after sign-in).
+- Prefill the profile setup with the name and photo from Google / Discord (Kacper, 2026-10-19).
+- A sign-out button and a Profile screen (auth-onboarding D8).
 
 ### Next (after the MVP)
 - "Rebuild the rest of today" (rain, closed place, tired group) — keeps locked activities.
@@ -63,8 +69,14 @@ Platforms: iOS and Android (Expo / React Native). Languages: Polish (`pl`) and E
 
 ### 3.1 Navigation shape
 ```
-Root Stack
-├── (drawer)               Side panel with all trips (swipe from the left edge only on "Podróż")
+Root Stack (a gate decides which group exists)
+├── (auth)                 Signed out only
+│   ├── /welcome           Welcome + sign-in sheet (Google, Discord, e-mail)
+│   ├── /email             E-mail address
+│   └── /code              6-digit code from the e-mail
+├── /onboarding            Signed in without a profile: profile setup
+├── /auth/callback         OAuth redirect landing (redirects by state)
+├── (drawer)               Signed in with a profile. Side panel with all trips (swipe from the left edge only on "Podróż")
 │   └── (tabs)             Floating pill with five screens
 │       ├── /              Podróż    — the current trip (home screen)
 │       ├── /expenses      Wydatki   — placeholder
@@ -92,7 +104,7 @@ The trip view, top to bottom:
 "Twoje podróże", with sections "Nadchodzące" (not ended yet, soonest first) and "Minione" (most recently ended first). A row has a thumbnail, the name (2 lines) and the dates; the open trip is marked. Tapping another trip makes it the current trip and closes the panel. Footer: "Nowa podróż" (starts the wizard). Loading, error, empty and offline states exist.
 
 ### 3.4 Trip menu (⋮)
-A bottom sheet with: **"Nazwa i zdjęcie"** (rename up to 60 characters, change or remove the cover), **"Zmień budżet"** and **"Usuń podróż"** (a confirmation sheet; afterwards the home screen shows the default trip or the empty state and a "Podróż usunięta." snackbar). Rename, cover change and delete go straight to Supabase and are **disabled offline**.
+A bottom sheet with: **"Nazwa i zdjęcie"** (rename up to 60 characters, change the cover — a cover is always required), **"Zmień budżet"** and **"Usuń podróż"** (a confirmation sheet; afterwards the home screen shows the default trip or the empty state and a "Podróż usunięta." snackbar). Rename, cover change and delete go straight to Supabase and are **disabled offline**.
 
 ### 3.5 Create-trip wizard (`/trips/new`)
 Four steps. Each step validates its slice with a Zod schema on "Dalej". Leaving with entered data asks through the in-app confirm dialog ("Odrzucić wpisane dane?").
@@ -111,6 +123,24 @@ Changes the budget per person (currency fixed to the trip's base currency). Work
 - Adding and deleting need internet. Photos already seen show offline (the list is copied to SQLite; the images stay in the image cache).
 - Photos not yet sent are lost if the app closes.
 
+### 3.8 Sign-in and profile setup
+- **Welcome** (always dark, a full-screen cover photo): "Witaj w Travelo", one sentence, "Zaloguj się".
+- **Sign-in sheet:** "Kontynuuj z Google", "Kontynuuj z Discordem", "Kontynuuj z e-mailem".
+  - Google and Discord open the system browser and come back to the app.
+  - A cancel does nothing; a failure shows fixed copy for that provider.
+  - The buttons use Google's and Discord's own brand colours (a written exception to the design context).
+- **E-mail:** the address, then "Wyślij kod" → a 6-digit code from the e-mail.
+  - The code is checked as soon as the 6th digit is typed.
+  - "Wyślij kod ponownie" becomes available after 60 s.
+  - A wrong code keeps the digits and shows an error.
+- **Profile setup**, on the first sign-in only, and it cannot be skipped:
+  - an optional photo (gallery, square crop);
+  - a nick: 3–20 characters `a–z 0–9 _ .`, starts with a letter, lowercased as you type, unique ("Ten nick jest zajęty.");
+  - at least one of the 17 interests;
+  - then "Zapisz i zaczynamy" → "Podróż". A failed save scrolls to the first error.
+- **Offline:** the banner shows and the sign-in and save buttons are disabled. A signed-in user with a profile opens the app offline normally.
+- **Signing out:** everything of the previous user is erased from the phone, then the welcome screen shows. It happens when the server ends the session, or when the account was deleted (checked once at startup in the background). There is no sign-out button yet.
+
 ---
 
 ## 4. Domain model
@@ -122,7 +152,8 @@ Money          { amountMinor: int, currency: ISO4217 }
 CostEstimate   { minMinor: int, maxMinor: int, currency: ISO4217, perPerson: boolean }
 
 Trip           { id, ownerId, name (1–60), destination: IATA,       // destination = outbound's final airport
-                 coverImageUri?, startDate, endDate,                // dates derived from flights
+                 coverImageUri,                                     // required: 'preset:<id>' | 'photo:<uuid>'
+                 startDate, endDate,                                // dates derived from flights
                  baseCurrency, budgetPerPerson: Money,              // whole trip, without flights
                  budgetUpdatedAt, createdAt }                       // last write wins on sync
 
@@ -137,6 +168,11 @@ FlightSegment  { id, tripId, direction: 'outbound' | 'return' | 'internal', orde
 
 TripPhoto      { id (client UUID), tripId, takenAt?, createdAt? }   // takenAt = camera clock, no time zone
 TripBudgetChange / LocalTripBudgetChange   // a budget change made on the device; its own outbox row
+
+Profile        { id (= auth user id), username (unique, 3–20, a–z 0–9 _ .),
+                 friendCode (6 chars, server-generated, no 0 O 1 I L),
+                 interests: InterestTag[] (≥ 1), avatarId: uuid | null,     // photo in the private `avatars` bucket
+                 createdAt, updatedAt }
 ```
 
 Planned (in `CLAUDE.md`, not in code yet): `Day`, `Activity`, `Expense` / `LocalExpense`, `OutboxEntry`, `DayPlanDraft`.
@@ -161,9 +197,11 @@ Key facts:
 | Read the trip list and any trip opened before | SQLite copies of Supabase data | **Yes** — read-only |
 | Chosen (current) trip | SQLite only, never sent to Supabase | **Yes** |
 | Photo list | SQLite copy | Yes (read-only; signed URLs expire after 1 h, images stay in the image cache) |
+| Own profile | Supabase `profiles`, SQLite copy | Read: **yes** (read-only copy). Creating it needs internet |
+| Sign-in | Supabase Auth | **No** — a signed-in user stays signed in offline |
 | **Expenses** (planned) | SQLite + outbox, synced to Supabase | **Yes** (decided; see below) |
 
-**Offline scope (MVP decision):** expenses and changes to a trip's budget per person work offline. Everything else is server-first. Extending offline to other entities is a new decision for Kacper.
+**Offline scope (MVP decision):** expenses and changes to a trip's budget per person work offline. Everything else is server-first. Read-only copies cover the trip list, every trip opened on the phone, and the user's own profile (auth-onboarding D9). Extending offline to other entities is a new decision for Kacper.
 
 **Budget sync:** `setBudget` writes a `pending` row to `trip_budget_changes` in SQLite with no network. A sync worker sends it with `update … where budget_updated_at < updatedAt` (last write wins). Unreachable → stays `pending` and retries with backoff (1 s × 2ⁿ, max 5 min); refused → `failed` and visible. It runs on start, on reconnect, on app foreground, after each save and on a timer.
 
@@ -171,15 +209,18 @@ Key facts:
 
 **Sync status** of a change made on the phone: `synced | pending | failed`.
 
-**Auth:** anonymous sign-in on first launch. Deleting the app or its data loses the session and with it access to the trips (no e-mail / Apple linking yet).
+**Auth:** a real account is required (Google, Discord or an e-mail code); there are no anonymous sessions. Signing in again after a reinstall restores access to the trips. Whenever the phone is signed out, all local user data is erased first.
 
 ---
 
 ## 6. Backend
 
-- **Supabase:** Postgres, Auth (anonymous), Row Level Security, Storage. Edge Functions: none yet.
+- **Supabase:** Postgres, Auth (Google and Discord OAuth with PKCE, e-mail OTP code; anonymous sign-ins off), Row Level Security, Storage. Edge Functions: none yet.
 - **Tables:** `trips`, `trip_members`, `flight_segments`, `trip_photos`. RLS on all of them: the owner can read and write; a linked member (`trip_members.user_id`) can only read.
-- **Storage:** a private bucket `trip-photos`, JPEG only, 10 MiB per file. Objects are `<tripId>/<photoId>.jpg` and `<tripId>/<photoId>_thumb.jpg`, shown through signed URLs valid for 1 hour. Deleting a trip removes its files first.
+- **`profiles`:** one row per user. The user reads, creates and updates only their own row, and never deletes it. The friend code is set by a server trigger and cannot be changed by the app.
+- **Storage:**
+  - A private bucket `trip-photos`, JPEG only, 10 MiB per file. Objects are `<tripId>/<photoId>.jpg` and `<tripId>/<photoId>_thumb.jpg`, shown through signed URLs valid for 1 hour. Deleting a trip removes its files first.
+  - A private bucket `avatars`, JPEG only, 2 MiB. Objects are `<userId>/<avatarId>.jpg`, and only the owner can access them.
 - **RPC:** `create_trip(trip, members, segments)` — one transaction, idempotent per id.
 - **Migrations** mirror the Zod schemas. Order for any data change: Zod → migration → regenerate types (`pnpm db:types`) → parity check. Applied migrations are never edited. Kacper pushes migrations to the project.
 - **Tests:** plain-SQL RLS tests in `supabase/tests/` (`pnpm test:db`, needs `DB_URL` and, for Storage, a local Supabase in Docker).
@@ -205,10 +246,10 @@ Open decision: the exact Gemini model ID (it comes from config, never hardcoded)
 
 - **Stack:** Expo SDK 57, React Native 0.86, React 19.2 (New Architecture, React Compiler, typed routes), expo-router, TypeScript strict, TanStack Query, Zod, `expo-sqlite`, `@supabase/supabase-js`, i18next, lucide icons.
 - **Fonts:** DM Sans (body) and Fraunces (display).
-- **Folders** (`src/`): `app/` (routes only), `components/` (shared UI), `features/` (`drawer`, `home`, `nav`, `trip-create`, `trip-photos`), `hooks/` (TanStack Query hooks), `data/` (repositories, Supabase client, SQLite store, sync), `lib/` (pure logic: time zones, layovers, money, airport search), `schemas/`, `providers/`, `i18n/` (pl / en dictionaries), `theme/` (tokens and light/dark themes), `test/` (helpers), `__tests__/app/` (route tests).
-- **Data access:** screens use hooks → a `TripRepository` interface. The app's implementation is Supabase + SQLite; tests use an in-memory one.
+- **Folders** (`src/`): `app/` (routes only), `components/` (shared UI), `features/` (`auth`, `drawer`, `home`, `nav`, `trip-create`, `trip-photos`), `hooks/` (TanStack Query hooks), `data/` (repositories, Supabase client, SQLite store, sync), `lib/` (pure logic: time zones, layovers, money, airport search), `schemas/`, `providers/`, `i18n/` (pl / en dictionaries), `theme/` (tokens and light/dark themes), `test/` (helpers), `__tests__/app/` (route tests).
+- **Data access:** screens use hooks → a `TripRepository` or a `ProfileRepository` interface, and the session comes from a `SessionProvider`. The app's implementations are Supabase + SQLite; tests use in-memory ones.
 - **Design rules:** all colors, spacing, radii and type come from theme tokens (no hardcoded values); all text goes through i18n keys; touch targets ≥ 44 pt; money is always shown with its currency; every screen has loading, empty, error and (where relevant) offline states. See `context/design-context.md`.
-- **Reusable pieces:** `PillNav`, `ConfirmDialog`, `BottomSheet` (swipe down to close), `Snackbar`, `OfflineBanner`, `SyncIndicator`, `PrimaryButton`, `TextButton`, `IconButton`, `HeroIconButton`, form fields (`TextField`, `AirportField`, `DateTimeField`, `AmountField`), `Chip`, `Stepper`, `SegmentedControl`, `Card`, `CoverPicker`, `TripHero`.
+- **Reusable pieces:** `PillNav`, `ConfirmDialog`, `BottomSheet` (swipe down to close), `Snackbar`, `OfflineBanner`, `SyncIndicator`, `PrimaryButton`, `TextButton`, `IconButton`, `HeroIconButton`, form fields (`TextField`, `AirportField`, `DateTimeField`, `AmountField`), `Chip`, `InterestChips`, `Stepper`, `SegmentedControl`, `Card`, `CoverPicker`, `TripHero`; for forms without a wizard, `AuthFormScreen` (`src/features/auth/`).
 
 ---
 
@@ -227,7 +268,12 @@ Open decision: the exact Gemini model ID (it comes from config, never hardcoded)
 The full list is in `Architecture.md` → "Known limitations & tech debt". The ones that matter for product decisions:
 - Four of five pill screens are placeholders.
 - Photos not yet sent are lost if the app closes.
-- Anonymous users only — no recovery after reinstall.
+- Sign-in:
+  - no sign-out button yet;
+  - Sign in with Apple is needed before an iOS release;
+  - real users need a custom SMTP for the code e-mails;
+  - Google's consent screen is still in testing mode;
+  - in Expo Go, sign-in only comes back to the app through `127.0.0.1` (not a LAN IP).
 - Retrying "Utwórz podróż" after a lost response can create a second trip.
 - Several device checks (iOS, dark mode, large fonts, TalkBack/VoiceOver) are still pending for the pill navigation.
 - The monorepo layout in `CLAUDE.md` (`apps/mobile`, `packages/schemas`) is not applied yet; the app is a single package at the repo root.

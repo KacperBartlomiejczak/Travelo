@@ -1,12 +1,12 @@
-import type { SupabaseClient } from '@supabase/supabase-js';
+import type { AuthError, SupabaseClient } from '@supabase/supabase-js';
 
 import type { Database } from '@/data/database.types';
 
-export type FakeResponse = { data?: unknown; error?: { message: string; code?: string } | null; status?: number };
+export type FakeResponse = { data?: unknown; error?: { message: string; code?: string; details?: string } | null; status?: number };
 export type RecordedQuery = { table: string; ops: [string, unknown[]][] };
 
-/** The four Storage calls the app makes (trip-photos). */
-export type StorageMethod = 'upload' | 'createSignedUrls' | 'list' | 'remove';
+/** The Storage calls the app makes (trip-photos; avatars, auth-onboarding). */
+export type StorageMethod = 'upload' | 'createSignedUrl' | 'createSignedUrls' | 'list' | 'remove';
 /** storage-js returns `{ data, error }` and never throws; a server answer has a `status`, a failed fetch has none. */
 export type FakeStorageResponse = { data?: unknown; error?: { message: string; status?: number } | null };
 export type RecordedStorageCall = { bucket: string; method: StorageMethod; args: unknown[] };
@@ -30,10 +30,23 @@ export function fakeSupabase() {
   const storageQueued: Partial<Record<StorageMethod, FakeStorageResponse[]>> = {};
   /** Every `from(table)` and Storage call in the order it was made: `from:<table>`, `storage.<method>`. */
   const sequence: string[] = [];
-  const session = { user: { id: SIGNED_IN_USER_ID } };
+  type StoredSession = { access_token?: string; user: { id: string; is_anonymous: boolean } };
+  const session: StoredSession = { access_token: 'access', user: { id: SIGNED_IN_USER_ID, is_anonymous: false } };
+  const authSession = { access_token: 'access', refresh_token: 'refresh', user: session.user };
+  /** The Supabase auth calls the app makes. Every call succeeds unless a test says otherwise; there is no anonymous sign-in. */
   const auth = {
     getSession: jest.fn(async () => ({ data: { session }, error: null as Error | null })),
-    signInAnonymously: jest.fn(async () => ({ data: { session, user: session.user }, error: null as Error | null })),
+    /** The background check of the stored session (auth-onboarding D22): the claims, or the error the server's answer became. */
+    getClaims: jest.fn(async (_jwt?: string) => ({ data: { claims: { sub: SIGNED_IN_USER_ID } } as unknown, error: null as AuthError | null })),
+    signInWithOAuth: jest.fn(async (_credentials: unknown) => ({
+      data: { provider: 'google', url: 'https://example.supabase.co/auth/v1/authorize?provider=google' },
+      error: null as Error | null,
+    })),
+    exchangeCodeForSession: jest.fn(async (_code: string) => ({ data: { session: authSession, user: session.user }, error: null as Error | null })),
+    signInWithOtp: jest.fn(async (_credentials: unknown) => ({ data: { user: null, session: null }, error: null as Error | null })),
+    verifyOtp: jest.fn(async (_params: unknown) => ({ data: { session: authSession, user: session.user }, error: null as Error | null })),
+    signOut: jest.fn(async (_options?: unknown) => ({ error: null as Error | null })),
+    onAuthStateChange: jest.fn((_callback: unknown) => ({ data: { subscription: { unsubscribe: jest.fn() } } })),
     startAutoRefresh: jest.fn(async () => {}),
     stopAutoRefresh: jest.fn(async () => {}),
   };
@@ -72,6 +85,8 @@ export function fakeSupabase() {
     return {
       upload: (...args: [path: string, body: unknown, options?: unknown]) =>
         call('upload', args, () => ({ id: 'object-id', path: args[0], fullPath: `${bucket}/${args[0]}` })),
+      createSignedUrl: (...args: [path: string, expiresIn: number]) =>
+        call('createSignedUrl', args, () => ({ signedUrl: fakeSignedUrl(bucket, args[0]) })),
       createSignedUrls: (...args: [paths: string[], expiresIn: number]) =>
         call('createSignedUrls', args, () =>
           args[0].map((path) => ({ error: null, path, signedURL: `/object/sign/${bucket}/${path}`, signedUrl: fakeSignedUrl(bucket, path) })),
@@ -88,6 +103,11 @@ export function fakeSupabase() {
     queries,
     storageCalls,
     sequence,
+    /** What `getSession` answers from now on: nobody signed in, a leftover anonymous session, or a normal user. */
+    storedSession(kind: 'none' | 'anonymous' | 'signed-in') {
+      const stored = kind === 'none' ? null : kind === 'anonymous' ? { user: { ...session.user, is_anonymous: true } } : session;
+      auth.getSession.mockImplementation(async () => ({ data: { session: stored as StoredSession }, error: null as Error | null }));
+    },
     /** Answers the next `from(table)` chains, in order. */
     respond(table: string, ...responses: FakeResponse[]) {
       (queued[table] ??= []).push(...responses);

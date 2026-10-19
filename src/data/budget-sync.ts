@@ -2,7 +2,7 @@ import { isAuthRetryableFetchError, type SupabaseClient } from '@supabase/supaba
 
 import type { LocalTripBudgetChange } from '@/schemas';
 
-import { ensureSession } from './auth';
+import { ensureSession, NotSignedInError } from './auth';
 import type { Database } from './database.types';
 import type { BudgetAttempt, LocalStore } from './local-store';
 
@@ -21,10 +21,14 @@ type Deps = { supabase: SupabaseClient<Database>; local: LocalStore; now: () => 
 /** postgrest-js answers with status 0 when the request never reached the server. */
 const UNREACHABLE = 0;
 
-async function send({ supabase }: Deps, change: LocalTripBudgetChange): Promise<Omit<BudgetAttempt, 'at'> | 'synced'> {
+/** Nobody is signed in: the change is left as it is, with no attempt counted, until someone signs in. */
+const WAITING_FOR_SIGN_IN = 'waiting-for-sign-in';
+
+async function send({ supabase }: Deps, change: LocalTripBudgetChange): Promise<Omit<BudgetAttempt, 'at'> | 'synced' | typeof WAITING_FOR_SIGN_IN> {
   try {
     await ensureSession(supabase.auth);
   } catch (error) {
+    if (error instanceof NotSignedInError) return WAITING_FOR_SIGN_IN;
     if (isAuthRetryableFetchError(error)) return { syncStatus: 'pending' };
     return { syncStatus: 'failed', error: error instanceof Error ? error.message : String(error) };
   }
@@ -57,6 +61,7 @@ export async function syncBudgetChanges(deps: Deps): Promise<SyncResult> {
   const { local, now } = deps;
   for (const change of await local.unsyncedBudgetChanges()) {
     const outcome = await send(deps, change);
+    if (outcome === WAITING_FOR_SIGN_IN) continue;
     if (outcome === 'synced') await local.markBudgetSynced(change);
     else await local.recordBudgetAttempt(change, { ...outcome, at: now().toISOString() });
   }

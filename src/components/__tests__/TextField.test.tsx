@@ -1,4 +1,6 @@
 import { fireEvent, render, screen } from '@testing-library/react-native';
+import { createRef } from 'react';
+import { TextInput } from 'react-native';
 
 import { TextField } from '@/components/TextField';
 import i18n from '@/i18n';
@@ -48,5 +50,74 @@ describe('TextField', () => {
   it('draws no browser outline on top of its own focus border (web)', async () => {
     await render(<TextField label="Imię" value="" onChangeText={() => {}} />);
     expect(screen.getByLabelText('Imię')).toHaveStyle({ outlineStyle: 'solid', outlineWidth: 0 });
+  });
+});
+
+describe('TextField hint (auth-onboarding step 8)', () => {
+  it('shows a hint under the field and reads it to screen readers', async () => {
+    await render(<TextField label="Nick" hint="3–20 znaków" value="" onChangeText={() => {}} />);
+    expect(screen.getByText('3–20 znaków')).toBeTruthy();
+    expect(screen.getByText('3–20 znaków')).toHaveStyle({ color: lightTheme.colors.text.secondary });
+    expect(screen.getByLabelText('Nick').props.accessibilityHint).toBe('3–20 znaków');
+  });
+
+  it('hides the hint while the error shows, and the error is what is read', async () => {
+    await render(<TextField label="Nick" hint="3–20 znaków" error="Wpisz nick." value="" onChangeText={() => {}} />);
+    expect(screen.queryByText('3–20 znaków')).toBeNull();
+    expect(screen.getByText('Wpisz nick.')).toBeTruthy();
+    expect(screen.getByLabelText('Nick').props.accessibilityHint).toBe('Wpisz nick.');
+  });
+
+  it('shows no hint by default', async () => {
+    await render(<TextField label="Nick" value="" onChangeText={() => {}} />);
+    expect(screen.getByLabelText('Nick').props.accessibilityHint).toBeUndefined();
+  });
+});
+
+describe('TextField input behaviour (auth-onboarding step 7)', () => {
+  it('passes the keyboard hints, autofill hints and focus request on to the input', async () => {
+    await render(
+      <TextField
+        label="Kod"
+        value=""
+        onChangeText={() => {}}
+        keyboardType="number-pad"
+        autoComplete="one-time-code"
+        textContentType="oneTimeCode"
+        autoFocus
+        returnKeyType="send"
+      />,
+    );
+    const input = screen.getByLabelText('Kod');
+    expect(input.props.keyboardType).toBe('number-pad');
+    expect(input.props.autoComplete).toBe('one-time-code');
+    expect(input.props.textContentType).toBe('oneTimeCode');
+    expect(input.props.autoFocus).toBe(true);
+    expect(input.props.returnKeyType).toBe('send');
+  });
+
+  it('reports the keyboard submit', async () => {
+    const onSubmitEditing = jest.fn();
+    await render(<TextField label="E-mail" value="" onChangeText={() => {}} onSubmitEditing={onSubmitEditing} />);
+    await fireEvent(screen.getByLabelText('E-mail'), 'submitEditing');
+    expect(onSubmitEditing).toHaveBeenCalledTimes(1);
+  });
+
+  it('gives the input to a ref, so a screen can focus it', async () => {
+    const ref = createRef<TextInput>();
+    await render(<TextField label="Kod" value="" onChangeText={() => {}} inputRef={ref} />);
+    // In Jest the ref is the mocked TextInput instance, not the host node, so it is not compared to the queried element.
+    expect(ref.current).not.toBeNull();
+    expect(ref.current?.focus).toEqual(expect.any(Function));
+  });
+
+  it('is editable by default, and not editable (surface.secondary, §10.4 disabled) when disabled', async () => {
+    const { rerender } = await render(<TextField label="Kod" value="" onChangeText={() => {}} />);
+    expect(screen.getByLabelText('Kod').props.editable).not.toBe(false);
+    expect(screen.getByLabelText('Kod')).toHaveStyle({ backgroundColor: lightTheme.colors.surface.default });
+
+    await rerender(<TextField label="Kod" value="" onChangeText={() => {}} editable={false} />);
+    expect(screen.getByLabelText('Kod').props.editable).toBe(false);
+    expect(screen.getByLabelText('Kod')).toHaveStyle({ backgroundColor: lightTheme.colors.surface.secondary });
   });
 });

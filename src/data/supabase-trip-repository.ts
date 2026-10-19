@@ -28,13 +28,11 @@ import {
 import { ensureSession } from './auth';
 import { syncBudgetChanges, type SyncResult } from './budget-sync';
 import type { Database } from './database.types';
-import type { LocalStore } from './local-store';
+import { ServerUnreachableError } from './errors';
+import { currentUserEpoch, type LocalStore } from './local-store';
 import { preparePhoto } from './photo-files';
 import { buildTrip, type TripRepository } from './trip-repository';
 import { listItemFromRow, overviewFromRows, photoFromRow, toCreateTripArgs, toPhotoRow } from './trip-rows';
-
-/** Supabase could not be reached (no connection); the device copy may be shown instead. */
-class ServerUnreachableError extends Error {}
 
 /** The private Storage bucket of trip photos (trip-photos A2). */
 const PHOTO_BUCKET = 'trip-photos';
@@ -116,7 +114,7 @@ export function createSupabaseTripRepository({
   }
 
   /** Every trip, soonest start first; the device keeps the list as its copy (trips-drawer D3). */
-  async function fetchList(local: LocalStore): Promise<TripList> {
+  async function fetchList(local: LocalStore, epoch: number): Promise<TripList> {
     await signedIn();
     const { data, error, status } = await supabase
       .from('trips')
@@ -126,12 +124,12 @@ export function createSupabaseTripRepository({
     if (error) throw failure(error, status);
     const coverUrls = await signCovers(data);
     const list = data.map((row) => listItemFromRow(row, coverUrls.get(row.id)));
-    await local.cacheList(list, now().toISOString());
+    await local.cacheList(list, now().toISOString(), epoch);
     return list;
   }
 
   /** One trip with its members and flights, or null when the server has no such trip (deleted or not visible). */
-  async function fetchTrip(local: LocalStore, tripId: string): Promise<TripOverview | null> {
+  async function fetchTrip(local: LocalStore, epoch: number, tripId: string): Promise<TripOverview | null> {
     await signedIn();
     const { data, error, status } = await supabase
       .from('trips')
@@ -142,20 +140,20 @@ export function createSupabaseTripRepository({
     if (!data) return null;
     const { trip_members: members, flight_segments: segments, ...trip } = data;
     const overview = overviewFromRows(trip, members, segments, (await signCovers([trip])).get(trip.id));
-    await local.cacheOverview(overview, now().toISOString());
+    await local.cacheOverview(overview, now().toISOString(), epoch);
     return overview;
   }
 
   /** The chosen trip; when it is gone, the choice is forgotten and the default trip is shown (D2, A1). */
-  async function fetchCurrent(local: LocalStore): Promise<TripOverview | null> {
+  async function fetchCurrent(local: LocalStore, epoch: number): Promise<TripOverview | null> {
     const chosen = await local.selectedTripId();
     if (chosen) {
-      const overview = await fetchTrip(local, chosen);
+      const overview = await fetchTrip(local, epoch, chosen);
       if (overview) return overview;
       await local.clearSelectedTrip();
     }
-    const tripId = defaultTripId(await fetchList(local), deviceToday(now()));
-    return tripId ? fetchTrip(local, tripId) : null;
+    const tripId = defaultTripId(await fetchList(local, epoch), deviceToday(now()));
+    return tripId ? fetchTrip(local, epoch, tripId) : null;
   }
 
   /** Offline: the chosen trip's copy, or the default trip from the list copy (A5). Throws when there is no copy. */
@@ -183,7 +181,7 @@ export function createSupabaseTripRepository({
   }
 
   /** The trip's photos with signed urls, sorted (D10, D13); the phone keeps the list as its copy (D8). */
-  async function fetchPhotos(local: LocalStore, tripId: string): Promise<TripPhotoList> {
+  async function fetchPhotos(local: LocalStore, epoch: number, tripId: string): Promise<TripPhotoList> {
     await signedIn();
     const photos: TripPhoto[] = [];
     // A full page may be followed by more; a short page is the last. Ordered by id, so the pages never overlap.
@@ -199,7 +197,7 @@ export function createSupabaseTripRepository({
       if (data.length < ROWS_PER_PAGE) break;
     }
     const list = await showPhotos(photos);
-    await local.cachePhotos(tripId, list, now().toISOString());
+    await local.cachePhotos(tripId, list, now().toISOString(), epoch);
     return list;
   }
 
@@ -315,9 +313,10 @@ export function createSupabaseTripRepository({
 
   return {
     async list() {
+      const epoch = currentUserEpoch();
       const local = await localStore;
       try {
-        return await fetchList(local);
+        return await fetchList(local, epoch);
       } catch (error) {
         if (!(error instanceof ServerUnreachableError)) throw error;
         const copy = await local.cachedList();
@@ -327,11 +326,12 @@ export function createSupabaseTripRepository({
     },
 
     async current() {
+      const epoch = currentUserEpoch();
       const local = await localStore;
       let overview: TripOverview | null;
       let fromCache = false;
       try {
-        overview = await fetchCurrent(local);
+        overview = await fetchCurrent(local, epoch);
       } catch (error) {
         if (!(error instanceof ServerUnreachableError)) throw error;
         overview = await cachedCurrent(local, error);
@@ -342,16 +342,18 @@ export function createSupabaseTripRepository({
     },
 
     async select(tripId) {
-      await (await localStore).selectTrip(tripId);
+      const epoch = currentUserEpoch();
+      await (await localStore).selectTrip(tripId, epoch);
     },
 
     async create(input) {
+      const epoch = currentUserEpoch();
       const parsed = CreateTripInputSchema.parse(input);
       const ownerId = await signedIn();
       const created = buildTrip(parsed, { now: now(), newId, ownerId });
       const { error } = await supabase.rpc('create_trip', toCreateTripArgs(created));
       if (error) throw new Error(error.message);
-      await (await localStore).selectTrip(created.trip.id);
+      await (await localStore).selectTrip(created.trip.id, epoch);
       const asked = parsed.details.coverImageUri;
       if (!asked.startsWith('file://')) return created.trip;
       // The trip exists now, so the owner may upload into its folder. A photo that does not make it must not undo the
@@ -372,9 +374,10 @@ export function createSupabaseTripRepository({
     },
 
     async setBudget(trip, amountMinor) {
+      const epoch = currentUserEpoch();
       const { budgetPerPerson } = TripBudgetFormSchema.parse({ budgetPerPerson: { amountMinor, currency: trip.baseCurrency } });
       const change = TripBudgetChangeSchema.parse({ tripId: trip.id, budgetPerPerson, updatedAt: now().toISOString() });
-      await (await localStore).saveBudgetChange(change);
+      await (await localStore).saveBudgetChange(change, epoch);
     },
 
     async updateDetails(tripId, input) {
@@ -435,9 +438,10 @@ export function createSupabaseTripRepository({
 
     async photos(tripId) {
       assertPathIds(tripId);
+      const epoch = currentUserEpoch();
       const local = await localStore;
       try {
-        return await fetchPhotos(local, tripId);
+        return await fetchPhotos(local, epoch, tripId);
       } catch (error) {
         if (!(error instanceof ServerUnreachableError)) throw error;
         const copy = await local.cachedPhotos(tripId);

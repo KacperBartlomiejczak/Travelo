@@ -1,6 +1,7 @@
 import { migrateLocalDb } from '@/data/local-db';
-import { createLocalStore } from '@/data/local-store';
-import type { TripList, TripOverview, TripPhotoList } from '@/schemas';
+import { createLocalStore, currentUserEpoch, isEpochCurrent } from '@/data/local-store';
+import { reorderingDb } from '@/test/reordering-db';
+import type { Profile, TripList, TripOverview, TripPhotoList } from '@/schemas';
 import { openTestDb } from '@/test/node-sqlite';
 
 const TRIP_ID = '0b9e7c4e-6a43-4c4b-9a55-2f6f0f7e1a01';
@@ -502,5 +503,293 @@ describe('copies from before covers were required (trip-covers)', () => {
     ];
     await local.cacheList(fresh, '2026-10-06T10:00:00.000Z');
     await expect(local.cachedList()).resolves.toEqual(fresh);
+  });
+});
+
+const USER_ID = '9d3c1b2a-0f4e-4d5c-8b6a-7e8f9a0b1c2d';
+const AVATAR_ID = '6a5d3b0e-2f98-4c0a-b1aa-7e1d5e3d7f06';
+const profile: Profile = {
+  id: USER_ID,
+  username: 'kacper',
+  friendCode: 'K7M2QX',
+  interests: ['museums', 'beaches'],
+  avatarId: AVATAR_ID,
+  createdAt: '2026-10-18T10:00:00+00:00',
+  updatedAt: '2026-10-18T10:00:00+00:00',
+};
+
+describe('own profile copy (auth-onboarding D9)', () => {
+  it('is none at first', async () => {
+    const { local } = await store();
+    await expect(local.cachedProfile()).resolves.toBeNull();
+  });
+
+  it('gives back the profile last saved, and a newer one replaces it with the new time', async () => {
+    const { db, local } = await store();
+    await local.cacheProfile(profile, '2026-10-18T10:00:00.000Z');
+    await expect(local.cachedProfile()).resolves.toEqual(profile);
+    const renamed = { ...profile, username: 'kacper2', avatarId: null };
+    await local.cacheProfile(renamed, '2026-10-18T10:05:00.000Z');
+    await expect(local.cachedProfile()).resolves.toEqual(renamed);
+    await expect(db.getAllAsync('select id, cached_at from my_profile_cache', [])).resolves.toEqual([
+      { id: 1, cached_at: '2026-10-18T10:05:00.000Z' },
+    ]);
+  });
+
+  it('keeps the profile without the signed avatar url (it expires)', async () => {
+    const { db, local } = await store();
+    await local.cacheProfile({ ...profile, avatarUrl: 'https://example.supabase.co/sign/a.jpg?token=1' } as Profile, '2026-10-18T10:00:00.000Z');
+    const row = await db.getFirstAsync<{ profile_json: string }>('select profile_json from my_profile_cache', []);
+    expect(row?.profile_json).not.toContain('avatarUrl');
+    expect(row?.profile_json).not.toContain('token');
+  });
+
+  it('refuses to save an invalid profile and keeps the old copy', async () => {
+    const { db, local } = await store();
+    await expect(local.cacheProfile({ ...profile, username: 'Not Valid' }, '2026-10-18T10:00:00.000Z')).rejects.toThrow();
+    await expect(db.getAllAsync('select * from my_profile_cache', [])).resolves.toEqual([]);
+    await local.cacheProfile(profile, '2026-10-18T10:00:00.000Z');
+    await expect(local.cacheProfile({ ...profile, interests: [] }, '2026-10-18T10:05:00.000Z')).rejects.toThrow();
+    await expect(local.cachedProfile()).resolves.toEqual(profile);
+  });
+
+  it('treats a corrupt copy or one that no longer matches the schema as no copy', async () => {
+    const { db, local } = await store();
+    await db.runAsync("insert into my_profile_cache (id, profile_json, cached_at) values (1, '{not json', 'x')", []);
+    await expect(local.cachedProfile()).resolves.toBeNull();
+    await db.runAsync('update my_profile_cache set profile_json = ?', [JSON.stringify({ ...profile, friendCode: 'AB0OIL' })]);
+    await expect(local.cachedProfile()).resolves.toBeNull();
+    await db.runAsync('update my_profile_cache set profile_json = ?', [JSON.stringify({ id: USER_ID })]);
+    await expect(local.cachedProfile()).resolves.toBeNull();
+  });
+
+  it('forgets the copy on clearProfile, also when there is none', async () => {
+    const { local } = await store();
+    await expect(local.clearProfile()).resolves.toBeUndefined();
+    await local.cacheProfile(profile, '2026-10-18T10:00:00.000Z');
+    await local.clearProfile();
+    await expect(local.cachedProfile()).resolves.toBeNull();
+  });
+});
+
+describe('clearUserData (auth-onboarding D2)', () => {
+  async function filledStore() {
+    const ctx = await store();
+    const { local } = ctx;
+    await local.cacheList(
+      [{ id: TRIP_ID, name: 'Barcelona', coverImageUri: 'preset:auckland', startDate: '2026-11-02', endDate: '2026-11-09' }],
+      '2026-10-18T09:00:00.000Z',
+    );
+    await local.cacheOverview(overview, '2026-10-18T09:00:00.000Z');
+    await local.cachePhotos(TRIP_ID, photos, '2026-10-18T09:00:00.000Z');
+    await local.selectTrip(TRIP_ID);
+    await local.saveBudgetChange(change);
+    await local.cacheProfile(profile, '2026-10-18T09:00:00.000Z');
+    return ctx;
+  }
+
+  const TABLES = ['trip_overview_cache', 'trip_list_cache', 'selected_trip', 'trip_budget_changes', 'trip_photos_cache', 'my_profile_cache'];
+  const count = async (db: Awaited<ReturnType<typeof store>>['db'], table: string) =>
+    (await db.getFirstAsync<{ n: number }>(`select count(*) as n from ${table}`, []))?.n;
+
+  it('starts from a filled phone', async () => {
+    const { db } = await filledStore();
+    for (const table of TABLES) expect(await count(db, table)).toBeGreaterThan(0);
+  });
+
+  it('empties the trip copies, the list copy, the chosen trip, the budget changes, the photo copies and the profile copy', async () => {
+    const { db, local } = await filledStore();
+
+    await local.clearUserData();
+
+    for (const table of TABLES) expect(await count(db, table)).toBe(0);
+    await expect(local.cachedList()).resolves.toBeNull();
+    await expect(local.cachedOverview(TRIP_ID)).resolves.toBeNull();
+    await expect(local.cachedPhotos(TRIP_ID)).resolves.toBeNull();
+    await expect(local.selectedTripId()).resolves.toBeNull();
+    await expect(local.budgetChange(TRIP_ID)).resolves.toBeNull();
+    await expect(local.cachedProfile()).resolves.toBeNull();
+  });
+
+  it('works on an empty phone and can be repeated', async () => {
+    const { local } = await store();
+    await expect(local.clearUserData()).resolves.toBeUndefined();
+    await expect(local.clearUserData()).resolves.toBeUndefined();
+  });
+
+  it('runs in one transaction: when the last step fails, nothing is removed', async () => {
+    const { db, local } = await filledStore();
+    const before = await Promise.all(TABLES.map((table) => count(db, table)));
+    const run = db.runAsync.bind(db);
+    // The node-sqlite helper has real transactions, so a failure half-way must roll the earlier deletes back.
+    jest.spyOn(db, 'runAsync').mockImplementation((sql, params) => {
+      if (sql.startsWith('delete from my_profile_cache')) return Promise.reject(new Error('disk full'));
+      return run(sql, params);
+    });
+
+    await expect(local.clearUserData()).rejects.toThrow('disk full');
+
+    expect(await Promise.all(TABLES.map((table) => count(db, table)))).toEqual(before);
+    await expect(local.cachedProfile()).resolves.toEqual(profile);
+    await expect(local.budgetChange(TRIP_ID)).resolves.not.toBeNull();
+  });
+
+  it('runs in one transaction: when the first step fails, nothing is removed either', async () => {
+    const { db, local } = await filledStore();
+    const run = db.runAsync.bind(db);
+    jest.spyOn(db, 'runAsync').mockImplementation((sql, params) => {
+      if (sql.startsWith('delete from trip_overview_cache')) return Promise.reject(new Error('disk full'));
+      return run(sql, params);
+    });
+
+    await expect(local.clearUserData()).rejects.toThrow('disk full');
+
+    await expect(local.cachedOverview(TRIP_ID)).resolves.not.toBeNull();
+    await expect(local.cachedProfile()).resolves.toEqual(profile);
+  });
+});
+
+describe('writes of an operation that started before a clear (auth-onboarding D2, D14)', () => {
+  const AT = '2026-10-18T10:00:00.000Z';
+  const list: TripList = [{ id: TRIP_ID, name: 'Barcelona', coverImageUri: 'preset:auckland', startDate: '2026-11-02', endDate: '2026-11-09' }];
+
+  /** The six writes that put data on the phone, each called with the epoch an operation captured at its start. */
+  const WRITES: [string, (local: ReturnType<typeof createLocalStore>, epoch: number) => Promise<void>][] = [
+    ['cacheList', (local, epoch) => local.cacheList(list, AT, epoch)],
+    ['cacheOverview', (local, epoch) => local.cacheOverview(overview, AT, epoch)],
+    ['cachePhotos', (local, epoch) => local.cachePhotos(TRIP_ID, photos, AT, epoch)],
+    ['cacheProfile', (local, epoch) => local.cacheProfile(profile, AT, epoch)],
+    ['selectTrip', (local, epoch) => local.selectTrip(TRIP_ID, epoch)],
+    ['saveBudgetChange', (local, epoch) => local.saveBudgetChange(change, epoch)],
+  ];
+  const TABLES = ['trip_overview_cache', 'trip_list_cache', 'selected_trip', 'trip_budget_changes', 'trip_photos_cache', 'my_profile_cache'];
+  const rows = async (db: Awaited<ReturnType<typeof store>>['db']) =>
+    Promise.all(TABLES.map(async (table) => (await db.getFirstAsync<{ n: number }>(`select count(*) as n from ${table}`, []))?.n));
+
+  it('the epoch closes the moment a clear is called, before it has issued anything, and opens as a new one when it has finished', async () => {
+    const { local } = await store();
+    const before = currentUserEpoch();
+    expect(isEpochCurrent(before)).toBe(true);
+
+    const clearing = local.clearUserData();
+    const during = currentUserEpoch();
+    expect(isEpochCurrent(before)).toBe(false);
+    expect(isEpochCurrent(during)).toBe(false); // closed: an epoch captured now is refused too
+
+    await clearing;
+    const after = currentUserEpoch();
+    expect(isEpochCurrent(after)).toBe(true);
+    expect(isEpochCurrent(before)).toBe(false);
+    expect(isEpochCurrent(during)).toBe(false);
+  });
+
+  it.each(WRITES)('%s with an epoch captured while the clear is running is refused (the epoch is closed until the clear is done)', async (_name, write) => {
+    const { db: plain } = await store();
+    const { db } = reorderingDb(plain, (sql) => (sql.startsWith('delete from my_profile_cache') ? 40 : 0));
+    const local = createLocalStore(db);
+
+    const clearing = local.clearUserData();
+    const writing = write(local, currentUserEpoch()); // an operation of the previous user that starts after the clear was called
+    await Promise.all([clearing, writing]);
+
+    expect(await rows(plain)).toEqual([0, 0, 0, 0, 0, 0]);
+  });
+
+  it('a clear that fails leaves the epoch closed: writes stay refused until a clear succeeds', async () => {
+    const { db, local } = await store();
+    const epoch = currentUserEpoch();
+    const run = db.runAsync.bind(db);
+    jest.spyOn(db, 'runAsync').mockImplementation((sql, params) =>
+      sql.startsWith('delete from my_profile_cache') ? Promise.reject(new Error('disk full')) : run(sql, params),
+    );
+    await expect(local.clearUserData()).rejects.toThrow('disk full');
+    jest.restoreAllMocks();
+
+    await local.cacheProfile(profile, AT, epoch);
+    await local.cacheOverview(overview, AT, currentUserEpoch());
+    await local.cacheList(list, AT);
+    expect(isEpochCurrent(currentUserEpoch())).toBe(false);
+    expect(await rows(db)).toEqual([0, 0, 0, 0, 0, 0]);
+
+    await local.clearUserData(); // the retry
+    expect(isEpochCurrent(currentUserEpoch())).toBe(true);
+    await local.cacheProfile(profile, AT, currentUserEpoch());
+    await expect(local.cachedProfile()).resolves.toEqual(profile);
+  });
+
+  it('a second clear queued behind the first keeps the epoch closed until it has finished too', async () => {
+    const { local } = await store();
+    const first = local.clearUserData();
+    const second = local.clearUserData();
+    await first;
+    expect(isEpochCurrent(currentUserEpoch())).toBe(false);
+    await second;
+    expect(isEpochCurrent(currentUserEpoch())).toBe(true);
+  });
+
+  it('on a signed-in launch (no clear ever called) the epoch is open from the start and writes work at once', async () => {
+    let fresh: typeof import('@/data/local-store') | undefined;
+    jest.isolateModules(() => {
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      fresh = require('@/data/local-store');
+    });
+    if (!fresh) throw new Error('local-store was not loaded');
+    const { db } = await store();
+    const local = fresh.createLocalStore(db);
+
+    expect(fresh.isEpochCurrent(fresh.currentUserEpoch())).toBe(true);
+    await local.cacheProfile(profile, AT, fresh.currentUserEpoch());
+    await expect(local.cachedProfile()).resolves.toEqual(profile);
+  });
+
+  it.each(WRITES)('%s with the epoch of before the clear is dropped: no statement is issued, nothing is stored', async (_name, write) => {
+    const { db, local } = await store();
+    const epoch = currentUserEpoch();
+    await local.clearUserData();
+    const issued = jest.spyOn(db, 'runAsync');
+
+    await write(local, epoch);
+
+    expect(issued).not.toHaveBeenCalled();
+    expect(await rows(db)).toEqual([0, 0, 0, 0, 0, 0]);
+  });
+
+  it.each(WRITES)('%s with the epoch of after the clear is stored (the next user is not blocked)', async (_name, write) => {
+    const { db, local } = await store();
+    await local.clearUserData();
+
+    await write(local, currentUserEpoch());
+
+    expect((await rows(db)).reduce((sum, n) => (sum ?? 0) + (n ?? 0), 0)).toBeGreaterThan(0);
+  });
+
+  it.each(WRITES)('%s without an epoch is stored (callers that are not in a longer operation)', async (_name, write) => {
+    const { db, local } = await store();
+    await write(local, undefined as never);
+    expect((await rows(db)).reduce((sum, n) => (sum ?? 0) + (n ?? 0), 0)).toBeGreaterThan(0);
+  });
+
+  it('a stale list copy does not delete the next user\'s copies either (its clean-up deletes are dropped with it)', async () => {
+    const { local } = await store();
+    const epoch = currentUserEpoch();
+    await local.clearUserData();
+    await local.cacheOverview(overview, AT, currentUserEpoch());
+
+    await local.cacheList([], AT, epoch);
+
+    await expect(local.cachedOverview(TRIP_ID)).resolves.toEqual(overview);
+  });
+
+  it('a write issued while the clear runs is either wiped by it or refused: nothing stays', async () => {
+    const { db, local } = await store();
+    const epoch = currentUserEpoch();
+    // Issued before the clear: ordered ahead of its `begin`, so the clear's deletes remove it.
+    const early = local.cacheProfile(profile, AT, epoch);
+    const clearing = local.clearUserData();
+    // Issued between `begin` and `commit`: the epoch already moved, so it is refused.
+    const late = local.cacheOverview(overview, AT, epoch);
+    await Promise.all([early, clearing, late]);
+
+    expect(await rows(db)).toEqual([0, 0, 0, 0, 0, 0]);
   });
 });

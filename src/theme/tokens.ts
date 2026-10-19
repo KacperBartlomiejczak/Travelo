@@ -73,6 +73,20 @@ export const palette = {
   },
 } as const;
 
+// The sign-in buttons wear their provider's official colours: written exceptions to the Sunline palette
+// (auth-onboarding D10 Google, D13 Discord), used for these two buttons and nowhere else, the same in both themes.
+// `pressed` is the provider's own pressed/hover colour (Google: a 12 % state layer of the text colour on white).
+export const partnerBrand = {
+  google: {
+    background: '#FFFFFF',
+    border: '#747775',
+    text: '#1F1F1F',
+    pressed: '#E4E4E4',
+    logo: { red: '#EA4335', blue: '#4285F4', yellow: '#FBBC05', green: '#34A853' },
+  },
+  discord: { background: '#5865F2', pressed: '#4752C4', text: '#FFFFFF' },
+} as const;
+
 export const spacing = {
   0: 0,
   1: 4,
@@ -118,6 +132,8 @@ export const size = {
   photoTile: 80,
   // trip-covers P1: width of a 16:9 cover tile in the picker (height follows from the ratio).
   coverTile: 112,
+  // auth-onboarding P2: the round profile photo on the profile setup screen (bigger than the 48dp large avatar of §10.7).
+  avatarSetup: 96,
   // §10.16 snackbar: at least 48dp high, at most 360dp wide.
   snackbarMinHeight: 48,
   snackbarMaxWidth: 360,

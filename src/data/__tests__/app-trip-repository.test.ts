@@ -1,4 +1,4 @@
-import { AppState, Platform } from 'react-native';
+import { AppState } from 'react-native';
 
 jest.unmock('@/data/app-trip-repository');
 
@@ -30,19 +30,22 @@ describe('createAppTripRepository', () => {
     await expect(local).resolves.toEqual({ store: mockDb });
   });
 
-  it('keeps the session fresh with the app state on phones', () => {
+  it('shares the app\'s one SQLite store with the profile repository (the database is opened once)', async () => {
+    const { appLocalStore } = require('@/data/app-local-store') as typeof import('@/data/app-local-store'); // eslint-disable-line @typescript-eslint/no-require-imports
     load().createAppTripRepository();
-    expect(deps().auth.keepSessionFresh).toHaveBeenCalledWith(mockClient.auth, AppState);
+    const { createSupabaseTripRepository } = deps().repository;
+    const [{ local }] = jest.mocked(createSupabaseTripRepository).mock.calls[0];
+    expect(local).toBe(appLocalStore());
   });
 
-  it('does not tie token refresh to the app state on web (Supabase guidance)', () => {
-    const os = Platform.OS;
-    Platform.OS = 'web';
+  it('does not register the app state listener (it is registered once, next to the client; auth-onboarding D22)', () => {
+    const addEventListener = jest.spyOn(AppState, 'addEventListener');
     try {
       load().createAppTripRepository();
       expect(deps().auth.keepSessionFresh).not.toHaveBeenCalled();
+      expect(addEventListener).not.toHaveBeenCalled();
     } finally {
-      Platform.OS = os;
+      addEventListener.mockRestore();
     }
   });
 });
