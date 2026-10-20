@@ -18,8 +18,8 @@ Answer one concrete question from the orchestrator about the codebase, e.g.:
 # How you work
 
 1. Start from the repo layout in `CLAUDE.md`:
-   - `packages/schemas/` — Zod schemas (single source of truth)
-   - `apps/mobile/` — Expo app
+   - `src/schemas/` — Zod schemas (single source of truth)
+   - `src/` — Expo app (everything outside `src/schemas/`)
    - `supabase/migrations/`, `supabase/functions/`
    - `context/design-context.md` — design system
 2. Search narrowly first (Glob/Grep), widen only if needed.
@@ -42,7 +42,7 @@ Answer one concrete question from the orchestrator about the codebase, e.g.:
 - ...
 
 ## Relevant schemas
-- SchemaName (packages/schemas/...) — fields that matter here
+- SchemaName (src/schemas/...) — fields that matter here
 
 ## Not found / gaps
 - ...
