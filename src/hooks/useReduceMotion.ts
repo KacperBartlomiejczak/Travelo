@@ -11,10 +11,15 @@ export function useReduceMotion(): boolean | null {
 
   useEffect(() => {
     let active = true;
+    // A change event is newer than the first answer: once one has arrived, the late answer (or failure) must not overwrite it.
+    let changed = false;
     AccessibilityInfo.isReduceMotionEnabled()
-      .then((enabled) => active && setReduceMotion(enabled))
-      .catch(() => active && setReduceMotion(true));
-    const subscription = AccessibilityInfo.addEventListener('reduceMotionChanged', setReduceMotion);
+      .then((enabled) => active && !changed && setReduceMotion(enabled))
+      .catch(() => active && !changed && setReduceMotion(true));
+    const subscription = AccessibilityInfo.addEventListener('reduceMotionChanged', (enabled) => {
+      changed = true;
+      setReduceMotion(enabled);
+    });
     return () => {
       active = false;
       subscription.remove();

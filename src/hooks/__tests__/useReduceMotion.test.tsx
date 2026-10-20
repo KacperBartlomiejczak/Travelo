@@ -79,6 +79,26 @@ describe('useReduceMotion', () => {
     expect(result.current).toBe(false);
   });
 
+  it('keeps a change event that arrived while the first question was pending, even if the answer differs', async () => {
+    const answer = deferred();
+    const system = stubSystem(answer.promise);
+    const { result } = await renderHook(() => useReduceMotion());
+    await act(async () => system.change(true));
+    expect(result.current).toBe(true);
+    await act(async () => answer.resolve(false));
+    expect(result.current).toBe(true);
+  });
+
+  it('keeps a change event that arrived while the first question was pending, even if the question then fails', async () => {
+    const answer = deferred();
+    const system = stubSystem(answer.promise);
+    const { result } = await renderHook(() => useReduceMotion());
+    await act(async () => system.change(false));
+    expect(result.current).toBe(false);
+    await act(async () => answer.reject(new Error('no native module')));
+    expect(result.current).toBe(false);
+  });
+
   it('removes its listener when it unmounts', async () => {
     const system = stubSystem(Promise.resolve(false));
     const { unmount } = await renderHook(() => useReduceMotion());
