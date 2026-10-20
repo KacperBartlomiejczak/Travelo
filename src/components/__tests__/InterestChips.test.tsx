@@ -1,9 +1,10 @@
 import { fireEvent, render, screen } from '@testing-library/react-native';
-import { Keyboard } from 'react-native';
+import { Keyboard, StyleSheet } from 'react-native';
 
 import { InterestChips } from '@/components/InterestChips';
 import i18n from '@/i18n';
 import { INTEREST_GROUPS, InterestGroupSchema, InterestTagSchema, type InterestTag } from '@/schemas';
+import { lightTheme } from '@/theme/theme';
 
 beforeEach(async () => {
   await i18n.changeLanguage('pl');
@@ -69,6 +70,20 @@ describe('InterestChips (extracted from FriendCard, auth-onboarding step 8)', ()
     for (const chip of screen.getAllByRole('checkbox')) expect(chip).toBeDisabled();
     await fireEvent.press(screen.getByRole('checkbox', { name: 'Plaże' }));
     expect(onChange).not.toHaveBeenCalled();
+  });
+
+  // coderabbit-pr21-fixes A3: a chip is 32dp tall with a 44dp touch target (6dp slop above and below), so the rows
+  // must be 44 - 32 = 12dp apart, otherwise the touch areas of two wrapped rows overlap.
+  it('keeps wrapped chip rows far enough apart that their 44dp touch areas do not overlap', async () => {
+    await render(<InterestChips selected={[]} onChange={() => {}} />);
+    const chip = screen.getByRole('checkbox', { name: 'Muzea' });
+    const row = chip.parent;
+    const style = StyleSheet.flatten(row?.props.style);
+    expect(style.flexWrap).toBe('wrap');
+    expect(style.rowGap).toBe(lightTheme.size.touchTarget - 32);
+    expect(style.rowGap).toBe(lightTheme.spacing[3]);
+    expect(style.columnGap).toBe(lightTheme.spacing[2]);
+    expect(style.gap).toBeUndefined();
   });
 
   it('speaks English on an English phone', async () => {

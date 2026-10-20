@@ -28,7 +28,8 @@ export function InterestChips({ selected, onChange, disabled = false }: Props) {
       {InterestGroupSchema.options.map((group) => (
         <View key={group} style={{ gap: theme.spacing[2] }}>
           <Text style={[theme.typography.bodyS, { color: theme.colors.text.secondary }]}>{t(`interestGroups.${group}`)}</Text>
-          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: theme.spacing[2] }}>
+          {/* rowGap 12dp = touch target (44) - chip height (32): the 44dp touch areas of two wrapped rows touch, never overlap. */}
+          <View style={{ flexDirection: 'row', flexWrap: 'wrap', rowGap: theme.spacing[3], columnGap: theme.spacing[2] }}>
             {INTEREST_GROUPS[group].map((interest) => (
               <Chip
                 key={interest}
