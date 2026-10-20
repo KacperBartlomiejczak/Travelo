@@ -1,4 +1,4 @@
-import { isAuthRetryableFetchError, type SupabaseClient } from '@supabase/supabase-js';
+import { isAuthRetryableFetchError, isAuthSessionMissingError, type SupabaseClient } from '@supabase/supabase-js';
 
 import { dropAnonymousSession, ensureSession, NotSignedInError, type SessionAuth } from './auth';
 
@@ -16,9 +16,9 @@ export interface SessionSource {
    */
   current(): Promise<SessionSnapshot>;
   /**
-   * Asks Supabase once whether the stored session is still valid (D22). Never rejects and never shows anything: the user stays signed in
-   * for every answer except a session that is gone (Supabase signs out by itself, `onChange` hears it) or a user that no longer
-   * exists (signed out on this phone here, D23).
+   * Asks Supabase once whether the stored session is still valid (D22), on a client of its own that holds no session. Never rejects and never
+   * shows anything: the user stays signed in for every answer except a session that is gone or a user that no longer exists (D23): both are
+   * signed out on this phone here, `onChange` hears it, but only when the session stored by then still belongs to the user that was checked.
    */
   checkStoredSession(): Promise<void>;
   /** Calls the listener, outside of Supabase's own callback, whenever someone signs in or out. Returns the function that stops it. */
@@ -28,12 +28,14 @@ export interface SessionSource {
 }
 
 type Deps = {
-  auth: SessionAuth & Pick<SupabaseClient['auth'], 'onAuthStateChange' | 'getUser'>;
+  auth: SessionAuth & Pick<SupabaseClient['auth'], 'onAuthStateChange'>;
+  /** An isolated client (no stored session) used only to ask the server about a token: auth-js removes the session its own client holds for `session_not_found`. */
+  checkAuth: Pick<SupabaseClient['auth'], 'getUser'>;
   clearUserData: () => Promise<void>;
 };
 
 /** The session on the app's Supabase client. */
-export function createSupabaseSessionSource({ auth, clearUserData }: Deps): SessionSource {
+export function createSupabaseSessionSource({ auth, checkAuth, clearUserData }: Deps): SessionSource {
   return {
     async current() {
       try {
@@ -53,11 +55,12 @@ export function createSupabaseSessionSource({ auth, clearUserData }: Deps): Sess
         // The check is about the session stored now, by its token: the answer comes over the network, and by then someone else may be signed in.
         const checked = (await auth.getSession()).data.session;
         if (!checked) return;
-        // Asks the server (`GET /user`) directly, not `getClaims`, whose local check of a JWT depends on `crypto.subtle`. Supabase itself removes the session and fires
-        // SIGNED_OUT for `session_not_found`; every other answer (no connection, a timeout, a server error, an invalid token) changes nothing.
-        const { error } = await auth.getUser(checked.access_token);
-        if (error?.code !== 'user_not_found') return;
-        // The server answers `user_not_found` for a deleted user, and Supabase leaves that session in place: sign out here, on this phone only.
+        // Asks the server (`GET /user`) directly, not `getClaims`, whose local check of a JWT depends on `crypto.subtle`. It asks on the isolated client:
+        // auth-js removes the session its client holds when the answer is `session_not_found`, and on the app's client that could be a newer account.
+        // Every other answer (no connection, a timeout, a server error, an invalid token) changes nothing.
+        const { error } = await checkAuth.getUser(checked.access_token);
+        if (!error || (!isAuthSessionMissingError(error) && error.code !== 'user_not_found')) return;
+        // The session or its user is gone on the server: sign out here, on this phone only.
         // `signOut` ends whatever is stored when it runs, so only when that is still the same user (a refresh changes the token, not the user).
         const now = (await auth.getSession()).data.session;
         if (now?.user.id === checked.user.id) await auth.signOut({ scope: 'local' });

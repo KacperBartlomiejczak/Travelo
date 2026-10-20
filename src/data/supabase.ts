@@ -45,6 +45,22 @@ export const supabase = createClient(config.data.url, config.data.key, {
   global: { fetch: withTimeout(fetch, REQUEST_TIMEOUT_MS) },
 });
 
+/**
+ * A second client that only asks the server whether the stored session is still valid (coderabbit-pr21-fixes A1). `getUser(jwt)` makes
+ * auth-js remove whatever session its own client holds when the answer is `session_not_found`, so this client holds none and persists none:
+ * it can never remove the app client's session. The app decides about the sign-out itself (session-source). No token refresh runs on it.
+ */
+export const sessionCheckSupabase = createClient(config.data.url, config.data.key, {
+  auth: {
+    persistSession: false,
+    autoRefreshToken: false,
+    detectSessionInUrl: false,
+    // A key of its own, so the two clients never share storage or look like one client to auth-js.
+    storageKey: 'travelo-session-check',
+  },
+  global: { fetch: withTimeout(fetch, REQUEST_TIMEOUT_MS) },
+});
+
 // Supabase React Native guidance: refresh the token only while the app is in the foreground, with the listener registered once, here
 // next to the client (auth-onboarding D22). The browser handles it on web.
 if (Platform.OS !== 'web') keepSessionFresh(supabase.auth, AppState);
