@@ -20,6 +20,16 @@ jest.mock('@/data/app-auth', () => ({
     verifyEmailCode: jest.fn(async () => {}),
   },
 }));
+// The profile setup (theme-split-and-profile-prefill step 6) pre-fills from the Google / Discord sign-in through the app's Supabase client and the
+// device's file system: tests never reach either. By default there is no suggestion (an e-mail user); a test that wants one sets `read` / `downloadAvatar` itself.
+jest.mock('@/data/app-provider-profile', () => ({
+  appProviderProfile: {
+    read: jest.fn(async () => ({ suggestedUsername: null, avatarUrl: null })),
+    downloadAvatar: jest.fn(async () => {
+      throw new Error('No photo to download in this test');
+    }),
+  },
+}));
 // Route tests wait for the gate to leave its loading view after rendering (src/test/settle-gate.ts).
 jest.mock('expo-router/testing-library', () => {
   const testingLibrary = jest.requireActual('expo-router/testing-library');

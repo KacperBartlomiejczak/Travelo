@@ -151,6 +151,8 @@ export const duration = {
   small: 180,
   // §9.1: a dialog fades in and out over 220 ms.
   dialog: 220,
+  // §9.1 celebration: the welcome screen's entrance, per item (theme-split-and-profile-prefill D13).
+  celebration: 500,
   // §10.16: a snackbar hides itself after 3500 ms.
   snackbarAutoDismiss: 3500,
 } as const;

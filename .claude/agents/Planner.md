@@ -16,7 +16,7 @@ Turn one task from the orchestrator into a plan that Kacper can approve. You **r
 3. Check what already exists (schemas, components, functions) so you do not plan duplicates.
 
 # Planning rules
-- **Zod first.** Every data change starts with a schema step in `packages/schemas`. Show exact schema sketches.
+- **Zod first.** Every data change starts with a schema step in `src/schemas`. Show exact schema sketches.
 - **Tests first.** Every step lists the tests that will be written *before* the code, including failure and edge cases.
 - **Small steps.** Each step is one coherent diff, independently verifiable, and owned by exactly one implementer: `backend` or `frontend`.
 - **Order:** schemas → backend (migration, RLS, Edge Functions) → frontend.

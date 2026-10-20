@@ -1,5 +1,5 @@
 import { useTranslation } from 'react-i18next';
-import { Text, View } from 'react-native';
+import { Keyboard, Text, View } from 'react-native';
 
 import { INTEREST_GROUPS, InterestGroupSchema, type InterestTag } from '@/schemas';
 import { useTheme } from '@/theme/useTheme';
@@ -18,6 +18,8 @@ export function InterestChips({ selected, onChange, disabled = false }: Props) {
   const theme = useTheme();
 
   function toggle(interest: InterestTag) {
+    // theme-split D11: the scroll view lets the first tap through, so the keyboard is closed here, along the way.
+    Keyboard.dismiss();
     onChange(selected.includes(interest) ? selected.filter((current) => current !== interest) : [...selected, interest]);
   }
 
@@ -26,7 +28,8 @@ export function InterestChips({ selected, onChange, disabled = false }: Props) {
       {InterestGroupSchema.options.map((group) => (
         <View key={group} style={{ gap: theme.spacing[2] }}>
           <Text style={[theme.typography.bodyS, { color: theme.colors.text.secondary }]}>{t(`interestGroups.${group}`)}</Text>
-          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: theme.spacing[2] }}>
+          {/* rowGap 12dp = touch target (44) - chip height (32): the 44dp touch areas of two wrapped rows touch, never overlap. */}
+          <View style={{ flexDirection: 'row', flexWrap: 'wrap', rowGap: theme.spacing[3], columnGap: theme.spacing[2] }}>
             {INTEREST_GROUPS[group].map((interest) => (
               <Chip
                 key={interest}

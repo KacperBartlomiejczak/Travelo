@@ -1,8 +1,9 @@
 import type { LucideIcon } from 'lucide-react-native';
-import { useEffect, useLayoutEffect, useRef, useState } from 'react';
-import { AccessibilityInfo, Animated, Pressable, Text, useWindowDimensions, View } from 'react-native';
+import { useLayoutEffect, useRef, useState } from 'react';
+import { Animated, Pressable, Text, useWindowDimensions, View } from 'react-native';
 
 import { usePillBottomOffset } from '@/features/nav/usePillClearance';
+import { useReduceMotion } from '@/hooks/useReduceMotion';
 import { useTheme } from '@/theme/useTheme';
 
 export type PillNavItem = { key: string; label: string; Icon: LucideIcon };
@@ -16,24 +17,15 @@ type Props = {
 // R1 (pill-nav-and-dialog): above this font scale five labels no longer fit, so inactive items keep only their icon.
 const MAX_FONT_SCALE_WITH_LABELS = 1.3;
 
-// Floating pill navigation (design-context §10.2, pill-nav-and-dialog D1, D2, D4): an ink capsule detached from the
-// bottom edge, in light and dark mode alike. The active item is brand coloured, its icon is larger, and the change
-// animates over `duration.small` (instantly with reduce motion, §9.4). The wrapper lets touches through everywhere
-// except the capsule.
+// Floating pill navigation (design-context §10.2, pill-nav-and-dialog D1, D2, D4): a capsule detached from the
+// bottom edge, white in light mode and ink in dark mode (theme-split-and-profile-prefill D2). The active item is
+// brand coloured, its icon is larger, and the change animates over `duration.small` (instantly with reduce motion,
+// §9.4). The wrapper lets touches through everywhere except the capsule.
 export function PillNav({ items, activeKey, onSelect }: Props) {
   const theme = useTheme();
   const bottomOffset = usePillBottomOffset();
   const { width, fontScale } = useWindowDimensions();
-  const [reduceMotion, setReduceMotion] = useState(false);
-  useEffect(() => {
-    let active = true;
-    void AccessibilityInfo.isReduceMotionEnabled().then((enabled) => active && setReduceMotion(enabled));
-    const subscription = AccessibilityInfo.addEventListener('reduceMotionChanged', setReduceMotion);
-    return () => {
-      active = false;
-      subscription.remove();
-    };
-  }, []);
+  const reduceMotion = useReduceMotion() === true;
 
   const { colors, spacing, size, radius, elevation } = theme;
   const labelsForAll = fontScale <= MAX_FONT_SCALE_WITH_LABELS;
@@ -118,7 +110,7 @@ function PillNavTab({ item, selected, showLabel, reduceMotion, onPress }: TabPro
           alignItems: 'center',
           justifyContent: 'center',
           borderRadius: radius.full,
-          backgroundColor: pressed ? colors.nav.border : undefined,
+          backgroundColor: pressed ? colors.nav.pressed : undefined,
         },
         focused && {
           outlineStyle: 'solid',

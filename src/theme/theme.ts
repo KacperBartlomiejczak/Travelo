@@ -11,8 +11,8 @@ const lightElevation: { card: ViewStyle; floating: ViewStyle; dialog: ViewStyle 
 };
 const darkElevation: { card: ViewStyle; floating: ViewStyle; dialog: ViewStyle } = { card: {}, floating: {}, dialog: {} };
 
-// Trip hero (trip-flight-tabs-name-cover D4, D7): the photo fades into ink in both modes,
-// so its text uses the dark-mode text colours on light and dark devices alike.
+// Hero colours (trip-flight-tabs-name-cover D4, D7): only for things drawn dark over a photo (welcome screen, photo
+// viewer, the round menu buttons, photo-tile overlays), so they use the dark-mode text colours in both themes.
 const hero = {
   background: palette.neutral[900],
   text: palette.dark.textPrimary,
@@ -21,12 +21,22 @@ const hero = {
   control: palette.overlay.scrim,
 };
 
-// Pill navigation (pill-nav-and-dialog D2): always ink with a brand-coloured active item, in both modes.
-const nav = {
+// Pill navigation (theme-split-and-profile-prefill D2, reverses pill-nav-and-dialog D2): follows the theme, with a
+// brand-coloured active item. Light: white pill, brand.600 text (trip-create-wizard D28). Dark: ink pill.
+// `pressed` (D8): the tab background while pressed; light neutral.50 keeps brand.600 at 4.63:1 and neutral.600 at 5.84:1.
+const lightNav = {
+  background: palette.neutral[0],
+  border: palette.neutral[200],
+  textInactive: palette.neutral[600],
+  active: palette.brand[600],
+  pressed: palette.neutral[50],
+};
+const darkNav = {
   background: palette.neutral[900],
   border: palette.dark.border,
   textInactive: palette.dark.textSecondary,
   active: palette.dark.brand,
+  pressed: palette.dark.border,
 };
 
 // Semantic color roles from context/design-context.md §3.
@@ -59,7 +69,7 @@ const light = {
     budget: palette.budget.light,
     category: palette.category.light,
     hero,
-    nav,
+    nav: lightNav,
     // Sign-in buttons of Google and Discord (D10, D13): the same in both themes.
     brand: partnerBrand,
     overlay: palette.overlay,
@@ -113,7 +123,7 @@ export const darkTheme: Theme = {
     budget: palette.budget.dark,
     category: palette.category.dark,
     hero,
-    nav,
+    nav: darkNav,
     brand: partnerBrand,
     overlay: palette.overlay,
     snackbar: { background: palette.neutral[50], text: palette.neutral[900] },

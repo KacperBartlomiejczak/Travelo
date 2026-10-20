@@ -6,6 +6,7 @@ import { PillNav } from '@/components/PillNav';
 import { NAV_TABS } from '@/features/nav/tabs';
 import i18n from '@/i18n';
 import { darkTheme, lightTheme } from '@/theme/theme';
+import { palette } from '@/theme/tokens';
 import { DarkThemeScope } from '@/theme/useTheme';
 
 let mockFontScale = 1;
@@ -132,9 +133,28 @@ describe('PillNav (design-context §10.2, pill-nav-and-dialog D1, D2, D4)', () =
       });
     });
 
-    it('resolves to the same ink pill colours in dark mode', async () => {
+    it('is a white pill with brand-coloured active item and muted inactive items in light mode (theme-split D2)', async () => {
+      await render(ui('expenses'));
+      expect(screen.getByTestId('pill-nav')).toHaveStyle({
+        backgroundColor: palette.neutral[0],
+        borderColor: palette.neutral[200],
+      });
+      expect(screen.getByText('Wydatki')).toHaveStyle({ color: palette.brand[600] });
+      expect(icon('expenses').props.stroke).toBe(palette.brand[600]);
+      expect(screen.getByText('Plan')).toHaveStyle({ color: palette.neutral[600] });
+      expect(icon('plan').props.stroke).toBe(palette.neutral[600]);
+    });
+
+    it('resolves to the ink pill colours in dark mode', async () => {
       await render(ui('expenses'), { wrapper: DarkThemeScope });
-      expect(darkTheme.colors.nav).toEqual(lightTheme.colors.nav);
+      expect(darkTheme.colors.nav).not.toEqual(lightTheme.colors.nav);
+      expect(screen.getByTestId('pill-nav')).toHaveStyle({
+        backgroundColor: palette.neutral[900],
+        borderColor: palette.dark.border,
+      });
+      expect(screen.getByText('Wydatki')).toHaveStyle({ color: palette.dark.brand });
+      expect(icon('expenses').props.stroke).toBe(palette.dark.brand);
+      expect(screen.getByText('Plan')).toHaveStyle({ color: palette.dark.textSecondary });
       expect(screen.getByText('Wydatki')).toHaveStyle({ color: darkTheme.colors.nav.active });
       expect(screen.getByText('Plan')).toHaveStyle({ color: darkTheme.colors.nav.textInactive });
       expect(screen.getByTestId('pill-nav')).toHaveStyle({
@@ -179,15 +199,23 @@ describe('PillNav (design-context §10.2, pill-nav-and-dialog D1, D2, D4)', () =
       expect(screen.getByTestId('pill-nav-container').props.pointerEvents).toBe('box-none');
     });
 
-    it('shows pressed feedback in a token colour', async () => {
+    it('shows pressed feedback in the nav.pressed colour (theme-split-and-profile-prefill D8)', async () => {
       await render(ui());
-      expect(navButton('Plan')).not.toHaveStyle({ backgroundColor: lightTheme.colors.nav.border });
+      expect(navButton('Plan')).not.toHaveStyle({ backgroundColor: lightTheme.colors.nav.pressed });
       // currentTarget is what Pressability remembers as its responder; without it a later release is ignored.
       await fireEvent(navButton('Plan'), 'responderGrant', { nativeEvent: { timestamp: Date.now() }, currentTarget: 1, persist: jest.fn() });
-      expect(navButton('Plan')).toHaveStyle({ backgroundColor: lightTheme.colors.nav.border, borderRadius: lightTheme.radius.full });
+      expect(navButton('Plan')).toHaveStyle({ backgroundColor: lightTheme.colors.nav.pressed, borderRadius: lightTheme.radius.full });
+      expect(navButton('Plan')).toHaveStyle({ backgroundColor: palette.neutral[50] });
       await fireEvent(navButton('Plan'), 'responderRelease', { nativeEvent: { timestamp: Date.now() }, persist: jest.fn() });
       await pass(500);
-      expect(navButton('Plan')).not.toHaveStyle({ backgroundColor: lightTheme.colors.nav.border });
+      expect(navButton('Plan')).not.toHaveStyle({ backgroundColor: lightTheme.colors.nav.pressed });
+    });
+
+    it('keeps the same pressed colour as before in dark mode (D8)', async () => {
+      await render(ui(), { wrapper: DarkThemeScope });
+      await fireEvent(navButton('Plan'), 'responderGrant', { nativeEvent: { timestamp: Date.now() }, currentTarget: 1, persist: jest.fn() });
+      expect(navButton('Plan')).toHaveStyle({ backgroundColor: darkTheme.colors.nav.pressed });
+      expect(navButton('Plan')).toHaveStyle({ backgroundColor: palette.dark.border });
     });
 
     it('shows a 2dp ring in the active colour while focused', async () => {
@@ -248,6 +276,18 @@ describe('PillNav (design-context §10.2, pill-nav-and-dialog D1, D2, D4)', () =
 
     it('switches at once, with no animation, when the system asks to reduce motion', async () => {
       jest.spyOn(AccessibilityInfo, 'isReduceMotionEnabled').mockResolvedValue(true);
+      const view = await render(ui('index'));
+      const timing = jest.spyOn(Animated, 'timing');
+      await view.rerender(ui('expenses'));
+      expect(timing).not.toHaveBeenCalled();
+      expect(scaleOf('expenses')).toBe(1);
+      expect(scaleOf('index')).toBe(1);
+      expect(icon('expenses').props.width).toBe(lightTheme.size.iconPrimary);
+      expect(icon('index').props.width).toBe(lightTheme.size.iconStandard);
+    });
+
+    it('when the system cannot say whether to reduce motion, it shows without animation', async () => {
+      jest.spyOn(AccessibilityInfo, 'isReduceMotionEnabled').mockRejectedValue(new Error('no native module'));
       const view = await render(ui('index'));
       const timing = jest.spyOn(Animated, 'timing');
       await view.rerender(ui('expenses'));

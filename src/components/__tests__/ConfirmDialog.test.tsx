@@ -226,6 +226,19 @@ describe('ConfirmDialog (design-context §10.17)', () => {
       expect(timing).not.toHaveBeenCalled();
     });
 
+    it('when the system cannot say whether to reduce motion, it shows without animation', async () => {
+      jest.spyOn(AccessibilityInfo, 'isReduceMotionEnabled').mockRejectedValue(new Error('no native module'));
+      const timing = jest.spyOn(Animated, 'timing');
+      const view = await render(ui());
+      expect(container()).toHaveStyle({ opacity: 1 });
+      await pass(lightTheme.duration.dialog + 50);
+      expect(container()).toHaveStyle({ opacity: 1 });
+      timing.mockClear();
+      await view.rerender(ui({ visible: false }));
+      expect(timing).not.toHaveBeenCalled();
+      expect(screen.queryByText(TITLE)).toBeNull();
+    });
+
     it('fades out over the dialog duration after visible turns false, then removes itself', async () => {
       jest.spyOn(AccessibilityInfo, 'isReduceMotionEnabled').mockResolvedValue(false);
       const view = await render(ui());

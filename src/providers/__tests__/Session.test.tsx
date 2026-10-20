@@ -452,15 +452,16 @@ describe('SessionProvider — the background check of the stored session', () =>
 
 // The same flow with the real session source over a fake Supabase client: what Supabase answers decides what the user sees.
 describe('SessionProvider — the background check with the real session source (D23)', () => {
-  type ClaimsAnswer = Awaited<ReturnType<ReturnType<typeof fakeSupabase>['auth']['getClaims']>>;
-  const failed = (error: AuthError): ClaimsAnswer => ({ data: null, error });
+  type UserAnswer = Awaited<ReturnType<ReturnType<typeof fakeSupabase>['auth']['getUser']>>;
+  const failed = (error: AuthError): UserAnswer => ({ data: null, error });
 
-  async function setupReal(answer: ClaimsAnswer | 'hang' | 'held', { signOutFails = false } = {}) {
+  async function setupReal(answer: UserAnswer | 'hang' | 'held', { signOutFails = false } = {}) {
     const supabase = fakeSupabase();
-    let answerClaims: (value: ClaimsAnswer) => void = () => {};
-    if (answer === 'hang') supabase.auth.getClaims.mockImplementation(() => new Promise(() => {}));
-    else if (answer === 'held') supabase.auth.getClaims.mockImplementation(() => new Promise((resolve) => (answerClaims = resolve)));
-    else supabase.auth.getClaims.mockResolvedValue(answer);
+    let answerUser: (value: UserAnswer) => void = () => {};
+    // The isolated client that only asks the server: its own mock, so the tests can tell which client was asked.
+    const checkAuth = { getUser: jest.fn(async (_jwt?: string): Promise<UserAnswer> => answer as UserAnswer) };
+    if (answer === 'hang') checkAuth.getUser.mockImplementation(() => new Promise(() => {}));
+    else if (answer === 'held') checkAuth.getUser.mockImplementation(() => new Promise((resolve) => (answerUser = resolve)));
     let listener: ((event: string, session: unknown) => void) | null = null;
     supabase.auth.onAuthStateChange.mockImplementation((callback: unknown) => {
       listener = callback as typeof listener;
@@ -478,7 +479,7 @@ describe('SessionProvider — the background check with the real session source 
     await render(
       <AppProviders
         queryClient={queryClient}
-        sessionSource={createSupabaseSessionSource({ auth, clearUserData })}
+        sessionSource={createSupabaseSessionSource({ auth, checkAuth: checkAuth as unknown as Parameters<typeof createSupabaseSessionSource>[0]['checkAuth'], clearUserData })}
         tripRepository={createInMemoryTripRepository()}
         profileRepository={createInMemoryProfileRepository()}
       >
@@ -487,9 +488,9 @@ describe('SessionProvider — the background check with the real session source 
     );
     return {
       ...supabase,
+      checkAuth,
       clearUserData,
-      answerClaims: (value: ClaimsAnswer) => answerClaims(value),
-      emitLibrarySignedOut: () => listener?.('SIGNED_OUT', null),
+      answerUser: (value: UserAnswer) => answerUser(value),
       emitSignedIn: (session: unknown) => listener?.('SIGNED_IN', session),
     };
   }
@@ -502,20 +503,19 @@ describe('SessionProvider — the background check with the real session source 
     expect(clearUserData).toHaveBeenCalledTimes(1);
   });
 
-  it('the session is gone on the server: the library signs out by itself (SIGNED_OUT), the app does not sign out again', async () => {
-    const { auth, clearUserData, emitLibrarySignedOut } = await setupReal(failed(new AuthSessionMissingError()));
-    await expectStatus('signedIn');
-    await waitFor(() => expect(auth.getClaims).toHaveBeenCalledTimes(1));
-    await act(async () => emitLibrarySignedOut());
+  it('the session is gone on the server: the app signs out locally once (the isolated check client cannot), the data is cleared, the welcome screen shows', async () => {
+    const { auth, clearUserData } = await setupReal(failed(new AuthSessionMissingError()));
     await expectStatus('signedOut');
-    expect(auth.signOut).not.toHaveBeenCalled();
+    expect(auth.signOut).toHaveBeenCalledTimes(1);
+    expect(auth.signOut).toHaveBeenCalledWith({ scope: 'local' });
     expect(clearUserData).toHaveBeenCalledTimes(1);
   });
 
   it('a check that never answers (a dead connection) does not hold the gate', async () => {
-    const { auth, clearUserData } = await setupReal('hang');
+    const { auth, checkAuth, clearUserData } = await setupReal('hang');
     await expectStatus('signedIn');
-    await waitFor(() => expect(auth.getClaims).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(checkAuth.getUser).toHaveBeenCalledTimes(1));
+    expect(auth.getUser).not.toHaveBeenCalled();
     expect(status()).toHaveTextContent('signedIn');
     expect(clearUserData).not.toHaveBeenCalled();
   });
@@ -526,9 +526,9 @@ describe('SessionProvider — the background check with the real session source 
     ['no connection', new AuthRetryableFetchError('Network request failed', 0)],
     ['an unknown error', new AuthUnknownError('???', new Error('???'))],
   ])('%s: the user stays on the signed-in app, nothing is cleared or shown', async (_name, error) => {
-    const { auth, clearUserData } = await setupReal(failed(error));
+    const { auth, checkAuth, clearUserData } = await setupReal(failed(error));
     await expectStatus('signedIn');
-    await waitFor(() => expect(auth.getClaims).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(checkAuth.getUser).toHaveBeenCalledTimes(1));
     await act(async () => {});
     expect(status()).toHaveTextContent('signedIn');
     expect(auth.signOut).not.toHaveBeenCalled();
@@ -536,9 +536,9 @@ describe('SessionProvider — the background check with the real session source 
   });
 
   it('another user signs in while the check is in flight, and the answer for the first user is "user no longer exists": the new user stays signed in', async () => {
-    const { auth, clearUserData, answerClaims, emitSignedIn } = await setupReal('held');
+    const { auth, checkAuth, clearUserData, answerUser, emitSignedIn } = await setupReal('held');
     await expectStatus('signedIn');
-    await waitFor(() => expect(auth.getClaims).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(checkAuth.getUser).toHaveBeenCalledTimes(1));
 
     const second = { access_token: 'access-b', user: { id: OTHER_USER_ID, is_anonymous: false } };
     auth.getSession.mockResolvedValue({ data: { session: second as never }, error: null });
@@ -547,7 +547,7 @@ describe('SessionProvider — the background check with the real session source 
     await waitFor(() => expect(screen.getByTestId('user')).toHaveTextContent(OTHER_USER_ID));
     expect(clearUserData).toHaveBeenCalledTimes(1);
 
-    await act(async () => answerClaims(failed(new AuthApiError('gone', 403, 'user_not_found'))));
+    await act(async () => answerUser(failed(new AuthApiError('gone', 403, 'user_not_found'))));
     expect(auth.signOut).not.toHaveBeenCalled();
     expect(status()).toHaveTextContent('signedIn');
     expect(screen.getByTestId('user')).toHaveTextContent(OTHER_USER_ID);

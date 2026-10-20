@@ -5,15 +5,20 @@ import { useTheme } from '@/theme/useTheme';
 
 type Props = { label: string; selected: boolean; onToggle: () => void; disabled?: boolean };
 
-const CHIP_HEIGHT = 36; // §10.6 (minimum; grows with large text, §4.4)
+// 32dp instead of the 36dp of §10.6: a written exception decided by Kacper (theme-split D9). Minimum; grows with large text (§4.4).
+const CHIP_HEIGHT = 32;
 
 // Selectable chip (§10.6, D32). Selected adds a check mark, so the state is not shown by colour alone.
+// The width is the same selected and unselected (theme-split D9): an unselected chip keeps the room of the check mark
+// (icon + gap) in its padding, split evenly, so toggling never reflows the chips around it.
 export function Chip({ label, selected, onToggle, disabled = false }: Props) {
   const theme = useTheme();
   const { colors } = theme;
   const contentColor = selected ? colors.action.onPrimary : colors.text.primary;
-  // Extends the 36dp chip to the 44dp touch target without changing how it looks.
+  // Extends the 32dp chip to the 44dp touch target without changing how it looks.
   const slop = (theme.size.touchTarget - CHIP_HEIGHT) / 2;
+  const gap = theme.spacing[1];
+  const padding = theme.spacing[2] + (selected ? 0 : (theme.size.iconInline + gap) / 2);
   return (
     <Pressable
       accessibilityRole="checkbox"
@@ -27,12 +32,13 @@ export function Chip({ label, selected, onToggle, disabled = false }: Props) {
         opacity: disabled ? theme.opacity.disabled : 1,
         minHeight: CHIP_HEIGHT,
         maxWidth: '100%',
-        paddingHorizontal: theme.spacing[3],
+        paddingLeft: padding,
+        paddingRight: padding,
         paddingVertical: theme.spacing[1],
         borderRadius: theme.radius.full,
         flexDirection: 'row',
         alignItems: 'center',
-        gap: theme.spacing[1],
+        gap,
         borderWidth: 1,
         borderColor: selected ? colors.action.primary : colors.input.border,
         backgroundColor: selected

@@ -16,7 +16,7 @@ You **never edit files**. You may run commands only to check (typecheck, lint, t
 **1. Scope**
 - [ ] Only files listed in the step were changed (`git diff --stat`).
 - [ ] Every changed line traces to the step. No drive-by refactors, no unrequested features.
-- [ ] Backend agent did not touch `apps/mobile/`; frontend agent did not touch `packages/schemas/` or `supabase/`.
+- [ ] Backend agent did not touch `src/` outside `src/schemas/`; frontend agent did not touch `src/schemas/` or `supabase/`.
 
 **2. Tests first**
 - [ ] Tests for this step exist and assert the behavior from the plan, including failure/edge cases.

@@ -60,10 +60,63 @@ describe('BottomSheet (design-context §10.12)', () => {
     expect(onClose).toHaveBeenCalledTimes(1);
   });
 
+  // D14: the scrim fills the whole modal and lies under the sheet, so it also dims the area behind the rounded top corners.
+  describe('scrim layout (theme-split-and-profile-prefill D14)', () => {
+    type Element = ReturnType<typeof screen.getByTestId>;
+    // Index of the direct child of the keyboard-avoiding frame that holds `element`.
+    const slot = (element: Element) => {
+      const frame = screen.getByTestId('bottom-sheet-keyboard');
+      let node: Element | null = element;
+      while (node && node.parent !== frame) node = node.parent;
+      return frame.children.indexOf(node as Element);
+    };
+
+    it('fills the whole modal, behind the sheet, in the scrim colour (not a flex block above the sheet)', async () => {
+      await renderSheet();
+      const style = StyleSheet.flatten(screen.getByRole('button', { name: 'Zamknij' }).props.style);
+      expect(style).toMatchObject({ ...StyleSheet.flatten(StyleSheet.absoluteFill), backgroundColor: lightTheme.colors.overlay.scrim });
+      expect(style.flex).toBeUndefined();
+    });
+
+    it('is rendered before the sheet, so it is under it', async () => {
+      await renderSheet();
+      const scrim = slot(screen.getByRole('button', { name: 'Zamknij' }));
+      const sheet = slot(screen.getByTestId('bottom-sheet'));
+      expect(scrim).toBeGreaterThanOrEqual(0);
+      expect(sheet).toBeGreaterThan(scrim);
+    });
+
+    it('puts the sheet at the bottom of the modal', async () => {
+      await renderSheet();
+      expect(StyleSheet.flatten(screen.getByTestId('bottom-sheet-keyboard').props.style)).toMatchObject({ flex: 1, justifyContent: 'flex-end' });
+    });
+
+    it('does not close when something inside the sheet is pressed', async () => {
+      const onClose = jest.fn();
+      const metrics = { frame: { x: 0, y: 0, width: 390, height: 844 }, insets: { top: 47, left: 0, right: 0, bottom: 34 } };
+      await render(
+        <SafeAreaProvider initialMetrics={metrics}>
+          <BottomSheet visible title="Tytuł" onClose={onClose}>
+            <Text onPress={() => {}}>row</Text>
+          </BottomSheet>
+        </SafeAreaProvider>,
+      );
+      await fireEvent.press(screen.getByText('row'));
+      await fireEvent.press(screen.getByRole('header', { name: 'Tytuł' }));
+      expect(onClose).not.toHaveBeenCalled();
+    });
+  });
+
   it('slides in, and appears without movement when the system asks to reduce motion (§9.4)', async () => {
     await renderSheet();
     expect(screen.getByTestId('bottom-sheet-modal').props.animationType).toBe('slide');
     jest.spyOn(AccessibilityInfo, 'isReduceMotionEnabled').mockResolvedValue(true);
+    await renderSheet();
+    expect(screen.getByTestId('bottom-sheet-modal').props.animationType).toBe('none');
+  });
+
+  it('when the system cannot say whether to reduce motion, it shows without animation', async () => {
+    jest.spyOn(AccessibilityInfo, 'isReduceMotionEnabled').mockRejectedValue(new Error('no native module'));
     await renderSheet();
     expect(screen.getByTestId('bottom-sheet-modal').props.animationType).toBe('none');
   });

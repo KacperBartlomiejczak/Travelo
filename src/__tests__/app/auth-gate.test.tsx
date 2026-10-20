@@ -436,7 +436,9 @@ describe('signed in without a profile', () => {
 
     await fireEvent.press(screen.getByRole('button', { name: 'Zapisz i zaczynamy' }));
 
-    expect(screen.getByText('Wpisz nick.')).toBeTruthy();
+    // The button waits for a complete form (theme-split-and-profile-prefill D4): the tap does nothing and no error is shown.
+    expect(screen.getByRole('button', { name: 'Zapisz i zaczynamy' })).toBeDisabled();
+    expect(screen.queryByText('Wpisz nick.')).toBeNull();
     await expectOnly(ONBOARDING);
     expect(createProfile).not.toHaveBeenCalled();
   });

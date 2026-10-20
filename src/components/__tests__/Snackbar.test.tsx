@@ -205,6 +205,12 @@ describe('Snackbar (design-context §10.16, trip-edit-menu D11, D14)', () => {
     expect(screen.getByTestId('snackbar-container')).toHaveStyle({ opacity: 1 });
   });
 
+  it('when the system cannot say whether to reduce motion, it shows without animation', async () => {
+    jest.spyOn(AccessibilityInfo, 'isReduceMotionEnabled').mockRejectedValue(new Error('no native module'));
+    await render(ui('Podróż usunięta.'));
+    expect(screen.getByTestId('snackbar-container')).toHaveStyle({ opacity: 1 });
+  });
+
   it('fades in over 180 ms when motion is allowed (§9.1 small transition, D14)', async () => {
     const timing = jest.spyOn(Animated, 'timing');
     await render(ui('Podróż usunięta.'));

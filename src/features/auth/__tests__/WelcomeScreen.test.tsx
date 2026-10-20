@@ -1,7 +1,7 @@
 import { isHiddenFromAccessibility } from '@testing-library/react-native';
 import { Stack } from 'expo-router';
 import { act, fireEvent, renderRouter, screen, waitFor, within } from 'expo-router/testing-library';
-import { StyleSheet, Text } from 'react-native';
+import { AccessibilityInfo, Animated, StyleSheet, Text } from 'react-native';
 
 import i18n from '@/i18n';
 import { AppProviders } from '@/providers/AppProviders';
@@ -119,6 +119,18 @@ describe('WelcomeScreen (auth-onboarding D5, D6, P4, P5, P6)', () => {
     expect(offsets).toEqual([lightTheme.gradient.heroFade.start, 1]);
   });
 
+  it('darkens the whole photo with the scrim token, between the image and the fade into ink', async () => {
+    await setup();
+    const dim = screen.getByTestId('welcome-dim', hidden);
+    expect(dim).toHaveStyle({ ...StyleSheet.flatten(StyleSheet.absoluteFill), backgroundColor: darkTheme.colors.overlay.scrim });
+    const json = JSON.stringify(screen.toJSON());
+    const order = ['"welcome-image"', '"welcome-dim"', '"welcome-gradient"'].map((id) => json.indexOf(id));
+    expect(order.every((index) => index >= 0)).toBe(true);
+    expect([...order].sort((a, b) => a - b)).toEqual(order);
+    // The dim sits inside the photo layer, so screen readers skip it.
+    expect(screen.queryByTestId('welcome-dim')).toBeNull();
+  });
+
   it('puts the content in the thumb zone: at the bottom, above the safe area, 720dp wide at most, 20dp from the sides', async () => {
     await setup();
     const container = StyleSheet.flatten(screen.getByTestId('welcome-content').props.contentContainerStyle);
@@ -201,6 +213,157 @@ describe('WelcomeScreen (auth-onboarding D5, D6, P4, P5, P6)', () => {
       await act(async () => setNetwork({ isConnected: true, isInternetReachable: true }));
       expect(screen.queryByTestId('offline-banner')).toBeNull();
       expect(signInButton()).toBeEnabled();
+    });
+  });
+
+  describe('entrance animation (theme-split-and-profile-prefill P3, design-context §9)', () => {
+    const { celebration } = darkTheme.duration;
+    const rise = darkTheme.spacing[4];
+    const STEP = 150;
+    const parts = ['welcome-title', 'welcome-body', 'welcome-action'] as const;
+
+    const look = (testID: (typeof parts)[number]) => {
+      const flat = StyleSheet.flatten(screen.getByTestId(testID).props.style);
+      const transform = flat.transform as { translateY: number }[] | undefined;
+      return { opacity: flat.opacity as number, translateY: transform?.find((entry) => 'translateY' in entry)?.translateY };
+    };
+    const pass = async (ms: number) => {
+      await act(async () => {
+        jest.advanceTimersByTime(ms);
+      });
+    };
+
+    beforeEach(() => jest.useFakeTimers());
+    afterEach(() => {
+      jest.useRealTimers();
+      jest.restoreAllMocks();
+    });
+
+    it('uses the celebration duration: 500 ms, and a 16dp rise', () => {
+      expect(celebration).toBe(500);
+      expect(rise).toBe(16);
+    });
+
+    describe('without reduced motion', () => {
+      beforeEach(() => {
+        jest.spyOn(AccessibilityInfo, 'isReduceMotionEnabled').mockResolvedValue(false);
+      });
+
+      it('starts the title, the sentence and the button invisible and 16dp low', async () => {
+        await setup();
+        for (const part of parts) expect(look(part)).toEqual({ opacity: 0, translateY: rise });
+      });
+
+      it('fades and lifts each into place, one after another', async () => {
+        await setup();
+        await pass(200); // the title is 200 ms in, the sentence 50 ms in, the button has not started
+        expect(look('welcome-title').opacity).toBeGreaterThan(0);
+        expect(look('welcome-body').opacity).toBeGreaterThan(0);
+        expect(look('welcome-title').opacity).toBeGreaterThan(look('welcome-body').opacity);
+        expect(look('welcome-action')).toEqual({ opacity: 0, translateY: rise });
+
+        await pass(100); // t = 300 ms: the button's 300 ms delay is just over, it is still invisible
+        expect(look('welcome-action')).toEqual({ opacity: 0, translateY: rise });
+
+        await pass(100); // t = 400 ms: the button is 100 ms in; the title is most of the way
+        expect(look('welcome-action').opacity).toBeGreaterThan(0);
+        expect(look('welcome-title').opacity).toBeGreaterThan(look('welcome-body').opacity);
+        expect(look('welcome-body').opacity).toBeGreaterThan(look('welcome-action').opacity);
+        expect(look('welcome-title').translateY).toBeLessThan(rise);
+
+        await pass(2 * STEP + celebration); // well past 300 + 500 ms
+        for (const part of parts) expect(look(part)).toEqual({ opacity: 1, translateY: 0 });
+      });
+
+      it('times each one for 500 ms, delayed 0, 150 and 300 ms, with the enter easing', async () => {
+        const timing = jest.spyOn(Animated, 'timing');
+        await setup();
+        const delays = timing.mock.calls.map(([, config]) => config.delay);
+        expect(delays).toEqual([0, STEP, 2 * STEP]); // title, sentence, button
+        for (const [, config] of timing.mock.calls) {
+          expect(config.duration).toBe(celebration);
+          expect(typeof config.easing).toBe('function');
+          expect(config.easing?.(0)).toBeCloseTo(0, 5);
+          expect(config.easing?.(1)).toBeCloseTo(1, 5);
+          expect(config.easing?.(0.2)).toBeGreaterThan(0.5); // cubic-bezier(0.2, 0.8, 0.2, 1) leaves fast
+        }
+      });
+
+      it('"Zaloguj się" works from the first frame, while it is still invisible', async () => {
+        await setup();
+        expect(look('welcome-action').opacity).toBe(0);
+        await fireEvent.press(signInButton());
+        expect(await screen.findByTestId('bottom-sheet')).toBeTruthy();
+      });
+
+      it('does not animate the offline banner, and the disabled button still does not open the sheet', async () => {
+        setNetwork({ isConnected: false, isInternetReachable: false });
+        await setup();
+        expect(screen.getByTestId('offline-banner')).toBeTruthy();
+        expect(StyleSheet.flatten(screen.getByTestId('offline-banner').props.style)?.opacity).not.toBe(0);
+        await fireEvent.press(signInButton());
+        expect(screen.queryByTestId('bottom-sheet')).toBeNull();
+      });
+    });
+
+    describe('with reduced motion', () => {
+      beforeEach(() => {
+        jest.spyOn(AccessibilityInfo, 'isReduceMotionEnabled').mockResolvedValue(true);
+      });
+
+      it('shows everything in place at once, without any animation', async () => {
+        const timing = jest.spyOn(Animated, 'timing');
+        await setup();
+        for (const part of parts) expect(look(part)).toEqual({ opacity: 1, translateY: 0 });
+        expect(timing).not.toHaveBeenCalled();
+        await pass(2 * STEP + celebration);
+        for (const part of parts) expect(look(part)).toEqual({ opacity: 1, translateY: 0 });
+      });
+
+      it('"Zaloguj się" opens the sheet', async () => {
+        await setup();
+        await fireEvent.press(signInButton());
+        expect(await screen.findByTestId('bottom-sheet')).toBeTruthy();
+      });
+
+      it('shows everything in place, without animating, when the system cannot say whether to reduce motion', async () => {
+        // Every caller (welcome screen, cover image, sign-in sheet) asks through the shared hook, and the question fails for all.
+        jest.spyOn(AccessibilityInfo, 'isReduceMotionEnabled').mockRejectedValue(new Error('no native module'));
+        const timing = jest.spyOn(Animated, 'timing');
+        await setup();
+        for (const part of parts) expect(look(part)).toEqual({ opacity: 1, translateY: 0 });
+        expect(timing).not.toHaveBeenCalled();
+        await fireEvent.press(signInButton());
+        expect(await screen.findByTestId('bottom-sheet')).toBeTruthy();
+      });
+
+      it('settles at once when reduce motion switches on while the entrance runs', async () => {
+        let setReduceMotion: (enabled: boolean) => void = () => {};
+        jest.spyOn(AccessibilityInfo, 'isReduceMotionEnabled').mockResolvedValue(false);
+        // The overloads of addEventListener are per event name; the stand-in only serves 'reduceMotionChanged'.
+        const addListener = (_event: string, handler: (enabled: boolean) => void) => {
+          setReduceMotion = handler;
+          return { remove: jest.fn() };
+        };
+        jest.spyOn(AccessibilityInfo, 'addEventListener').mockImplementation(addListener as unknown as typeof AccessibilityInfo.addEventListener);
+        await setup();
+        await pass(200);
+        expect(look('welcome-action').opacity).toBe(0);
+        await act(async () => {
+          setReduceMotion(true);
+        });
+        for (const part of parts) expect(look(part)).toEqual({ opacity: 1, translateY: 0 });
+        await pass(2 * STEP + celebration);
+        for (const part of parts) expect(look(part)).toEqual({ opacity: 1, translateY: 0 });
+      });
+    });
+
+    it('stays dark on a light phone while it animates', async () => {
+      jest.spyOn(AccessibilityInfo, 'isReduceMotionEnabled').mockResolvedValue(false);
+      await setup();
+      await pass(2 * STEP + celebration);
+      expect(screen.getByTestId('welcome-screen')).toHaveStyle({ backgroundColor: darkTheme.colors.hero.background });
+      expect(screen.getByText('Witaj w Travelo')).toHaveStyle({ color: darkTheme.colors.hero.text });
     });
   });
 

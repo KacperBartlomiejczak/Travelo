@@ -1,10 +1,12 @@
 import { createClient } from '@supabase/supabase-js';
 
 import { withTimeout } from '@/data/fetch-timeout';
+import { installWebCrypto } from '@/data/web-crypto';
 
 const mockPolyfillLoaded = jest.fn();
 const mockTimedFetch = jest.fn();
 
+jest.mock('@/data/web-crypto', () => ({ installWebCrypto: jest.fn() }));
 jest.mock('@/data/fetch-timeout', () => ({ REQUEST_TIMEOUT_MS: 20_000, withTimeout: jest.fn(() => mockTimedFetch) }));
 
 const mockAuth = { startAutoRefresh: jest.fn(), stopAutoRefresh: jest.fn() };
@@ -43,16 +45,41 @@ describe('supabase client', () => {
   it('creates the client from env with the session kept in SQLite localStorage', () => {
     loadClient({ url: URL, key: KEY });
 
-    expect(createClient).toHaveBeenCalledWith(URL, KEY, {
-      auth: {
-        storage: { name: 'sqlite-local-storage' },
-        autoRefreshToken: true,
-        persistSession: true,
-        detectSessionInUrl: false,
-        flowType: 'pkce',
+    // The app client is the first one created (the isolated session-check client follows it).
+    expect(jest.mocked(createClient).mock.calls[0]).toEqual([
+      URL,
+      KEY,
+      {
+        auth: {
+          storage: { name: 'sqlite-local-storage' },
+          autoRefreshToken: true,
+          persistSession: true,
+          detectSessionInUrl: false,
+          flowType: 'pkce',
+        },
+        global: { fetch: mockTimedFetch },
       },
-      global: { fetch: mockTimedFetch },
+    ]);
+  });
+
+  // auth-js removes whatever session its client holds when the server answers `session_not_found`, so the stored-session check
+  // (session-source) asks on a client that holds nothing and persists nothing (coderabbit-pr21-fixes A1).
+  it('creates a second, isolated client for the stored-session check: nothing persisted, no refresh, its own storage key, the same timed fetch', () => {
+    loadClient({ url: URL, key: KEY });
+
+    expect(createClient).toHaveBeenCalledTimes(2);
+    const [, , appOptions] = jest.mocked(createClient).mock.calls[0];
+    const [checkUrl, checkKey, checkOptions] = jest.mocked(createClient).mock.calls[1];
+    expect([checkUrl, checkKey]).toEqual([URL, KEY]);
+    expect(checkOptions?.auth).toEqual({
+      persistSession: false,
+      autoRefreshToken: false,
+      detectSessionInUrl: false,
+      storageKey: expect.any(String),
     });
+    expect(checkOptions?.auth?.storageKey).not.toBe(appOptions?.auth?.storageKey);
+    expect(checkOptions?.auth?.storageKey).toBeTruthy();
+    expect(checkOptions?.global).toEqual({ fetch: mockTimedFetch });
   });
 
   it('gives every request (database, RPC, auth) the 20 s timeout (trips-supabase D14)', () => {
@@ -65,6 +92,13 @@ describe('supabase client', () => {
     loadClient({ url: URL, key: KEY });
     expect(mockPolyfillLoaded).toHaveBeenCalled();
     expect(mockPolyfillLoaded.mock.invocationCallOrder[0]).toBeLessThan(jest.mocked(createClient).mock.invocationCallOrder[0]);
+  });
+
+  it('installs the WebCrypto polyfill before creating the client, so PKCE uses S256 (pkce-sha256)', () => {
+    jest.mocked(installWebCrypto).mockClear();
+    loadClient({ url: URL, key: KEY });
+    expect(installWebCrypto).toHaveBeenCalledTimes(1);
+    expect(jest.mocked(installWebCrypto).mock.invocationCallOrder[0]).toBeLessThan(jest.mocked(createClient).mock.invocationCallOrder[0]);
   });
 
   it('names the missing variable', () => {
@@ -113,6 +147,19 @@ describe('supabase client — token refresh follows the app state', () => {
 
   it('registers none on web (the browser handles it)', () => {
     expect(loadOn('web')).toHaveLength(0);
+  });
+
+  it('the isolated session-check client gets no foreground refresh: only the app client is started and stopped', () => {
+    const appAuth = { startAutoRefresh: jest.fn(), stopAutoRefresh: jest.fn() };
+    const checkAuth = { startAutoRefresh: jest.fn(), stopAutoRefresh: jest.fn() };
+    jest.mocked(createClient).mockImplementationOnce((() => ({ auth: appAuth })) as never).mockImplementationOnce((() => ({ auth: checkAuth })) as never);
+    const [listener] = loadOn('ios');
+    listener('active');
+    listener('background');
+    expect(appAuth.startAutoRefresh).toHaveBeenCalledTimes(1);
+    expect(appAuth.stopAutoRefresh).toHaveBeenCalledTimes(1);
+    expect(checkAuth.startAutoRefresh).not.toHaveBeenCalled();
+    expect(checkAuth.stopAutoRefresh).not.toHaveBeenCalled();
   });
 
   it('starts the token refresh when the app becomes active, and stops it when it goes to the background or becomes inactive', () => {

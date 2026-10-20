@@ -36,8 +36,8 @@ export function fakeSupabase() {
   /** The Supabase auth calls the app makes. Every call succeeds unless a test says otherwise; there is no anonymous sign-in. */
   const auth = {
     getSession: jest.fn(async () => ({ data: { session }, error: null as Error | null })),
-    /** The background check of the stored session (auth-onboarding D22): the claims, or the error the server's answer became. */
-    getClaims: jest.fn(async (_jwt?: string) => ({ data: { claims: { sub: SIGNED_IN_USER_ID } } as unknown, error: null as AuthError | null })),
+    /** The background check of the stored session (auth-onboarding D22): the user, or the error the server's answer became. */
+    getUser: jest.fn(async (_jwt?: string) => ({ data: { user: { id: SIGNED_IN_USER_ID } } as unknown, error: null as AuthError | null })),
     signInWithOAuth: jest.fn(async (_credentials: unknown) => ({
       data: { provider: 'google', url: 'https://example.supabase.co/auth/v1/authorize?provider=google' },
       error: null as Error | null,

@@ -18,7 +18,7 @@ import { HeroMenuButton } from '@/features/home/HeroMenuButton';
 import { useCurrentTrip } from '@/hooks/useTrips';
 import { usePillClearance } from '@/features/nav/usePillClearance';
 import { useIsOffline } from '@/providers/BudgetSync';
-import { DarkThemeScope, useTheme } from '@/theme/useTheme';
+import { useTheme } from '@/theme/useTheme';
 
 // Home screen: loading, error, empty, or the current trip (trip-flight-tabs-name-cover D4, trips-drawer).
 // Every state has the menu button that opens the side panel with all trips (trips-drawer P5).
@@ -70,9 +70,9 @@ export default function HomeScreen() {
   );
 
   if (trips.data) {
-    // The trip view is always dark (A4), so its snackbar is too: the inverse colours must contrast with this screen.
+    // The trip view follows the phone's theme (theme-split D1), so its snackbar is the inverse of the same theme.
     return (
-      <DarkThemeScope>
+      <>
         <CurrentTrip
           overview={trips.data.overview}
           budgetSyncStatus={trips.data.budgetSyncStatus}
@@ -80,7 +80,7 @@ export default function HomeScreen() {
           onDeleted={() => setSnackbar(t('deleteTrip.deleted'))}
         />
         {toast()}
-      </DarkThemeScope>
+      </>
     );
   }
 

@@ -19,6 +19,7 @@ import { isoToLocal } from '@/lib/time';
 import { perPersonPerDay, tripDayCount } from '@/lib/trip-days';
 import { useIsOffline, useRequestBudgetSync } from '@/providers/BudgetSync';
 import type { FlightSegment, SyncStatus, TripOverview } from '@/schemas';
+import { darkTheme } from '@/theme/theme';
 import { useTheme } from '@/theme/useTheme';
 
 import { BudgetSheet } from './BudgetSheet';
@@ -35,7 +36,8 @@ type Props = { overview: TripOverview; budgetSyncStatus: SyncStatus; onOpenMenu:
 type Sheet = 'menu' | 'details' | 'budget' | 'delete';
 
 // Home screen with a trip (D4, A5): the hero, then flights, travellers and budget — data only.
-// Rendered inside DarkThemeScope: the photo fades into ink and the content continues on it (A4).
+// Follows the phone's theme: the photo fades into the theme's background and the content continues on it
+// (theme-split D1, D6; reverses trip-flight-tabs-name-cover A4).
 // A new trip starts from the side panel; the menu button stays over the photo (trips-drawer D4, P5).
 export function CurrentTrip({ overview, budgetSyncStatus, onOpenMenu, onDeleted }: Props) {
   const { t } = useTranslation();
@@ -55,7 +57,7 @@ export function CurrentTrip({ overview, budgetSyncStatus, onOpenMenu, onDeleted 
   const closeSheet = () => setSheet(null);
 
   return (
-    <View testID="home-screen" style={{ flex: 1, backgroundColor: colors.hero.background }}>
+    <View testID="home-screen" style={{ flex: 1, backgroundColor: colors.background }}>
       <StatusBar style={focused && !panelOpen ? 'light' : 'auto'} />
       {/* First, so screen readers reach the navigation before the trip (§15); drawn above the photo. */}
       <HeroMenuButton onPress={onOpenMenu} />
@@ -121,11 +123,13 @@ export function CurrentTrip({ overview, budgetSyncStatus, onOpenMenu, onDeleted 
 
 function Section({ title, testID, action, children }: { title: string; testID: string; action?: ReactNode; children: ReactNode }) {
   const theme = useTheme();
-  // Secondary surface: the default dark surface is the ink background itself.
+  // Light: white with the card shadow, like the wizard's Card (theme-split D7). Dark: the secondary surface, because the
+  // default surface is close to the background itself; no shadow there (elevation.card is empty in dark).
+  const surface = theme === darkTheme ? theme.colors.surface.secondary : theme.colors.surface.default;
   return (
     <View
       testID={testID}
-      style={{ backgroundColor: theme.colors.surface.secondary, borderRadius: theme.radius.lg, padding: theme.spacing[4], gap: theme.spacing[3] }}
+      style={[{ backgroundColor: surface, borderRadius: theme.radius.lg, padding: theme.spacing[4], gap: theme.spacing[3] }, theme.elevation.card]}
     >
       <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: theme.spacing[2] }}>
         <Text accessibilityRole="header" style={[theme.typography.heading3, { color: theme.colors.text.primary, flexShrink: 1 }]}>
