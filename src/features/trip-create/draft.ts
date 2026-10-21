@@ -9,6 +9,7 @@ import {
   type CoverChoice,
   type CreateTripInputSchema,
   type FlightsStepInputSchema,
+  type FoundFriend,
   type FriendInputSchema,
   type FriendsStepInputSchema,
   type SegmentInputSchema,
@@ -18,12 +19,17 @@ import {
 // What the wizard holds while it is being filled in. Validated with the step schemas on "Next".
 /** `key` identifies a segment card on screen; the schema strips it. */
 export type SegmentDraft = z.input<typeof SegmentInputSchema> & { key: string };
-export type FriendDraft = z.input<typeof FriendInputSchema>;
+/**
+ * `codeText` is the friend code as typed (UI state, never sent); `friendCode` is set only once that code was found on the
+ * server (friend-invite D3, D9). A friend without code fields behaves as one without a code.
+ */
+export type FriendDraft = z.input<typeof FriendInputSchema> & { codeText?: string };
 type DetailsInput = z.input<typeof TripDetailsInputSchema>;
 export type TripDraft = Omit<z.input<typeof FlightsStepInputSchema>, 'outbound' | 'return'> & {
   outbound: SegmentDraft[];
   return: SegmentDraft[];
-} & z.input<typeof FriendsStepInputSchema> & {
+} & Omit<z.input<typeof FriendsStepInputSchema>, 'friends'> & {
+    friends: FriendDraft[];
     /** The amount as typed; parsed to minor units on "Next". `currency` is only what the user tapped. */
     budget: { amountText: string; currency: string };
     /** null = not typed yet: the default name follows the flights (trip-flight-tabs-name-cover A2). */
@@ -51,12 +57,32 @@ export function emptyDraft(): TripDraft {
   };
 }
 
-/** One friend per companion; filled-in friends are kept when the count changes (D10). */
+export function emptyFriend(): FriendDraft {
+  return { displayName: '', interests: [], friendCode: null, codeText: '' };
+}
+
+/**
+ * The friend with the code text changed. A friend that was found by the old code goes back to an empty manual card (D9):
+ * the nick and interests belonged to that account. One that was not found keeps the name and interests typed by hand.
+ */
+export function withCodeText(friend: FriendDraft, codeText: string): FriendDraft {
+  if (friend.friendCode) return { ...emptyFriend(), codeText };
+  return { ...friend, codeText };
+}
+
+/** The friend filled in from the account that has `code`: its nick as the name, its interests (D3). */
+export function withFoundFriend(friend: FriendDraft, code: string, found: FoundFriend): FriendDraft {
+  return { ...friend, displayName: found.username, interests: found.interests, friendCode: code, codeText: code };
+}
+
+/** Something is typed in the code field and no friend was found for it: "Dalej" waits (D13). */
+export function hasUnresolvedCode(friend: FriendDraft): boolean {
+  return (friend.codeText ?? '').trim() !== '' && !friend.friendCode;
+}
+
+/** One friend per companion; filled-in friends (code state included) are kept when the count changes (D10). */
 export function withCompanionCount(draft: TripDraft, companionCount: number): TripDraft {
-  const friends = Array.from(
-    { length: companionCount },
-    (_, i) => draft.friends[i] ?? { displayName: '', interests: [] },
-  );
+  const friends = Array.from({ length: companionCount }, (_, i) => draft.friends[i] ?? emptyFriend());
   return { ...draft, companionCount, friends };
 }
 
@@ -113,7 +139,10 @@ export function toCreateTripInput(draft: TripDraft, locale: string): z.input<typ
   const currency = budgetCurrency(draft);
   return {
     flights: { outbound: draft.outbound, return: draft.return, companionCount: draft.companionCount },
-    friends: { friends: draft.friends },
+    // The typed code text stays on the phone; only a found code (`friendCode`) is sent (friend-invite D12).
+    friends: {
+      friends: draft.friends.map(({ displayName, interests, friendCode }) => ({ displayName, interests, friendCode })),
+    },
     // The budget step only lets valid amounts through; 0 makes the schema reject anything else.
     budget: { budgetPerPerson: { amountMinor: parseAmountToMinor(draft.budget.amountText, currency, locale) ?? 0, currency } },
     details: { name: tripName(draft), coverImageUri: draft.coverImageUri },

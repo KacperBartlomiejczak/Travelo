@@ -5,8 +5,12 @@ import {
   toCreateTripInput,
   tripName,
   emptyDraft,
+  emptyFriend,
   emptySegment,
+  hasUnresolvedCode,
+  withCodeText,
   withCompanionCount,
+  withFoundFriend,
   withOutbound,
 } from '@/features/trip-create/draft';
 import { DEFAULT_COVER } from '@/schemas';
@@ -64,11 +68,7 @@ describe('withCompanionCount', () => {
   it('adds an empty friend per companion', () => {
     const draft = withCompanionCount(emptyDraft(), 3);
     expect(draft.companionCount).toBe(3);
-    expect(draft.friends).toEqual([
-      { displayName: '', interests: [] },
-      { displayName: '', interests: [] },
-      { displayName: '', interests: [] },
-    ]);
+    expect(draft.friends).toEqual([emptyFriend(), emptyFriend(), emptyFriend()]);
   });
 
   it('keeps already-filled friends when the count changes (D10)', () => {
@@ -84,6 +84,55 @@ describe('withCompanionCount', () => {
     const draft = emptyDraft();
     withCompanionCount(draft, 2);
     expect(draft.friends).toEqual([]);
+  });
+
+  it('keeps the code state of a friend when the count changes (friend-invite)', () => {
+    const three = withCompanionCount(emptyDraft(), 3);
+    three.friends[0] = withFoundFriend(emptyFriend(), '5ZMRX8', { username: 'ola_b', interests: ['museums'] });
+    three.friends[1] = withCodeText(emptyFriend(), 'K7PQ');
+    const two = withCompanionCount(three, 2);
+    expect(two.friends[0]).toEqual({ displayName: 'ola_b', interests: ['museums'], friendCode: '5ZMRX8', codeText: '5ZMRX8' });
+    expect(two.friends[1].codeText).toBe('K7PQ');
+    expect(withCompanionCount(two, 3).friends[2]).toEqual(emptyFriend());
+  });
+});
+
+describe('friend code state', () => {
+  const OLA = { username: 'ola_b', interests: ['museums' as const, 'beaches' as const] };
+
+  it('an empty friend has no name, no interests and no code', () => {
+    expect(emptyFriend()).toEqual({ displayName: '', interests: [], friendCode: null, codeText: '' });
+  });
+
+  it('withFoundFriend takes the nick and the interests of the account and remembers the code', () => {
+    const typed = { ...withCodeText(emptyFriend(), '5ZMRX8'), displayName: 'Ola z pracy', interests: ['cycling' as const] };
+    expect(withFoundFriend(typed, '5ZMRX8', OLA)).toEqual({
+      displayName: 'ola_b',
+      interests: ['museums', 'beaches'],
+      friendCode: '5ZMRX8',
+      codeText: '5ZMRX8',
+    });
+  });
+
+  it('editing the code of a found friend returns an empty manual card (D9)', () => {
+    const found = withFoundFriend(emptyFriend(), '5ZMRX8', OLA);
+    expect(withCodeText(found, '5ZMRX')).toEqual({ displayName: '', interests: [], friendCode: null, codeText: '5ZMRX' });
+    expect(withCodeText(found, '')).toEqual(emptyFriend());
+  });
+
+  it('editing the code of a friend that was not found keeps the typed name and interests (D9)', () => {
+    const manual = { ...emptyFriend(), displayName: 'Kasia', interests: ['beaches' as const], codeText: 'ABCDEF' };
+    expect(withCodeText(manual, 'ABCDE')).toEqual({ displayName: 'Kasia', interests: ['beaches'], friendCode: null, codeText: 'ABCDE' });
+  });
+
+  it('a code is unresolved when something is typed in it and no friend was found for it (D13)', () => {
+    expect(hasUnresolvedCode(emptyFriend())).toBe(false);
+    expect(hasUnresolvedCode(withCodeText(emptyFriend(), '  '))).toBe(false);
+    expect(hasUnresolvedCode(withCodeText(emptyFriend(), 'AB'))).toBe(true);
+    expect(hasUnresolvedCode(withCodeText(emptyFriend(), 'ABCDEF'))).toBe(true);
+    expect(hasUnresolvedCode(withFoundFriend(emptyFriend(), '5ZMRX8', OLA))).toBe(false);
+    // A friend written the way older code did (no code fields at all) has nothing unresolved.
+    expect(hasUnresolvedCode({ displayName: 'Kasia', interests: [] })).toBe(false);
   });
 });
 
@@ -181,6 +230,17 @@ describe('toCreateTripInput', () => {
     expect(input.friends).toEqual({ friends: [{ displayName: 'Kasia', interests: ['beaches'] }] });
     expect(input.flights.outbound[0]).toEqual(expect.objectContaining({ fromIata: 'WAW', toIata: 'BKK' }));
     expect(input.details).toEqual({ name: 'Warsaw → Bangkok', coverImageUri: DEFAULT_COVER });
+  });
+
+  it('sends the code of a linked friend and leaves the typed code text out', () => {
+    const linked = withFoundFriend(emptyFriend(), '5ZMRX8', { username: 'ola_b', interests: ['museums'] });
+    const draft = { ...emptyDraft(), companionCount: 2, friends: [linked, withCodeText(emptyFriend(), 'AB')] };
+    expect(toCreateTripInput(draft, 'pl').friends).toEqual({
+      friends: [
+        { displayName: 'ola_b', interests: ['museums'], friendCode: '5ZMRX8' },
+        { displayName: '', interests: [], friendCode: null },
+      ],
+    });
   });
 
   it('sends the typed name and the chosen cover', () => {

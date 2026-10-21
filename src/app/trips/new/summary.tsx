@@ -9,6 +9,7 @@ import { CoverPicker } from '@/components/CoverPicker';
 import { LayoverLabel } from '@/components/LayoverLabel';
 import { TextButton } from '@/components/TextButton';
 import { TextField } from '@/components/TextField';
+import { FriendAlreadyAddedError, OwnFriendCodeError, UnknownFriendCodeError } from '@/data/errors';
 import { toCreateTripInput, tripName, type SegmentDraft } from '@/features/trip-create/draft';
 import { stepRoute, type WizardStep } from '@/features/trip-create/steps';
 import { useTripDraft } from '@/features/trip-create/TripDraftContext';
@@ -72,6 +73,15 @@ function Summary() {
 
   const goTo = (step: WizardStep) => router.dismissTo(stepRoute(step));
 
+  // When the server refuses a friend code, the text says which one of the friends' problems it is (friend-invite D14);
+  // the organizer fixes it through "Zmień" on the travellers card. Anything else is the general save error.
+  function saveErrorText(error: unknown): string {
+    if (error instanceof OwnFriendCodeError) return t('newTrip.friends.codeOwn');
+    if (error instanceof UnknownFriendCodeError) return t('newTrip.friends.codeUnknown');
+    if (error instanceof FriendAlreadyAddedError) return t('newTrip.friends.codeDuplicate');
+    return t('newTrip.summary.saveError');
+  }
+
   function save() {
     setSubmitted(true);
     if (!details.success) {
@@ -84,7 +94,7 @@ function Summary() {
         complete();
       },
       // The message is also shown above the button; VoiceOver needs it announced.
-      onError: () => AccessibilityInfo.announceForAccessibility(t('newTrip.summary.saveError')),
+      onError: (error) => AccessibilityInfo.announceForAccessibility(saveErrorText(error)),
     });
   }
 
@@ -116,7 +126,7 @@ function Summary() {
         icon: Plus,
         onPress: save,
         loading: createTrip.isPending,
-        error: createTrip.isError ? t('newTrip.summary.saveError') : undefined,
+        error: createTrip.isError ? saveErrorText(createTrip.error) : undefined,
       }}
     >
       <Text accessibilityRole="header" style={[theme.typography.heading2, { color: theme.colors.text.primary }]}>
