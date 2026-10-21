@@ -27,6 +27,11 @@ type Props = {
   tripId: string;
   /** The photo to open on; the first one when it is missing or no longer in the trip. */
   photoId?: string;
+  /**
+   * Whether the signed-in user is the trip's organizer; undefined while that is not known yet. Only the organizer deletes
+   * (friend-invite A3): delete shows only when this is true, and the offline hint about it is left out only when it is false.
+   */
+  isOwner: boolean | undefined;
   onClose: () => void;
 };
 
@@ -35,7 +40,7 @@ type Props = {
  * with a confirmation (P5). The photos come from the same query as the strip, so a photo seen there is here at once.
  * Loading and a failed read keep the close button; with no photo left there is nothing to show, so it closes.
  */
-export function PhotoViewer({ tripId, photoId, onClose }: Props) {
+export function PhotoViewer({ tripId, photoId, isOwner, onClose }: Props) {
   const { t } = useTranslation();
   const { colors, size, spacing, typography } = useTheme();
   const photos = useTripPhotos(tripId);
@@ -54,7 +59,7 @@ export function PhotoViewer({ tripId, photoId, onClose }: Props) {
 
   let body: ReactNode = null;
   if (list && list.length > 0) {
-    body = <Pager photos={list} photoId={photoId} onClose={onClose} />;
+    body = <Pager photos={list} photoId={photoId} canDelete={isOwner === true} onClose={onClose} />;
   } else if (!list && photos.isPending) {
     // Same name as the strip's skeleton (trip-photos D27): the screen reader hears that the photos are coming.
     body = (
@@ -86,7 +91,7 @@ export function PhotoViewer({ tripId, photoId, onClose }: Props) {
     <View testID="photo-viewer" style={{ flex: 1, backgroundColor: colors.hero.background }}>
       <StatusBar style="light" />
       {body}
-      {offline && <OfflineHint />}
+      {offline && isOwner !== false && <OfflineHint />}
     </View>
   );
 }
@@ -173,11 +178,11 @@ function Chrome({ onClose, counter, onDelete, deleteDisabled = false, children }
   );
 }
 
-type PagerProps = { photos: ShownTripPhoto[]; photoId?: string; onClose: () => void };
+type PagerProps = { photos: ShownTripPhoto[]; photoId?: string; canDelete: boolean; onClose: () => void };
 
 // The photos in a paging list, one window wide. Mounted only when there is a photo, so it opens on the right one
 // from the first render (`initialScrollIndex` needs `getItemLayout`, which a fixed page width gives).
-function Pager({ photos, photoId, onClose }: PagerProps) {
+function Pager({ photos, photoId, canDelete, onClose }: PagerProps) {
   const { t } = useTranslation();
   const { colors, typography } = useTheme();
   const offline = useIsOffline();
@@ -211,7 +216,7 @@ function Pager({ photos, photoId, onClose }: PagerProps) {
     <>
       <Chrome
         onClose={onClose}
-        onDelete={() => setToDelete(photos[shown])}
+        onDelete={canDelete ? () => setToDelete(photos[shown]) : undefined}
         deleteDisabled={offline}
         counter={
           // A pill in the backing of the round buttons (trip-photos D32), so the counter reads over any photo.

@@ -194,6 +194,8 @@
   },
   "home": {
     "flights": "Flights",
+    "organizer": "{{name}} (organizer)",
+    "organizerUnknown": "Organizer",
     "changeBudget": "Change budget",
     "saveBudget": "Save",
     "saveBudgetError": "Couldn't save this. Try again."

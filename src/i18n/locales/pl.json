@@ -194,6 +194,8 @@
   },
   "home": {
     "flights": "Loty",
+    "organizer": "{{name}} (organizator)",
+    "organizerUnknown": "Organizator",
     "changeBudget": "Zmień budżet",
     "saveBudget": "Zapisz",
     "saveBudgetError": "Nie udało się zapisać. Spróbuj ponownie."
