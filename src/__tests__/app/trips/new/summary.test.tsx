@@ -146,6 +146,11 @@ afterEach(() => {
 });
 
 describe('Summary step', () => {
+  it('aligns the layover label with the flight lines, no left inset (friend-invite D8)', async () => {
+    await openSummary();
+    expect(section('trip').getByText('9 godz. przesiadki w DXB').parent).not.toHaveStyle({ paddingLeft: lightTheme.spacing[4] });
+  });
+
   it('shows the trip: city, dates, days, segments and layovers (D38)', async () => {
     await openSummary();
     expect(screen.getByRole('header', { name: 'Sprawdź podróż' })).toBeTruthy();

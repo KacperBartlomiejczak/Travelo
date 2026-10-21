@@ -143,6 +143,13 @@ describe('Home screen — current trip (D4)', () => {
     expect(screen.queryByText('Nie masz jeszcze żadnej podróży.')).toBeNull();
   });
 
+  it('aligns the layover label with the flight lines, no left inset (friend-invite D8)', async () => {
+    mockCurrent = () => Promise.resolve(overview());
+    await renderHome();
+    const flights = within(await screen.findByTestId('home-flights'));
+    expect(flights.getByText('9 godz. przesiadki w DXB').parent).not.toHaveStyle({ paddingLeft: lightTheme.spacing[4] });
+  });
+
   it('shows the flights in airport-local time, with the layover', async () => {
     mockCurrent = () => Promise.resolve(overview());
     await renderHome();
