@@ -1,4 +1,5 @@
 import { useFonts } from 'expo-font';
+import { router } from 'expo-router';
 import { act, fireEvent, isHiddenFromAccessibility, renderRouter, screen, waitFor, within } from 'expo-router/testing-library';
 import { AccessibilityInfo, StyleSheet, Text } from 'react-native';
 import * as Reanimated from 'react-native-reanimated';
@@ -9,6 +10,7 @@ import DrawerLayout from '@/app/(drawer)/_layout';
 import RootLayout from '@/app/_layout';
 import { AIRPORTS } from '@/data/airports';
 import { createInMemoryProfileRepository, type MyProfile } from '@/data/profile-repository';
+import { useMyProfile } from '@/hooks/useProfile';
 import i18n from '@/i18n';
 import { travelStats } from '@/lib/travel-stats';
 import type { TripListItem } from '@/schemas';
@@ -55,6 +57,11 @@ const LISBON_AGAIN = trip(3, 'LIS', '2023-01-01', '2023-01-02', [['WAW', 'LIS']]
 const FUTURE = trip(4, 'BCN', '2099-01-01', '2099-01-10', [['WAW', 'BCN']]);
 const TRIPS = [NEW_YORK, LISBON, LISBON_AGAIN, FUTURE];
 
+function SettingsStub() {
+  useMyProfile();
+  return <Text>settings</Text>;
+}
+
 const ROUTES = {
   _layout: RootLayout,
   '(drawer)/_layout': DrawerLayout,
@@ -64,7 +71,8 @@ const ROUTES = {
   '(drawer)/(tabs)/places': () => <Text>places</Text>,
   '(drawer)/(tabs)/plan': () => <Text>plan</Text>,
   '(drawer)/(tabs)/profile': ProfileScreen,
-  settings: () => <Text>settings</Text>,
+  // Opening it mounts one more reader of the profile, which reads it again without the phone going offline and online.
+  settings: SettingsStub,
 };
 
 // renderRouter attaches getPathname to the promise it returns, so the helper hands the promise on. By default it also
@@ -100,10 +108,12 @@ const errorEvent = () => ({ nativeEvent: { error: 'cannot load' } });
 // built. The mock is already loaded when this file starts, so a `jest.mock` of its own would not replace it.
 let withRepeatSpy: jest.SpyInstance;
 let withTimingSpy: jest.SpyInstance;
+let useAnimatedStyleSpy: jest.SpyInstance;
 
 beforeEach(async () => {
   withRepeatSpy = jest.spyOn(Reanimated, 'withRepeat').mockClear();
   withTimingSpy = jest.spyOn(Reanimated, 'withTiming').mockClear();
+  useAnimatedStyleSpy = jest.spyOn(Reanimated, 'useAnimatedStyle').mockClear();
   mockScheme = 'light';
   mockFontScale = 1;
   mockList = async () => TRIPS;
@@ -469,7 +479,11 @@ describe('Profile screen — photo and nick (A3)', () => {
     // Every profile read signs a new url for the same file, and the screen reads again on every reconnect (D18, 6d). The
     // photo is identified by `avatarId`, not by the url, so a photo that is already shown does not turn back into the skeleton.
     // Every read answers with a new token on the url; `change` can also give the read another `avatarId` (or none).
-    async function signedAgainOnEveryRead(change: (profile: MyProfile['profile']) => MyProfile['profile'] = (profile) => profile) {
+    // `withUrl` false makes a read answer without a url (the phone's copy, or signing failed).
+    async function signedAgainOnEveryRead(
+      change: (profile: MyProfile['profile']) => MyProfile['profile'] = (profile) => profile,
+      withUrl: () => boolean = () => true,
+    ) {
       const base = await profileWithPhoto();
       const first = await base.myProfile();
       if (!first) throw new Error('the profile should exist');
@@ -479,9 +493,11 @@ describe('Profile screen — photo and nick (A3)', () => {
           read += 1;
           const profile = change(first.profile);
           const { avatarUrl: _avatarUrl, ...copy } = profile;
-          return { profile: profile.avatarId === null ? copy : { ...copy, avatarUrl: `${first.profile.avatarUrl}?token=${read}` }, fromCache: false };
+          const signed = profile.avatarId !== null && withUrl();
+          return { profile: signed ? { ...copy, avatarUrl: `${first.profile.avatarUrl}?token=${read}` } : copy, fromCache: !signed };
         }),
       );
+      return { reads: () => read };
     }
     const urlOfPhoto = () => (photo()?.props.source as { uri: string }[] | undefined)?.[0]?.uri;
     const afterFade = () =>
@@ -576,10 +592,144 @@ describe('Profile screen — photo and nick (A3)', () => {
         expect(photo()).toBeNull();
         expect(placeholder()).toBeNull();
       });
+
+      // A url that failed is remembered until the next offline to online change (6c). A read that comes in some other way
+      // (here: another screen starts reading the profile) must not let that memory cover a photo that is shown.
+      it('a url that failed before comes back while another photo is shown: the shown photo stays', async () => {
+        let version = 'x';
+        let reads = 0;
+        const base = await profileWithPhoto();
+        const first = await base.myProfile();
+        if (!first) throw new Error('the profile should exist');
+        setAppProfileRepository(
+          withMyProfile(base, async () => {
+            reads += 1;
+            return { profile: { ...first.profile, avatarUrl: `${first.profile.avatarUrl}?v=${version}` }, fromCache: false };
+          }),
+        );
+        const rendered = renderProfile();
+        await rendered;
+        const gear = () => screen.getByRole('button', { name: 'Ustawienia' });
+        const readOnceMore = async (next: string) => {
+          version = next;
+          const before = reads;
+          await fireEvent.press(gear());
+          await waitFor(() => expect(rendered.getPathname()).toBe('/settings'));
+          await waitFor(() => expect(reads).toBeGreaterThan(before));
+          // TanStack hands the answer to the screen on a timer (0 ms).
+          await act(async () => {
+            jest.advanceTimersByTime(1);
+          });
+          await act(async () => {
+            router.back();
+          });
+          await waitFor(() => expect(rendered.getPathname()).toBe('/profile'));
+        };
+
+        // x fails: the skeleton, and x is remembered as failed.
+        await fireEvent(await findPhoto(), 'error', errorEvent());
+        expect(photoSkeleton()).toBeTruthy();
+        // y is read and loads: the photo is shown.
+        await readOnceMore('y');
+        expect(urlOfPhoto()).toMatch(/v=y$/);
+        await fireEvent(photo() as NonNullable<ReturnType<typeof photo>>, 'load', loadEvent());
+        expect(photoSkeleton()).toBeNull();
+        // x is read again: it is not "failed" any more, the photo stays.
+        await readOnceMore('x');
+        expect(photoSkeleton()).toBeNull();
+        expect(urlOfPhoto()).toMatch(/v=x$/);
+      });
+
+      // D23: a read without a url (the phone's copy, signing failed) does not take a shown photo away.
+      describe('a read without a url (D23)', () => {
+        let urlAvailable = true;
+        beforeEach(() => {
+          urlAvailable = true;
+        });
+        const reconnectRead = async (reads: () => number) => {
+          const before = reads();
+          await go(false);
+          await go(true);
+          await waitFor(() => expect(reads()).toBeGreaterThan(before));
+          // TanStack hands the answer to the screen on a timer (0 ms).
+          await act(async () => {
+            jest.advanceTimersByTime(1);
+          });
+        };
+
+        it('keeps the photo with the last url: no skeleton, no placeholder; then the next url reaches the Image and the photo never leaves', async () => {
+          const { reads } = await signedAgainOnEveryRead((profile) => profile, () => urlAvailable);
+          await showPhotoThenReconnect();
+          // The re-signed url loads: it is the last one that was shown.
+          await fireEvent(photo() as NonNullable<ReturnType<typeof photo>>, 'load', loadEvent());
+          const lastUrl = urlOfPhoto();
+
+          urlAvailable = false;
+          await reconnectRead(reads);
+          expect(photo()).toBeTruthy();
+          expect(urlOfPhoto()).toBe(lastUrl);
+          expect(photoSkeleton()).toBeNull();
+          expect(placeholder()).toBeNull();
+
+          urlAvailable = true;
+          await go(false);
+          await go(true);
+          await waitFor(() => expect(urlOfPhoto()).not.toBe(lastUrl));
+          expect(photo()).toBeTruthy();
+          expect(photoSkeleton()).toBeNull();
+          expect(placeholder()).toBeNull();
+        });
+
+        it('the url that comes back and then fails to load still leaves the photo (D21)', async () => {
+          const { reads } = await signedAgainOnEveryRead((profile) => profile, () => urlAvailable);
+          await showPhotoThenReconnect();
+          await fireEvent(photo() as NonNullable<ReturnType<typeof photo>>, 'load', loadEvent());
+          urlAvailable = false;
+          await reconnectRead(reads);
+          const lastUrl = urlOfPhoto();
+
+          urlAvailable = true;
+          await go(false);
+          await go(true);
+          await waitFor(() => expect(urlOfPhoto()).not.toBe(lastUrl));
+          await fireEvent(photo() as NonNullable<ReturnType<typeof photo>>, 'error', errorEvent());
+          await act(async () => {});
+          expect(photo()).toBeTruthy();
+          expect(photoSkeleton()).toBeNull();
+          expect(placeholder()).toBeNull();
+        });
+
+        // Guard (D20): without a url there is nothing to keep for a photo that is not the one on screen.
+        it('a different photo (another avatarId) without a url shows the skeleton', async () => {
+          let newPhoto = false;
+          const { reads } = await signedAgainOnEveryRead(
+            (profile) => (newPhoto ? { ...profile, avatarId: '00000000-0000-4000-8000-0000000000bb' } : profile),
+            () => urlAvailable,
+          );
+          await showPhotoThenReconnect();
+          newPhoto = true;
+          urlAvailable = false;
+          await reconnectRead(reads);
+          expect(photoSkeleton()).toBeTruthy();
+          expect(photo()).toBeNull();
+          expect(placeholder()).toBeNull();
+        });
+      });
     });
 
     describe('the skeleton fades out when the photo has loaded (D22)', () => {
       const fadeCalls = () => withTimingSpy.mock.calls.filter(([toValue]) => toValue === 0);
+      // The Reanimated mock makes a whole pulse (`withSequence`) 0, which is also where the fade ends. Give the pulse its own
+      // value, so that an opacity of 0 can only come from the fade, and 1 (before the load) only from the wrapper at rest.
+      const PULSE = 0.77;
+      let pulse: jest.SpyInstance;
+      beforeEach(() => {
+        pulse = jest.spyOn(Reanimated, 'withSequence').mockReturnValue(PULSE as never);
+      });
+      afterEach(() => pulse.mockRestore());
+      // The opacity of every animated style that has one: the pulses, and the wrapper that fades.
+      const opacities = () =>
+        useAnimatedStyleSpy.mock.calls.map(([updater]) => updater() as Record<string, unknown>).filter((result) => 'opacity' in result);
 
       it('reduced motion off: the skeleton fades to 0 over duration.small, opacity only, then it is gone', async () => {
         jest.spyOn(AccessibilityInfo, 'isReduceMotionEnabled').mockResolvedValue(false);
@@ -588,15 +738,30 @@ describe('Profile screen — photo and nick (A3)', () => {
         const shown = await findPhoto();
         await act(async () => {});
         withTimingSpy.mockClear();
+        // At rest: the wrapper is at 1 and the pulses at PULSE; nothing is at 0.
+        expect(opacities().map((result) => result.opacity)).toContain(1);
+        expect(opacities().map((result) => result.opacity)).toContain(PULSE);
+        expect(opacities().map((result) => result.opacity)).not.toContain(0);
 
+        // From here only the styles of the components rendered after the load (those still on the screen).
+        useAnimatedStyleSpy.mockClear();
         await fireEvent(shown, 'load', loadEvent());
         expect(fadeCalls()).toHaveLength(1);
         expect(fadeCalls()[0][1]).toMatchObject({ duration: lightTheme.duration.small });
         expect(lightTheme.duration.small).toBe(180);
-        // Still there while it fades (the photo is under it), and it never scales.
-        const fading = theSkeleton();
-        expect(style(fading).transform).toBeUndefined();
+        // Still there while it fades (the photo is under it). What fades is the wrapper around the skeleton: it is driven
+        // by opacity alone and never scales (§9.4).
+        expect(theSkeleton()).toBeTruthy();
         expect(photo()).toBeTruthy();
+        const wrapper = screen.getByTestId('profile-photo-fade', { includeHiddenElements: true });
+        expect(style(wrapper).transform).toBeUndefined();
+        expect(style(wrapper)).toHaveProperty('opacity');
+        // The fade drives the wrapper: it went from 1 to 0, and no animated opacity is still at rest. Each of them is opacity
+        // and nothing else (the skeleton's pulse and the wrapper).
+        expect(opacities().map((result) => result.opacity)).toContain(0);
+        expect(opacities().map((result) => result.opacity)).not.toContain(1);
+        expect(opacities().length).toBeGreaterThan(1);
+        opacities().forEach((result) => expect(Object.keys(result)).toEqual(['opacity']));
 
         await act(async () => {
           jest.advanceTimersByTime(lightTheme.duration.small - 1);
@@ -621,6 +786,45 @@ describe('Profile screen — photo and nick (A3)', () => {
         expect(withTimingSpy).not.toHaveBeenCalled();
         expect(photoSkeleton()).toBeNull();
         expect(photo()).toBeTruthy();
+      });
+
+      // The timer that removes the skeleton belongs to the photo it was started for: when the photo changes inside the fade,
+      // the next photo's skeleton fades for its own full duration.
+      it('a fade cut short by another photo does not remove the next photo\'s skeleton early', async () => {
+        jest.spyOn(AccessibilityInfo, 'isReduceMotionEnabled').mockResolvedValue(false);
+        let newPhoto = false;
+        await signedAgainOnEveryRead((profile) => (newPhoto ? { ...profile, avatarId: '00000000-0000-4000-8000-0000000000bb' } : profile));
+        await renderProfile();
+        const first = await findPhoto();
+        await act(async () => {});
+
+        await fireEvent(first, 'load', loadEvent());
+        await act(async () => {
+          jest.advanceTimersByTime(50);
+        });
+        newPhoto = true;
+        await go(false);
+        await go(true);
+        // The second photo arrives within the first one's fade (1 ms steps, so only a few ms pass).
+        const firstUrl = urlOfPhoto();
+        for (let step = 0; step < 40 && urlOfPhoto() === firstUrl; step += 1) {
+          await act(async () => {
+            jest.advanceTimersByTime(1);
+          });
+        }
+        expect(urlOfPhoto()).not.toBe(firstUrl);
+        expect(theSkeleton()).toBeTruthy();
+
+        await fireEvent(photo() as NonNullable<ReturnType<typeof photo>>, 'load', loadEvent());
+        // Past the moment the first photo's timer would have fired (180 ms after its load), before the second one's end.
+        await act(async () => {
+          jest.advanceTimersByTime(lightTheme.duration.small - 40);
+        });
+        expect(photoSkeleton()).toBeTruthy();
+        await act(async () => {
+          jest.advanceTimersByTime(40);
+        });
+        expect(photoSkeleton()).toBeNull();
       });
     });
 
@@ -822,7 +1026,7 @@ describe('Profile screen — theme and layout', () => {
     expect(screen.getByTestId('profile-screen')).toHaveStyle({ backgroundColor: darkTheme.colors.background });
     expect(style(screen.getByRole('header', { name: 'Profil' })).color).toBe(darkTheme.colors.text.primary);
     const [skeleton] = await screen.findAllByTestId('stat-skeleton', { includeHiddenElements: true });
-    expect(style(skeleton).backgroundColor).toBe(darkTheme.colors.surface.secondary);
+    expect(style(skeleton).backgroundColor).toBe(darkTheme.colors.skeleton);
   });
 
   it('standard side padding of 20dp', async () => {

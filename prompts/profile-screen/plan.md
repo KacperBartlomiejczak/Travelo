@@ -66,6 +66,14 @@ green; device run PASS.
   fails to load, the photo already shown stays (no skeleton); it is tried again on the next offline → online change.
 - **D22 — Photo fades in (2026-10-21, Q5):** when the photo has loaded it replaces the skeleton with a short cross-fade of
   `duration.small` (180 ms, §9.1); with reduced motion on, at once.
+- **D23 — A shown photo also stays without a url (2026-10-21, Q6):** when the photo is already on screen and a later profile
+  read comes back **without** a url (server unreachable → the phone's copy; signing failed), the photo already shown stays, as
+  in D21; it is tried again on the next offline → online change.
+- **D24 — Dark skeleton colour (2026-10-22, after Kacper saw "nothing pulses"):** on the emulator the photo skeleton did pulse,
+  but in dark mode the brightness changed by only ~7/255 (`surface.secondary` #202A23 on the background #111712, pulsing to
+  0.5). The default skeleton colour in dark becomes the existing `border` token (#39443B); light stays `neutral.100`. Applies
+  to every `SkeletonBlock` without an explicit `color` (profile photo, stats, trip hero); app-loading-skeleton D5 already uses
+  `border` for blocks inside cards in dark. design-context §10.18 is updated in step 8.
 
 ### Assumptions (please confirm — see Risks & open questions)
 - A1. **Country of a trip** = the country of its `destination` airport (`Airport.countryCode`). A domestic trip counts the home
@@ -234,6 +242,15 @@ Written first and seen failing for the expected reason.
   fails → `profile-photo` stays, no skeleton; next offline → online → tried again; a photo never shown that fails → skeleton
   (unchanged D20); after `load` the skeleton fades out over `duration.small` (Reanimated/expo-image timing asserted like the pulse
   tests); reduced motion on → no fade, swap at once — verify: full suite, typecheck, lint; verifier + ui-taste; device (scenario 9).
+  **Revision (approved by Kacper 2026-10-21, after the verifier FAIL):** also D23 — photo shown → a read without a url →
+  `profile-photo` stays (same uri), no skeleton; the next read with a url → no bare circle, no ignored failure; plus the verifier's
+  test fixes: "opacity only" asserted on the fading wrapper (scale mutation must go red); the fade timer cleared when the avatar
+  changes or the screen unmounts mid-fade (cleanup mutation must go red).
+- [ ] 6g. (approved by Kacper 2026-10-22) [frontend] D24: the theme gets a `colors.skeleton` role (light
+  `neutral.100`, dark `dark.border`) and `SkeletonBlock`'s default colour uses it; explicit `color` props unchanged. — skill:
+  frontend-ui-engineering, test-driven-development — tests first: `SkeletonBlock.test.tsx` — dark theme default background =
+  `#39443B`, light = `neutral.100`, an explicit `color` still wins; theme test for the new role in both schemes — verify: full
+  suite, typecheck, lint; verifier; device (dark mode: the photo skeleton's pulse clearly visible).
 - [ ] 7. [tester] Device run of the manual steps below. — skill: none — verify: PASS per scenario. First run done 2026-10-21 (see log); re-run after 6b, 6c + scenarios 7, 8.
 - [ ] 8. [orchestrator] Docs (see Files). — skill: none — verify: every statement checked in the code.
 
@@ -426,12 +443,42 @@ Written first and seen failing for the expected reason.
   128 suites / 2668 tests, typecheck 0, lint clean · skills used: frontend-ui-engineering, test-driven-development, ui-taste
   (verifier, code-level). Open for Kacper: Q4, Q5. Nits not acted on: `loaded` not reset if `avatarId` goes null and back;
   `wasOffline` in `ProfilePhoto` redundant; the "pulses offline" test compares `withRepeat` counts with a baseline.
+- Step 6f (2026-10-21, `frontend`) — **verifier FAIL, not `[x]`**: `ProfilePhoto` keeps `loaded`/`faded` booleans reset at render
+  time on an `avatarId` change; `onError` → `if (!loaded) setFailed(uri)` (D21); local `SkeletonCover` fades the overlay with
+  Reanimated `withTiming(0, duration.small)` and removes it by a JS timer of the same length; reduced motion → at once (D22).
+  expo-image keeps old pixels after a failed source change (verified by the verifier in the native sources). Tests 45 → 50, red ✓
+  3 failed / 47 passed; changed setup: `skeletonAppears()` now gets a skeleton from a different `avatarId` (assertions kept).
+  Green ✓ 129 / 2689, typecheck, lint. Verifier mutations: onError always fails → 1 red; reset removed → 4 red; duration changed
+  → 1 red; reduced motion ignored → 2 red; timer early → 1 red; **fade via scale → 0 red** (the "opacity only" assertion reads
+  the inner SkeletonBlock, not the fading wrapper — major); timer cleanup removed → 0 red (minor). **Also found (code reading):**
+  a shown photo whose later read has no url (online paths in `supabase-profile-repository.ts`: refresh fails → copy; status 0 →
+  copy; `signAvatar` fails → no url) goes back to the skeleton; when the url returns, the Image remounts with `loaded && faded`
+  still true → a bare circle without pulse, and a failed remount is ignored → blank until the next reconnect (defect). Asked
+  Kacper about the no-url case (Q6). Note: the verifier's first full run hit git merge markers in `SkeletonBlock.tsx` left
+  mid-edit by the app-loading-skeleton session; the re-run was green.
+- Step 6f round 2 (D23 + test fixes, `frontend`): `loadedUri` replaces `loaded`; `source = uri ?? loadedUri` keeps the last
+  loaded url when a read has none; `SkeletonCover` wrapper `testID="profile-photo-fade"`; tests 50 → 54 (D23 red: photo null;
+  fade test red: testID missing; cut-short timer test). Verifier **FAIL**: the fade assertion `{ opacity: 0 }` was also produced
+  by SkeletonBlock's pulse in the Reanimated mock (`withSequence = () => 0`), so a wrapper stuck at opacity 1 stayed green (M4).
+- Step 6f round 3 (`frontend`): the D22 describe mocks `withSequence` to a distinct 0.77 (restored in `afterEach`); at rest the
+  animated opacities contain 1 and 0.77, no 0; after `load` 0 and no 1, opacity-only keys. `onLoad` also clears `failed` + test
+  "a url that failed before comes back while another photo is shown" (red: skeleton shown; reached through a `SettingsStub`
+  route that mounts a second profile reader). Tests 54 → 55. Red evidence for round 2–3: as reported by `frontend` (red runs
+  above); verifier mutations M1 scale, M2 no timer cleanup, M3 `source = uri`, M4 wrapper `{ opacity: 1 }`, M5 no
+  `setFailed(null)` → each exactly 1 red, files restored byte-identical. Green ✓ 132 suites / 2895 tests, typecheck 0, lint
+  clean · **verifier PASS (round 3)** · skills used: frontend-ui-engineering, test-driven-development, ui-taste (verifier). No
+  easing token → Q7. Not `[x]` until the device check (scenario 9).
 
 ## Risks & open questions
 - **Q3 — Order with the background gradient (D14)** — accepted with revision 2 as proposed: profile first. Proposal was: this feature first on today's background, then
   `app-background-gradient` as its own plan (new palette colors + design-context rule, every screen's background, the hero's fade
   and the headers that today use the solid `colors.background`). Or the gradient first, so the profile is built on it.
-- ~~Q4~~ → D21 (keep the shown photo). ~~Q5~~ → D22 (fade in).
+- ~~Q4~~ → D21 (keep the shown photo). ~~Q5~~ → D22 (fade in). ~~Q6~~ → D23.
+- **Q7 — Easing token (6f):** design-context §9.2 maps exits to cubic-bezier `(0.4, 0, 1, 1)`, but the theme has no easing
+  token, so the photo fade uses Reanimated's default. Add easing tokens (§9.2) as a separate theme step, or keep the default?
+- Device note (2026-10-22): while the branch was being merged, `src/app/_layout.tsx` briefly held git conflict markers, so Metro
+  failed to bundle and the emulator kept a stale bundle; reloaded after the merge was resolved. The round button next to the
+  nick on the emulator is Expo Go's "Tools" button, not the app.
 - R1. **Old list copy after the update:** a copy saved before step 2 lacks the new fields, so it reads as no copy. Starting
   offline before ever going online after the update shows the side panel's offline error once. Fine for a dev build.
 - R2. The list query now also reads every trip's flight routes: a little more data per list load (a few segments per trip).

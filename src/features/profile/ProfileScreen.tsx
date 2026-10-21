@@ -100,21 +100,25 @@ export function ProfileScreen() {
 // over the photo (D22). A photo that failed is tried again once, when the phone goes from offline to online (D18); one
 // that fails again while online stays the skeleton until the next reconnect or a new photo, so there is no retry loop.
 // Every profile read signs a new url for the same file, so "has loaded" belongs to the photo (`avatarId`), not to the
-// url: a photo that is shown stays shown while the new url loads, and also when that url fails (D21).
+// url: a photo that is shown stays shown while the new url loads, when that url fails (D21), and when a later read has no
+// url at all (D23): then the last url that loaded is kept as the source.
 function ProfilePhoto({ uri, avatarId, offline }: { uri: string | undefined; avatarId: string | null; offline: boolean }) {
   const theme = useTheme();
   const { colors, size, radius } = theme;
-  // What failed (a url), whether this photo has loaded, and whether its skeleton has faded away. A different photo, or
-  // none and then one again, starts over: nothing is shown yet.
+  // What failed (a url), whether this photo has loaded and with which url, and whether its skeleton has faded away. A
+  // different photo, or none and then one again, starts over: nothing is shown yet.
   const [failed, setFailed] = useState<string | null>(null);
-  const [loaded, setLoaded] = useState(false);
+  const [loadedUri, setLoadedUri] = useState<string | null>(null);
   const [faded, setFaded] = useState(false);
   const [photoId, setPhotoId] = useState(avatarId);
   if (photoId !== avatarId) {
     setPhotoId(avatarId);
-    setLoaded(false);
+    setLoadedUri(null);
     setFaded(false);
   }
+  const loaded = loadedUri !== null;
+  // The url to show: the newest one, or (D23) the last one that loaded while a read has none.
+  const source = uri ?? loadedUri ?? undefined;
   const markFaded = useCallback(() => setFaded(true), []);
   const wasOffline = useRef(offline);
   useEffect(() => {
@@ -138,7 +142,7 @@ function ProfilePhoto({ uri, avatarId, offline }: { uri: string | undefined; ava
       </View>
     );
   }
-  if (!uri || failed === uri) return skeleton;
+  if (!source || failed === source) return skeleton;
   // The Image loads under the skeleton in the same box, so the circle does not change size when the photo arrives. It has
   // no `recyclingKey`, so when the url changes expo-image keeps showing the image it has until the new one has loaded
   // (`recyclingKey` is what would blank it: "Changing this prop resets the image view content to blank or a placeholder"),
@@ -148,12 +152,15 @@ function ProfilePhoto({ uri, avatarId, offline }: { uri: string | undefined; ava
     <View style={{ width: size.avatarSetup, height: size.avatarSetup }}>
       <Image
         testID="profile-photo"
-        source={{ uri }}
+        source={{ uri: source }}
         contentFit="cover"
         aria-hidden
-        onLoad={() => setLoaded(true)}
+        onLoad={() => {
+          setLoadedUri(source);
+          setFailed(null);
+        }}
         onError={() => {
-          if (!loaded) setFailed(uri);
+          if (!loaded) setFailed(source);
         }}
         style={[circle, { backgroundColor: colors.surface.secondary }]}
       />
@@ -188,5 +195,9 @@ function SkeletonCover({ photoLoaded, onFaded, children }: { photoLoaded: boolea
     return () => clearTimeout(timer);
   }, [photoLoaded, reduceMotion, opacity, duration.small, onFaded]);
   const animatedStyle = useAnimatedStyle(() => ({ opacity: opacity.value }));
-  return <Animated.View style={[{ position: 'absolute', top: 0, left: 0 }, animatedStyle]}>{children}</Animated.View>;
+  return (
+    <Animated.View testID="profile-photo-fade" style={[{ position: 'absolute', top: 0, left: 0 }, animatedStyle]}>
+      {children}
+    </Animated.View>
+  );
 }
