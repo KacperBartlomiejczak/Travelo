@@ -45,7 +45,7 @@ Platforms: iOS and Android (Expo / React Native). Languages: Polish (`pl`) and E
 12. **Trip covers** (`prompts/trip-covers/`) — every trip has a cover: one of five bundled photos (Auckland by default) or a photo from the gallery, uploaded to Storage.
 13. **Profile tab** (`prompts/profile-tab/`) — the fifth pill item is "Profil" (route `/profile`, title "Profil użytkownika", `CircleUser` icon); still an empty placeholder.
 14. **Sign-in and profile** (`prompts/auth-onboarding/`) — a required account: Google, Discord or e-mail with a 6-digit code; on first sign-in a profile with a unique nick, interests and an optional photo; a server-generated friend code, not shown yet. The device run (step 9) is partly done.
-15. **Friend invite** (`prompts/friend-invite/`) — in the wizard's friends step a friend can be added by their 6-character friend code: the card fills with their nick and interests and the account is linked to the trip at once, read-only. The linked friend sees the trip without edit controls. Layover labels line up with the flight lines on the home screen and the summary. Not on the hosted Supabase yet (two migrations to push); device check pending.
+15. **Friend invite** (`prompts/friend-invite/`) — in the wizard's friends step a friend can be added by their 6-character friend code: the card fills with their nick and interests and the account is linked to the trip at once, read-only. The linked friend sees the trip without edit controls. Layover labels line up with the flight lines on the home screen and the summary. On the hosted Supabase; device check passed.
 
 ### In progress (plans in `prompts/`)
 - **Expenses** (`prompts/expenses/`) — drafting; the "Wydatki" screen is an empty placeholder until then.

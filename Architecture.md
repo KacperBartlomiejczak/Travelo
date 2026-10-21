@@ -1,5 +1,5 @@
 # Architecture
-Last updated: 2026-10-21 · after task: friend-invite (done, device check passed — see `prompts/friend-invite/plan.md`; before it: jest-ignore-worktrees, theme-split-and-profile-prefill, pkce-sha256, use-reduce-motion; auth-onboarding step 9, the device run, is still partly done — see `prompts/auth-onboarding/plan.md`)
+Last updated: 2026-10-21 · after task: coderabbit-pr22-fixes (doc fixes only — see `prompts/coderabbit-pr22-fixes/plan.md`; before it: friend-invite (done, device check passed — see `prompts/friend-invite/plan.md`); jest-ignore-worktrees, theme-split-and-profile-prefill, pkce-sha256, use-reduce-motion; auth-onboarding step 9, the device run, is still partly done — see `prompts/auth-onboarding/plan.md`)
 
 ## Overview
 Traveling is a mobile app for the person who organizes a trip for a group of friends: trip setup, members, flights and layovers, AI day plans built from real places, offline expenses, and a plan-vs-reality budget summary. The product scope and rules are defined in `CLAUDE.md`; the visual system ("Sunline") is defined in `context/design-context.md`.
@@ -329,7 +329,7 @@ The airport list is a static bundled file, validated row by row in its test (not
   - `private.link_trip_member(member_id uuid, code text)` (not API-exposed): the caller must own the member's trip (`42501`), resolves the code (`FI002` unknown, `FI001` own), sets `user_id` only where it is null.
   - `trip_members`: the insert policy also requires `user_id is null`; `authenticated` may update only `display_name, role, interests, budget_level, pace, dietary_notes` (not `user_id`, `id`, `trip_id`). Only the helper writes `user_id` (D12).
 - Edge Functions: none.
-- Tooling: Supabase CLI (`pnpm supabase …`); `pnpm test:db` runs `supabase/tests/*.sql` (plain SQL with `ok` / `throws` helpers, rolled back) against `$DB_URL`; `pnpm db:types` regenerates `src/data/database.types.ts` from local Supabase. SQL test files: `trips_rls`, `trip_photos_rls`, `trip_photos_storage`, `trip_covers`, `profiles`, `friend_invite`. The Storage tests need a local Supabase (`pnpm supabase start`, Docker). All five migrations are pushed to the project:
+- Tooling: Supabase CLI (`pnpm supabase …`); `pnpm test:db` runs `supabase/tests/*.sql` (plain SQL with `ok` / `throws` helpers, rolled back) against `$DB_URL`; `pnpm db:types` regenerates `src/data/database.types.ts` from local Supabase. SQL test files: `trips_rls`, `trip_photos_rls`, `trip_photos_storage`, `trip_covers`, `profiles`, `friend_invite`. The Storage tests need a local Supabase (`pnpm supabase start`, Docker). All seven migrations are on the hosted project (checked 2026-10-21 with Supabase MCP `list_migrations`):
 - the photo ones by Kacper on 2026-10-17 (trip-photos D37);
 - the covers one on 2026-10-18 (trip-covers step 6);
 - the profiles one on 2026-10-18 through the Supabase MCP, its version set to `20261018150000` in `schema_migrations` (auth-onboarding step 0, D12).
@@ -578,7 +578,7 @@ The airport list is a static bundled file, validated row by row in its test (not
   - If the own profile has not loaded yet, typing the own code asks the server; the save then fails with FI001 and the summary says „To Twój kod.”.
   - A retry of `create_trip` after the friend's profile was deleted fails with FI002 although the link exists (rare).
   - An owner may briefly see the read-only view on first render, before the own profile is read.
-  - The two migrations are not on the hosted project yet; the device check with two accounts is pending.
+  - The hosted migration history records the two migrations as `20261021125912` / `20261021125935`, not the file versions; run `supabase migration repair` before the next `db push`. Photo-viewer delete was not checked on a device (no photos on the test trip; covered by `photos.test.tsx`).
 - Theme split and profile pre-fill (`prompts/theme-split-and-profile-prefill/plan.md`):
   - The downloaded account photo is not aborted on unmount; an unused `avatar-<uuid>` file may stay in the cache directory. The file has no extension (`ImageManipulator` decodes by content).
   - A Google photo URL with a size suffix other than `=sNN` / `=sNN-c` gets `=s512-c` appended and may fail to download (then the circle stays empty).
@@ -643,6 +643,7 @@ The airport list is a static bundled file, validated row by row in its test (not
 - Template images in `assets/images/` (React/Expo logos, `tabIcons/`, `tutorial-web.png`) are not referenced by any code.
 
 ## Changelog
+- 2026-10-21 — coderabbit-pr22-fixes — doc fixes only (migration count, stale friend-invite limitation); no architectural change.
 - 2026-10-21 — friend-invite (step 8, device check on two accounts, PASS) — migrations pushed to the hosted project; no other architecture change.
 - 2026-10-20 — friend-invite (steps 1–6; device check pending):
   - **Schemas:** `FriendCodeInputSchema`, `FoundFriendSchema` (`profile.ts`); `FriendInputSchema.friendCode` + duplicate refine (`create-trip-form.ts`); `CreateTripMemberPayloadSchema` (`member.ts`); `TripOverviewSchema.organizerUsername` (`trip.ts`).
