@@ -1,7 +1,7 @@
 import type { LucideIcon } from 'lucide-react-native';
 import { Pressable } from 'react-native';
 
-import { useTheme } from '@/theme/useTheme';
+import { useTheme } from '@/theme/legacy/useTheme';
 
 type Props = { icon: LucideIcon; label: string; onPress: () => void; disabled?: boolean };
 

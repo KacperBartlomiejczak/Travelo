@@ -1,7 +1,7 @@
 import { View } from 'react-native';
 import Svg, { Circle, Line, Path, Rect } from 'react-native-svg';
 
-import { useTheme } from '@/theme/useTheme';
+import { useTheme } from '@/theme/legacy/useTheme';
 
 // Empty-state illustration per design-context §8 and D12: a suitcase with a luggage tag.
 // Coordinates are drawing data on a 160×160 canvas; colors and stroke come from the theme.

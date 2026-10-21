@@ -5,7 +5,7 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import { BottomSheet } from '@/components/BottomSheet';
 import i18n from '@/i18n';
-import { lightTheme } from '@/theme/theme';
+import { lightTheme } from '@/theme/legacy/theme';
 
 beforeEach(async () => {
   await i18n.changeLanguage('pl');

@@ -3,7 +3,7 @@ import { AccessibilityInfo, Animated, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useReduceMotion } from '@/hooks/useReduceMotion';
-import { useTheme } from '@/theme/useTheme';
+import { useTheme } from '@/theme/legacy/useTheme';
 
 type Props = {
   message: string | null;

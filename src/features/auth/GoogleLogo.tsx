@@ -1,6 +1,6 @@
 import Svg, { Path } from 'react-native-svg';
 
-import { useTheme } from '@/theme/useTheme';
+import { useTheme } from '@/theme/legacy/useTheme';
 
 // Google's official multicolour "G" (auth-onboarding D10), colours from the theme's brand tokens.
 export function GoogleLogo() {

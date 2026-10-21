@@ -8,7 +8,7 @@ import { FriendCard } from '@/features/trip-create/FriendCard';
 import { useTripDraft } from '@/features/trip-create/TripDraftContext';
 import { useGoToNextStep, WizardScreen } from '@/features/trip-create/WizardScreen';
 import { DISPLAY_NAME_MAX_LENGTH, FriendsStepInputSchema } from '@/schemas';
-import { useTheme } from '@/theme/useTheme';
+import { useTheme } from '@/theme/legacy/useTheme';
 
 // Step 2 — who flies along and what they enjoy (D7, D11, D32). A friend with an account is linked by the friend code (friend-invite).
 export default function FriendsStep() {

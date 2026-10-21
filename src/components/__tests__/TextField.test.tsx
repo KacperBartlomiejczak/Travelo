@@ -4,7 +4,7 @@ import { TextInput } from 'react-native';
 
 import { TextField } from '@/components/TextField';
 import i18n from '@/i18n';
-import { lightTheme } from '@/theme/theme';
+import { lightTheme } from '@/theme/legacy/theme';
 
 beforeEach(async () => {
   await i18n.changeLanguage('pl');

@@ -3,8 +3,8 @@ import { AccessibilityInfo, Animated, StyleSheet } from 'react-native';
 
 import { ConfirmDialog } from '@/components/ConfirmDialog';
 import i18n from '@/i18n';
-import { darkTheme, lightTheme } from '@/theme/theme';
-import { DarkThemeScope } from '@/theme/useTheme';
+import { darkTheme, lightTheme } from '@/theme/legacy/theme';
+import { DarkThemeScope } from '@/theme/legacy/useTheme';
 
 const TITLE = 'Odrzucić wpisane dane?';
 const MESSAGE = 'Podróż nie zostanie zapisana.';

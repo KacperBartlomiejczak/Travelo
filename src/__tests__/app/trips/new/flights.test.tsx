@@ -13,7 +13,7 @@ import NewTripLayout from '@/app/trips/new/_layout';
 import SummaryStep from '@/app/trips/new/summary';
 import i18n from '@/i18n';
 import { toPickerDate } from '@/lib/date-time';
-import { lightTheme } from '@/theme/theme';
+import { lightTheme } from '@/theme/legacy/theme';
 
 jest.mock('expo-font', () => ({ ...jest.requireActual('expo-font'), useFonts: jest.fn() }));
 jest.mocked(useFonts).mockReturnValue([true, null]);

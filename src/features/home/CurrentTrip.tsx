@@ -21,8 +21,8 @@ import { isoToLocal } from '@/lib/time';
 import { perPersonPerDay, tripDayCount } from '@/lib/trip-days';
 import { useIsOffline, useRequestBudgetSync } from '@/providers/BudgetSync';
 import type { FlightSegment, SyncStatus, TripOverview } from '@/schemas';
-import { darkTheme } from '@/theme/theme';
-import { useTheme } from '@/theme/useTheme';
+import { darkTheme } from '@/theme/legacy/theme';
+import { useTheme } from '@/theme/legacy/useTheme';
 
 import { BudgetSheet } from './BudgetSheet';
 import { DeleteTripSheet } from './DeleteTripSheet';

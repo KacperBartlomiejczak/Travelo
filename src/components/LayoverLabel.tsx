@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { Text, View } from 'react-native';
 
 import { formatDuration } from '@/lib/layovers';
-import { useTheme } from '@/theme/useTheme';
+import { useTheme } from '@/theme/legacy/useTheme';
 
 // Amber layover label between two flight segments (§10.11, D27).
 // `inset` keeps the 16 dp left indent between the wizard's segment cards (trip-create-wizard D27); by default

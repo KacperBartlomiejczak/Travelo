@@ -1,7 +1,7 @@
 import { useState, type Ref } from 'react';
 import { TextInput, type TextInputProps } from 'react-native';
 
-import { useTheme } from '@/theme/useTheme';
+import { useTheme } from '@/theme/legacy/useTheme';
 
 import { Field, inputBoxStyle, inputTextStyle } from './Field';
 

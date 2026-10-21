@@ -1,7 +1,7 @@
 import { Check } from 'lucide-react-native';
 import { Pressable, Text } from 'react-native';
 
-import { useTheme } from '@/theme/useTheme';
+import { useTheme } from '@/theme/legacy/useTheme';
 
 type Props = { label: string; selected: boolean; onToggle: () => void; disabled?: boolean };
 

@@ -2,7 +2,7 @@ import { Text, useWindowDimensions, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { usePillClearance } from '@/features/nav/usePillClearance';
-import { useTheme } from '@/theme/useTheme';
+import { useTheme } from '@/theme/legacy/useTheme';
 
 type Props = { title: string; message: string };
 

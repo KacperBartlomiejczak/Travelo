@@ -9,7 +9,7 @@ import { TextButton } from '@/components/TextButton';
 import type { OAuthProvider } from '@/data/auth';
 import { useSignIn } from '@/hooks/useSignIn';
 import { useIsOffline } from '@/providers/BudgetSync';
-import { useTheme } from '@/theme/useTheme';
+import { useTheme } from '@/theme/legacy/useTheme';
 
 import { DiscordButton } from './DiscordButton';
 import { GoogleButton } from './GoogleButton';

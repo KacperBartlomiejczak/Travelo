@@ -2,7 +2,7 @@ import { fireEvent, render, screen } from '@testing-library/react-native';
 import { StyleSheet } from 'react-native';
 
 import { Chip } from '@/components/Chip';
-import { lightTheme } from '@/theme/theme';
+import { lightTheme } from '@/theme/legacy/theme';
 
 describe('Chip', () => {
   it('is a checkbox that toggles', async () => {

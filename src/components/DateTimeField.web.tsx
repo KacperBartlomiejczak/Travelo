@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useColorScheme } from 'react-native';
 
-import { useTheme } from '@/theme/useTheme';
+import { useTheme } from '@/theme/legacy/useTheme';
 
 import type { DateTimeFieldProps } from './DateTimeFieldBase';
 import { Field, inputBorder } from './Field';

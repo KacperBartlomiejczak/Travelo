@@ -11,7 +11,7 @@ import { OfflineBanner } from '@/components/OfflineBanner';
 import { PrimaryButton } from '@/components/PrimaryButton';
 import { useReduceMotion } from '@/hooks/useReduceMotion';
 import { useIsOffline } from '@/providers/BudgetSync';
-import { DarkThemeScope, useTheme } from '@/theme/useTheme';
+import { DarkThemeScope, useTheme } from '@/theme/legacy/useTheme';
 
 import { SignInSheet } from './SignInSheet';
 

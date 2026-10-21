@@ -6,7 +6,7 @@ import { Card } from '@/components/Card';
 import { DateTimeField } from '@/components/DateTimeField';
 import { TextButton } from '@/components/TextButton';
 import { TextField } from '@/components/TextField';
-import { useTheme } from '@/theme/useTheme';
+import { useTheme } from '@/theme/legacy/useTheme';
 
 import type { SegmentDraft } from './draft';
 

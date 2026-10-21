@@ -3,7 +3,7 @@ import { StyleSheet } from 'react-native';
 
 import { LayoverLabel } from '@/components/LayoverLabel';
 import i18n from '@/i18n';
-import { lightTheme } from '@/theme/theme';
+import { lightTheme } from '@/theme/legacy/theme';
 
 describe('LayoverLabel', () => {
   it('shows the layover duration and airport in amber (§10.11, D27)', async () => {

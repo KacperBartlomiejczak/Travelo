@@ -1,6 +1,6 @@
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { useTheme } from '@/theme/useTheme';
+import { useTheme } from '@/theme/legacy/useTheme';
 
 // Where the floating pill navigation starts: safe-area inset + the gap above it.
 export function usePillBottomOffset(): number {

@@ -8,7 +8,7 @@ import i18n from '@/i18n';
 import { AppProviders } from '@/providers/AppProviders';
 import type { ShownTripPhoto, TripPhoto } from '@/schemas';
 import { setNetwork } from '@/test/mock-network';
-import { lightTheme } from '@/theme/theme';
+import { lightTheme } from '@/theme/legacy/theme';
 
 const metrics = { frame: { x: 0, y: 0, width: 390, height: 844 }, insets: { top: 47, left: 0, right: 0, bottom: 34 } };
 const TRIP_ID = '0b9e7c4e-6a43-4c4b-9a55-2f6f0f7e1a01';

@@ -7,7 +7,7 @@ import { CoverImage } from '@/components/CoverImage';
 import { formatDateRange } from '@/lib/date-time';
 import { tripDayCount } from '@/lib/trip-days';
 import type { TripSummary } from '@/schemas';
-import { useTheme } from '@/theme/useTheme';
+import { useTheme } from '@/theme/legacy/useTheme';
 
 // The hero takes half of the screen (D4).
 const SCREEN_SHARE = 0.5;

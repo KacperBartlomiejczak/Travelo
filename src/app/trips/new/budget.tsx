@@ -11,7 +11,7 @@ import { currencyMinorDigits, formatMoney, parseAmountToMinor } from '@/lib/mone
 import { tripDayCount, perPersonPerDay } from '@/lib/trip-days';
 import { deriveTripDates } from '@/lib/trip-dates';
 import { BudgetStepInputSchema } from '@/schemas';
-import { useTheme } from '@/theme/useTheme';
+import { useTheme } from '@/theme/legacy/useTheme';
 
 // Step 3 — budget per person for the whole trip, without flights (D5, D8, D33–D37).
 export default function BudgetStep() {

@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { Pressable, Text } from 'react-native';
 
 import { formatLocalDateTime } from '@/lib/date-time';
-import { useTheme } from '@/theme/useTheme';
+import { useTheme } from '@/theme/legacy/useTheme';
 
 import { Field, inputBoxStyle } from './Field';
 

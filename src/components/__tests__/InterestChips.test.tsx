@@ -4,7 +4,7 @@ import { Keyboard, StyleSheet } from 'react-native';
 import { InterestChips } from '@/components/InterestChips';
 import i18n from '@/i18n';
 import { INTEREST_GROUPS, InterestGroupSchema, InterestTagSchema, type InterestTag } from '@/schemas';
-import { lightTheme } from '@/theme/theme';
+import { lightTheme } from '@/theme/legacy/theme';
 
 beforeEach(async () => {
   await i18n.changeLanguage('pl');

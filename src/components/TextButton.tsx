@@ -2,7 +2,7 @@ import type { LucideIcon } from 'lucide-react-native';
 import { useState } from 'react';
 import { Pressable, StyleSheet, Text } from 'react-native';
 
-import { useTheme } from '@/theme/useTheme';
+import { useTheme } from '@/theme/legacy/useTheme';
 
 type Props = {
   variant: 'secondary' | 'ghost' | 'destructive';

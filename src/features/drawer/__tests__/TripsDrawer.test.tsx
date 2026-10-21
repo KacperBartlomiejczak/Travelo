@@ -9,7 +9,7 @@ import i18n from '@/i18n';
 import { AppProviders } from '@/providers/AppProviders';
 import { DEFAULT_COVER, type CurrentTrip, type TripListItem } from '@/schemas';
 import { setNetwork } from '@/test/mock-network';
-import { darkTheme, lightTheme } from '@/theme/theme';
+import { darkTheme, lightTheme } from '@/theme/legacy/theme';
 
 let mockScheme: 'light' | 'dark' = 'light';
 // useColorScheme reads Appearance through an internal import, so it is mocked at its module path.

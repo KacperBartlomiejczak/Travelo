@@ -2,7 +2,7 @@ import { fireEvent, isHiddenFromAccessibility, render, screen } from '@testing-l
 import { Plus } from 'lucide-react-native';
 
 import { PrimaryButton } from '../PrimaryButton';
-import { lightTheme } from '@/theme/theme';
+import { lightTheme } from '@/theme/legacy/theme';
 
 const label = 'Utwórz podróż';
 

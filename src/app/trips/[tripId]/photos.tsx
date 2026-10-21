@@ -3,7 +3,7 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { PhotoViewer } from '@/features/trip-photos/PhotoViewer';
 import { useMyProfileId } from '@/hooks/useProfile';
 import { useCurrentTrip } from '@/hooks/useTrips';
-import { DarkThemeScope } from '@/theme/useTheme';
+import { DarkThemeScope } from '@/theme/legacy/useTheme';
 
 // The trip's photos full screen (trip-photos D6, P4): a route over the home screen, which stays mounted underneath because
 // the uploads live in its photo strip. Always ink, like the trip view; the delete sheet is a Modal of this screen, so it

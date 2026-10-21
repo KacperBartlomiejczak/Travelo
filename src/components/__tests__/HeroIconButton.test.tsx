@@ -2,7 +2,7 @@ import { fireEvent, isHiddenFromAccessibility, render, screen } from '@testing-l
 import { Menu } from 'lucide-react-native';
 
 import { HeroIconButton } from '@/components/HeroIconButton';
-import { lightTheme } from '@/theme/theme';
+import { lightTheme } from '@/theme/legacy/theme';
 
 const label = 'Otwórz listę podróży';
 

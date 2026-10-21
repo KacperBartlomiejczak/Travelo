@@ -3,8 +3,8 @@ import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Text, View, type TextStyle } from 'react-native';
 
-import type { Theme } from '@/theme/theme';
-import { useTheme } from '@/theme/useTheme';
+import type { Theme } from '@/theme/legacy/theme';
+import { useTheme } from '@/theme/legacy/useTheme';
 
 type Props = {
   label: string;

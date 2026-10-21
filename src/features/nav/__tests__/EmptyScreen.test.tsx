@@ -2,7 +2,7 @@ import { render, screen } from '@testing-library/react-native';
 import { StyleSheet } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
-import { darkTheme, lightTheme } from '@/theme/theme';
+import { darkTheme, lightTheme } from '@/theme/legacy/theme';
 
 import { EmptyScreen } from '../EmptyScreen';
 

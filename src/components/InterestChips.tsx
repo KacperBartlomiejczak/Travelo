@@ -2,7 +2,7 @@ import { useTranslation } from 'react-i18next';
 import { Keyboard, Text, View } from 'react-native';
 
 import { INTEREST_GROUPS, InterestGroupSchema, type InterestTag } from '@/schemas';
-import { useTheme } from '@/theme/useTheme';
+import { useTheme } from '@/theme/legacy/useTheme';
 
 import { Chip } from './Chip';
 

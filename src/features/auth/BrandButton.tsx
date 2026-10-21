@@ -1,7 +1,7 @@
 import { useState, type ComponentType } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text } from 'react-native';
 
-import { useTheme } from '@/theme/useTheme';
+import { useTheme } from '@/theme/legacy/useTheme';
 
 type Props = {
   /** Which provider: the spinner's test id. */

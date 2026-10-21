@@ -12,7 +12,7 @@ import type { SyncStatus, TripOverview, TripPhotoList } from '@/schemas';
 import { drawerStatus } from '@/test/drawer-status';
 import { LOCAL_PROFILE_ID } from '@/test/fake-profile-repository';
 import { setNetwork } from '@/test/mock-network';
-import { darkTheme, lightTheme } from '@/theme/theme';
+import { darkTheme, lightTheme } from '@/theme/legacy/theme';
 
 jest.mock('expo-font', () => ({ ...jest.requireActual('expo-font'), useFonts: jest.fn() }));
 jest.mocked(useFonts).mockReturnValue([true, null]);

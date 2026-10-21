@@ -6,7 +6,7 @@ import { launchImageLibraryAsync } from 'expo-image-picker';
 import { CoverPicker } from '@/components/CoverPicker';
 import i18n from '@/i18n';
 import { COVER_PRESET_IDS, DEFAULT_COVER } from '@/schemas';
-import { lightTheme } from '@/theme/theme';
+import { lightTheme } from '@/theme/legacy/theme';
 
 jest.mock('expo-image-picker', () => ({ launchImageLibraryAsync: jest.fn() }));
 const launch = jest.mocked(launchImageLibraryAsync);

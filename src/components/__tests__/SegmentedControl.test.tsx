@@ -1,7 +1,7 @@
 import { fireEvent, render, screen } from '@testing-library/react-native';
 
 import { SegmentedControl } from '@/components/SegmentedControl';
-import { lightTheme } from '@/theme/theme';
+import { lightTheme } from '@/theme/legacy/theme';
 
 const options = [
   { value: 'THB', label: 'THB' },

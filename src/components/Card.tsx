@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react';
 import { View, type LayoutChangeEvent } from 'react-native';
 
-import { useTheme } from '@/theme/useTheme';
+import { useTheme } from '@/theme/legacy/useTheme';
 
 type Props = { children: ReactNode; testID?: string; onLayout?: (event: LayoutChangeEvent) => void };
 

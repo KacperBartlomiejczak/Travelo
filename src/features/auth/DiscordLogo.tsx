@@ -1,6 +1,6 @@
 import Svg, { Path } from 'react-native-svg';
 
-import { useTheme } from '@/theme/useTheme';
+import { useTheme } from '@/theme/legacy/useTheme';
 
 // Discord's official white logo (auth-onboarding D13); its colour is the theme's Discord text token.
 export function DiscordLogo() {

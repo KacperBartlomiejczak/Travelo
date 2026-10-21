@@ -4,7 +4,7 @@ import { Pressable, Text, TextInput, View } from 'react-native';
 
 import { findAirport, searchAirports } from '@/lib/airport-search';
 import type { Airport } from '@/schemas';
-import { useTheme } from '@/theme/useTheme';
+import { useTheme } from '@/theme/legacy/useTheme';
 
 import { Field, inputBoxStyle, inputTextStyle } from './Field';
 

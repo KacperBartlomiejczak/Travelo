@@ -12,7 +12,7 @@ import { formatDateRange } from '@/lib/date-time';
 import { deviceToday, tripSections } from '@/lib/trip-sections';
 import { useIsOffline } from '@/providers/BudgetSync';
 import type { TripListItem } from '@/schemas';
-import { useTheme } from '@/theme/useTheme';
+import { useTheme } from '@/theme/legacy/useTheme';
 
 type Props = { onClose: () => void; onCreate: () => void };
 

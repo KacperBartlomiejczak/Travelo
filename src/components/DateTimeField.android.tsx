@@ -3,7 +3,7 @@ import { getCalendars } from 'expo-localization';
 import { useState } from 'react';
 
 import { androidDateValue, androidResultToLocal, androidTimeValue } from '@/lib/date-time';
-import { useTheme } from '@/theme/useTheme';
+import { useTheme } from '@/theme/legacy/useTheme';
 
 import { DateTimeFieldBase, fallbackSuggestion, type DateTimeFieldProps } from './DateTimeFieldBase';
 

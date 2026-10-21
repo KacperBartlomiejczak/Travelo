@@ -8,7 +8,7 @@ import { usePhotoUploads, useTripPhotos, type PhotoUpload } from '@/hooks/useTri
 import { compareTakenAt } from '@/lib/trip-photos';
 import { useIsOffline } from '@/providers/BudgetSync';
 import type { ShownTripPhoto } from '@/schemas';
-import { useTheme } from '@/theme/useTheme';
+import { useTheme } from '@/theme/legacy/useTheme';
 
 import { pickTripPhotos } from './pick-trip-photos';
 import { AddPhotoTile, PhotoSkeleton, PhotoTile, type StripItem } from './PhotoTile';

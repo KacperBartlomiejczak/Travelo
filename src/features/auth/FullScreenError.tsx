@@ -4,7 +4,7 @@ import { AccessibilityInfo, StyleSheet, Text, useWindowDimensions, View } from '
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { TextButton } from '@/components/TextButton';
-import { useTheme } from '@/theme/useTheme';
+import { useTheme } from '@/theme/legacy/useTheme';
 
 type Props = {
   message: string;

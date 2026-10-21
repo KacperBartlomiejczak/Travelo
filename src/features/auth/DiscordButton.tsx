@@ -1,4 +1,4 @@
-import { useTheme } from '@/theme/useTheme';
+import { useTheme } from '@/theme/legacy/useTheme';
 
 import { BrandButton } from './BrandButton';
 import { DiscordLogo } from './DiscordLogo';

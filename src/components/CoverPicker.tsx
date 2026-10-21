@@ -6,7 +6,7 @@ import { Pressable, ScrollView, Text, View, type LayoutChangeEvent } from 'react
 
 import { COVER_PRESETS, presetIdOf } from '@/lib/cover-presets';
 import { COVER_PRESET_IDS, CoverChoiceSchema, type CoverChoice, type CoverUrls } from '@/schemas';
-import { useTheme } from '@/theme/useTheme';
+import { useTheme } from '@/theme/legacy/useTheme';
 
 import { CoverImage } from './CoverImage';
 import { Field } from './Field';

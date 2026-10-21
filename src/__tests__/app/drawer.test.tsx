@@ -9,7 +9,7 @@ import RootLayout from '@/app/_layout';
 import i18n from '@/i18n';
 import type { CurrentTrip, TripListItem } from '@/schemas';
 import { drawerStatus } from '@/test/drawer-status';
-import { darkTheme, lightTheme } from '@/theme/theme';
+import { darkTheme, lightTheme } from '@/theme/legacy/theme';
 
 jest.mock('expo-font', () => ({ ...jest.requireActual('expo-font'), useFonts: jest.fn() }));
 jest.mocked(useFonts).mockReturnValue([true, null]);

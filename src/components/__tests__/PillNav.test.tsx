@@ -5,9 +5,9 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { PillNav } from '@/components/PillNav';
 import { NAV_TABS } from '@/features/nav/tabs';
 import i18n from '@/i18n';
-import { darkTheme, lightTheme } from '@/theme/theme';
-import { palette } from '@/theme/tokens';
-import { DarkThemeScope } from '@/theme/useTheme';
+import { darkTheme, lightTheme } from '@/theme/legacy/theme';
+import { palette } from '@/theme/legacy/tokens';
+import { DarkThemeScope } from '@/theme/legacy/useTheme';
 
 let mockFontScale = 1;
 let mockWindowWidth = 360;

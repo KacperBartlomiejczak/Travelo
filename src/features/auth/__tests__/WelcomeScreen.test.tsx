@@ -6,7 +6,7 @@ import { AccessibilityInfo, Animated, StyleSheet, Text } from 'react-native';
 import i18n from '@/i18n';
 import { AppProviders } from '@/providers/AppProviders';
 import { setNetwork } from '@/test/mock-network';
-import { darkTheme, lightTheme } from '@/theme/theme';
+import { darkTheme, lightTheme } from '@/theme/legacy/theme';
 
 import { WelcomeScreen } from '../WelcomeScreen';
 

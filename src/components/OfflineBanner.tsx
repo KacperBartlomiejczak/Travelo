@@ -2,7 +2,7 @@ import { WifiOff } from 'lucide-react-native';
 import { useTranslation } from 'react-i18next';
 import { Text, View } from 'react-native';
 
-import { useTheme } from '@/theme/useTheme';
+import { useTheme } from '@/theme/legacy/useTheme';
 
 // Persistent compact banner while the phone is offline (design-context §12 "Offline", trips-supabase D11).
 export function OfflineBanner() {

@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { Platform, useWindowDimensions, View } from 'react-native';
 
 import { TripsDrawer } from '@/features/drawer/TripsDrawer';
-import { useTheme } from '@/theme/useTheme';
+import { useTheme } from '@/theme/legacy/useTheme';
 
 // trips-drawer P1: the panel takes 85 % of the screen, up to `size.drawerMaxWidth`.
 const PANEL_SHARE = 0.85;

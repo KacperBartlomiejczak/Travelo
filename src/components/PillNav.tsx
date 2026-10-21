@@ -4,7 +4,7 @@ import { Animated, Pressable, Text, useWindowDimensions, View } from 'react-nati
 
 import { usePillBottomOffset } from '@/features/nav/usePillClearance';
 import { useReduceMotion } from '@/hooks/useReduceMotion';
-import { useTheme } from '@/theme/useTheme';
+import { useTheme } from '@/theme/legacy/useTheme';
 
 export type PillNavItem = { key: string; label: string; Icon: LucideIcon };
 

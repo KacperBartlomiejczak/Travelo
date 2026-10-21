@@ -2,7 +2,7 @@ import { fireEvent, render, screen, within } from '@testing-library/react-native
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import i18n from '@/i18n';
-import { lightTheme } from '@/theme/theme';
+import { lightTheme } from '@/theme/legacy/theme';
 
 import { TripMenuSheet } from '../TripMenuSheet';
 

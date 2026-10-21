@@ -2,8 +2,8 @@ import { fireEvent, render, screen } from '@testing-library/react-native';
 import { Plus } from 'lucide-react-native';
 
 import { TextButton } from '@/components/TextButton';
-import { darkTheme, lightTheme } from '@/theme/theme';
-import { DarkThemeScope } from '@/theme/useTheme';
+import { darkTheme, lightTheme } from '@/theme/legacy/theme';
+import { DarkThemeScope } from '@/theme/legacy/useTheme';
 
 describe('TextButton', () => {
   it('is a labelled button that calls onPress', async () => {

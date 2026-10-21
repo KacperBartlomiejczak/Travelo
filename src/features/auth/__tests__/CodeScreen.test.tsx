@@ -8,7 +8,7 @@ import { ServerUnreachableError } from '@/data/errors';
 import i18n from '@/i18n';
 import { headerConfigs, openCodeScreen, renderEmailFlow } from '@/test/auth-email-flow';
 import { setNetwork } from '@/test/mock-network';
-import { lightTheme } from '@/theme/theme';
+import { lightTheme } from '@/theme/legacy/theme';
 
 // The real sign-in (Supabase) is mocked for every test by jest.setup.ts.
 const sendEmailCode = jest.mocked(appAuth.sendEmailCode);

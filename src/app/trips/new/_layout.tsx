@@ -6,7 +6,7 @@ import { useTranslation } from 'react-i18next';
 
 import { ConfirmDialog } from '@/components/ConfirmDialog';
 import { TripDraftProvider, useTripDraft } from '@/features/trip-create/TripDraftContext';
-import { useTheme } from '@/theme/useTheme';
+import { useTheme } from '@/theme/legacy/useTheme';
 
 // Asks before leaving the wizard with entered data (D19). Rendered in the layout, so it guards the
 // whole wizard route in the root stack, not a single step. The blocked navigation is kept until the

@@ -15,7 +15,7 @@ import { photoPaths } from '@/lib/trip-photos';
 import type { TripPhoto } from '@/schemas';
 import { createTripInputFixture } from '@/test/fixtures';
 import { setNetwork } from '@/test/mock-network';
-import { darkTheme } from '@/theme/theme';
+import { darkTheme } from '@/theme/legacy/theme';
 
 jest.mock('expo-font', () => ({ ...jest.requireActual('expo-font'), useFonts: jest.fn() }));
 jest.mocked(useFonts).mockReturnValue([true, null]);

@@ -2,7 +2,7 @@ import { Minus, Plus } from 'lucide-react-native';
 import { useTranslation } from 'react-i18next';
 import { Text, View, type AccessibilityActionEvent } from 'react-native';
 
-import { useTheme } from '@/theme/useTheme';
+import { useTheme } from '@/theme/legacy/useTheme';
 
 import { IconButton } from './IconButton';
 

@@ -1,7 +1,7 @@
 import { fireEvent, isHiddenFromAccessibility, render, screen } from '@testing-library/react-native';
 import { processColor } from 'react-native';
 
-import { darkTheme, lightTheme } from '@/theme/theme';
+import { darkTheme, lightTheme } from '@/theme/legacy/theme';
 
 import { DiscordButton } from '../DiscordButton';
 import { GoogleButton } from '../GoogleButton';

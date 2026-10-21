@@ -5,7 +5,7 @@ import { TripHero } from '@/components/TripHero';
 import { TripHeroSkeleton } from '@/components/TripHeroSkeleton';
 import i18n from '@/i18n';
 import type { TripSummary } from '@/schemas';
-import { darkTheme, lightTheme } from '@/theme/theme';
+import { darkTheme, lightTheme } from '@/theme/legacy/theme';
 
 // The hero follows the phone's theme (theme-split D1, D6); tests switch the scheme.
 let mockScheme: 'light' | 'dark' = 'light';

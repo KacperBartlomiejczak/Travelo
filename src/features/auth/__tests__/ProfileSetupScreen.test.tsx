@@ -11,7 +11,7 @@ import i18n from '@/i18n';
 import { AppProviders } from '@/providers/AppProviders';
 import { setAppProfileRepository } from '@/test/fake-profile-repository';
 import { setNetwork } from '@/test/mock-network';
-import { lightTheme } from '@/theme/theme';
+import { lightTheme } from '@/theme/legacy/theme';
 
 import { ProfileSetupScreen } from '../ProfileSetupScreen';
 

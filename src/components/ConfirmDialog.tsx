@@ -5,7 +5,7 @@ import { Animated, Modal, Pressable, StyleSheet, Text, View } from 'react-native
 import { PrimaryButton } from '@/components/PrimaryButton';
 import { TextButton } from '@/components/TextButton';
 import { useReduceMotion } from '@/hooks/useReduceMotion';
-import { useTheme } from '@/theme/useTheme';
+import { useTheme } from '@/theme/legacy/useTheme';
 
 type Props = {
   visible: boolean;

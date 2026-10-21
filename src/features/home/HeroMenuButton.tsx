@@ -4,7 +4,7 @@ import { useWindowDimensions, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { HeroIconButton } from '@/components/HeroIconButton';
-import { useTheme } from '@/theme/useTheme';
+import { useTheme } from '@/theme/legacy/useTheme';
 
 // Opens the side panel from over the hero, pinned under the status bar (trips-drawer P5): on the trip and on its
 // loading skeleton alike, so the button does not move when the trip arrives (§10.18). Rendered before the content

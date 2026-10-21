@@ -9,7 +9,7 @@ import RootLayout from '@/app/_layout';
 import FlightsStep from '@/app/trips/new/index';
 import NewTripLayout from '@/app/trips/new/_layout';
 import i18n from '@/i18n';
-import { darkTheme, lightTheme } from '@/theme/theme';
+import { darkTheme, lightTheme } from '@/theme/legacy/theme';
 
 let mockScheme: 'light' | 'dark' | null = 'light';
 let mockWindowWidth = 375;

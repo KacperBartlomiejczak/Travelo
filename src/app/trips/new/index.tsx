@@ -14,7 +14,7 @@ import { useTripDraft } from '@/features/trip-create/TripDraftContext';
 import { useGoToNextStep, WizardScreen } from '@/features/trip-create/WizardScreen';
 import { layoverMinutes } from '@/lib/layovers';
 import { FlightsStepInputSchema, MAX_COMPANIONS } from '@/schemas';
-import { useTheme } from '@/theme/useTheme';
+import { useTheme } from '@/theme/legacy/useTheme';
 
 type Direction = 'outbound' | 'return';
 

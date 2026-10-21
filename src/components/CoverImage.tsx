@@ -5,7 +5,7 @@ import type { ImageStyle, StyleProp } from 'react-native';
 import { useReduceMotion } from '@/hooks/useReduceMotion';
 import { resolveCoverSource, type CoverVariant } from '@/lib/cover-presets';
 import type { CoverUrls } from '@/schemas';
-import { useTheme } from '@/theme/useTheme';
+import { useTheme } from '@/theme/legacy/useTheme';
 
 type Props = {
   /** What is stored on the trip, or a photo just picked; anything else (e.g. a value from before covers) shows the default. */

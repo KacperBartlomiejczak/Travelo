@@ -14,7 +14,7 @@ import { AppProviders } from '@/providers/AppProviders';
 import type { PickedPhoto, ShownTripPhoto } from '@/schemas';
 import { createTripInputFixture } from '@/test/fixtures';
 import { setNetwork } from '@/test/mock-network';
-import { lightTheme } from '@/theme/theme';
+import { lightTheme } from '@/theme/legacy/theme';
 
 // The gallery is the OS's; jest-expo's native mock of expo-crypto returns undefined, and the uploads need real, known ids.
 jest.mock('@/features/trip-photos/pick-trip-photos', () => ({ pickTripPhotos: jest.fn() }));

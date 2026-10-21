@@ -9,7 +9,7 @@ import { useFriendLookup } from '@/hooks/useFriendLookup';
 import { useMyProfile } from '@/hooks/useProfile';
 import { useIsOffline } from '@/providers/BudgetSync';
 import { FRIEND_CODE_LENGTH } from '@/schemas';
-import { useTheme } from '@/theme/useTheme';
+import { useTheme } from '@/theme/legacy/useTheme';
 
 import { withCodeText, withFoundFriend, type FriendDraft } from './draft';
 import { friendCodeStatus, type CodeStatus } from './friend-code';

@@ -1,6 +1,6 @@
 import { useWindowDimensions, View } from 'react-native';
 
-import { useTheme } from '@/theme/useTheme';
+import { useTheme } from '@/theme/legacy/useTheme';
 
 import { heroHeight } from './TripHero';
 

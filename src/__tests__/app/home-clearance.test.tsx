@@ -10,7 +10,7 @@ import i18n from '@/i18n';
 import type { SyncStatus, TripOverview } from '@/schemas';
 import { LOCAL_PROFILE_ID } from '@/test/fake-profile-repository';
 import { setNetwork } from '@/test/mock-network';
-import { lightTheme } from '@/theme/theme';
+import { lightTheme } from '@/theme/legacy/theme';
 
 jest.mock('expo-font', () => ({ ...jest.requireActual('expo-font'), useFonts: jest.fn() }));
 jest.mocked(useFonts).mockReturnValue([true, null]);

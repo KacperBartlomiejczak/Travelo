@@ -3,7 +3,7 @@ import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { fromPickerDate, toPickerDate } from '@/lib/date-time';
-import { useTheme } from '@/theme/useTheme';
+import { useTheme } from '@/theme/legacy/useTheme';
 
 import { DateTimeFieldBase, fallbackSuggestion, type DateTimeFieldProps } from './DateTimeFieldBase';
 

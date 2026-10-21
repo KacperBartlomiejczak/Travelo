@@ -6,7 +6,7 @@ import { TextButton } from '@/components/TextButton';
 import { useDeleteTrip } from '@/hooks/useTrips';
 import { useIsOffline } from '@/providers/BudgetSync';
 import type { TripSummary } from '@/schemas';
-import { useTheme } from '@/theme/useTheme';
+import { useTheme } from '@/theme/legacy/useTheme';
 
 type Props = { trip: TripSummary; onClose: () => void; onDeleted: () => void };
 

@@ -2,7 +2,7 @@ import { fireEvent, render, screen } from '@testing-library/react-native';
 
 import { AmountField } from '@/components/AmountField';
 import '@/i18n';
-import { lightTheme } from '@/theme/theme';
+import { lightTheme } from '@/theme/legacy/theme';
 
 describe('AmountField', () => {
   it('shows the amount with its currency beside it (§10.5)', async () => {

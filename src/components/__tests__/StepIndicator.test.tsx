@@ -2,7 +2,7 @@ import { isHiddenFromAccessibility, render, screen } from '@testing-library/reac
 
 import { StepIndicator } from '@/components/StepIndicator';
 import i18n from '@/i18n';
-import { lightTheme } from '@/theme/theme';
+import { lightTheme } from '@/theme/legacy/theme';
 
 beforeEach(async () => {
   await i18n.changeLanguage('pl');

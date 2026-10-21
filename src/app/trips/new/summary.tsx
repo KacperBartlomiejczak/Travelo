@@ -22,7 +22,7 @@ import { formatMoney } from '@/lib/money';
 import { perPersonPerDay, tripDayCount } from '@/lib/trip-days';
 import { deriveTripDates } from '@/lib/trip-dates';
 import { CreateTripInputSchema, TRIP_NAME_MAX_LENGTH, TripDetailsInputSchema } from '@/schemas';
-import { useTheme } from '@/theme/useTheme';
+import { useTheme } from '@/theme/legacy/useTheme';
 
 // Not shown anywhere; only lets the redirect guard ignore the name.
 const GUARD_NAME = 'Trip';

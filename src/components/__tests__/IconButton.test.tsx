@@ -2,7 +2,7 @@ import { fireEvent, render, screen } from '@testing-library/react-native';
 import { Minus } from 'lucide-react-native';
 
 import { IconButton } from '@/components/IconButton';
-import { lightTheme } from '@/theme/theme';
+import { lightTheme } from '@/theme/legacy/theme';
 
 const label = 'Zmniejsz';
 

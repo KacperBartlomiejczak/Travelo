@@ -8,7 +8,7 @@ import { PrimaryButton } from '@/components/PrimaryButton';
 import { useSetTripBudget } from '@/hooks/useTrips';
 import { currencyMinorDigits, formatAmountInput, parseAmountToMinor } from '@/lib/money';
 import { TripBudgetFormSchema, type TripSummary } from '@/schemas';
-import { useTheme } from '@/theme/useTheme';
+import { useTheme } from '@/theme/legacy/useTheme';
 
 type Props = { trip: TripSummary; onClose: () => void };
 

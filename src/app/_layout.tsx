@@ -16,7 +16,7 @@ import "@/i18n";
 import { FullScreenError } from "@/features/auth/FullScreenError";
 import { useGateView } from "@/features/auth/useGateView";
 import { AppProviders } from "@/providers/AppProviders";
-import { useTheme } from "@/theme/useTheme";
+import { useTheme } from "@/theme/legacy/useTheme";
 
 SplashScreen.preventAutoHideAsync();
 

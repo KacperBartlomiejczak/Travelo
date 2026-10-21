@@ -7,7 +7,7 @@ import { ActivityIndicator, Pressable, StyleSheet, View, type ViewStyle } from '
 import type { PhotoUpload } from '@/hooks/useTripPhotos';
 import { photoPaths } from '@/lib/trip-photos';
 import type { ShownTripPhoto } from '@/schemas';
-import { useTheme } from '@/theme/useTheme';
+import { useTheme } from '@/theme/legacy/useTheme';
 
 /** What one tile of the strip stands for: a photo on the server, or one on its way (trip-photos P3). */
 export type StripItem = { kind: 'photo'; photo: ShownTripPhoto } | { kind: 'upload'; upload: PhotoUpload };

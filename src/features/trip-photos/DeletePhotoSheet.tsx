@@ -6,7 +6,7 @@ import { TextButton } from '@/components/TextButton';
 import { useDeleteTripPhoto } from '@/hooks/useTripPhotos';
 import { useIsOffline } from '@/providers/BudgetSync';
 import type { ShownTripPhoto } from '@/schemas';
-import { useTheme } from '@/theme/useTheme';
+import { useTheme } from '@/theme/legacy/useTheme';
 
 type Props = { photo: ShownTripPhoto; onClose: () => void; onDeleted: () => void };
 

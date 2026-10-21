@@ -8,7 +8,7 @@ import { ServerUnreachableError } from '@/data/errors';
 import i18n from '@/i18n';
 import { AppProviders } from '@/providers/AppProviders';
 import { setNetwork } from '@/test/mock-network';
-import { lightTheme } from '@/theme/theme';
+import { lightTheme } from '@/theme/legacy/theme';
 
 import { SignInSheet } from '../SignInSheet';
 

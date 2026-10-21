@@ -18,7 +18,7 @@ import { emptyFriend, emptySegment, withCompanionCount, withFoundFriend } from '
 import { useTripDraft } from '@/features/trip-create/TripDraftContext';
 import { useCurrentTrip } from '@/hooks/useTrips';
 import i18n from '@/i18n';
-import { lightTheme } from '@/theme/theme';
+import { lightTheme } from '@/theme/legacy/theme';
 
 jest.mock('expo-font', () => ({ ...jest.requireActual('expo-font'), useFonts: jest.fn() }));
 jest.mocked(useFonts).mockReturnValue([true, null]);

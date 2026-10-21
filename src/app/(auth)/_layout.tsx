@@ -2,7 +2,7 @@ import { Stack } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 
 import { EmailSignInProvider } from '@/features/auth/EmailSignInContext';
-import { useTheme } from '@/theme/useTheme';
+import { useTheme } from '@/theme/legacy/useTheme';
 
 // What a signed-out user can reach (auth-onboarding steps 5-7): the welcome screen, then the e-mail and code screens. The
 // welcome screen is declared first so it is the one a signed-out user lands on; without it the first screen would be "code",

@@ -6,7 +6,7 @@ import { useTranslation } from 'react-i18next';
 import { AccessibilityInfo, ActivityIndicator, Pressable, Text, View } from 'react-native';
 
 import { AvatarUriSchema } from '@/lib/avatar';
-import { useTheme } from '@/theme/useTheme';
+import { useTheme } from '@/theme/legacy/useTheme';
 
 import { FormError } from './AuthFormScreen';
 

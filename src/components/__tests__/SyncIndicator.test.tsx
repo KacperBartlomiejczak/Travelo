@@ -2,8 +2,8 @@ import { fireEvent, render, screen } from '@testing-library/react-native';
 
 import { SyncIndicator } from '@/components/SyncIndicator';
 import i18n from '@/i18n';
-import { darkTheme } from '@/theme/theme';
-import { DarkThemeScope } from '@/theme/useTheme';
+import { darkTheme } from '@/theme/legacy/theme';
+import { DarkThemeScope } from '@/theme/legacy/useTheme';
 
 beforeEach(async () => {
   await i18n.changeLanguage('pl');

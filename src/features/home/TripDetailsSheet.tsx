@@ -9,7 +9,7 @@ import { TextField } from '@/components/TextField';
 import { useUpdateTripDetails } from '@/hooks/useTrips';
 import { useIsOffline } from '@/providers/BudgetSync';
 import { TRIP_NAME_MAX_LENGTH, TripDetailsInputSchema, type CoverChoice, type TripSummary } from '@/schemas';
-import { useTheme } from '@/theme/useTheme';
+import { useTheme } from '@/theme/legacy/useTheme';
 
 type Props = { trip: TripSummary; onClose: () => void };
 

@@ -18,7 +18,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { PrimaryButton } from '@/components/PrimaryButton';
 import { StepIndicator } from '@/components/StepIndicator';
-import { useTheme } from '@/theme/useTheme';
+import { useTheme } from '@/theme/legacy/useTheme';
 
 import { nextStep, stepRoute, wizardSteps, type WizardStep } from './steps';
 import { useTripDraft } from './TripDraftContext';

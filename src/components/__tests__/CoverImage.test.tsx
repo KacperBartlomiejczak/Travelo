@@ -2,7 +2,7 @@ import { act, render, screen } from '@testing-library/react-native';
 import { AccessibilityInfo } from 'react-native';
 
 import { CoverImage } from '@/components/CoverImage';
-import { lightTheme } from '@/theme/theme';
+import { lightTheme } from '@/theme/legacy/theme';
 
 // Jest turns every image into the number 1, so each file is stood in by a distinct object.
 jest.mock('../../../assets/covers/auckland.jpg', () => ({ uri: 'bundled/auckland.jpg' }));
