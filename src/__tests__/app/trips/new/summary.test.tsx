@@ -13,7 +13,8 @@ import BudgetStep from '@/app/trips/new/budget';
 import FriendsStep from '@/app/trips/new/friends';
 import NewTripLayout from '@/app/trips/new/_layout';
 import SummaryStep from '@/app/trips/new/summary';
-import { emptySegment, withCompanionCount } from '@/features/trip-create/draft';
+import { FriendAlreadyAddedError, OwnFriendCodeError, UnknownFriendCodeError } from '@/data/errors';
+import { emptyFriend, emptySegment, withCompanionCount, withFoundFriend } from '@/features/trip-create/draft';
 import { useTripDraft } from '@/features/trip-create/TripDraftContext';
 import { useCurrentTrip } from '@/hooks/useTrips';
 import i18n from '@/i18n';
@@ -26,6 +27,10 @@ jest.mock('expo-crypto', () => ({ randomUUID: () => jest.requireActual('crypto')
 jest.mock('expo-image-picker', () => ({ launchImageLibraryAsync: jest.fn() }));
 
 let mockSaveFails = false;
+// When set, saving fails with this error (the server refused a friend code, friend-invite D14).
+let mockSaveError: Error | null = null;
+// What the repository was last asked to create.
+let mockCreateInput: unknown = null;
 // The repository answers with the default cover, as when sending a gallery photo failed (trip-covers Q1).
 let mockCoverUploadFails = false;
 // When set, saving waits until the test calls it.
@@ -35,10 +40,17 @@ jest.mock('@/data/app-trip-repository', () => {
   const actual = jest.requireActual('@/data/trip-repository');
   return {
     createAppTripRepository: () => {
-      const repository = actual.createInMemoryTripRepository();
+      // The account behind friend code 5ZMRX8 (a linked friend, friend-invite D12); other codes are unknown to it.
+      const repository = actual.createInMemoryTripRepository({
+        now: () => new Date(),
+        newId: () => jest.requireActual('crypto').randomUUID(),
+        friendAccounts: { '5ZMRX8': '00000000-0000-4000-8000-0000000000aa' },
+      });
       return {
         ...repository,
         create: async (input: unknown) => {
+          mockCreateInput = input;
+          if (mockSaveError) throw mockSaveError;
           if (mockHoldSave) await new Promise<void>((resolve) => (mockReleaseSave = resolve));
           if (mockSaveFails) throw new Error('down');
           const trip = await repository.create(input);
@@ -62,7 +74,7 @@ function TripsProbe() {
 }
 
 // Stand-in for steps 1–3: WAW → DXB → BKK, back BKK → WAW, `companions` friends, 3000 THB per person.
-function filledSteps(companions: number) {
+function filledSteps(companions: number, linkedFirstFriend = false) {
   return function FilledFlights() {
     const { setDraft } = useTripDraft();
     const router = useRouter();
@@ -78,9 +90,10 @@ function filledSteps(companions: number) {
           return: [
             { ...emptySegment(), fromIata: 'BKK', departTz: 'Asia/Bangkok', toIata: 'WAW', arriveTz: 'Europe/Warsaw', departAt: '2026-11-15T09:00', arriveAt: '2026-11-15T17:00' },
           ],
-          friends: withFriends.friends.map((friend, i) =>
-            i === 0 ? { displayName: 'Kasia', interests: ['beaches', 'nightlife'] } : { displayName: 'Ola', interests: [] },
-          ),
+          friends: withFriends.friends.map((friend, i) => {
+            if (i === 0 && linkedFirstFriend) return withFoundFriend(emptyFriend(), '5ZMRX8', { username: 'ola_b', interests: ['museums'] });
+            return i === 0 ? { ...emptyFriend(), displayName: 'Kasia', interests: ['beaches', 'nightlife'] } : { ...emptyFriend(), displayName: 'Ola' };
+          }),
           budget: { amountText: '3000', currency: '' },
         };
       });
@@ -94,7 +107,7 @@ function filledSteps(companions: number) {
   };
 }
 
-async function openSummary(companions = 2, home: () => ReactElement | null = TripsProbe) {
+async function openSummary(companions = 2, home: () => ReactElement | null = TripsProbe, linkedFirstFriend = false) {
   const rendered = renderRouter(
     {
       _layout: RootLayout,
@@ -102,7 +115,7 @@ async function openSummary(companions = 2, home: () => ReactElement | null = Tri
       '(drawer)/(tabs)/_layout': TabsLayout,
       '(drawer)/(tabs)/index': home,
       'trips/new/_layout': NewTripLayout,
-      'trips/new/index': filledSteps(companions),
+      'trips/new/index': filledSteps(companions, linkedFirstFriend),
       'trips/new/friends': FriendsStep,
       'trips/new/budget': BudgetStep,
       'trips/new/summary': SummaryStep,
@@ -118,6 +131,8 @@ const section = (name: string) => within(screen.getByTestId(`summary-${name}`));
 
 beforeEach(async () => {
   mockSaveFails = false;
+  mockSaveError = null;
+  mockCreateInput = null;
   mockCoverUploadFails = false;
   mockHoldSave = false;
   mockReleaseSave = null;
@@ -131,6 +146,11 @@ afterEach(() => {
 });
 
 describe('Summary step', () => {
+  it('aligns the layover label with the flight lines, no left inset (friend-invite D8)', async () => {
+    await openSummary();
+    expect(section('trip').getByText('9 godz. przesiadki w DXB').parent).not.toHaveStyle({ paddingLeft: lightTheme.spacing[4] });
+  });
+
   it('shows the trip: city, dates, days, segments and layovers (D38)', async () => {
     await openSummary();
     expect(screen.getByRole('header', { name: 'Sprawdź podróż' })).toBeTruthy();
@@ -151,6 +171,29 @@ describe('Summary step', () => {
     expect(people.getByText('Ty')).toBeTruthy();
     expect(people.getByText('Kasia — Plaże, Imprezy i nocne życie')).toBeTruthy();
     expect(people.getByText('Ola — bez zainteresowań')).toBeTruthy();
+  });
+
+  it('lists a friend linked by a code by the nick, like any friend (friend-invite D6)', async () => {
+    await openSummary(2, TripsProbe, true);
+    const people = section('travellers');
+    expect(people.getByText('ola_b — Muzea')).toBeTruthy();
+    expect(people.getByText('Ola — bez zainteresowań')).toBeTruthy();
+  });
+
+  it('sends the friend code of a linked friend to the repository, and no typed code text (friend-invite)', async () => {
+    await openSummary(2, TripsProbe, true);
+    await fireEvent.press(screen.getByRole('button', { name: 'Utwórz podróż' }));
+    expect(await screen.findByText('trips: Warsaw → Bangkok')).toBeTruthy();
+    expect(mockCreateInput).toEqual(
+      expect.objectContaining({
+        friends: {
+          friends: [
+            { displayName: 'ola_b', interests: ['museums'], friendCode: '5ZMRX8' },
+            { displayName: 'Ola', interests: [], friendCode: null },
+          ],
+        },
+      }),
+    );
   });
 
   it('uses the "many" plural form for 5 travellers', async () => {
@@ -427,5 +470,39 @@ describe('Summary step', () => {
     expect(screen.getByRole('button', { name: 'Utwórz podróż' })).toBeEnabled();
     expect(section('trip').getByText('Bangkok')).toBeTruthy();
     expect(section('budget').getByText('3000\u00a0THB')).toBeTruthy();
+  });
+
+  describe('the server refuses a friend code (friend-invite D14)', () => {
+    it.each([
+      ['your own code', new OwnFriendCodeError('FI001'), 'To Twój kod.'],
+      ['a code nobody has', new UnknownFriendCodeError('FI002'), 'Nie ma użytkownika z tym kodem.'],
+      ['the same friend twice', new FriendAlreadyAddedError('23505'), 'Ten znajomy jest już dodany.'],
+    ])('%s: shows that text instead of the general error, announces it, and keeps everything', async (_name, error, message) => {
+      const announce = jest.spyOn(AccessibilityInfo, 'announceForAccessibility');
+      mockSaveError = error;
+      const app = await openSummary(2, TripsProbe, true);
+      await fireEvent.press(screen.getByRole('button', { name: 'Utwórz podróż' }));
+      expect(await screen.findByText(message)).toBeTruthy();
+      expect(screen.queryByText('Nie udało się zapisać podróży. Spróbuj ponownie.')).toBeNull();
+      expect(announce).toHaveBeenCalledWith(message);
+      expect(app.getPathname()).toBe('/trips/new/summary');
+      expect(screen.getByRole('button', { name: 'Utwórz podróż' })).toBeEnabled();
+      expect(section('travellers').getByText('ola_b — Muzea')).toBeTruthy();
+    });
+
+    it('reads in English', async () => {
+      await i18n.changeLanguage('en');
+      mockSaveError = new UnknownFriendCodeError('FI002');
+      await openSummary(2, TripsProbe, true);
+      await fireEvent.press(screen.getByRole('button', { name: 'Create trip' }));
+      expect(await screen.findByText('No user has this code.')).toBeTruthy();
+    });
+
+    it('still shows the general error for any other failure', async () => {
+      mockSaveError = new Error('down');
+      await openSummary(2, TripsProbe, true);
+      await fireEvent.press(screen.getByRole('button', { name: 'Utwórz podróż' }));
+      expect(await screen.findByText('Nie udało się zapisać podróży. Spróbuj ponownie.')).toBeTruthy();
+    });
   });
 });

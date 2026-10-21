@@ -7,6 +7,7 @@ import { IATA_CODE_PATTERN, isLocalDateTime, isTimeZone, MoneySchema } from './c
 import { FLIGHT_NUMBER_MAX_LENGTH } from './flight';
 import { InterestTagSchema } from './interests';
 import { DISPLAY_NAME_MAX_LENGTH } from './member';
+import { FriendCodeSchema } from './profile';
 import { TRIP_NAME_MAX_LENGTH } from './trip';
 
 // Create-trip wizard input. Error messages are i18n keys, translated by the screens.
@@ -104,11 +105,22 @@ export const FriendInputSchema = z.object({
     .min(1, { error: 'validation.nameRequired' })
     .max(DISPLAY_NAME_MAX_LENGTH, { error: 'validation.nameTooLong' }),
   interests: z.array(InterestTagSchema),
+  /** Set when the friend was found by their code (friend-invite D1, D12); null = friend without an account. */
+  friendCode: FriendCodeSchema.nullable().default(null),
 });
 export type FriendInput = z.infer<typeof FriendInputSchema>;
 
-/** Step 2: one entry per companion. */
-export const FriendsStepInputSchema = z.object({ friends: z.array(FriendInputSchema) });
+/** Step 2: one entry per companion. The same friend code cannot be used twice. */
+export const FriendsStepInputSchema = z.object({ friends: z.array(FriendInputSchema) }).superRefine((step, ctx) => {
+  const seen = new Set<string>();
+  step.friends.forEach((friend, i) => {
+    if (friend.friendCode === null) return;
+    if (seen.has(friend.friendCode)) {
+      ctx.addIssue({ code: 'custom', path: ['friends', i, 'friendCode'], message: 'validation.friendDuplicate' });
+    }
+    seen.add(friend.friendCode);
+  });
+});
 export type FriendsStepInput = z.infer<typeof FriendsStepInputSchema>;
 
 /** Step 3: budget per person for the whole trip (D5). */

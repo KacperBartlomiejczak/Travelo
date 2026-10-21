@@ -588,3 +588,82 @@ describe('createProfile', () => {
     });
   });
 });
+
+describe('findByFriendCode (friend-invite D12)', () => {
+  const FOUND = { username: 'ola', interests: ['museums', 'beaches'] };
+
+  it('asks find_profile_by_friend_code for the trimmed, uppercased code, after checking the session', async () => {
+    const { supabase, repository } = await setup();
+    supabase.rpc.mockResolvedValueOnce({ data: [FOUND], error: null, status: 200 });
+
+    await repository.findByFriendCode(' 5zmrx8 ');
+
+    expect(supabase.auth.getSession).toHaveBeenCalled();
+    expect(supabase.rpc.mock.calls).toEqual([['find_profile_by_friend_code', { code: '5ZMRX8' }]]);
+    expect(supabase.queries).toEqual([]);
+  });
+
+  it('gives the nick and interests of the found friend, nothing else', async () => {
+    const { supabase, repository } = await setup();
+    supabase.rpc.mockResolvedValueOnce({ data: [{ ...FOUND, id: SIGNED_IN_USER_ID }], error: null, status: 200 });
+    await expect(repository.findByFriendCode('5ZMRX8')).resolves.toEqual(FOUND);
+  });
+
+  it('gives null when no account has the code', async () => {
+    const { supabase, repository } = await setup();
+    supabase.rpc.mockResolvedValueOnce({ data: [], error: null, status: 200 });
+    await expect(repository.findByFriendCode('5ZMRX8')).resolves.toBeNull();
+  });
+
+  it.each([
+    ['too short', '5ZMRX'],
+    ['too long', '5ZMRX8K'],
+    ['a look-alike character', '5ZMRO8'],
+    ['empty', '   '],
+  ])('rejects an invalid code (%s) with a ZodError before any request', async (_name, code) => {
+    const { supabase, repository } = await setup();
+    await expect(repository.findByFriendCode(code)).rejects.toMatchObject({ name: 'ZodError' });
+    expect(supabase.rpc).not.toHaveBeenCalled();
+    expect(supabase.auth.getSession).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ['a row with an invalid nick', [{ ...FOUND, username: 'A' }]],
+    ['a row without interests', [{ username: 'ola' }]],
+    ['a row with no interests chosen', [{ ...FOUND, interests: [] }]],
+    ['more than one row', [FOUND, { ...FOUND, username: 'ala' }]],
+    ['something that is no list', FOUND],
+  ])('rejects a malformed answer (%s)', async (_name, data) => {
+    const { supabase, repository } = await setup();
+    supabase.rpc.mockResolvedValueOnce({ data, error: null, status: 200 });
+    await expect(repository.findByFriendCode('5ZMRX8')).rejects.toThrow();
+  });
+
+  it('rejects with ServerUnreachableError when the request gets no answer', async () => {
+    const { supabase, repository } = await setup();
+    supabase.rpc.mockResolvedValueOnce(NETWORK_FAILURE);
+    await expect(repository.findByFriendCode('5ZMRX8')).rejects.toBeInstanceOf(ServerUnreachableError);
+  });
+
+  it('rejects with ServerUnreachableError when the session cannot be read for lack of connection, and sends nothing', async () => {
+    const { supabase, repository } = await setup();
+    offlineSession(supabase);
+    await expect(repository.findByFriendCode('5ZMRX8')).rejects.toBeInstanceOf(ServerUnreachableError);
+    expect(supabase.rpc).not.toHaveBeenCalled();
+  });
+
+  it('rejects with NotSignedInError and sends nothing when nobody is signed in (it must not read "unknown code")', async () => {
+    const { supabase, repository } = await setup();
+    supabase.storedSession('none');
+    await expect(repository.findByFriendCode('5ZMRX8')).rejects.toBeInstanceOf(NotSignedInError);
+    expect(supabase.rpc).not.toHaveBeenCalled();
+  });
+
+  it('rejects with the server message (not as unreachable) on a server error', async () => {
+    const { supabase, repository } = await setup();
+    supabase.rpc.mockResolvedValueOnce({ data: null, error: { message: 'boom' }, status: 500 });
+    const rejection = repository.findByFriendCode('5ZMRX8');
+    await expect(rejection).rejects.toThrow('boom');
+    await expect(rejection).rejects.not.toBeInstanceOf(ServerUnreachableError);
+  });
+});

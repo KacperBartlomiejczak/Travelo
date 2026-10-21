@@ -13,6 +13,7 @@ import NewTripLayout from '@/app/trips/new/_layout';
 import SummaryStep from '@/app/trips/new/summary';
 import i18n from '@/i18n';
 import { toPickerDate } from '@/lib/date-time';
+import { lightTheme } from '@/theme/theme';
 
 jest.mock('expo-font', () => ({ ...jest.requireActual('expo-font'), useFonts: jest.fn() }));
 jest.mocked(useFonts).mockReturnValue([true, null]);
@@ -186,6 +187,16 @@ describe('Flights step', () => {
     await fireEvent.press(screen.getAllByRole('button', { name: 'Dodaj przesiadkę' })[0]);
     await pickDateTime(card('Odcinek 2', 'Lot tam'), 'Wylot', '2026-11-03T03:30');
     expect(screen.getByText('9 godz. przesiadki w DXB')).toBeTruthy();
+  });
+
+  it('keeps the 16 dp inset on the layover label between segment cards (D27)', async () => {
+    await openFlights();
+    const first = card('Odcinek 1', 'Lot tam');
+    await chooseAirport(first, 'Dokąd', 'DXB', /Dubai · DXB/);
+    await pickDateTime(first, 'Przylot', '2026-11-02T18:30');
+    await fireEvent.press(screen.getAllByRole('button', { name: 'Dodaj przesiadkę' })[0]);
+    await pickDateTime(card('Odcinek 2', 'Lot tam'), 'Wylot', '2026-11-03T03:30');
+    expect(screen.getByText('9 godz. przesiadki w DXB').parent).toHaveStyle({ paddingLeft: lightTheme.spacing[4] });
   });
 
   it('counts companions with the stepper (0…19)', async () => {

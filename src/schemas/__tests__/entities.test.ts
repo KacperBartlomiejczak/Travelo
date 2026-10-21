@@ -1,5 +1,6 @@
 import {
   AirportSchema,
+  CreateTripMemberPayloadSchema,
   FlightSegmentSchema,
   TRIP_NAME_MAX_LENGTH,
   TripMemberSchema,
@@ -112,6 +113,37 @@ describe('TripMember', () => {
     ['unknown role', { role: 'editor' }],
   ])('rejects %s', (_, patch) => {
     expect(TripMemberSchema.safeParse({ ...friend, ...patch }).success).toBe(false);
+  });
+});
+
+describe('CreateTripMemberPayload (friend-invite D12)', () => {
+  const payload = {
+    id: '7c2d9e1f-3a4b-4c5d-8e6f-7a8b9c0d1e2f',
+    trip_id: TRIP_ID,
+    display_name: 'Kasia',
+    role: 'viewer',
+    interests: ['beaches'],
+  };
+
+  it('accepts a friend without a code, with a null code and with a friend code', () => {
+    expect(CreateTripMemberPayloadSchema.safeParse(payload).success).toBe(true);
+    expect(CreateTripMemberPayloadSchema.parse({ ...payload, friend_code: null }).friend_code).toBeNull();
+    expect(CreateTripMemberPayloadSchema.parse({ ...payload, friend_code: 'K7QX2M' }).friend_code).toBe('K7QX2M');
+  });
+
+  it('never carries an account id: user_id is dropped', () => {
+    const parsed = CreateTripMemberPayloadSchema.parse({ ...payload, user_id: '3f2b8c1e-5a4d-4e7f-9b6a-1c2d3e4f5a6b' });
+    expect('user_id' in parsed).toBe(false);
+  });
+
+  it.each([
+    ['a lowercase friend code', { friend_code: 'k7qx2m' }],
+    ['a look-alike character', { friend_code: 'K7QX20' }],
+    ['a too short friend code', { friend_code: 'K7QX2' }],
+    ['an empty name', { display_name: '' }],
+    ['an unknown interest', { interests: ['knitting'] }],
+  ])('rejects %s', (_, patch) => {
+    expect(CreateTripMemberPayloadSchema.safeParse({ ...payload, ...patch }).success).toBe(false);
   });
 });
 
@@ -257,6 +289,22 @@ describe('Trip', () => {
 
     it('rejects an invalid trip', () => {
       expect(TripOverviewSchema.safeParse({ ...overview, trip: { ...overview.trip, travellerCount: 0 } }).success).toBe(false);
+    });
+
+    describe('organizerUsername (friend-invite D4)', () => {
+      it('is optional: an old cached copy lacks it', () => {
+        expect(TripOverviewSchema.parse(overview)).not.toHaveProperty('organizerUsername');
+      });
+
+      it('carries the organizer nick', () => {
+        expect(TripOverviewSchema.parse({ ...overview, organizerUsername: 'kacper_b' }).organizerUsername).toBe('kacper_b');
+      });
+
+      it('rejects an invalid nick', () => {
+        const result = TripOverviewSchema.safeParse({ ...overview, organizerUsername: 'Kacper!' });
+        expect(result.success).toBe(false);
+        expect(result.error?.issues.map((issue) => issue.path)).toEqual([['organizerUsername']]);
+      });
     });
   });
 });

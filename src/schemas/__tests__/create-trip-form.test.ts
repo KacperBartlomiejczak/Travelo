@@ -6,6 +6,7 @@ import {
   DEFAULT_COVER,
   FlightsStepInputSchema,
   FriendInputSchema,
+  FriendsStepInputSchema,
   MAX_COMPANIONS,
   SegmentInputSchema,
   TripDetailsInputSchema,
@@ -37,6 +38,10 @@ const BKK_WAW: Segment = {
   departAt: '2026-11-15T09:00',
   arriveAt: '2026-11-15T17:00',
 };
+
+const USER_A = '3f2b8c1e-5a4d-4e7f-9b6a-1c2d3e4f5a6b';
+const CODE_A = 'K7QX2M';
+const CODE_B = 'NPRSTU';
 
 const flights = { outbound: [WAW_DXB, DXB_BKK], return: [BKK_WAW], companionCount: 2 };
 
@@ -252,6 +257,39 @@ describe('FriendInput', () => {
     expect(FriendInputSchema.safeParse({ displayName: 'a'.repeat(41), interests: [] }).success).toBe(false);
     expect(FriendInputSchema.safeParse({ displayName: 'Ola', interests: ['knitting'] }).success).toBe(false);
   });
+
+  it('defaults friendCode to null (a friend without an account)', () => {
+    expect(FriendInputSchema.parse({ displayName: 'Ola', interests: [] }).friendCode).toBeNull();
+  });
+
+  it('accepts the friend code of a friend found by it, and rejects anything that is not a friend code', () => {
+    expect(FriendInputSchema.parse({ displayName: 'kacper_b', interests: [], friendCode: CODE_A }).friendCode).toBe(CODE_A);
+    for (const bad of ['k7qx2m', 'K7QX2', 'K7QX2MM', 'K7QX20', '', USER_A]) {
+      expect(FriendInputSchema.safeParse({ displayName: 'Ola', interests: [], friendCode: bad }).success).toBe(false);
+    }
+  });
+
+  it('no longer carries a userId: the app never sends an account id', () => {
+    const parsed = FriendInputSchema.parse({ displayName: 'Ola', interests: [], userId: USER_A });
+    expect('userId' in parsed).toBe(false);
+  });
+});
+
+describe('FriendsStepInput (friend-invite)', () => {
+  const linked = (friendCode: string | null, displayName = 'Friend') => ({ displayName, interests: [], friendCode });
+
+  it('rejects two friends with the same friendCode, on the later one', () => {
+    const result = FriendsStepInputSchema.safeParse({ friends: [linked(CODE_A, 'a'), linked(null), linked(CODE_A, 'b')] });
+    expect(issues(result)).toEqual([{ path: ['friends', 2, 'friendCode'], message: 'validation.friendDuplicate' }]);
+  });
+
+  it('accepts several friends without an account', () => {
+    expect(FriendsStepInputSchema.safeParse({ friends: [linked(null, 'a'), linked(null, 'b')] }).success).toBe(true);
+  });
+
+  it('accepts two different linked friends', () => {
+    expect(FriendsStepInputSchema.safeParse({ friends: [linked(CODE_A, 'a'), linked(CODE_B, 'b')] }).success).toBe(true);
+  });
 });
 
 describe('BudgetStepInput', () => {
@@ -329,6 +367,26 @@ describe('CreateTripInput', () => {
 
   it('accepts a complete wizard', () => {
     expect(CreateTripInputSchema.safeParse(input).success).toBe(true);
+  });
+
+  it('accepts a wizard with a linked friend and keeps the friendCode', () => {
+    const linked = {
+      ...input,
+      friends: { friends: [{ displayName: 'kacper_b', interests: ['beaches'], friendCode: CODE_A }, input.friends.friends[1]] },
+    };
+    const result = CreateTripInputSchema.safeParse(linked);
+    expect(result.success).toBe(true);
+    expect(result.data?.friends.friends.map((friend) => friend.friendCode)).toEqual([CODE_A, null]);
+  });
+
+  it('rejects the same linked friend twice', () => {
+    const twice = {
+      ...input,
+      friends: { friends: [{ displayName: 'a', interests: [], friendCode: CODE_A }, { displayName: 'b', interests: [], friendCode: CODE_A }] },
+    };
+    expect(issues(CreateTripInputSchema.safeParse(twice))).toEqual([
+      { path: ['friends', 'friends', 1, 'friendCode'], message: 'validation.friendDuplicate' },
+    ]);
   });
 
   it('accepts a solo trip with no friends', () => {

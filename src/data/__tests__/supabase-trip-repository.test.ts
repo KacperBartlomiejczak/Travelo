@@ -2,6 +2,7 @@ import { createClient } from '@supabase/supabase-js';
 
 import { NotSignedInError } from '@/data/auth';
 import type { Database } from '@/data/database.types';
+import { FriendAlreadyAddedError, OwnFriendCodeError, UnknownFriendCodeError } from '@/data/errors';
 import { REQUEST_TIMEOUT_MS, withTimeout } from '@/data/fetch-timeout';
 import { migrateLocalDb } from '@/data/local-db';
 import { createLocalStore } from '@/data/local-store';
@@ -35,7 +36,8 @@ function serverTrip(patch: Partial<TripRow> = {}) {
     created_at: '2026-10-04T12:00:00+00:00',
     budget_updated_at: '2026-10-04T12:00:00+00:00',
     ...patch,
-    trip_members: args.members as MemberRow[],
+    // The stored rows: the server keeps no account for a friend without a code (friend-invite D12).
+    trip_members: (args.members as Partial<MemberRow>[]).map((member) => ({ ...member, user_id: null })) as MemberRow[],
     flight_segments: args.segments as SegmentRow[],
   };
   return { row, trip: built.trip };
@@ -108,6 +110,73 @@ describe('create', () => {
     input.details.name = '';
     await expect(repository.create(input)).rejects.toThrow();
     expect(supabase.rpc).not.toHaveBeenCalled();
+  });
+});
+
+describe('create with friends found by code (friend-invite D12)', () => {
+  const linkedInput = () => {
+    const input = createTripInputFixture();
+    input.friends.friends[0].friendCode = '5ZMRX8';
+    return input;
+  };
+
+  it('sends friend_code per member and never a user_id', async () => {
+    const { supabase, repository } = await setup();
+    await repository.create(linkedInput());
+
+    const [name, args] = supabase.rpc.mock.calls[0];
+    expect(name).toBe('create_trip');
+    const members = (args as { members: object[] }).members;
+    expect(members).toEqual([
+      expect.objectContaining({ display_name: 'Kasia', friend_code: '5ZMRX8' }),
+      expect.objectContaining({ display_name: 'Ola', friend_code: null }),
+    ]);
+    members.forEach((member) => expect(member).not.toHaveProperty('user_id'));
+  });
+
+  it.each([
+    ['its own code (FI001)', { message: 'cannot link yourself as a trip member', code: 'FI001' }, OwnFriendCodeError],
+    ['an unknown code (FI002)', { message: 'no user has this friend code', code: 'FI002' }, UnknownFriendCodeError],
+    [
+      'the same friend twice (23505 on trip_members_trip_user_key)',
+      {
+        message: 'duplicate key value violates unique constraint "trip_members_trip_user_key"',
+        code: '23505',
+        details: 'Key (trip_id, user_id)=(a, b) already exists.',
+      },
+      FriendAlreadyAddedError,
+    ],
+  ])('rejects with a typed error when the server refuses %s, and keeps nothing on the device', async (_name, error, expected) => {
+    const { supabase, local, repository } = await setup();
+    supabase.rpc.mockResolvedValueOnce({ data: null, error, status: 400 });
+
+    const rejection = repository.create(linkedInput());
+
+    await expect(rejection).rejects.toBeInstanceOf(expected);
+    await expect(rejection).rejects.toThrow(error.message);
+    await expect(local.selectedTripId()).resolves.toBeNull();
+    await expect(local.cachedList()).resolves.toBeNull();
+  });
+
+  it('leaves any other unique violation a plain error (not "friend already added")', async () => {
+    const { supabase, repository } = await setup();
+    supabase.rpc.mockResolvedValueOnce({
+      data: null,
+      error: { message: 'duplicate key value violates unique constraint "trips_pkey"', code: '23505' },
+      status: 409,
+    });
+    const rejection = repository.create(linkedInput());
+    await expect(rejection).rejects.toThrow('trips_pkey');
+    await expect(rejection).rejects.not.toBeInstanceOf(FriendAlreadyAddedError);
+  });
+
+  it('leaves other server errors as they are today', async () => {
+    const { supabase, repository } = await setup();
+    supabase.rpc.mockResolvedValueOnce({ data: null, error: { message: 'not allowed to link this member', code: '42501' }, status: 403 });
+    const rejection = repository.create(linkedInput());
+    await expect(rejection).rejects.toThrow('not allowed to link');
+    await expect(rejection).rejects.not.toBeInstanceOf(OwnFriendCodeError);
+    await expect(rejection).rejects.not.toBeInstanceOf(UnknownFriendCodeError);
   });
 });
 
@@ -362,6 +431,152 @@ describe('current (trips-drawer D2, A1)', () => {
     await repository.select(PAST_ID);
     supabase.respond('trips', { data: serverTrip({ id: PAST_ID, budget_per_person_minor: 1.5 }).row });
     await expect(repository.current()).rejects.toThrow();
+  });
+});
+
+describe("current: the organizer's nick for a linked member (friend-invite D4, A4)", () => {
+  const ORGANIZER_ID = '5b1f0f6a-2c7d-4a8e-9b3c-1d2e3f4a5b6c';
+  const NICK_ANSWER = { data: 'kacper.b', error: null, status: 200 };
+  const sharedTrip = () => serverTrip({ id: PAST_ID, name: 'Lisbon', start_date: '2026-05-01', end_date: '2026-05-08', owner_id: ORGANIZER_ID });
+
+  it('asks trip_organizer_username and sets organizerUsername when the trip belongs to someone else', async () => {
+    const { supabase, repository } = await setup();
+    await repository.select(PAST_ID);
+    supabase.respond('trips', { data: sharedTrip().row });
+    supabase.rpc.mockResolvedValueOnce(NICK_ANSWER);
+
+    const current = await repository.current();
+
+    expect(supabase.rpc.mock.calls).toEqual([['trip_organizer_username', { trip_id: PAST_ID }]]);
+    expect(current?.overview.organizerUsername).toBe('kacper.b');
+    expect(CurrentTripSchema.safeParse(current).success).toBe(true);
+  });
+
+  it('does not ask, and leaves the field out, when the signed-in user owns the trip', async () => {
+    const { supabase, repository } = await setup();
+    await repository.select(PAST_ID);
+    supabase.respond('trips', { data: past().row });
+
+    const current = await repository.current();
+
+    expect(supabase.rpc).not.toHaveBeenCalled();
+    expect(current?.overview).not.toHaveProperty('organizerUsername');
+  });
+
+  it('keeps the nick in the copy on the phone and shows it from there offline', async () => {
+    const { supabase, local, repository } = await setup();
+    await repository.select(PAST_ID);
+    supabase.respond('trips', { data: sharedTrip().row }, NETWORK_FAILURE);
+    supabase.rpc.mockResolvedValueOnce(NICK_ANSWER);
+    const online = await repository.current();
+
+    await expect(local.cachedOverview(PAST_ID)).resolves.toEqual(expect.objectContaining({ organizerUsername: 'kacper.b' }));
+    const offline = await repository.current();
+
+    expect(offline).toEqual({ ...online, fromCache: true });
+    expect(offline?.overview.organizerUsername).toBe('kacper.b');
+    expect(supabase.rpc).toHaveBeenCalledTimes(1); // the offline read asks nothing more
+  });
+
+  it('asks nothing when the signed-in user is unknown for lack of connection (offline start): the copy is shown', async () => {
+    const { supabase, repository } = await setup();
+    await repository.select(PAST_ID);
+    supabase.respond('trips', { data: sharedTrip().row });
+    supabase.rpc.mockResolvedValueOnce(NICK_ANSWER);
+    await repository.current();
+    const { AuthRetryableFetchError } = jest.requireActual('@supabase/supabase-js');
+    supabase.auth.getSession.mockResolvedValueOnce({ data: { session: null as never }, error: new AuthRetryableFetchError('Network request failed', 0) });
+
+    const offline = await repository.current();
+
+    expect(offline?.fromCache).toBe(true);
+    expect(offline?.overview.organizerUsername).toBe('kacper.b');
+    expect(supabase.rpc).toHaveBeenCalledTimes(1);
+  });
+
+  it('reads the nick for the default trip too', async () => {
+    const { supabase, repository } = await setup();
+    supabase.respond('trips', { data: [listRow(sharedTrip())] }, { data: sharedTrip().row });
+    supabase.rpc.mockResolvedValueOnce(NICK_ANSWER);
+    const current = await repository.current();
+    expect(supabase.rpc.mock.calls).toEqual([['trip_organizer_username', { trip_id: PAST_ID }]]);
+    expect(current?.overview.organizerUsername).toBe('kacper.b');
+  });
+
+  it.each([
+    ['the server has no nick to give (null)', { data: null, error: null, status: 200 }],
+    ['the server refuses the request', { data: null, error: { message: 'boom' }, status: 500 }],
+    ['the answer is no valid nick', { data: 'A', error: null, status: 200 }],
+  ])('still shows the trip, without the nick, when %s', async (_name, answer) => {
+    const { supabase, repository } = await setup();
+    await repository.select(PAST_ID);
+    supabase.respond('trips', { data: sharedTrip().row });
+    supabase.rpc.mockResolvedValueOnce(answer);
+
+    const current = await repository.current();
+
+    expect(current?.fromCache).toBe(false);
+    expect(current?.overview.trip.name).toBe('Lisbon');
+    expect(current?.overview).not.toHaveProperty('organizerUsername');
+  });
+
+  // D15: a refresh whose organizer request gives nothing does not wipe the nick the phone already has.
+  it.each([
+    ['the server has no nick to give (null)', { data: null, error: null, status: 200 }],
+    ['the server refuses the request', { data: null, error: { message: 'boom' }, status: 500 }],
+    ['the answer is no valid nick', { data: 'A', error: null, status: 200 }],
+  ])('keeps the nick of the copy, in the result and in the copy, when %s on a refresh (D15)', async (_name, answer) => {
+    const { supabase, local, repository } = await setup();
+    await repository.select(PAST_ID);
+    supabase.respond('trips', { data: sharedTrip().row }, { data: sharedTrip().row });
+    supabase.rpc.mockResolvedValueOnce(NICK_ANSWER).mockResolvedValueOnce(answer);
+    await repository.current();
+
+    const refreshed = await repository.current();
+
+    expect(refreshed?.fromCache).toBe(false);
+    expect(refreshed?.overview.organizerUsername).toBe('kacper.b');
+    await expect(local.cachedOverview(PAST_ID)).resolves.toEqual(expect.objectContaining({ organizerUsername: 'kacper.b' }));
+  });
+
+  it('replaces the nick of the copy when the server gives a new valid one (D15)', async () => {
+    const { supabase, local, repository } = await setup();
+    await repository.select(PAST_ID);
+    supabase.respond('trips', { data: sharedTrip().row }, { data: sharedTrip().row });
+    supabase.rpc.mockResolvedValueOnce(NICK_ANSWER).mockResolvedValueOnce({ data: 'kacper.new', error: null, status: 200 });
+    await repository.current();
+
+    const refreshed = await repository.current();
+
+    expect(refreshed?.overview.organizerUsername).toBe('kacper.new');
+    await expect(local.cachedOverview(PAST_ID)).resolves.toEqual(expect.objectContaining({ organizerUsername: 'kacper.new' }));
+  });
+
+  it('does not carry a nick over to an owner: the owner path asks nothing and has no nick (D15)', async () => {
+    const { supabase, local, repository } = await setup();
+    await repository.select(PAST_ID);
+    supabase.respond('trips', { data: sharedTrip().row }, { data: past().row });
+    supabase.rpc.mockResolvedValueOnce(NICK_ANSWER);
+    await repository.current();
+
+    const refreshed = await repository.current();
+
+    expect(supabase.rpc).toHaveBeenCalledTimes(1);
+    expect(refreshed?.overview).not.toHaveProperty('organizerUsername');
+    expect((await local.cachedOverview(PAST_ID))?.organizerUsername).toBeUndefined();
+  });
+
+  it('falls back to the copy, with its nick, when the nick request gets no answer although the trip loaded', async () => {
+    const { supabase, repository } = await setup();
+    await repository.select(PAST_ID);
+    supabase.respond('trips', { data: sharedTrip().row }, { data: sharedTrip().row });
+    supabase.rpc.mockResolvedValueOnce(NICK_ANSWER).mockResolvedValueOnce(NETWORK_FAILURE);
+    await repository.current();
+
+    const second = await repository.current();
+
+    expect(second?.fromCache).toBe(true);
+    expect(second?.overview.organizerUsername).toBe('kacper.b');
   });
 });
 

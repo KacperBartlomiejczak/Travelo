@@ -128,10 +128,13 @@ select test_helpers.ok(
   'create_trip is idempotent'
 );
 
--- A links C as a read-only member (the app cannot do this yet, A5).
+-- C is a linked read-only member of A's trip. The owner cannot write user_id any more (friend-invite D12: the server
+-- links only by friend code), so the fixture row is written as the superuser; friend_invite.sql covers the real path.
+reset role;
 insert into public.trip_members (id, trip_id, user_id, display_name, role, interests)
 values ('20000000-0000-4000-8000-000000000003', '10000000-0000-4000-8000-000000000001',
         '00000000-0000-4000-a000-00000000000c', 'Celina', 'viewer', '{}');
+select test_helpers.login('00000000-0000-4000-a000-00000000000a');
 
 -- The owner cannot hand the trip to someone else.
 select test_helpers.throws(

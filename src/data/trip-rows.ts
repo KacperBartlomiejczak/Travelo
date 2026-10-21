@@ -1,5 +1,6 @@
 import type { CreatedTrip } from '@/data/trip-repository';
 import {
+  CreateTripMemberPayloadSchema,
   FlightSegmentSchema,
   TripListItemSchema,
   TripMemberSchema,
@@ -28,11 +29,10 @@ export type TripListRow = Pick<TripRow, 'id' | 'name' | 'cover_image_uri' | 'sta
 
 /** The owner is always the caller (`create_trip` sets it), so it is not sent. */
 type TripPayload = Omit<Tables['trips']['Insert'], 'owner_id'>;
-type MemberPayload = Tables['trip_members']['Insert'];
 type SegmentPayload = Tables['flight_segments']['Insert'];
 
 /** The arguments of `public.create_trip` for a trip built from the wizard. */
-export function toCreateTripArgs({ trip, members, segments }: CreatedTrip): CreateTripArgs {
+export function toCreateTripArgs({ trip, members, friendCodes, segments }: CreatedTrip): CreateTripArgs {
   const tripPayload: TripPayload = {
     id: trip.id,
     name: trip.name,
@@ -45,17 +45,18 @@ export function toCreateTripArgs({ trip, members, segments }: CreatedTrip): Crea
     budget_updated_at: trip.budgetUpdatedAt,
     created_at: trip.createdAt,
   };
-  const memberPayloads = members.map(
-    (member): MemberPayload => ({
+  // No `user_id`: the server links an account only from a friend code it resolves itself (friend-invite D12).
+  const memberPayloads = members.map((member) =>
+    CreateTripMemberPayloadSchema.parse({
       id: member.id,
       trip_id: member.tripId,
-      user_id: member.userId,
       display_name: member.displayName,
       role: member.role,
       interests: member.interests,
       budget_level: member.budgetLevel ?? null,
       pace: member.pace ?? null,
       dietary_notes: member.dietaryNotes ?? null,
+      friend_code: friendCodes[member.id] ?? null,
     }),
   );
   const segmentPayloads = segments.map(

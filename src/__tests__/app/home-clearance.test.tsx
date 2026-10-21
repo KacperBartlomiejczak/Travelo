@@ -8,6 +8,7 @@ import HomeScreen from '@/app/(drawer)/(tabs)/index';
 import RootLayout from '@/app/_layout';
 import i18n from '@/i18n';
 import type { SyncStatus, TripOverview } from '@/schemas';
+import { LOCAL_PROFILE_ID } from '@/test/fake-profile-repository';
 import { setNetwork } from '@/test/mock-network';
 import { lightTheme } from '@/theme/theme';
 
@@ -58,7 +59,7 @@ function overview(): TripOverview {
   return {
     trip: {
       id: TRIP_ID,
-      ownerId: 'local-user',
+      ownerId: LOCAL_PROFILE_ID,
       name: 'Warsaw → Bangkok',
       coverImageUri: 'preset:auckland',
       destination: 'BKK',

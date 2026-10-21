@@ -25,6 +25,9 @@ export const FRIEND_CODE_LENGTH = 6;
 export const FriendCodeSchema = z.string().regex(new RegExp(`^[${FRIEND_CODE_ALPHABET}]{${FRIEND_CODE_LENGTH}}$`));
 export type FriendCode = z.infer<typeof FriendCodeSchema>;
 
+/** User input for a friend code: trimmed and uppercased, then the same rules as FriendCodeSchema. */
+export const FriendCodeInputSchema = z.string().trim().toUpperCase().pipe(FriendCodeSchema);
+
 export const ProfileSchema = z.object({
   id: z.uuid(),
   username: UsernameSchema,
@@ -35,6 +38,13 @@ export const ProfileSchema = z.object({
   updatedAt: IsoDateTimeSchema,
 });
 export type Profile = z.infer<typeof ProfileSchema>;
+
+/**
+ * What `find_profile_by_friend_code` returns: enough to fill a friend card (friend-invite D3). No account id: the
+ * server links an account only from the code itself (D12).
+ */
+export const FoundFriendSchema = ProfileSchema.pick({ username: true, interests: true });
+export type FoundFriend = z.infer<typeof FoundFriendSchema>;
 
 /** A profile with the signed URL of its avatar, present only when the profile has one (the server is a boundary). */
 export const ShownProfileSchema = ProfileSchema.extend({ avatarUrl: HttpUrlSchema.optional() });

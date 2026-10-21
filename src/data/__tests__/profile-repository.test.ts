@@ -65,3 +65,34 @@ describe('in-memory profile repository (tests only)', () => {
     await expect(repository.myProfile()).resolves.toBeNull();
   });
 });
+
+describe('in-memory findByFriendCode (tests only, friend-invite)', () => {
+  const OLA = { username: 'ola', interests: ['beaches' as const, 'museums' as const] };
+
+  it('finds a code of another account and gives its nick and interests', async () => {
+    const repository = setup({ friendAccounts: { '5ZMRX8': OLA } });
+    await expect(repository.findByFriendCode('5ZMRX8')).resolves.toEqual(OLA);
+  });
+
+  it('trims and uppercases the code first', async () => {
+    const repository = setup({ friendAccounts: { '5ZMRX8': OLA } });
+    await expect(repository.findByFriendCode(' 5zmrx8 ')).resolves.toEqual(OLA);
+  });
+
+  it('gives null for a code nobody has', async () => {
+    const repository = setup({ friendAccounts: { '5ZMRX8': OLA } });
+    await expect(repository.findByFriendCode('K7M2QX')).resolves.toBeNull();
+    await expect(setup().findByFriendCode('K7M2QX')).resolves.toBeNull();
+  });
+
+  it('finds the own profile by its own code, like the server does (the app compares with its own code itself)', async () => {
+    const repository = setup();
+    const mine = await repository.createProfile(SETUP);
+    await expect(repository.findByFriendCode(mine.friendCode)).resolves.toEqual({ username: 'kacper', interests: ['museums'] });
+  });
+
+  it('rejects an invalid code with a ZodError', async () => {
+    await expect(setup().findByFriendCode('5ZMRO8')).rejects.toMatchObject({ name: 'ZodError' });
+    await expect(setup().findByFriendCode('5ZM')).rejects.toMatchObject({ name: 'ZodError' });
+  });
+});

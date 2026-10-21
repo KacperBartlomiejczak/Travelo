@@ -1,3 +1,4 @@
+import { FriendAlreadyAddedError, OwnFriendCodeError, UnknownFriendCodeError } from '@/data/errors';
 import { buildTrip, createInMemoryTripRepository, LOCAL_OWNER_ID } from '@/data/trip-repository';
 import {
   CreateTripInputSchema,
@@ -86,6 +87,18 @@ describe('buildTrip', () => {
     members.forEach((member) => expect(TripMemberSchema.safeParse(member).success).toBe(true));
   });
 
+  it('keeps no account on a friend found by code (the server resolves the code), and carries the code by member id (friend-invite D12)', () => {
+    const { members, friendCodes } = build((input) => {
+      input.friends.friends[1].friendCode = '5ZMRX8';
+    });
+    members.forEach((member) => expect(member.userId).toBeNull());
+    expect(friendCodes).toEqual({ [members[1].id]: '5ZMRX8' });
+  });
+
+  it('carries no friend code when no friend was found by code', () => {
+    expect(build().friendCodes).toEqual({});
+  });
+
   it('turns segments into flight segments with ISO offsets, time zones and order per direction', () => {
     const { trip, segments } = build();
     expect(segments.map((s) => [s.direction, s.order, s.fromIata, s.toIata])).toEqual([
@@ -129,6 +142,59 @@ describe('in-memory trip repository', () => {
 
   it('owns its trips by the local owner (tests only, no auth)', async () => {
     expect((await repository().create(createTripInputFixture())).ownerId).toBe(LOCAL_OWNER_ID);
+  });
+
+  describe('friends found by code (friend-invite D12)', () => {
+    const OLA_ACCOUNT = '5b1f0f6a-2c7d-4a8e-9b3c-1d2e3f4a5b6c';
+    const ALA_ACCOUNT = '6c2a1a7b-3d8e-4b9f-8c4d-2e3f4a5b6c7d';
+    const withAccounts = () =>
+      createInMemoryTripRepository({
+        now: () => NOW,
+        newId: sequentialIds(),
+        friendAccounts: { '5ZMRX8': OLA_ACCOUNT, M4P7QW: ALA_ACCOUNT, K7M2QX: OLA_ACCOUNT },
+        ownFriendCode: 'T3ST42',
+      });
+    const inputWithCodes = (...codes: (string | null)[]) => {
+      const input = createTripInputFixture();
+      input.friends.friends = codes.map((friendCode, i) => ({ displayName: `Friend ${i}`, interests: [], friendCode }));
+      input.flights.companionCount = codes.length;
+      return input;
+    };
+
+    it('links a friend to the account that has the code, and not the friend without one', async () => {
+      const repo = withAccounts();
+      await repo.create(inputWithCodes('5ZMRX8', null));
+      const members = (await repo.current())?.overview.members ?? [];
+      expect(members.map((member) => member.userId)).toEqual([OLA_ACCOUNT, null]);
+    });
+
+    it('rejects an unknown code with UnknownFriendCodeError and stores nothing', async () => {
+      const repo = withAccounts();
+      await expect(repo.create(inputWithCodes('5ZMRX8', 'ZZZZZZ'))).rejects.toBeInstanceOf(UnknownFriendCodeError);
+      await expect(repo.list()).resolves.toEqual([]);
+      await expect(repo.current()).resolves.toBeNull();
+    });
+
+    it('rejects the owner\'s own code with OwnFriendCodeError and stores nothing', async () => {
+      const repo = withAccounts();
+      await expect(repo.create(inputWithCodes('T3ST42'))).rejects.toBeInstanceOf(OwnFriendCodeError);
+      await expect(repo.list()).resolves.toEqual([]);
+    });
+
+    it('rejects one account added twice with FriendAlreadyAddedError, like the unique index of the server', async () => {
+      const repo = withAccounts();
+      await expect(repo.create(inputWithCodes('5ZMRX8', 'K7M2QX'))).rejects.toBeInstanceOf(FriendAlreadyAddedError);
+      await expect(repo.list()).resolves.toEqual([]);
+    });
+
+    it('does not accept the same code twice in the wizard input, before any of this', async () => {
+      await expect(withAccounts().create(inputWithCodes('5ZMRX8', '5ZMRX8'))).rejects.toMatchObject({ name: 'ZodError' });
+    });
+
+    it('does not link anybody when it knows no accounts (the default)', async () => {
+      const repo = repository();
+      await expect(repo.create(inputWithCodes('5ZMRX8'))).rejects.toBeInstanceOf(UnknownFriendCodeError);
+    });
   });
 
   describe('list, chosen and current trip (trips-drawer)', () => {

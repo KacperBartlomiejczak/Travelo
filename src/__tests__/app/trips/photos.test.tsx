@@ -362,6 +362,68 @@ describe('Photo viewer — deleting a photo (P5)', () => {
   });
 });
 
+// friend-invite A3: a friend linked by code only looks at the photos. The trip is theirs only through the organizer, so
+// "owner" is decided by comparing the trip's owner with the own profile.
+describe('Photo viewer — linked member, no delete (friend-invite A3)', () => {
+  const ORGANIZER_ID = '5b1f0f6a-2c7d-4a8e-9b3c-1d2e3f4a5b6c';
+
+  /** The same trip and photos, but owned by someone else: the repository tells the app so through `current()`. */
+  async function setupShared(count = 12) {
+    const base = await setup(count);
+    mockRepository = {
+      ...base,
+      current: async () => {
+        const current = await base.current();
+        if (!current) return current;
+        const trip = { ...current.overview.trip, ownerId: ORGANIZER_ID };
+        return { ...current, overview: { ...current.overview, trip } };
+      },
+    };
+  }
+
+  it('has "Zamknij" and the counter but no "Usuń zdjęcie"', async () => {
+    await setupShared();
+    await openViewer();
+    expect(viewer().getByRole('button', { name: 'Zamknij' })).toBeEnabled();
+    expect(viewer().getByText('3 z 12')).toBeTruthy();
+    expect(viewer().queryByRole('button', { name: 'Usuń zdjęcie' })).toBeNull();
+    expect(screen.queryByTestId('bottom-sheet')).toBeNull();
+  });
+
+  it('still swipes between the photos', async () => {
+    await setupShared();
+    await openViewer();
+    await swipeTo(3);
+    expect(viewer().getByText('4 z 12')).toBeTruthy();
+    expect(viewer().queryByRole('button', { name: 'Usuń zdjęcie' })).toBeNull();
+  });
+
+  it('says nothing about deleting offline: no hint, nothing to switch off', async () => {
+    await setupShared();
+    setNetwork(OFFLINE);
+    await openViewer();
+    expect(viewer().getByText('3 z 12')).toBeTruthy();
+    expect(viewer().queryByText('Bez internetu nie dodasz ani nie usuniesz zdjęć.')).toBeNull();
+    expect(viewer().queryByRole('button', { name: 'Usuń zdjęcie' })).toBeNull();
+  });
+
+  it('shows no delete while the trip is not known yet, so a member never sees it flash', async () => {
+    await setupShared();
+    mockRepository = { ...mockRepository, current: () => new Promise(() => {}) };
+    await renderApp(viewerUrl(photoId(2)));
+    expect(await viewer().findByText('2 z 12')).toBeTruthy();
+    expect(viewer().queryByRole('button', { name: 'Usuń zdjęcie' })).toBeNull();
+  });
+
+  it('reads in English', async () => {
+    await i18n.changeLanguage('en');
+    await setupShared();
+    await openViewer();
+    expect(viewer().getByRole('button', { name: 'Close' })).toBeTruthy();
+    expect(viewer().queryByRole('button', { name: 'Delete photo' })).toBeNull();
+  });
+});
+
 describe('Photo viewer — states', () => {
   it('shows the photos the phone has while offline, and a photo that cannot load says so', async () => {
     await setup();

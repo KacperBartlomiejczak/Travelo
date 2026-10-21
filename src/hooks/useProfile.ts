@@ -27,6 +27,23 @@ export function useMyProfile() {
 }
 
 /**
+ * The signed-in user's account id, from the own profile (cached on the phone, so it is known offline too); undefined until
+ * the profile is read. The session's `userId` is not used: it can be null on an offline start (friend-invite A2).
+ */
+export function useMyProfileId(): string | undefined {
+  return useMyProfile().data?.profile.id;
+}
+
+/**
+ * Whether the trip is the signed-in user's own (friend-invite A2): its owner is the own account. False while either is
+ * unknown, so edit controls never show for a trip that may be someone else's.
+ */
+export function useIsTripOwner(ownerId: string | undefined): boolean {
+  const myId = useMyProfileId();
+  return ownerId !== undefined && myId === ownerId;
+}
+
+/**
  * Saves the profile from the setup form; on success the profile query holds it, so the app moves on at once.
  * The cache is written only if no sign-out began while the save was on its way: otherwise the profile belongs to the previous
  * user, and the next user would be shown it. That is decided by the user epoch captured when `mutate` is called (the same one

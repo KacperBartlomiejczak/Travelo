@@ -58,6 +58,14 @@
       "heading": "Who's flying with you?",
       "hint": "Pick what they enjoy — day plans will take it into account.",
       "card": "Friend {{number}}",
+      "code": "Friend code",
+      "codeChecking": "Checking the code…",
+      "codeIncomplete": "The code has 6 characters.",
+      "codeOwn": "That's your code.",
+      "codeUnknown": "No user has this code.",
+      "codeDuplicate": "This friend is already added.",
+      "codeOffline": "Connect to the internet to check the code.",
+      "codeCheckFailed": "Couldn't check the code. Try again.",
       "name": "Name",
       "interests": "What do they enjoy?"
     },
@@ -135,6 +143,7 @@
     "departureInPast": "Departure can't be in the past",
     "flightNumberInvalid": "A flight number has 2 to 8 characters",
     "nameRequired": "Enter a name",
+    "friendDuplicate": "This friend is already added.",
     "nameTooLong": "A name can have up to {{max}} characters",
     "tripNameRequired": "Enter a trip name",
     "tripNameTooLong": "A trip name can have up to {{max}} characters",
@@ -185,6 +194,8 @@
   },
   "home": {
     "flights": "Flights",
+    "organizer": "{{name}} (organizer)",
+    "organizerUnknown": "Organizer",
     "changeBudget": "Change budget",
     "saveBudget": "Save",
     "saveBudgetError": "Couldn't save this. Try again."
