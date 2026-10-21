@@ -96,6 +96,14 @@ isOneToOne: false
           Functions: {
             "create_trip":
 { Args: { "members": Json,"segments": Json,"trip": Json }; Returns: undefined
+                           },
+"find_profile_by_friend_code":
+{ Args: { "code": string }; Returns: {
+              "interests": (string)[],"username": string
+            }[]
+                           },
+"trip_organizer_username":
+{ Args: { "trip_id": string }; Returns: string
                            }
           }
           Enums: {
