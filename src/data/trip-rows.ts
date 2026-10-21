@@ -23,8 +23,13 @@ export type MemberRow = Tables['trip_members']['Row'];
 export type SegmentRow = Tables['flight_segments']['Row'];
 export type PhotoRow = Tables['trip_photos']['Row'];
 export type CreateTripArgs = Database['public']['Functions']['create_trip']['Args'];
-/** The columns the side panel's query selects (trips-drawer D4). */
-export type TripListRow = Pick<TripRow, 'id' | 'name' | 'cover_image_uri' | 'start_date' | 'end_date'>;
+/**
+ * The columns the side panel's query selects (trips-drawer D4), with the embedded route columns of the trip's flight
+ * segments (profile-screen D11).
+ */
+export type TripListRow = Pick<TripRow, 'id' | 'name' | 'cover_image_uri' | 'destination' | 'start_date' | 'end_date'> & {
+  flight_segments: Pick<SegmentRow, 'from_iata' | 'to_iata'>[];
+};
 
 /** The owner is always the caller (`create_trip` sets it), so it is not sent. */
 type TripPayload = Omit<Tables['trips']['Insert'], 'owner_id'>;
@@ -174,6 +179,8 @@ export function listItemFromRow(row: TripListRow, coverUrls?: CoverUrls): TripLi
     name: row.name,
     coverImageUri: row.cover_image_uri,
     ...(coverUrls ? { coverUrls } : {}),
+    destination: row.destination,
+    flights: row.flight_segments.map((segment) => ({ fromIata: segment.from_iata, toIata: segment.to_iata })),
     startDate: row.start_date,
     endDate: row.end_date,
   });

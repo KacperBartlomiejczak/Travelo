@@ -91,6 +91,49 @@ describe('clearUserData()', () => {
   });
 });
 
+describe('signOut() (profile-screen A7)', () => {
+  it('signs out on this phone only, once', async () => {
+    const { source, auth } = setup();
+    await source.signOut();
+    expect(auth.signOut).toHaveBeenCalledTimes(1);
+    expect(auth.signOut).toHaveBeenCalledWith({ scope: 'local' });
+  });
+
+  it('throws the error Supabase returns (it is not swallowed)', async () => {
+    const { source, auth } = setup();
+    const error = offline();
+    auth.signOut.mockResolvedValueOnce({ error });
+    await expect(source.signOut()).rejects.toBe(error);
+  });
+
+  it('no connection: auth-js removes the stored session (SIGNED_OUT) and THEN returns the error, so the error is thrown and the change still arrives', async () => {
+    jest.useFakeTimers();
+    try {
+      const { source, auth, fire } = setup();
+      const listener = jest.fn();
+      source.onChange(listener);
+      const error = offline();
+      // What auth-js 2.117 does for scope 'local' (GoTrueClient._signOut): it removes the session, notifies, and only then returns the error.
+      auth.signOut.mockImplementationOnce(async () => {
+        fire('SIGNED_OUT', null);
+        return { error };
+      });
+
+      await expect(source.signOut()).rejects.toBe(error);
+      jest.runAllTimers();
+      expect(listener).toHaveBeenCalledWith({ type: 'signedOut' });
+    } finally {
+      jest.useRealTimers();
+    }
+  });
+
+  it('does not clear the user data itself: that is the job of the signedOut path, so it happens once and in one place (D14)', async () => {
+    const { source, clearUserData } = setup();
+    await source.signOut();
+    expect(clearUserData).not.toHaveBeenCalled();
+  });
+});
+
 describe('onChange()', () => {
   beforeEach(() => jest.useFakeTimers());
   afterEach(() => jest.useRealTimers());

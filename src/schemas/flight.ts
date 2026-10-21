@@ -24,3 +24,7 @@ export const FlightSegmentSchema = z
   })
   .refine((segment) => Date.parse(segment.arriveAt) > Date.parse(segment.departAt), { path: ['arriveAt'] });
 export type FlightSegment = z.infer<typeof FlightSegmentSchema>;
+
+/** The route of one flight segment, for the trip list (profile-screen D11). */
+export const FlightRouteSchema = z.object({ fromIata: IataCodeSchema, toIata: IataCodeSchema });
+export type FlightRoute = z.infer<typeof FlightRouteSchema>;

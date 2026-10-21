@@ -118,7 +118,7 @@ export function createSupabaseTripRepository({
     await signedIn();
     const { data, error, status } = await supabase
       .from('trips')
-      .select('id, name, cover_image_uri, start_date, end_date')
+      .select('id, name, cover_image_uri, destination, start_date, end_date, flight_segments(from_iata, to_iata)')
       .order('start_date')
       .order('created_at');
     if (error) throw failure(error, status);
@@ -495,6 +495,12 @@ export function createSupabaseTripRepository({
       // anywhere and the owner can still remove them (trip-photos R6), so a failure here is not the delete's failure.
       const { file, thumbnail } = photoPaths({ id, tripId });
       await supabase.storage.from(PHOTO_BUCKET).remove([file, thumbnail]);
+    },
+
+    async hasUnsentChanges() {
+      // A read failure rejects: "none" must not be guessed, the caller would then skip the warning about losing changes.
+      // A synced change is deleted from the store (`markBudgetSynced`), so every row left is pending or failed.
+      return (await (await localStore).unsyncedBudgetChanges()).length > 0;
     },
 
     syncBudgets() {

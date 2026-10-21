@@ -2,7 +2,7 @@ import { z } from 'zod';
 
 import { CurrencyCodeSchema, IataCodeSchema, IsoDateSchema, IsoDateTimeSchema, MoneySchema } from './common';
 import { CoverSchema, CoverUrlsSchema } from './cover';
-import { FlightSegmentSchema } from './flight';
+import { FlightRouteSchema, FlightSegmentSchema } from './flight';
 import { TripMemberSchema } from './member';
 
 export const TRIP_NAME_MAX_LENGTH = 60;
@@ -64,13 +64,18 @@ export const TripOverviewSchema = z.object({
 });
 export type TripOverview = z.infer<typeof TripOverviewSchema>;
 
-/** One trip in the side panel (trips-drawer D4): enough to show and sort it. */
+/**
+ * One trip in the side panel (trips-drawer D4): enough to show and sort it, and, for the profile's stats offline, its
+ * destination and the route of every flight segment in any order (profile-screen D11).
+ */
 export const TripListItemSchema = z
   .object({
     id: tripShape.id,
     name: tripShape.name,
     coverImageUri: tripShape.coverImageUri,
     coverUrls: CoverUrlsSchema.optional(),
+    destination: tripShape.destination,
+    flights: z.array(FlightRouteSchema),
     startDate: tripShape.startDate,
     endDate: tripShape.endDate,
   })

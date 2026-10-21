@@ -25,6 +25,11 @@ export interface SessionSource {
   onChange(listener: (change: SessionChange) => void): () => void;
   /** Forgets everything of the previous user on the phone (trip copies, chosen trip, budget changes, profile copy; D14). */
   clearUserData(): Promise<void>;
+  /**
+   * Signs the user out on this phone only (profile-screen A7). Does not clear anything itself: the sign-out reaches `onChange` as `signedOut`,
+   * and the provider clears the phone's user data on that path (auth-onboarding D14). Rejects with the error Supabase returns.
+   */
+  signOut(): Promise<void>;
 }
 
 type Deps = {
@@ -93,5 +98,13 @@ export function createSupabaseSessionSource({ auth, checkAuth, clearUserData }: 
     },
 
     clearUserData,
+
+    async signOut() {
+      // `scope: 'local'` ends only this phone's session (A7). On success auth-js removes the stored session and fires SIGNED_OUT, which
+      // `onChange` hands on; the clear of the phone's user data happens on that path, not here. On a failed request (no connection, a server
+      // error) it ALSO removes the stored session before returning the error, so the app can end up signed out although this rejects.
+      const { error } = await auth.signOut({ scope: 'local' });
+      if (error) throw error;
+    },
   };
 }

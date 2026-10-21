@@ -113,13 +113,21 @@ describe('create', () => {
 
 /** A trip as the side panel's query returns it: only the listed columns. */
 function listRow({ row }: ReturnType<typeof serverTrip>) {
-  return { id: row.id, name: row.name, cover_image_uri: row.cover_image_uri, start_date: row.start_date, end_date: row.end_date };
+  return {
+    id: row.id,
+    name: row.name,
+    cover_image_uri: row.cover_image_uri,
+    destination: row.destination,
+    start_date: row.start_date,
+    end_date: row.end_date,
+    flight_segments: row.flight_segments.map(({ from_iata, to_iata }) => ({ from_iata, to_iata })),
+  };
 }
 
 const LIST_QUERY = {
   table: 'trips',
   ops: [
-    ['select', ['id, name, cover_image_uri, start_date, end_date']],
+    ['select', ['id, name, cover_image_uri, destination, start_date, end_date, flight_segments(from_iata, to_iata)']],
     ['order', ['start_date']],
     ['order', ['created_at']],
   ],
@@ -166,6 +174,13 @@ describe('nobody is signed in (auth-onboarding D2)', () => {
   });
 });
 
+/** The routes of the fixture trip's three segments (profile-screen D11). */
+const FIXTURE_ROUTES = [
+  { fromIata: 'WAW', toIata: 'DXB' },
+  { fromIata: 'DXB', toIata: 'BKK' },
+  { fromIata: 'BKK', toIata: 'WAW' },
+];
+
 describe('list (trips-drawer D4)', () => {
   it('reads every trip with only the columns the side panel needs, and keeps a copy', async () => {
     const { supabase, local, repository } = await setup();
@@ -175,11 +190,31 @@ describe('list (trips-drawer D4)', () => {
 
     expect(supabase.queries).toEqual([LIST_QUERY]);
     expect(list).toEqual([
-      { id: PAST_ID, name: 'Lisbon', coverImageUri: 'preset:auckland', startDate: '2026-05-01', endDate: '2026-05-08' },
-      { id: ONGOING_ID, name: 'Rome', coverImageUri: 'preset:auckland', startDate: '2026-10-01', endDate: '2026-10-07' },
+      { id: PAST_ID, name: 'Lisbon', coverImageUri: 'preset:auckland', destination: 'BKK', flights: FIXTURE_ROUTES, startDate: '2026-05-01', endDate: '2026-05-08' },
+      { id: ONGOING_ID, name: 'Rome', coverImageUri: 'preset:auckland', destination: 'BKK', flights: FIXTURE_ROUTES, startDate: '2026-10-01', endDate: '2026-10-07' },
     ]);
     expect(supabase.storageCalls).toEqual([]); // presets have nothing to sign
     await expect(local.cachedList()).resolves.toEqual(list);
+  });
+
+  it('reads the destination and the routes with the same query, and the copy keeps them (profile-screen D11)', async () => {
+    const { supabase, local, repository } = await setup();
+    supabase.respond('trips', { data: [{ ...listRow(past()), destination: 'LIS', flight_segments: [{ from_iata: 'WAW', to_iata: 'LIS' }] }, listRow({ ...ongoing(), row: { ...ongoing().row, flight_segments: [] } })] });
+
+    const list = await repository.list();
+
+    expect(supabase.queries).toHaveLength(1);
+    expect(list.map(({ destination, flights }) => ({ destination, flights }))).toEqual([
+      { destination: 'LIS', flights: [{ fromIata: 'WAW', toIata: 'LIS' }] },
+      { destination: 'BKK', flights: [] },
+    ]);
+    await expect(local.cachedList()).resolves.toEqual(list);
+  });
+
+  it('rejects a trip whose segment has a bad airport code', async () => {
+    const { supabase, repository } = await setup();
+    supabase.respond('trips', { data: [{ ...listRow(past()), flight_segments: [{ from_iata: 'wa', to_iata: 'LIS' }] }] });
+    await expect(repository.list()).rejects.toThrow();
   });
 
   it('shows the copy when Supabase cannot be reached', async () => {
@@ -1515,6 +1550,80 @@ describe('budget changes (offline-first)', () => {
     supabase.respond('trips', { data: [{ id: trip.id }] });
     await Promise.all([repository.syncBudgets(), repository.syncBudgets()]);
     expect(supabase.queries.filter((q) => q.ops[0]?.[0] === 'update')).toHaveLength(1);
+  });
+});
+
+describe('hasUnsentChanges (profile-screen D5)', () => {
+  async function withTrip() {
+    const ctx = await setup();
+    const server = serverTrip();
+    await ctx.repository.select(server.trip.id);
+    ctx.supabase.respond('trips', { data: server.row });
+    await ctx.repository.current();
+    return { ...ctx, trip: server.trip };
+  }
+
+  it('false when nothing was changed on the device', async () => {
+    const { repository } = await withTrip();
+    await expect(repository.hasUnsentChanges()).resolves.toBe(false);
+  });
+
+  it('false on a fresh phone, with no trips and no network', async () => {
+    const { repository, supabase } = await setup();
+    supabase.respond('trips', NETWORK_FAILURE);
+    await expect(repository.hasUnsentChanges()).resolves.toBe(false);
+  });
+
+  it('true for a pending budget change (saved offline, not sent yet), without touching the network', async () => {
+    const { repository, supabase, trip } = await withTrip();
+    await repository.setBudget(trip, 250000);
+    const queriesBefore = supabase.queries.length;
+    await expect(repository.hasUnsentChanges()).resolves.toBe(true);
+    expect(supabase.queries).toHaveLength(queriesBefore);
+  });
+
+  it('true for a change the server refused (failed stays visible, so it is unsent too)', async () => {
+    const { repository, supabase, local, trip } = await withTrip();
+    await repository.setBudget(trip, 250000);
+    supabase.respond('trips', { error: { message: 'new row violates check constraint' }, status: 400 });
+    await repository.syncBudgets();
+    await expect(local.budgetChange(trip.id)).resolves.toEqual(expect.objectContaining({ syncStatus: 'failed' }));
+    await expect(repository.hasUnsentChanges()).resolves.toBe(true);
+  });
+
+  it('true when the server could not be reached on the retry (still pending)', async () => {
+    const { repository, supabase, trip } = await withTrip();
+    await repository.setBudget(trip, 250000);
+    supabase.respond('trips', NETWORK_FAILURE);
+    await repository.syncBudgets();
+    await expect(repository.hasUnsentChanges()).resolves.toBe(true);
+  });
+
+  it('rejects when the device store cannot be read: "none" is never guessed (guard test, green at once)', async () => {
+    const { local } = await setup();
+    const error = new Error('disk error');
+    const broken = { ...local, unsyncedBudgetChanges: jest.fn(async () => Promise.reject(error)) };
+    const { repository } = await setup({ local: Promise.resolve(broken) });
+    await expect(repository.hasUnsentChanges()).rejects.toBe(error);
+  });
+
+  it('false again once the change reached the server', async () => {
+    const { repository, supabase, trip } = await withTrip();
+    await repository.setBudget(trip, 250000);
+    supabase.respond('trips', { data: [{ id: trip.id }] });
+    await repository.syncBudgets();
+    await expect(repository.hasUnsentChanges()).resolves.toBe(false);
+  });
+
+  it('true while any one of several trips still has a change', async () => {
+    const { repository, supabase, setNow, trip } = await withTrip();
+    await repository.setBudget(trip, 250000);
+    setNow(new Date(NOW.getTime() + 1000));
+    await repository.setBudget({ id: '00000000-0000-4000-8000-0000000000aa', baseCurrency: 'THB' }, 300000);
+    // The older change is sent first (by time) and reaches the server; the newer one does not.
+    supabase.respond('trips', { data: [{ id: trip.id }] }, NETWORK_FAILURE);
+    await repository.syncBudgets();
+    await expect(repository.hasUnsentChanges()).resolves.toBe(true);
   });
 });
 

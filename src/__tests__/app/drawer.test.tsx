@@ -30,8 +30,8 @@ jest.mock('expo-status-bar', () => ({
   },
 }));
 
-const ROME: TripListItem = { id: '00000000-0000-4000-8000-0000000000a3', name: 'Rzym', coverImageUri: 'preset:auckland', startDate: '2026-10-05', endDate: '2026-10-12' };
-const OSLO: TripListItem = { id: '00000000-0000-4000-8000-0000000000a2', name: 'Oslo', coverImageUri: 'preset:auckland', startDate: '2026-08-10', endDate: '2026-08-14' };
+const ROME: TripListItem = { id: '00000000-0000-4000-8000-0000000000a3', name: 'Rzym', coverImageUri: 'preset:auckland', destination: 'BCN', flights: [], startDate: '2026-10-05', endDate: '2026-10-12' };
+const OSLO: TripListItem = { id: '00000000-0000-4000-8000-0000000000a2', name: 'Oslo', coverImageUri: 'preset:auckland', destination: 'BCN', flights: [], startDate: '2026-08-10', endDate: '2026-08-14' };
 
 function mockCurrentTrip(item: TripListItem): CurrentTrip {
   return {

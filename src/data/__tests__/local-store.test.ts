@@ -52,8 +52,19 @@ async function store() {
 
 describe('trip list copy (trips-drawer D3)', () => {
   const list: TripList = [
-    { id: TRIP_ID, name: 'Barcelona', coverImageUri: 'preset:auckland', startDate: '2026-11-02', endDate: '2026-11-09' },
-    { id: OTHER_TRIP_ID, name: 'Rome', coverImageUri: 'preset:bali', startDate: '2026-12-01', endDate: '2026-12-05' },
+    {
+      id: TRIP_ID,
+      name: 'Barcelona',
+      coverImageUri: 'preset:auckland',
+      destination: 'BCN',
+      flights: [
+        { fromIata: 'WAW', toIata: 'BCN' },
+        { fromIata: 'BCN', toIata: 'WAW' },
+      ],
+      startDate: '2026-11-02',
+      endDate: '2026-11-09',
+    },
+    { id: OTHER_TRIP_ID, name: 'Rome', coverImageUri: 'preset:bali', destination: 'FCO', flights: [], startDate: '2026-12-01', endDate: '2026-12-05' },
   ];
 
   it('is empty at first', async () => {
@@ -67,6 +78,25 @@ describe('trip list copy (trips-drawer D3)', () => {
     await expect(local.cachedList()).resolves.toEqual(list);
     await local.cacheList([], '2026-10-08T09:05:00.000Z');
     await expect(local.cachedList()).resolves.toEqual([]);
+  });
+
+  it('gives back the destination and the flight routes of every trip (profile-screen D11)', async () => {
+    const { local } = await store();
+    await local.cacheList(list, '2026-10-08T09:00:00.000Z');
+    const copy = await local.cachedList();
+    expect(copy?.map(({ destination }) => destination)).toEqual(['BCN', 'FCO']);
+    expect(copy?.[0].flights).toEqual([
+      { fromIata: 'WAW', toIata: 'BCN' },
+      { fromIata: 'BCN', toIata: 'WAW' },
+    ]);
+    expect(copy?.[1].flights).toEqual([]);
+  });
+
+  it('reads a copy saved before destination and flights existed as no copy, not a crash (profile-screen R1)', async () => {
+    const { db, local } = await store();
+    const beforeStep2 = [{ id: TRIP_ID, name: 'Barcelona', coverImageUri: 'preset:auckland', startDate: '2026-11-02', endDate: '2026-11-09' }];
+    await db.runAsync("insert into trip_list_cache (id, list_json, cached_at) values (1, ?, '2026-10-08T09:00:00.000Z')", [JSON.stringify(beforeStep2)]);
+    await expect(local.cachedList()).resolves.toBeNull();
   });
 
   it('treats a corrupt or outdated copy as no copy instead of crashing', async () => {
@@ -368,8 +398,8 @@ describe('budget changes', () => {
 
 describe('forgetTrip (trip-edit-menu A5)', () => {
   const list: TripList = [
-    { id: TRIP_ID, name: 'Barcelona', coverImageUri: 'preset:auckland', startDate: '2026-11-02', endDate: '2026-11-09' },
-    { id: OTHER_TRIP_ID, name: 'Rome', coverImageUri: 'preset:auckland', startDate: '2026-12-01', endDate: '2026-12-05' },
+    { id: TRIP_ID, name: 'Barcelona', coverImageUri: 'preset:auckland', destination: 'BCN', flights: [], startDate: '2026-11-02', endDate: '2026-11-09' },
+    { id: OTHER_TRIP_ID, name: 'Rome', coverImageUri: 'preset:auckland', destination: 'BCN', flights: [], startDate: '2026-12-01', endDate: '2026-12-05' },
   ];
   const other = { ...overview, trip: { ...overview.trip, id: OTHER_TRIP_ID, name: 'Rome' } };
 
@@ -499,7 +529,7 @@ describe('copies from before covers were required (trip-covers)', () => {
     await db.runAsync("insert into trip_list_cache (id, list_json, cached_at) values (1, ?, '2026-10-05T10:00:00.000Z')", [JSON.stringify(oldList)]);
     const urls = { url: 'https://example.supabase.co/a.jpg?token=1', thumbnailUrl: 'https://example.supabase.co/a_thumb.jpg?token=2' };
     const fresh: TripList = [
-      { id: TRIP_ID, name: 'Barcelona', coverImageUri: 'photo:5b1f0f6a-2c7d-4a8e-9b3c-1d2e3f4a5b6c', coverUrls: urls, startDate: '2026-11-02', endDate: '2026-11-09' },
+      { id: TRIP_ID, name: 'Barcelona', coverImageUri: 'photo:5b1f0f6a-2c7d-4a8e-9b3c-1d2e3f4a5b6c', coverUrls: urls, destination: 'BCN', flights: [], startDate: '2026-11-02', endDate: '2026-11-09' },
     ];
     await local.cacheList(fresh, '2026-10-06T10:00:00.000Z');
     await expect(local.cachedList()).resolves.toEqual(fresh);
@@ -577,7 +607,7 @@ describe('clearUserData (auth-onboarding D2)', () => {
     const ctx = await store();
     const { local } = ctx;
     await local.cacheList(
-      [{ id: TRIP_ID, name: 'Barcelona', coverImageUri: 'preset:auckland', startDate: '2026-11-02', endDate: '2026-11-09' }],
+      [{ id: TRIP_ID, name: 'Barcelona', coverImageUri: 'preset:auckland', destination: 'BCN', flights: [], startDate: '2026-11-02', endDate: '2026-11-09' }],
       '2026-10-18T09:00:00.000Z',
     );
     await local.cacheOverview(overview, '2026-10-18T09:00:00.000Z');
@@ -651,7 +681,7 @@ describe('clearUserData (auth-onboarding D2)', () => {
 
 describe('writes of an operation that started before a clear (auth-onboarding D2, D14)', () => {
   const AT = '2026-10-18T10:00:00.000Z';
-  const list: TripList = [{ id: TRIP_ID, name: 'Barcelona', coverImageUri: 'preset:auckland', startDate: '2026-11-02', endDate: '2026-11-09' }];
+  const list: TripList = [{ id: TRIP_ID, name: 'Barcelona', coverImageUri: 'preset:auckland', destination: 'BCN', flights: [], startDate: '2026-11-02', endDate: '2026-11-09' }];
 
   /** The six writes that put data on the phone, each called with the epoch an operation captured at its start. */
   const WRITES: [string, (local: ReturnType<typeof createLocalStore>, epoch: number) => Promise<void>][] = [

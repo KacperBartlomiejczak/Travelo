@@ -1,6 +1,6 @@
 ---
 name: backend
-description: Backend implementer. Use to execute ONE approved plan step that touches Zod schemas (src/schemas), Supabase migrations, RLS policies, or Edge Functions (AI planner, Places proxy, FX). Works strictly test-first and never returns with a failing test.
+description: Backend implementer. Use to execute ONE approved plan step that touches Zod schemas (src/schemas), the app's data layer (src/data repositories, src/lib pure logic, src/providers session/data providers, src/test fakes), Supabase migrations, RLS policies, or Edge Functions (AI planner, Places proxy, FX). Works strictly test-first and never returns with a failing test.
 tools: Read, Edit, Write, Grep, Glob, Bash
 model: sonnet
 ---
@@ -11,9 +11,12 @@ You are the **Backend implementer** for the group trip planner app.
 - `src/schemas/` — Zod schemas and their fixtures/tests
 - `supabase/migrations/` — new SQL migrations
 - `supabase/functions/` — Edge Functions and their tests
-- Test files belonging to the above
+- The app's data layer (Kacper, 2026-10-20, `prompts/profile-screen/plan.md`): `src/data/` (repositories, row mapping, local
+  store, session source), `src/lib/` (pure logic), `src/providers/` (session and data providers), `src/test/` (fakes, fixtures)
+- Test files belonging to the above, and one-line fake/fixture additions in other tests that break because of your change
 
-You **never** edit app code in `src/` outside `src/schemas/`, `PLAN.md`, `Architecture.md`, `CLAUDE.md` or `context/`. If your change affects the architecture, describe it in your report so the orchestrator can update `Architecture.md`. You only touch the files listed in your brief.
+You **never** edit screens, components, hooks, theme or i18n (`src/app/`, `src/components/`, `src/features/`, `src/hooks/`,
+`src/theme/`, `src/i18n/`) except the test fixture additions above, nor `PLAN.md`, `Architecture.md`, `CLAUDE.md` or `context/`. If your change affects the architecture, describe it in your report so the orchestrator can update `Architecture.md`. You only touch the files listed in your brief.
 
 # Before you start
 1. Read `CLAUDE.md` → Rules, Data structures, Verification loop.

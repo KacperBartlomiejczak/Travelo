@@ -33,10 +33,9 @@ const ROUTES = {
 const PL = { index: 'Podróż', expenses: 'Wydatki', places: 'Miejsca', plan: 'Plan', profile: 'Profil' };
 const EN = { index: 'Trip', expenses: 'Expenses', places: 'Places', plan: 'Plan', profile: 'Profile' };
 const PATHS = { index: '/', expenses: '/expenses', places: '/places', plan: '/plan', profile: '/profile' };
-const EMPTY = ['expenses', 'places', 'plan', 'profile'] as const;
-// The screen title can differ from the pill label (the profile screen is "Profil użytkownika").
-const TITLE_PL = { ...PL, profile: 'Profil użytkownika' };
-const TITLE_EN = { ...EN, profile: 'User profile' };
+// Screens that are still placeholders; the profile screen has its own tests (src/__tests__/app/profile.test.tsx).
+const EMPTY = ['expenses', 'places', 'plan'] as const;
+const SCREENS = [...EMPTY, 'profile'] as const;
 const SOON_PL = 'Ten ekran pojawi się wkrótce.';
 
 const pill = () => screen.queryByTestId('pill-nav');
@@ -62,7 +61,7 @@ describe('Pill navigation routes (pill-nav-and-dialog step 4)', () => {
       const app = renderRouter(ROUTES, { initialUrl: PATHS[key] });
       await app;
       expect(app.getPathname()).toBe(PATHS[key]);
-      expect(screen.getByRole('header', { name: TITLE_PL[key] })).toBeTruthy();
+      expect(screen.getByRole('header', { name: PL[key] })).toBeTruthy();
       expect(screen.getByText(SOON_PL)).toBeTruthy();
       expect(pill()).toBeTruthy();
       expect(tab(PL[key])).toBeSelected();
@@ -72,22 +71,33 @@ describe('Pill navigation routes (pill-nav-and-dialog step 4)', () => {
   it('shows the English title and sentence', async () => {
     await i18n.changeLanguage('en');
     await renderRouter(ROUTES, { initialUrl: '/places' });
-    expect(screen.getByRole('header', { name: TITLE_EN.places })).toBeTruthy();
+    expect(screen.getByRole('header', { name: EN.places })).toBeTruthy();
     expect(screen.getByText('This screen is coming soon.')).toBeTruthy();
     expect(tab(EN.places)).toBeSelected();
+  });
+
+  it('shows the real profile screen at "/profile", not a placeholder', async () => {
+    await renderRouter(ROUTES, { initialUrl: '/profile' });
+    expect(screen.getByRole('header', { name: PL.profile })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Ustawienia' })).toBeTruthy();
+    expect(screen.queryByText(SOON_PL)).toBeNull();
+    expect(screen.queryByText('Profil użytkownika')).toBeNull();
+    expect(pill()).toBeTruthy();
+    expect(tab(PL.profile)).toBeSelected();
   });
 
   it('shows the English profile label in the pill and the English profile title', async () => {
     await i18n.changeLanguage('en');
     await renderRouter(ROUTES, { initialUrl: '/profile' });
-    expect(screen.getByRole('header', { name: TITLE_EN.profile })).toBeTruthy();
-    expect(screen.getByText('This screen is coming soon.')).toBeTruthy();
+    expect(screen.getByRole('header', { name: EN.profile })).toBeTruthy();
+    expect(screen.queryByText('This screen is coming soon.')).toBeNull();
+    expect(screen.queryByText('User profile')).toBeNull();
     expect(tab(EN.profile)).toBeSelected();
   });
 
   it('has no "/settings" route any more: the profile screen is not shown there', async () => {
     await renderRouter(ROUTES, { initialUrl: '/settings' });
-    expect(screen.queryByRole('header', { name: TITLE_PL.profile })).toBeNull();
+    expect(screen.queryByRole('header', { name: PL.profile })).toBeNull();
     expect(screen.queryByText(SOON_PL)).toBeNull();
     expect(screen.queryByRole('button', { name: PL.profile, selected: true })).toBeNull();
   });
@@ -96,10 +106,10 @@ describe('Pill navigation routes (pill-nav-and-dialog step 4)', () => {
     const app = renderRouter(ROUTES);
     await app;
     await screen.findByTestId('trips-screen');
-    for (const key of EMPTY) {
+    for (const key of SCREENS) {
       await fireEvent.press(tab(PL[key]));
       await waitFor(() => expect(app.getPathname()).toBe(PATHS[key]));
-      expect(screen.getByRole('header', { name: TITLE_PL[key] })).toBeTruthy();
+      expect(screen.getByRole('header', { name: PL[key] })).toBeTruthy();
       expect(tab(PL[key])).toBeSelected();
       (Object.keys(PL) as (keyof typeof PL)[])
         .filter((other) => other !== key)

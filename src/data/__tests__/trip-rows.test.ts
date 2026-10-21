@@ -189,7 +189,19 @@ describe('overviewFromRows', () => {
 });
 
 describe('listItemFromRow (trips-drawer D4)', () => {
-  const row = { id: '0b9e7c4e-6a43-4c4b-9a55-2f6f0f7e1a01', name: 'Warsaw → Bangkok', cover_image_uri: 'preset:bali', start_date: '2026-11-03', end_date: '2026-11-15' };
+  const row = {
+    id: '0b9e7c4e-6a43-4c4b-9a55-2f6f0f7e1a01',
+    name: 'Warsaw → Bangkok',
+    cover_image_uri: 'preset:bali',
+    destination: 'BKK',
+    start_date: '2026-11-03',
+    end_date: '2026-11-15',
+    flight_segments: [
+      { from_iata: 'WAW', to_iata: 'DOH' },
+      { from_iata: 'DOH', to_iata: 'BKK' },
+      { from_iata: 'BKK', to_iata: 'WAW' },
+    ],
+  };
   const photoCover = 'photo:5b1f0f6a-2c7d-4a8e-9b3c-1d2e3f4a5b6c';
   const urls = { url: 'https://example.supabase.co/a.jpg?token=1', thumbnailUrl: 'https://example.supabase.co/a_thumb.jpg?token=2' };
 
@@ -198,9 +210,27 @@ describe('listItemFromRow (trips-drawer D4)', () => {
       id: row.id,
       name: 'Warsaw → Bangkok',
       coverImageUri: 'preset:bali',
+      destination: 'BKK',
+      flights: [
+        { fromIata: 'WAW', toIata: 'DOH' },
+        { fromIata: 'DOH', toIata: 'BKK' },
+        { fromIata: 'BKK', toIata: 'WAW' },
+      ],
       startDate: '2026-11-03',
       endDate: '2026-11-15',
     });
+  });
+
+  it('maps the nested segments to routes; a trip without segments has no flights (profile-screen D11)', () => {
+    expect(listItemFromRow({ ...row, flight_segments: [{ from_iata: 'WAW', to_iata: 'BCN' }] }).flights).toEqual([{ fromIata: 'WAW', toIata: 'BCN' }]);
+    expect(listItemFromRow({ ...row, flight_segments: [] }).flights).toEqual([]);
+  });
+
+  it.each([
+    ['a destination that is no IATA code', { destination: 'bangkok' }],
+    ['a segment with a bad airport code', { flight_segments: [{ from_iata: 'wa', to_iata: 'DOH' }] }],
+  ])('rejects a row with %s', (_, patch) => {
+    expect(() => listItemFromRow({ ...row, ...patch })).toThrow();
   });
 
   it('adds the signed urls of a gallery cover', () => {
