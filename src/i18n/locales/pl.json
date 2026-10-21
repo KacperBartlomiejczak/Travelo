@@ -60,6 +60,14 @@
       "heading": "Kto leci z Tobą?",
       "hint": "Zaznacz, co lubią — plan dnia to uwzględni.",
       "card": "Znajomy {{number}}",
+      "code": "Kod znajomego",
+      "codeChecking": "Sprawdzam kod…",
+      "codeIncomplete": "Kod ma 6 znaków.",
+      "codeOwn": "To Twój kod.",
+      "codeUnknown": "Nie ma użytkownika z tym kodem.",
+      "codeDuplicate": "Ten znajomy jest już dodany.",
+      "codeOffline": "Połącz się z internetem, żeby sprawdzić kod.",
+      "codeCheckFailed": "Nie udało się sprawdzić kodu. Spróbuj ponownie.",
       "name": "Imię",
       "interests": "Co lubi?"
     },
@@ -132,6 +140,7 @@
     "departureInPast": "Wylot nie może być w przeszłości",
     "flightNumberInvalid": "Numer lotu ma od 2 do 8 znaków",
     "nameRequired": "Wpisz imię",
+    "friendDuplicate": "Ten znajomy jest już dodany.",
     "nameTooLong": "Imię może mieć do {{max}} znaków",
     "tripNameRequired": "Podaj nazwę podróży",
     "tripNameTooLong": "Nazwa może mieć do {{max}} znaków",
@@ -187,6 +196,8 @@
   },
   "home": {
     "flights": "Loty",
+    "organizer": "{{name}} (organizator)",
+    "organizerUnknown": "Organizator",
     "changeBudget": "Zmień budżet",
     "saveBudget": "Zapisz",
     "saveBudgetError": "Nie udało się zapisać. Spróbuj ponownie."

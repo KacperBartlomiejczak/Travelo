@@ -43,6 +43,8 @@ type Props = {
   sidePadding: number;
   /** Opens a photo full screen. A photo's tile is a button only when this is given (trip-photos D23). */
   onOpenPhoto?: (photoId: string) => void;
+  /** A friend linked by code only looks (friend-invite A3): no add tile, and no hint about adding or deleting. The home screen does not mount it for a trip without photos (D17). */
+  readOnly?: boolean;
 };
 
 /**
@@ -50,7 +52,7 @@ type Props = {
  * in a row that scrolls sideways. A FlatList, not a ScrollView: a trip has no limit on photos, and only the tiles
  * near the screen are mounted. Loading, empty, error, sending, failed and offline states are shown next to or under it.
  */
-export function PhotoStrip({ tripId, sidePadding, onOpenPhoto }: Props) {
+export function PhotoStrip({ tripId, sidePadding, onOpenPhoto, readOnly = false }: Props) {
   const { t } = useTranslation();
   const theme = useTheme();
   const { spacing, typography, colors } = theme;
@@ -82,7 +84,7 @@ export function PhotoStrip({ tripId, sidePadding, onOpenPhoto }: Props) {
     }
   }
 
-  const addTile = <AddPhotoTile onPress={() => void pick()} disabled={offline} />;
+  const addTile = readOnly ? null : <AddPhotoTile onPress={() => void pick()} disabled={offline} />;
   const loadError = (
     <View style={{ flexShrink: 1, alignItems: 'flex-start', gap: spacing[1] }}>
       <StatusLine tone="error">{t('tripPhotos.loadError')}</StatusLine>
@@ -109,7 +111,7 @@ export function PhotoStrip({ tripId, sidePadding, onOpenPhoto }: Props) {
             retryDisabled={offline}
           />
         )}
-        ListHeaderComponent={addTile}
+        ListHeaderComponent={addTile ?? undefined}
         showsHorizontalScrollIndicator={false}
         contentContainerStyle={{ paddingHorizontal: sidePadding, gap: spacing[2] }}
       />
@@ -131,7 +133,8 @@ export function PhotoStrip({ tripId, sidePadding, onOpenPhoto }: Props) {
 
   const failedLine = uploads.failedCount > 0;
   const loadErrorUnder = loadFailed && items.length > 0;
-  const hasLines = uploads.progress !== null || failedLine || loadErrorUnder || pickFailed || offline;
+  const offlineHint = offline && !readOnly;
+  const hasLines = uploads.progress !== null || failedLine || loadErrorUnder || pickFailed || offlineHint;
 
   return (
     <View testID="photo-strip">
@@ -153,7 +156,7 @@ export function PhotoStrip({ tripId, sidePadding, onOpenPhoto }: Props) {
               {t('tripPhotos.pickError')}
             </StatusLine>
           )}
-          {offline && <StatusLine>{t('tripPhotos.offlineHint')}</StatusLine>}
+          {offlineHint && <StatusLine>{t('tripPhotos.offlineHint')}</StatusLine>}
         </View>
       )}
     </View>

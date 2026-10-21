@@ -1,7 +1,9 @@
 import {
   FRIEND_CODE_ALPHABET,
   FRIEND_CODE_LENGTH,
+  FriendCodeInputSchema,
   FriendCodeSchema,
+  FoundFriendSchema,
   ProfileSchema,
   ProfileSetupInputSchema,
   ShownProfileSchema,
@@ -216,5 +218,44 @@ describe('ProfileSetupInput', () => {
 
   it('rejects a missing avatarUri', () => {
     expect(ProfileSetupInputSchema.safeParse({ username: 'kacper', interests: ['museums'] }).success).toBe(false);
+  });
+});
+
+describe('FriendCodeInput (friend-invite)', () => {
+  it('trims and uppercases what the user typed', () => {
+    expect(FriendCodeInputSchema.parse(' 5zmrx8 ')).toBe('5ZMRX8');
+  });
+
+  it.each([
+    ['5 characters', '5ZMRX'],
+    ['7 characters', '5ZMRX8K'],
+    ['an empty string', ''],
+    ['a 0', '5ZMRX0'],
+    ['an O', '5ZMRXO'],
+    ['a 1', '5ZMRX1'],
+    ['an I', '5ZMRXI'],
+    ['an L', '5ZMRXl'],
+  ])('rejects %s', (_, value) => {
+    expect(FriendCodeInputSchema.safeParse(value).success).toBe(false);
+  });
+});
+
+describe('FoundFriend (friend-invite)', () => {
+  const found = { username: 'kacper_b', interests: ['museums', 'beaches'] };
+
+  it('accepts what the lookup returns', () => {
+    expect(FoundFriendSchema.parse(found)).toEqual(found);
+  });
+
+  it('keeps only the nick and interests (never the account id or the friend code)', () => {
+    expect(Object.keys(FoundFriendSchema.parse({ ...found, id: UUID, friendCode: 'K7QX2M' })).sort()).toEqual(['interests', 'username']);
+  });
+
+  it.each([
+    ['an invalid nick', { username: 'Kacper!' }],
+    ['no interests', { interests: [] }],
+    ['an unknown interest', { interests: ['knitting'] }],
+  ])('rejects %s', (_, patch) => {
+    expect(FoundFriendSchema.safeParse({ ...found, ...patch }).success).toBe(false);
   });
 });

@@ -12,6 +12,8 @@ import { TextButton } from '@/components/TextButton';
 import { TripHero } from '@/components/TripHero';
 import { usePillClearance } from '@/features/nav/usePillClearance';
 import { PhotoStrip } from '@/features/trip-photos/PhotoStrip';
+import { useIsTripOwner, useMyProfileId } from '@/hooks/useProfile';
+import { useTripPhotos } from '@/hooks/useTripPhotos';
 import { formatLocalShort } from '@/lib/date-time';
 import { savedLayoverMinutes } from '@/lib/layovers';
 import { formatMoney } from '@/lib/money';
@@ -39,6 +41,7 @@ type Sheet = 'menu' | 'details' | 'budget' | 'delete';
 // Follows the phone's theme: the photo fades into the theme's background and the content continues on it
 // (theme-split D1, D6; reverses trip-flight-tabs-name-cover A4).
 // A new trip starts from the side panel; the menu button stays over the photo (trips-drawer D4, P5).
+// A friend linked by code sees the same trip read-only (friend-invite A3): no ⋮ menu, no budget "Zmień", no add-photo tile.
 export function CurrentTrip({ overview, budgetSyncStatus, onOpenMenu, onDeleted }: Props) {
   const { t } = useTranslation();
   const theme = useTheme();
@@ -47,7 +50,13 @@ export function CurrentTrip({ overview, budgetSyncStatus, onOpenMenu, onDeleted 
   const { width } = useWindowDimensions();
   const { spacing, colors } = theme;
   const side = width < theme.breakpoints.compact ? spacing[4] : spacing[5];
-  const { trip, members, segments } = overview;
+  const { trip, members, segments, organizerUsername } = overview;
+  const owner = useIsTripOwner(trip.ownerId);
+  const myId = useMyProfileId();
+  // A member of a trip without photos gets no strip and no space for it (friend-invite D17); the owner keeps the add tile.
+  // The same query as the strip's, so it asks the server once.
+  const photoCount = useTripPhotos(trip.id).data?.length;
+  const noPhotosToShow = !owner && photoCount === 0;
   // The screen stays mounted under the wizard; only the focused screen may keep the bar light. Over the open
   // side panel, which follows the system theme, the bar follows it too (trips-drawer A7).
   const focused = useIsFocused();
@@ -61,33 +70,40 @@ export function CurrentTrip({ overview, budgetSyncStatus, onOpenMenu, onDeleted 
       <StatusBar style={focused && !panelOpen ? 'light' : 'auto'} />
       {/* First, so screen readers reach the navigation before the trip (§15); drawn above the photo. */}
       <HeroMenuButton onPress={onOpenMenu} />
-      <TripMenuButton onPress={() => setSheet('menu')} />
+      {owner && <TripMenuButton onPress={() => setSheet('menu')} />}
       {/* The pill floats over the scene: the last card ends above it. Offline, the banner below already clears the pill. */}
       <ScrollView testID="home-scroll" contentContainerStyle={{ paddingBottom: offline ? spacing[6] : clearance + spacing[4] }}>
         <TripHero trip={trip} />
         {/* Its own wrapper, not the padded column: the row scrolls sideways and pads itself by `side` (trip-photos P1). */}
-        <View
-          testID="home-photos"
-          style={{ width: '100%', maxWidth: theme.size.maxContentWidth, alignSelf: 'center', marginBottom: spacing[4] }}
-        >
-          <PhotoStrip
-            tripId={trip.id}
-            sidePadding={side}
-            onOpenPhoto={(photoId) => router.push({ pathname: '/trips/[tripId]/photos', params: { tripId: trip.id, photoId } })}
-          />
-        </View>
+        {!noPhotosToShow && (
+          <View
+            testID="home-photos"
+            style={{ width: '100%', maxWidth: theme.size.maxContentWidth, alignSelf: 'center', marginBottom: spacing[4] }}
+          >
+            <PhotoStrip
+              tripId={trip.id}
+              sidePadding={side}
+              readOnly={!owner}
+              onOpenPhoto={(photoId) => router.push({ pathname: '/trips/[tripId]/photos', params: { tripId: trip.id, photoId } })}
+            />
+          </View>
+        )}
         <View style={{ gap: spacing[4], paddingHorizontal: side, width: '100%', maxWidth: theme.size.maxContentWidth, alignSelf: 'center' }}>
           <Section testID="home-flights" title={t('home.flights')}>
             <Direction label={t('newTrip.flights.outbound')} segments={segments.filter((s) => s.direction === 'outbound')} />
             <Direction label={t('newTrip.flights.return')} segments={segments.filter((s) => s.direction === 'return')} />
           </Section>
           <Section testID="home-travellers" title={t('newTrip.summary.travellers', { count: trip.travellerCount })}>
+            {/* A linked member sees the organizer first, then themselves, then the others (friend-invite D4, D15). */}
+            {!owner && <Body>{organizerUsername ? t('home.organizer', { name: organizerUsername }) : t('home.organizerUnknown')}</Body>}
             <Body>{t('newTrip.summary.you')}</Body>
-            {members.map((member) => (
-              <Body key={member.id}>{member.displayName}</Body>
-            ))}
+            {members
+              .filter((member) => owner || member.userId !== myId)
+              .map((member) => (
+                <Body key={member.id}>{member.displayName}</Body>
+              ))}
           </Section>
-          <Budget trip={trip} syncStatus={budgetSyncStatus} onChangeBudget={() => setSheet('budget')} />
+          <Budget trip={trip} syncStatus={budgetSyncStatus} onChangeBudget={owner ? () => setSheet('budget') : undefined} />
         </View>
       </ScrollView>
       {sheet === 'menu' && (
@@ -177,7 +193,9 @@ function Direction({ label, segments }: { label: string; segments: FlightSegment
   );
 }
 
-function Budget({ trip, syncStatus, onChangeBudget }: { trip: TripOverview['trip']; syncStatus: SyncStatus; onChangeBudget: () => void }) {
+type BudgetProps = { trip: TripOverview['trip']; syncStatus: SyncStatus; onChangeBudget?: () => void };
+
+function Budget({ trip, syncStatus, onChangeBudget }: BudgetProps) {
   const { t, i18n } = useTranslation();
   const theme = useTheme();
   const requestSync = useRequestBudgetSync();
@@ -189,12 +207,14 @@ function Budget({ trip, syncStatus, onChangeBudget }: { trip: TripOverview['trip
       testID="home-budget"
       title={t('newTrip.summary.budgetTitle')}
       action={
-        <TextButton
-          variant="ghost"
-          label={t('newTrip.summary.change')}
-          accessibilityLabel={t('home.changeBudget')}
-          onPress={onChangeBudget}
-        />
+        onChangeBudget && (
+          <TextButton
+            variant="ghost"
+            label={t('newTrip.summary.change')}
+            accessibilityLabel={t('home.changeBudget')}
+            onPress={onChangeBudget}
+          />
+        )
       }
     >
       <View style={{ flexDirection: 'row', alignItems: 'baseline', flexWrap: 'wrap', gap: theme.spacing[2] }}>

@@ -4,6 +4,7 @@ import { CurrencyCodeSchema, IataCodeSchema, IsoDateSchema, IsoDateTimeSchema, M
 import { CoverSchema, CoverUrlsSchema } from './cover';
 import { FlightRouteSchema, FlightSegmentSchema } from './flight';
 import { TripMemberSchema } from './member';
+import { UsernameSchema } from './profile';
 
 export const TRIP_NAME_MAX_LENGTH = 60;
 
@@ -61,6 +62,8 @@ export const TripOverviewSchema = z.object({
   trip: TripSummarySchema,
   members: z.array(TripMemberSchema),
   segments: z.array(FlightSegmentSchema),
+  /** The organizer's nick, only when the signed-in user is a linked member, not the owner (friend-invite D4). Old cached copies lack it. */
+  organizerUsername: UsernameSchema.optional(),
 });
 export type TripOverview = z.infer<typeof TripOverviewSchema>;
 

@@ -25,6 +25,7 @@ import {
   type CreateTripInput,
   type CurrentTrip,
   type FlightSegment,
+  type FriendCode,
   type PickedPhoto,
   type SegmentInput,
   type Trip,
@@ -35,11 +36,20 @@ import {
 } from '@/schemas';
 
 import type { SyncResult } from './budget-sync';
+import { FriendAlreadyAddedError, OwnFriendCodeError, UnknownFriendCodeError } from './errors';
+import { LOCAL_PROFILE_ID } from './profile-repository';
 
-/** Owner of every trip in the in-memory repository, which only tests use now (trips-supabase D8). */
-export const LOCAL_OWNER_ID = 'local-user';
+/**
+ * Owner of every trip in the in-memory repository, which only tests use now (trips-supabase D8). It is the in-memory
+ * profile's id, so in tests the signed-in user owns the trips they create (friend-invite A2).
+ */
+export const LOCAL_OWNER_ID = LOCAL_PROFILE_ID;
 
-export type CreatedTrip = { trip: Trip; members: TripMember[]; segments: FlightSegment[] };
+/**
+ * What the wizard's input becomes. A friend found by code is a member with `userId: null`: only the server turns a code into an
+ * account (friend-invite D12). `friendCodes` carries the codes next to the members, by member id (only members that have one).
+ */
+export type CreatedTrip = { trip: Trip; members: TripMember[]; friendCodes: Record<string, FriendCode>; segments: FlightSegment[] };
 
 /** Where trips live: Supabase in the app (trips-supabase), in memory in tests. */
 export interface TripRepository {
@@ -146,7 +156,11 @@ export function buildTrip(input: CreateTripInput, { now, newId, ownerId }: Deps)
     ...toSegments(input.flights.return, 'return', tripId, newId),
   ].map((segment) => FlightSegmentSchema.parse(segment));
 
-  return { trip, members, segments };
+  const friendCodes = Object.fromEntries(
+    input.friends.friends.flatMap((friend, i) => (friend.friendCode ? [[members[i].id, friend.friendCode] as const] : [])),
+  );
+
+  return { trip, members, friendCodes, segments };
 }
 
 const PHOTO_COVER_PREFIX = 'photo:';
@@ -160,10 +174,33 @@ function fakeCoverUrls(trip: Pick<Trip, 'id' | 'coverImageUri'>): { coverUrls?: 
 
 /** Trips in memory, lost on restart. Tests only (trips-supabase D8). */
 export function createInMemoryTripRepository(
-  deps: { now: () => Date; newId: () => string } = { now: () => new Date(), newId: randomUUID },
+  deps: {
+    now: () => Date;
+    newId: () => string;
+    /** Account ids by friend code (uppercase): what `create` links a friend to, like the server does (friend-invite D12). Default: none. */
+    friendAccounts?: Readonly<Record<string, string>>;
+    /** The organizer's own friend code: `create` refuses it like the server does. Default: none. */
+    ownFriendCode?: string;
+  } = { now: () => new Date(), newId: randomUUID },
 ): TripRepository {
   const build = (input: z.input<typeof CreateTripInputSchema>) =>
     buildTrip(CreateTripInputSchema.parse(input), { now: deps.now(), newId: deps.newId, ownerId: LOCAL_OWNER_ID });
+  /**
+   * Links the members that came with a friend code to the account that has it, with the server's errors (the helper behind
+   * `create_trip`): an unknown code, the organizer's own code, the same account twice.
+   */
+  const linkFriends = ({ members, friendCodes }: CreatedTrip): TripMember[] => {
+    const linked = new Set<string>();
+    return members.map((member) => {
+      const code = friendCodes[member.id];
+      if (!code) return member;
+      const userId = deps.friendAccounts?.[code];
+      if (!userId) throw code === deps.ownFriendCode ? new OwnFriendCodeError('own-friend-code') : new UnknownFriendCodeError('unknown-friend-code');
+      if (linked.has(userId)) throw new FriendAlreadyAddedError('friend-already-added');
+      linked.add(userId);
+      return TripMemberSchema.parse({ ...member, userId });
+    });
+  };
   /** No files here: a gallery photo just becomes a stored cover with a new id, like after a successful upload. */
   const storedCover = (choice: CoverChoice) => (choice.startsWith('file://') ? `${PHOTO_COVER_PREFIX}${deps.newId()}` : choice);
   const stored: CreatedTrip[] = [];
@@ -200,6 +237,7 @@ export function createInMemoryTripRepository(
     },
     async create(input) {
       const created = build(input);
+      created.members = linkFriends(created);
       const asked = CreateTripInputSchema.parse(input).details.coverImageUri;
       if (asked.startsWith('file://')) created.trip = TripSchema.parse({ ...created.trip, coverImageUri: storedCover(asked) });
       stored.push(created);

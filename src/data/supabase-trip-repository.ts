@@ -15,6 +15,7 @@ import {
   TripDetailsInputSchema,
   TripPhotoListSchema,
   TripPhotoSchema,
+  UsernameSchema,
   type Cover,
   type CoverUrls,
   type CurrentTrip,
@@ -28,7 +29,7 @@ import {
 import { ensureSession } from './auth';
 import { syncBudgetChanges, type SyncResult } from './budget-sync';
 import type { Database } from './database.types';
-import { ServerUnreachableError } from './errors';
+import { FriendAlreadyAddedError, OwnFriendCodeError, ServerUnreachableError, UnknownFriendCodeError } from './errors';
 import { currentUserEpoch, type LocalStore } from './local-store';
 import { preparePhoto } from './photo-files';
 import { buildTrip, type TripRepository } from './trip-repository';
@@ -54,6 +55,22 @@ const PathIdSchema = z.uuid().regex(/^[0-9a-f-]+$/);
 /** A trip id becomes a Storage folder and a photo id a file name: only lowercase UUIDs may get there. Throws otherwise. */
 function assertPathIds(...ids: string[]): void {
   for (const id of ids) PathIdSchema.parse(id);
+}
+
+/** Postgres' "unique violation". */
+const UNIQUE_VIOLATION = '23505';
+/** SQLSTATEs `create_trip` raises for a friend code: the organizer's own code, and a code no account has (friend-invite D12). */
+const OWN_FRIEND_CODE = 'FI001';
+const UNKNOWN_FRIEND_CODE = 'FI002';
+
+/** Why `create_trip` refused: a friend code problem gets its own error, anything else stays a plain one. */
+function createFailure(error: { message: string; code?: string; details?: string }): Error {
+  if (error.code === OWN_FRIEND_CODE) return new OwnFriendCodeError(error.message);
+  if (error.code === UNKNOWN_FRIEND_CODE) return new UnknownFriendCodeError(error.message);
+  if (error.code === UNIQUE_VIOLATION && `${error.message} ${error.details ?? ''}`.includes('trip_members_trip_user_key')) {
+    return new FriendAlreadyAddedError(error.message);
+  }
+  return new Error(error.message);
 }
 
 const PHOTO_COVER_PREFIX = 'photo:';
@@ -130,7 +147,7 @@ export function createSupabaseTripRepository({
 
   /** One trip with its members and flights, or null when the server has no such trip (deleted or not visible). */
   async function fetchTrip(local: LocalStore, epoch: number, tripId: string): Promise<TripOverview | null> {
-    await signedIn();
+    const userId = await signedIn();
     const { data, error, status } = await supabase
       .from('trips')
       .select('*, trip_members(*), flight_segments(*)')
@@ -139,9 +156,28 @@ export function createSupabaseTripRepository({
     if (error) throw failure(error, status);
     if (!data) return null;
     const { trip_members: members, flight_segments: segments, ...trip } = data;
-    const overview = overviewFromRows(trip, members, segments, (await signCovers([trip])).get(trip.id));
+    const base = overviewFromRows(trip, members, segments, (await signCovers([trip])).get(trip.id));
+    // The owner knows their own nick; a linked member is told the organizer's, which the copy keeps for offline (friend-invite D4, A4).
+    // An answer that gives no nick (refused, null, invalid) does not wipe the one the copy already has (D15).
+    const organizerUsername =
+      trip.owner_id === userId ? undefined : ((await fetchOrganizerUsername(tripId)) ?? (await local.cachedOverview(tripId))?.organizerUsername);
+    const overview = organizerUsername ? { ...base, organizerUsername } : base;
     await local.cacheOverview(overview, now().toISOString(), epoch);
     return overview;
+  }
+
+  /**
+   * The organizer's nick for a trip that is not ours. No answer at all (unreachable) rejects, so `current()` shows the copy,
+   * which may hold the nick already. A refusal or an answer that is no nick gives undefined (the caller then keeps the copy's nick, if any).
+   */
+  async function fetchOrganizerUsername(tripId: string): Promise<string | undefined> {
+    const { data, error, status } = await supabase.rpc('trip_organizer_username', { trip_id: tripId });
+    if (error) {
+      if (status === 0) throw failure(error, status);
+      return undefined;
+    }
+    const nick = UsernameSchema.safeParse(data);
+    return nick.success ? nick.data : undefined;
   }
 
   /** The chosen trip; when it is gone, the choice is forgotten and the default trip is shown (D2, A1). */
@@ -352,7 +388,7 @@ export function createSupabaseTripRepository({
       const ownerId = await signedIn();
       const created = buildTrip(parsed, { now: now(), newId, ownerId });
       const { error } = await supabase.rpc('create_trip', toCreateTripArgs(created));
-      if (error) throw new Error(error.message);
+      if (error) throw createFailure(error);
       await (await localStore).selectTrip(created.trip.id, epoch);
       const asked = parsed.details.coverImageUri;
       if (!asked.startsWith('file://')) return created.trip;

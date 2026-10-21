@@ -17,7 +17,7 @@ If this file and the code disagree, the code wins and this file gets updated. If
 Travelo is a mobile app for **the one person who organizes a trip for a group of friends** (the *organizer*). Only the organizer needs the app.
 
 - **Friends** are added to a trip by name and interests. They have no account.
-- A friend who does have an account can optionally be added by user ID as a **linked member**, to follow the plan read-only.
+- A friend who does have an account can optionally be added by their **friend code** as a **linked member**, to follow the trip read-only.
 - The app helps the organizer set up the trip, plan the days from real places, and keep the money under control during the trip.
 
 Platforms: iOS and Android (Expo / React Native). Languages: Polish (`pl`) and English (`en`), picked from the device language (English as fallback). Light and dark mode.
@@ -45,6 +45,7 @@ Platforms: iOS and Android (Expo / React Native). Languages: Polish (`pl`) and E
 12. **Trip covers** (`prompts/trip-covers/`) — every trip has a cover: one of five bundled photos (Auckland by default) or a photo from the gallery, uploaded to Storage.
 13. **Profile tab** (`prompts/profile-tab/`) — the fifth pill item is "Profil" (route `/profile`, title "Profil użytkownika", `CircleUser` icon); still an empty placeholder.
 14. **Sign-in and profile** (`prompts/auth-onboarding/`) — a required account: Google, Discord or e-mail with a 6-digit code; on first sign-in a profile with a unique nick, interests and an optional photo; a server-generated friend code, not shown yet. The device run (step 9) is partly done.
+15. **Friend invite** (`prompts/friend-invite/`) — in the wizard's friends step a friend can be added by their 6-character friend code: the card fills with their nick and interests and the account is linked to the trip at once, read-only. The linked friend sees the trip without edit controls. Layover labels line up with the flight lines on the home screen and the summary. On the hosted Supabase; device check passed.
 
 ### In progress (plans in `prompts/`)
 - **Expenses** (`prompts/expenses/`) — drafting; the "Wydatki" screen is an empty placeholder until then.
@@ -55,7 +56,8 @@ Platforms: iOS and Android (Expo / React Native). Languages: Polish (`pl`) and E
 - **Plan vs reality** — live daily budget ("120 PLN left today"), end-of-trip summary shareable as an image.
 
 ### Ideas recorded, not planned yet
-- Showing the friend code, a QR code and adding friends by code (the next feature after sign-in).
+- Showing the friend code (with a QR code) somewhere in the app, so a friend can share it; a rate limit for code lookups before real users (friend-invite R1).
+- Leaving a trip as a linked friend, and unlinking a friend as the organizer (friend-invite D10).
 - Prefill the profile setup with the name and photo from Google / Discord (Kacper, 2026-10-19).
 - A sign-out button and a Profile screen (auth-onboarding D8).
 
@@ -97,7 +99,8 @@ The trip view, top to bottom:
 - **Hero** — the cover photo fading into ink over half the screen, with the trip name, dates and number of days. Over it: a round menu button (☰, top-left, opens the side panel) and a round ⋮ button (top-right, opens the trip menu).
 - **Photo strip** — a "+" tile, then the trip's photos ordered by date taken.
 - **"Loty"** — outbound and return flights in airport-local time, with layover labels.
-- **"Podróżni · N"** — "Ty" plus the friends' names.
+- **"Podróżni · N"** — "Ty" plus the friends' names. A linked friend sees "<organizer's nick> (organizator)" (or "Organizator" without a nick), "Ty", then the others.
+- **A linked friend's view** is read-only: no ⋮, no "Zmień" on the budget, no "+" photo tile, no delete in the photo viewer, and no photo strip on a trip without photos.
 - **"Budżet"** — budget per person, group total and the derived ~per person per day; "Zmień" opens the budget sheet; a sync indicator shows while a change has not been sent.
 
 ### 3.3 Side panel
@@ -110,7 +113,10 @@ A bottom sheet with: **"Nazwa i zdjęcie"** (rename up to 60 characters, change 
 Four steps. Each step validates its slice with a Zod schema on "Dalej". Leaving with entered data asks through the in-app confirm dialog ("Odrzucić wpisane dane?").
 
 1. **Flights** — a "Lot tam" / "Powrót" switch shows one direction at a time. Segment cards with airport search (a bundled list of ~3,150 airports), date/time pickers in the airport's local time, an optional flight number, "Dodaj przesiadkę" for layovers, amber layover labels between segments, and a stepper for the number of companions (0–19). The return is suggested as the outbound reversed.
-2. **Friends** — a card per friend with a name and interest chips. Skipped when travelling alone.
+2. **Friends** — a card per friend: an optional "Kod znajomego", then a name and interest chips. Skipped when travelling alone.
+   - The code is uppercased and checked after the 6th character ("Sprawdzam kod…"). A found code fills the card with the friend's nick and interests, not editable; editing the code gives back an empty card.
+   - Messages: "To Twój kod.", "Nie ma użytkownika z tym kodem.", "Ten znajomy jest już dodany.", "Połącz się z internetem, żeby sprawdzić kod." (the field is disabled offline), "Nie udało się sprawdzić kodu. Spróbuj ponownie.", "Kod ma 6 znaków.".
+   - "Dalej" waits until every typed code is found or cleared.
 3. **Budget** — amount per person for the whole trip (without flights) and a currency (destination currency, PLN, EUR, USD); shows the group total and ~per person per day.
 4. **Summary** — the trip name (default "<from city> → <destination city>", max 60), the cover, and cards with "Zmień" back to each step. "Utwórz podróż" saves (needs internet) and returns home; the new trip becomes the current trip.
 
@@ -221,7 +227,8 @@ Key facts:
 - **Storage:**
   - A private bucket `trip-photos`, JPEG only, 10 MiB per file. Objects are `<tripId>/<photoId>.jpg` and `<tripId>/<photoId>_thumb.jpg`, shown through signed URLs valid for 1 hour. Deleting a trip removes its files first.
   - A private bucket `avatars`, JPEG only, 2 MiB. Objects are `<userId>/<avatarId>.jpg`, and only the owner can access them.
-- **RPC:** `create_trip(trip, members, segments)` — one transaction, idempotent per id.
+- **RPC:** `create_trip(trip, members, segments)` — one transaction, idempotent per id; a member with a friend code is linked to that account by the server (the app never sends an account id).
+- **Friend invite:** `find_profile_by_friend_code` (nick + interests only), `trip_organizer_username` (the organizer's nick, only for the trip's people). Only the server sets `trip_members.user_id`, and only from a friend code.
 - **Migrations** mirror the Zod schemas. Order for any data change: Zod → migration → regenerate types (`pnpm db:types`) → parity check. Applied migrations are never edited. Kacper pushes migrations to the project.
 - **Tests:** plain-SQL RLS tests in `supabase/tests/` (`pnpm test:db`, needs `DB_URL` and, for Storage, a local Supabase in Docker).
 

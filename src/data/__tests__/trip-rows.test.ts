@@ -15,7 +15,16 @@ import {
   type SegmentRow,
   type TripRow,
 } from '@/data/trip-rows';
-import { COVER_PRESET_IDS, CoverSchema, CreateTripInputSchema, InterestTagSchema, TripOverviewSchema, TripPhotoSchema, type TripPhoto } from '@/schemas';
+import {
+  COVER_PRESET_IDS,
+  CoverSchema,
+  CreateTripInputSchema,
+  CreateTripMemberPayloadSchema,
+  InterestTagSchema,
+  TripOverviewSchema,
+  TripPhotoSchema,
+  type TripPhoto,
+} from '@/schemas';
 import { createTripInputFixture } from '@/test/fixtures';
 
 const NOW = new Date('2026-10-04T12:00:00Z');
@@ -36,7 +45,9 @@ function created(patch: (input: ReturnType<typeof createTripInputFixture>) => vo
 function storedRows(trip: ReturnType<typeof created>) {
   const args = toCreateTripArgs(trip);
   const tripRow: TripRow = { ...(args.trip as Omit<TripRow, 'owner_id'>), owner_id: OWNER_ID };
-  return { tripRow, members: args.members as MemberRow[], segments: args.segments as SegmentRow[] };
+  // The stored rows: the server keeps no account for a friend without a code (friend-invite D12).
+  const members = (args.members as Partial<MemberRow>[]).map((member) => ({ ...member, user_id: null })) as MemberRow[];
+  return { tripRow, members, segments: args.segments as SegmentRow[] };
 }
 
 describe('toCreateTripArgs', () => {
@@ -56,12 +67,38 @@ describe('toCreateTripArgs', () => {
     });
   });
 
-  it('sends friends with their interests and no account', () => {
+  it('sends friends with their interests and no friend code, never an account id (friend-invite D12)', () => {
     const { members } = toCreateTripArgs(created());
     expect(members).toEqual([
-      expect.objectContaining({ trip_id: '00000000-0000-4000-8000-000000000001', user_id: null, display_name: 'Kasia', role: 'viewer', interests: ['beaches', 'nightlife'] }),
-      expect.objectContaining({ display_name: 'Ola', interests: [] }),
+      expect.objectContaining({ trip_id: '00000000-0000-4000-8000-000000000001', friend_code: null, display_name: 'Kasia', role: 'viewer', interests: ['beaches', 'nightlife'] }),
+      expect.objectContaining({ display_name: 'Ola', interests: [], friend_code: null }),
     ]);
+    (members as object[]).forEach((member) => expect(member).not.toHaveProperty('user_id'));
+  });
+
+  it('sends the friend code of a friend found by code, and still no account id (friend-invite D12)', () => {
+    const linked = created((input) => {
+      input.friends.friends[0].friendCode = '5ZMRX8';
+    });
+    // The entity still has no account: only the server resolves the code to one.
+    expect(linked.members[0].userId).toBeNull();
+
+    const { members } = toCreateTripArgs(linked);
+
+    expect(members).toEqual([
+      expect.objectContaining({ id: linked.members[0].id, display_name: 'Kasia', friend_code: '5ZMRX8' }),
+      expect.objectContaining({ id: linked.members[1].id, display_name: 'Ola', friend_code: null }),
+    ]);
+    (members as object[]).forEach((member) => expect(member).not.toHaveProperty('user_id'));
+  });
+
+  it('builds every member payload so CreateTripMemberPayloadSchema accepts it', () => {
+    const linked = created((input) => {
+      input.friends.friends[1].friendCode = 'K7M2QX';
+    });
+    (toCreateTripArgs(linked).members as object[]).forEach((member) => {
+      expect(CreateTripMemberPayloadSchema.safeParse(member).success).toBe(true);
+    });
   });
 
   it('sends segments with their order as position and a missing flight number as null', () => {

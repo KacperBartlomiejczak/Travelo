@@ -2,6 +2,7 @@ import { useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { AccessibilityInfo, Text, View, type ScrollView } from 'react-native';
 
+import { hasUnresolvedCode } from '@/features/trip-create/draft';
 import { fieldErrors } from '@/features/trip-create/field-errors';
 import { FriendCard } from '@/features/trip-create/FriendCard';
 import { useTripDraft } from '@/features/trip-create/TripDraftContext';
@@ -9,7 +10,7 @@ import { useGoToNextStep, WizardScreen } from '@/features/trip-create/WizardScre
 import { DISPLAY_NAME_MAX_LENGTH, FriendsStepInputSchema } from '@/schemas';
 import { useTheme } from '@/theme/useTheme';
 
-// Step 2 — who flies along and what they enjoy (D7, D11, D32).
+// Step 2 — who flies along and what they enjoy (D7, D11, D32). A friend with an account is linked by the friend code (friend-invite).
 export default function FriendsStep() {
   const { t } = useTranslation();
   const theme = useTheme();
@@ -24,14 +25,16 @@ export default function FriendsStep() {
   function next() {
     setSubmitted(true);
     const result = FriendsStepInputSchema.safeParse(input);
-    if (result.success) {
+    // A code that is not found (unknown, own, duplicate, short, failed or still being checked) blocks "Dalej" (D13).
+    const waitingForCode = draft.friends.map(hasUnresolvedCode);
+    if (result.success && !waitingForCode.includes(true)) {
       goNext();
       return;
     }
     // Same as the flights step (D29): announce and scroll to the first friend with an error.
     AccessibilityInfo.announceForAccessibility(t('newTrip.fixErrors'));
     const failed = Object.keys(fieldErrors(result));
-    const index = draft.friends.findIndex((_, i) => failed.some((key) => key.startsWith(`friends.${i}.`)));
+    const index = draft.friends.findIndex((_, i) => waitingForCode[i] || failed.some((key) => key.startsWith(`friends.${i}.`)));
     if (index >= 0) scrollRef.current?.scrollTo({ y: Math.max(0, (cardY.current[index] ?? 0) - theme.spacing[4]), animated: true });
   }
 
@@ -45,6 +48,8 @@ export default function FriendsStep() {
       </View>
       {draft.friends.map((friend, index) => {
         const nameError = errors[`friends.${index}.displayName`];
+        const codeError = errors[`friends.${index}.friendCode`];
+        const takenCodes = draft.friends.flatMap((other, i) => (i !== index && other.friendCode ? [other.friendCode] : []));
         return (
           // Friends are only added/removed at the end (D10), so the index is a stable key.
           <FriendCard
@@ -53,6 +58,9 @@ export default function FriendsStep() {
             title={t('newTrip.friends.card', { number: index + 1 })}
             friend={friend}
             nameError={nameError ? t(nameError, { max: DISPLAY_NAME_MAX_LENGTH }) : undefined}
+            codeError={codeError ? t(codeError) : undefined}
+            takenCodes={takenCodes}
+            submitted={submitted}
             onLayout={(event) => (cardY.current[index] = event.nativeEvent.layout.y)}
             onChange={(changed) =>
               setDraft((current) => ({ ...current, friends: current.friends.map((f, i) => (i === index ? changed : f)) }))

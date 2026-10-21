@@ -165,6 +165,18 @@ describe('trip copies, one per trip opened on this phone (A5)', () => {
     await expect(local.cachedOverview(OTHER_TRIP_ID)).resolves.toEqual(other);
   });
 
+  it("keeps the organizer's nick in the copy, and reads an older copy without it (friend-invite A4)", async () => {
+    const { db, local } = await store();
+    const shared = { ...overview, organizerUsername: 'kacper.b' };
+    await local.cacheOverview(shared, '2026-10-08T09:00:00.000Z');
+    await expect(local.cachedOverview(TRIP_ID)).resolves.toEqual(shared);
+
+    await db.runAsync('update trip_overview_cache set overview_json = ?', [JSON.stringify(overview)]);
+    const old = await local.cachedOverview(TRIP_ID);
+    expect(old).toEqual(overview);
+    expect(old).not.toHaveProperty('organizerUsername');
+  });
+
   it('treats a corrupt or outdated copy as no copy instead of crashing', async () => {
     const { db, local } = await store();
     await db.runAsync("insert into trip_overview_cache (trip_id, overview_json, cached_at) values (?, '{not json', 'x')", [TRIP_ID]);

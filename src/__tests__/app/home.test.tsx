@@ -10,6 +10,7 @@ import RootLayout from '@/app/_layout';
 import i18n from '@/i18n';
 import type { SyncStatus, TripOverview, TripPhotoList } from '@/schemas';
 import { drawerStatus } from '@/test/drawer-status';
+import { LOCAL_PROFILE_ID } from '@/test/fake-profile-repository';
 import { setNetwork } from '@/test/mock-network';
 import { darkTheme, lightTheme } from '@/theme/theme';
 
@@ -70,7 +71,7 @@ function overview(patch: Partial<TripOverview['trip']> = {}): TripOverview {
   return {
     trip: {
       id: TRIP_ID,
-      ownerId: 'local-user',
+      ownerId: LOCAL_PROFILE_ID,
       name: 'Warsaw → Bangkok',
       coverImageUri: 'preset:auckland',
       destination: 'BKK',
@@ -164,6 +165,13 @@ describe('Home screen — current trip (D4)', () => {
     expect(await screen.findByRole('header', { name: 'Warsaw → Bangkok' })).toBeTruthy();
     expect(within(screen.getByTestId('trip-hero')).getByText('3 lis – 15 lis 2026 · 13 dni')).toBeTruthy();
     expect(screen.queryByText('Nie masz jeszcze żadnej podróży.')).toBeNull();
+  });
+
+  it('aligns the layover label with the flight lines, no left inset (friend-invite D8)', async () => {
+    mockCurrent = () => Promise.resolve(overview());
+    await renderHome();
+    const flights = within(await screen.findByTestId('home-flights'));
+    expect(flights.getByText('9 godz. przesiadki w DXB').parent).not.toHaveStyle({ paddingLeft: lightTheme.spacing[4] });
   });
 
   it('shows the flights in airport-local time, with the layover', async () => {
@@ -1093,6 +1101,178 @@ describe('Home screen — photo strip (trip-photos P1, A3, D23)', () => {
     await renderHome();
     expect(await screen.findByLabelText('Photo 1 of 2')).toBeTruthy();
     expect(within(screen.getByTestId('photo-strip')).getByRole('button', { name: 'Add photos' })).toBeTruthy();
+  });
+});
+
+// friend-invite A2, A3, D4, D15: a friend linked by code sees the trip without any edit control. "My trip" is decided by the
+// own profile (it is cached, so it works offline), never by the session.
+describe('Home screen — linked member, read-only (friend-invite A2, A3, D4, D15)', () => {
+  const ORGANIZER_ID = '5b1f0f6a-2c7d-4a8e-9b3c-1d2e3f4a5b6c';
+  const PHOTO_IDS = ['4a1e7c2d-0b3f-4d5a-8e6b-000000000001', '4a1e7c2d-0b3f-4d5a-8e6b-000000000002'];
+  const photo = (photoId: string, index: number) => ({
+    id: photoId,
+    tripId: TRIP_ID,
+    takenAt: `2026-11-0${index + 3}T10:00`,
+    createdAt: '2026-10-15T12:00:00.000Z',
+    url: `https://photos.invalid/${photoId}.jpg`,
+    thumbnailUrl: `https://photos.invalid/${photoId}-thumb.jpg`,
+  });
+  const twoPhotos = () => Promise.resolve(PHOTO_IDS.map(photo));
+
+  // The organizer is no member row; the viewer's own row has their account id; Kasia is a friend without an account.
+  function shared(organizerUsername: string | null = 'ola.k'): TripOverview {
+    const base = overview({ ownerId: ORGANIZER_ID });
+    return {
+      ...base,
+      members: [
+        { id: id(), tripId: TRIP_ID, userId: LOCAL_PROFILE_ID, displayName: 'kacper', role: 'viewer', interests: [] },
+        { id: id(), tripId: TRIP_ID, userId: null, displayName: 'Kasia', role: 'viewer', interests: [] },
+      ],
+      ...(organizerUsername ? { organizerUsername } : {}),
+    };
+  }
+
+  /** The traveller rows after the card's title, top to bottom. */
+  const travellers = () => within(screen.getByTestId('home-travellers')).getAllByText(/./).slice(1).map((node) => node.props.children as string);
+
+  it('shows no ⋮ button, no budget "Zmień" and no add tile, but keeps ☰, the hero, the numbers and the photos', async () => {
+    mockCurrent = () => Promise.resolve(shared());
+    mockPhotos = twoPhotos;
+    await renderHome();
+    expect(await screen.findByRole('header', { name: 'Warsaw → Bangkok' })).toBeTruthy();
+    await screen.findByLabelText('Zdjęcie 1 z 2');
+    expect(screen.queryByRole('button', { name: 'Opcje podróży' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Zmień budżet' })).toBeNull();
+    expect(screen.queryByText('Zmień')).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Dodaj zdjęcia' })).toBeNull();
+    // Everything else stays.
+    expect(screen.getByRole('button', { name: MENU })).toBeTruthy();
+    expect(within(screen.getByTestId('home-budget')).getByText('3000 THB')).toBeTruthy();
+    expect(within(screen.getByTestId('home-flights')).getByText('WAW 2 lis, 10:00 → DXB 2 lis, 18:30')).toBeTruthy();
+    const tiles = within(screen.getByTestId('photo-strip')).getAllByRole('button');
+    expect(tiles.map((tile) => tile.props.accessibilityLabel)).toEqual(['Zdjęcie 1 z 2', 'Zdjęcie 2 z 2']);
+  });
+
+  it('keeps ☰ first for screen readers, with no trip buttons after it', async () => {
+    mockCurrent = () => Promise.resolve(shared());
+    await renderHome();
+    await screen.findByTestId('home-screen');
+    expect(screen.getAllByRole('button').map((button) => button.props.accessibilityLabel)[0]).toBe(MENU);
+  });
+
+  it('lists the travellers: the organizer, you, then the others', async () => {
+    mockCurrent = () => Promise.resolve(shared());
+    await renderHome();
+    const people = within(await screen.findByTestId('home-travellers'));
+    expect(people.getByRole('header', { name: 'Podróżni · 3 osoby' })).toBeTruthy();
+    expect(travellers()).toEqual(['ola.k (organizator)', 'Ty', 'Kasia']);
+    expect(people.queryByText('kacper')).toBeNull();
+  });
+
+  it('reads "Organizator" when the organizer\'s nick is not known (D15)', async () => {
+    mockCurrent = () => Promise.resolve(shared(null));
+    await renderHome();
+    await screen.findByTestId('home-travellers');
+    expect(travellers()).toEqual(['Organizator', 'Ty', 'Kasia']);
+  });
+
+  it('reads in English', async () => {
+    await i18n.changeLanguage('en');
+    mockCurrent = () => Promise.resolve(shared());
+    await renderHome();
+    await screen.findByTestId('home-travellers');
+    expect(travellers()).toEqual(['ola.k (organizer)', 'You', 'Kasia']);
+  });
+
+  it('reads "Organizer" in English without a nick', async () => {
+    await i18n.changeLanguage('en');
+    mockCurrent = () => Promise.resolve(shared(null));
+    await renderHome();
+    await screen.findByTestId('home-travellers');
+    expect(travellers()).toEqual(['Organizer', 'You', 'Kasia']);
+  });
+
+  it('still lists "Ty" when the viewer\'s own row is missing from the members', async () => {
+    mockCurrent = () => Promise.resolve({ ...shared(), members: [{ id: id(), tripId: TRIP_ID, userId: null, displayName: 'Kasia', role: 'viewer', interests: [] }] });
+    await renderHome();
+    await screen.findByTestId('home-travellers');
+    expect(travellers()).toEqual(['ola.k (organizator)', 'Ty', 'Kasia']);
+  });
+
+  it('works from the copy on the phone: offline, same read-only view and the offline banner', async () => {
+    setNetwork({ isConnected: false, isInternetReachable: false });
+    mockFromCache = true;
+    mockCurrent = () => Promise.resolve(shared());
+    mockPhotos = twoPhotos;
+    await renderHome();
+    await screen.findByLabelText('Zdjęcie 1 z 2');
+    expect(screen.queryByRole('button', { name: 'Opcje podróży' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Zmień budżet' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Dodaj zdjęcia' })).toBeNull();
+    expect(travellers()).toEqual(['ola.k (organizator)', 'Ty', 'Kasia']);
+    expect(within(screen.getByTestId('home-action')).getByText('Jesteś offline. Zmiany zapiszą się po połączeniu.')).toBeTruthy();
+  });
+
+  // D17: no strip and no space for it, so nothing sits between the hero and "Loty" but the usual spacing.
+  it('has no photo strip and no wrapper for it when the trip has no photos, once they have loaded (D17)', async () => {
+    const asked = jest.fn(() => Promise.resolve([]));
+    mockCurrent = () => Promise.resolve(shared());
+    mockPhotos = asked;
+    await renderHome();
+    await screen.findByTestId('home-screen');
+    await waitFor(() => expect(asked).toHaveBeenCalled());
+    await waitFor(() => expect(screen.queryByTestId('photo-strip')).toBeNull());
+    expect(screen.queryByTestId('home-photos')).toBeNull();
+    expect(screen.getByTestId('home-flights')).toBeTruthy();
+  });
+
+  it('still has the strip and its wrapper for the owner of a trip without photos', async () => {
+    mockCurrent = () => Promise.resolve(overview());
+    await renderHome();
+    expect(await screen.findByTestId('home-photos')).toBeTruthy();
+    expect(screen.getByTestId('photo-strip')).toBeTruthy();
+  });
+
+  it('shows the strip with the load error and a retry for a member when the photos cannot be read', async () => {
+    jest.useFakeTimers({ advanceTimers: true });
+    mockCurrent = () => Promise.resolve(shared());
+    mockPhotos = () => Promise.reject(new Error('photos failed'));
+    await renderHome();
+    await act(async () => {
+      await jest.runAllTimersAsync();
+    });
+    const strip = within(await screen.findByTestId('photo-strip'));
+    expect(strip.getByText('Nie udało się wczytać zdjęć.')).toBeTruthy();
+    expect(strip.getByRole('button', { name: 'Spróbuj ponownie' })).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'Dodaj zdjęcia' })).toBeNull();
+  });
+
+  it('says nothing about adding or deleting photos: not when the trip has none, not offline', async () => {
+    mockCurrent = () => Promise.resolve(shared());
+    await renderHome();
+    await screen.findByTestId('home-screen');
+    expect(screen.queryByText('Dodaj zdjęcia z tej podróży.')).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Dodaj zdjęcia' })).toBeNull();
+    await act(async () => setNetwork({ isConnected: false, isInternetReachable: false }));
+    expect(screen.queryByText('Bez internetu nie dodasz ani nie usuniesz zdjęć.')).toBeNull();
+  });
+
+  it('shows the photo skeleton while they load, and still no add tile', async () => {
+    mockCurrent = () => Promise.resolve(shared());
+    mockPhotos = () => new Promise(() => {});
+    await renderHome();
+    expect(await screen.findByTestId('photo-strip-loading')).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'Dodaj zdjęcia' })).toBeNull();
+  });
+
+  it('the owner keeps all three: ⋮, "Zmień" and the add tile, and "Ty" first with the friends after', async () => {
+    mockCurrent = () => Promise.resolve(overview());
+    await renderHome();
+    await screen.findByTestId('home-screen');
+    expect(screen.getByRole('button', { name: 'Opcje podróży' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Zmień budżet' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Dodaj zdjęcia' })).toBeTruthy();
+    expect(travellers()).toEqual(['Ty', 'Kasia', 'Ola']);
   });
 });
 

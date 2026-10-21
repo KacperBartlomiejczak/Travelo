@@ -94,7 +94,7 @@ export default function FlightsStep() {
           const cardTitle = t('newTrip.flights.segment', { number: index + 1 });
           return (
             <Fragment key={segment.key}>
-              {previous && layover !== null && <LayoverLabel minutes={layover} airportIata={previous.toIata} />}
+              {previous && layover !== null && <LayoverLabel minutes={layover} airportIata={previous.toIata} inset />}
               <SegmentCard
                 testID={`${title}-${cardTitle}`}
                 title={cardTitle}
