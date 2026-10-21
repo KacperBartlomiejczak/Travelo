@@ -1,0 +1,199 @@
+﻿# Task: Sunline Editorial redesign (whole app)
+Status: in progress (approved by Kacper 2026-10-22)
+
+Source material from Kacper (2026-10-22): `DESIGN.md` (Sunline Editorial, Phase 4 final), `tokens.ts` (Sunline Editorial
+tokens), `Travelo â€” Sunline Editorial prototype.pdf` (screen previewer: styleguide, dashboard, timeline, quick-add,
+summary; only its text could be read, see Q5).
+
+## Understanding & assumptions
+The app already uses DM Sans + Fraunces and a warm palette ("Sunline"). Sunline Editorial replaces every value
+(colors, type scale, radii, elevation, motion) and gives an exact spec for every component (Â§8) and the four screen
+states (Â§10). The task: make the existing app look and behave like that spec, without adding features.
+
+Decisions (Kacper, 2026-10-22, before the plan):
+- **D1 Scope:** foundation + everything that exists. New `tokens.ts` and theme, DESIGN.md becomes
+  `context/design-context.md`, every existing component and screen moved to the new tokens and Â§8 specs.
+  **Not** in this task: new things from the prototype (TODAY Â· DAY N budget module, NEXT activity, TRAVELLERS,
+  TRIP BUDGET sections, timeline, quick-add sheet, share summary). They come with their own features.
+- **D2 Trip view (â€œPodrÃ³Å¼â€) follows the phone theme**, as decided in `theme-split-and-profile-prefill` D1. DESIGN.md
+  Â§0/Â§9.0/Â§14.4 ("dark-only") gets corrected when it is copied into `design-context.md`.
+- **D3 Theme API uses the DESIGN.md names:** `const theme = useTheme(); theme.surface.primary`, `theme.brand.primary`,
+  `theme.semantic.error.foreground`, `theme.elevation.level1`; non-color values imported from `tokens`
+  (`tokens.components.button.height`, `tokens.spacing[3]`, `tokens.typography.styles.bodyMD`). No old names remain.
+- **D4 Timing (changed by Kacper 2026-10-22):** start now, on branch `feature/sunline-redesign` from `origin/main`, in
+  its own git worktree (`C:\Users\Baxton\Developer\Travelo-sunline`) so the profile work in the main checkout is not
+  touched. The profile-screen WIP stays on its branch (commit `b49f9d2`). Step 10 (profile and settings) runs last,
+  after profile-screen is merged to `main` and merged into this branch.
+
+Assumptions (correct me if wrong):
+- A1 **Restyle, don't restructure.** Existing components keep their names, props and behavior; only looks change to
+  match Â§8. No new unified `Button` component: `PrimaryButton` gets the Â§8.1 primary (and, where a screen already
+  shows a destructive action, destructive) look, `TextButton` gets the ghost look. A component that Â§8 describes but
+  the app does not have yet (Avatar Group, Activity Card, Flight Card, Daily-Budget Meter, FAB) is not built now.
+- A2 **Copy stays as it is.** Â§11 (voice, canonical i18n strings) is not applied in this task (see Q3).
+- A3 **Google / Discord sign-in buttons** keep their official colors as the one written exception (auth-onboarding
+  D10, D13), moved into `tokens.ts` as `partnerBrand`.
+- A4 **App-specific sizes** the new token file does not have are added as tokens (DESIGN.md Â§14.18), not dropped:
+  drawer max width 360, drawer trip thumbnail 48, photo tile 80, cover tile 112, profile setup avatar 96,
+  welcome "celebration" entrance 500 ms, hero fade start 0.35, skeleton pulse (if Q1 keeps it). Each goes under
+  `tokens.components` / `tokens.screenMetrics` / `tokens.motion` with a one-line comment naming its decision.
+- A5 Disabled controls use `disabled.background` / `disabled.foreground` instead of 40 % opacity (DESIGN.md Â§8.0
+  replaces trip-photos D25).
+- A6 Bottom-sheet and dialog backdrop become black at 0.48 (Â§8.13, Â§8.18) instead of ink at 0.5 (trips-supabase D12);
+  snackbar max width 520 (Â§8.17) instead of 360.
+- A7 `Fraunces_700Bold` is no longer in the type scale; it is removed from font loading in the cleanup step if nothing
+  uses it.
+- A8 The canonical token path in DESIGN.md (`apps/mobile/src/theme/tokens.ts`) is written as `src/theme/tokens.ts`,
+  where the app really is.
+
+## Approach
+Migrate in slices so the suite is green after every step:
+1. Move today's theme into `src/theme/legacy/` (mechanical import rewrite, no behavior change).
+2. Add the Sunline Editorial `src/theme/tokens.ts` and a new `src/theme/useTheme.ts` (with `DarkThemeScope`) at the
+   final paths.
+3. Move components and screens group by group from `@/theme/legacy/...` to the new theme and the Â§8 specs. Each file's
+   import changes once, to its final form.
+4. Delete `src/theme/legacy/` and add guard tests (no legacy import, no hex literal outside `src/theme/`).
+
+Rejected: one big-bang rewrite of the theme shape in a single step (117 files in one diff, unreviewable, no green
+point in between).
+
+## Data structures (Zod)
+None. This task changes no entity, payload or table. Theme types come from `tokens.ts` (`as const` + `typeof`), which
+is UI configuration, not a data shape, so the Zod rule does not apply.
+
+## Tests
+- Step 2 (foundation):
+  - `src/theme/__tests__/tokens.test.ts`: light and dark `colors` have the same keys (shape parity); key values match
+    DESIGN.md Â§2.3â€“Â§2.8; every pair in Â§2.9 meets its stated WCAG ratio (luminance computed in the test, so a wrong
+    hex fails); every `typography.styles[*].fontFamily` is one of the fonts loaded in `src/app/_layout.tsx`; spacing
+    has only the Â§4.1 steps; `partnerBrand` and the A4 extras exist.
+  - `src/theme/__tests__/useTheme.test.ts`: light device â†’ light colors + `elevation.light`; dark â†’ dark;
+    `DarkThemeScope` forces dark on a light device; no scheme â†’ light.
+- Steps 3â€“10 (each group): the group's existing component/screen tests are rewritten first to the Â§8 spec and fail
+  against the old look, then pass. Typical assertions: fill/text colors per variant and state (default, pressed,
+  disabled uses disabled tokens and no opacity, focused ring `border.focus`, error icon + text), min heights
+  (52 / 44 / 72), radii, type style, icon size and stroke 1.75, dark-mode elevation is a border not a shadow,
+  reduced motion removes scale. Changed expectations are logged per step (the spec changed, the test is not weakened).
+- Step 11 (cleanup): `src/__tests__/themeGuards.test.ts` fails while any file imports `@/theme/legacy` or any file
+  outside `src/theme/` contains a color literal (`#RGB`, `#RRGGBB`, `rgb(`, `rgba(`).
+
+## Files
+- New: `src/theme/tokens.ts` (from Kacper's file + A3, A4), `src/theme/useTheme.ts` (new shape),
+  `src/theme/__tests__/tokens.test.ts`, `src/theme/__tests__/useTheme.test.ts`, `src/__tests__/themeGuards.test.ts`.
+- Moved then deleted: `src/theme/{tokens,theme,typography,useTheme}.ts` â†’ `src/theme/legacy/` (step 2) â†’ removed
+  (step 11), with `src/theme/__tests__/theme.test.ts`.
+- Modified: every file in `src/components/` and `src/features/`, the route files under `src/app/` that style things,
+  and their tests (about 117 source files, 78 use `useTheme`).
+- Docs: `context/design-context.md` (replaced by DESIGN.md + D2, A3, A4, A8 corrections), `CLAUDE.md` (Design
+  section: token file and design-context references), `Architecture.md` (Theme section, Key decisions, Changelog).
+
+## Skills
+- `frontend-ui-engineering` â€” steps 3â€“10 â€” states and accessibility while restyling.
+- `test-driven-development` â€” steps 2â€“11 â€” red â†’ green per slice.
+- `incremental-implementation` â€” steps 2â€“11 â€” one coherent diff per group.
+- `ui-taste` â€” verifier, steps 3â€“10 â€” visual review against DESIGN.md.
+- `git-workflow-and-versioning` â€” orchestrator â€” one commit per step on `feature/sunline-redesign`.
+
+## Steps
+- [x] 1. [orchestrator] Docs first: replace `context/design-context.md` with DESIGN.md plus the D2, A3, A4, A8
+  corrections; update the design references in `CLAUDE.md`. â€” skill: none â€” tests first: none (docs only, no
+  behavior) â€” verify: Kacper reads the diff of the corrected sections.
+- [x] 2. [frontend] Foundation: move today's theme to `src/theme/legacy/` (import rewrite only), add the new
+  `tokens.ts` and `useTheme.ts`. â€” skill: test-driven-development, incremental-implementation â€” tests first:
+  tokens.test.ts, useTheme.test.ts (red: modules missing) â€” verify: full suite (legacy move changes nothing), typecheck,
+  lint; verifier.
+- [ ] 3. [frontend] Buttons: `PrimaryButton`, `TextButton`, `IconButton`, `HeroIconButton`, `HeroMenuButton`,
+  `TripMenuButton`, `BrandButton` / `GoogleButton` / `DiscordButton` (layout only, A3 colors). â€” Â§8.1, Â§8.2 â€” tests
+  first: their tests to the new spec â€” verify: suite, typecheck, lint; verifier.
+- [ ] 4. [frontend] Inputs and selection: `Field`, `TextField`, `AmountField`, `AirportField`, `DateTimeField*`, `Chip`,
+  `InterestChips`, `SegmentedControl`, `Stepper`, `StepIndicator`. â€” Â§8.4â€“Â§8.6, Â§8.15 â€” same pattern.
+- [ ] 5. [frontend] Surfaces and feedback: `Card`, `BottomSheet`, `ConfirmDialog`, `Snackbar`, `OfflineBanner`,
+  `SyncIndicator`, `SkeletonBlock`, `TripHeroSkeleton`, `LayoverLabel`, `TripsEmptyIllustration`, `CoverImage`,
+  `CoverPicker`. â€” Â§8.9, Â§8.13, Â§8.17â€“Â§8.20, Â§10 â€” same pattern; skeleton per Q1.
+- [ ] 6. [frontend] Navigation: `PillNav`, tabs layout, `TripsDrawer`, `EmptyScreen`. â€” Â§8.14 â€” same pattern.
+- [ ] 7. [frontend] Trip view: `TripHero` (per Q2), `CurrentTrip`, `HomeSkeleton`, `BudgetSheet`, `TripDetailsSheet`,
+  `TripMenuSheet`, `DeleteTripSheet`, `PhotoStrip`, `PhotoTile`, `PhotoViewer`, `DeletePhotoSheet`. â€” Â§8.10, Â§9.1
+  (hero only) â€” same pattern.
+- [ ] 8. [frontend] Sign-in and onboarding: `WelcomeScreen`, `SignInSheet`, `AuthFormScreen`, `EmailScreen`,
+  `CodeScreen`, `ProfileSetupScreen`, `AvatarPicker`, `AppLoading`, `FullScreenError`. â€” same pattern.
+- [ ] 9. [frontend] New-trip wizard: `WizardScreen`, `FriendCard`, `SegmentCard`, the step routes under
+  `src/app/trips/new/`. â€” same pattern.
+- [ ] 10. (runs after step 11's prerequisites except the legacy delete; waits for profile-screen in `main`, D4)
+  [frontend] Profile and settings: `ProfileScreen`, `SettingsScreen`, `TravelStatsCard`, plus any route file
+  still on legacy. â€” same pattern.
+- [ ] 11. [frontend] Cleanup: delete `src/theme/legacy/`, drop `Fraunces_700Bold` if unused (A7). â€” tests first:
+  themeGuards.test.ts (red while legacy exists) â€” verify: suite, typecheck, lint; verifier.
+- [ ] 12. [tester] Device run of the manual steps below, light and dark. â€” verify: PASS per scenario.
+- [ ] 13. [orchestrator] `Architecture.md` (theme module, key decisions D1â€“D4, changelog). â€” verify: every statement
+  checked in the code.
+
+## Verification
+Every step: its tests were red first; then `pnpm test` (full suite), `pnpm typecheck`, `pnpm lint` green; verifier
+PASS (with `ui-taste` for 3â€“10). Steps 3â€“10 also go to the tester on the device when one is connected.
+
+Manual test steps (Kacper / tester), each in light and in dark mode:
+1. Welcome â†’ sign in â†’ profile setup: warm paper (light) / charcoal (dark) background, coral only on the main button.
+2. Trip view: hero photo fades into the canvas, trip name in Fraunces, cards with 20 dp corners; drawer and pill
+   navigation with the coral-tint active capsule.
+3. Open the trip menu, budget sheet, delete dialog: sheet with 28 dp top corners and a handle, dark dim behind it.
+4. New-trip wizard: inputs 52 dp high with an outside label, focus ring in `border.focus`, disabled "Next" readable
+   (not faded).
+5. Airplane mode: offline banner in the info colors with the WifiOff icon.
+6. Large font (system setting at maximum): text grows, nothing clipped, buttons grow in height.
+
+## Progress log
+- Setup (2026-10-22): WIP commit `b49f9d2` on `feature/profile-screen` (profile changes from the start of the session);
+  while switching branches, new uncommitted profile work (D24, skeleton) appeared in the main checkout, so per Kacper
+  the redesign runs in the worktree `C:\Users\Baxton\Developer\Travelo-sunline`, branch `feature/sunline-redesign` from
+  `origin/main` (79fecba). `.env` copied from the main checkout, `pnpm install --frozen-lockfile`.
+- Step 1: docs only, no tests (approved in the plan) Â· `context/design-context.md` replaced by Kacper's DESIGN.md with
+  corrections: token path `src/theme/tokens.ts` (A8, lines in the header and Phase 2 summary); "PodrÃ³Å¼" follows the
+  theme (D2: header, Â§9.0, Â§14.4, Â§14.24); hero fades into the current canvas, text below the photo (D6, Â§9.1); new
+  "Project notes" section at the top with D2, D5â€“D8, A3, A4 and D1's not-built list. `CLAUDE.md` and
+  `.claude/agents/*` only point to `context/design-context.md` without section numbers, so they need no change.
+  Verification: Kacper reviews the diff of `context/design-context.md` (header + Project notes, Â§9.0, Â§9.1, Â§14.4).
+- Baseline before step 2 (clean `origin/main` in the worktree): typecheck and lint ran; tests 1 failed / 2683 passed
+  once. The failure did not reproduce in the implementer's or the verifier's runs (2684/2684 after 2a), so it is
+  treated as flaky; the failing test's name was not captured. Watch for it in later runs.
+- Step 2: tests written (red âœ“: `tokens.test.ts` â†’ `Cannot find module '../tokens'`, `useTheme.test.ts` â†’
+  `Cannot find module '../theme'`, implementer's run) Â· 2a: `src/theme/{tokens,theme,typography,useTheme}.ts` â†’
+  `src/theme/legacy/` and `theme.test.ts` â†’ `src/theme/legacy/__tests__/theme.test.ts` (deviation: kept the
+  `__tests__` folder, so its relative imports still work); ~106 files' `@/theme/<name>` imports and `jest.mock` paths â†’
+  `@/theme/legacy/<name>`, nothing else; suite after 2a 122 suites / 2684 tests green Â· 2b: `src/theme/tokens.ts`
+  (Kacper's file verbatim + `partnerBrand`, `layout.compactBreakpoint`, `components.drawer`, `components.coverPicker`,
+  `components.avatar.xxl`, `screenMetrics.tripOverview.heroFadeStart`, `motion.microinteraction.welcomeRevealed`,
+  `motion.microinteraction.skeletonPulse`; photo tile reuses `screenMetrics.tripOverview.photoStripHeight`),
+  `src/theme/theme.ts` (`lightTheme` / `darkTheme`, widened `Theme`), `src/theme/useTheme.ts` Â· green âœ“ 124 suites /
+  2733 tests, typecheck âœ“, lint âœ“ Â· verifier: FAIL only for missing red evidence in this log (now recorded), all other
+  checks PASS (verbatim diff vs Kacper's tokens.ts, import-only diff in the 106 files, no skip/only) Â· skill used:
+  test-driven-development, incremental-implementation Â· minor notes for later: contrast test asserts the WCAG tier, not
+  the exact Â§2.9 ratio; the font check reads `_layout.tsx` as text; the `profile-screen D9` comment points to a plan that
+  is not on this branch yet.
+
+## Risks & open questions
+Answers (Kacper, 2026-10-22, with the approval):
+- **D5 (Q1):** keep the opacity pulse in `skeleton.base`; the Â§8.19 shimmer is a later small task.
+- **D6 (Q2):** keep theme-split D1 on the trip view; `hero.text` + `hero.scrim` only where text sits on a photo
+  (welcome, photo viewer).
+- **D7 (Q3):** keep today's copy; Â§11 voice and strings are their own task.
+- **D8 (Q4):** category icons wait for the expenses UI; DESIGN.md is copied with both lists as they are.
+- **D9 (Q5):** DESIGN.md is enough; the prototype PDF is not used as a layout source.
+
+- **Q1 Skeleton:** keep today's opacity pulse (profile-screen D9, 1200 ms) in the new `skeleton.base` color, or switch
+  to the DESIGN.md Â§8.19 shimmer (`skeleton.highlight` sweeping, 360 ms per pass, static under reduced motion)?
+  Recommendation: keep the pulse now (less new code, already tested), shimmer as a later small task.
+- **Q2 Hero text in light mode:** today (theme-split D1) the photo fades into paper and the name/dates are dark text
+  below the photo. DESIGN.md puts white `hero.text` over the `hero.scrim`. Recommendation: keep D1 (text sits on the
+  canvas, not on the photo); use `hero.text` + scrim only where text really sits on a photo (welcome, photo viewer).
+- **Q3 Copy:** apply the DESIGN.md Â§11 voice and canonical strings now, or keep today's texts? Recommendation: keep,
+  copy review as its own task.
+- **Q4 Category icons:** DESIGN.md has two lists (Â§2.8 `UtensilsCrossed`, `Route` vs Â§8.6 `Utensils`, `BusFront`).
+  No current screen shows expense categories, so it waits for the expenses UI; I fix nothing in the doc without your
+  choice.
+- **Q5 Prototype PDF:** I could only read its text (no PDF renderer on this machine), not the visuals. If spacing or
+  layout details from the prototype matter beyond DESIGN.md, send PNG screenshots of the five screens or let me
+  install poppler to render the pages.
+- Risk: the migration touches nearly every UI file; conflicts with any parallel UI work. Mitigated by D4 (start after
+  profile-screen) and by one commit per group.
+- Risk: existing UI tests assert old hex values; each rewrite is logged so no assertion is silently weakened.
