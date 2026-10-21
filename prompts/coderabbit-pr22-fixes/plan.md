@@ -1,5 +1,5 @@
 # Task: Fix the valid CodeRabbit findings on PR #22
-Status: in progress (approved by Kacper 2026-10-21)
+Status: done (2026-10-21)
 
 Source: CodeRabbit review 5603825401 on https://github.com/KacperBartlomiejczak/Travelo/pull/22 (2026-10-21, commit 873b7aa):
 2 inline (Minor), 1 unverified trivial note inside "Additional comments", 1 inconclusive pre-merge check (docstring coverage).
@@ -66,8 +66,8 @@ Kacper approves this as part of the plan). The full suite, typecheck and lint ar
 ## Steps
 - [x] 1. [docs] `Architecture.md`: F2 count, F1 limitation, header + changelog — skill: none — tests first: none (docs, no behavior) — verify: grep shows no "not on the hosted", "five migrations" or "device check … pending" for friend-invite; text matches `list_migrations` and `prompts/friend-invite/plan.md`.
 - [x] 2. [docs] `context/app-context.md`: F3 — skill: none — tests first: none (docs, no behavior) — verify: item 15 matches `Architecture.md` and the friend-invite plan; then `pnpm typecheck`, `pnpm lint`, `pnpm test` green in the worktree; verifier PASS on steps 1–2.
-- [ ] 3. Commit on `feature/friend-invite` (`docs(coderabbit-pr22-fixes): …`) and push — only after Kacper's go-ahead — skill: git-workflow-and-versioning — verify: PR #22 shows the new commit.
-- [ ] 4. Reply on PR #22 (F1–F3 fixed, F4/F5 skipped with the reasons above) — only after Kacper approves the text — skill: none — verify: comment visible on the PR.
+- [x] 3. Commit on `feature/friend-invite` (`docs(coderabbit-pr22-fixes): …`) and push — only after Kacper's go-ahead — skill: git-workflow-and-versioning — verify: PR #22 shows the new commit.
+- [x] 4. Reply on PR #22 (F1–F3 fixed, F4/F5 skipped with the reasons above) — only after Kacper approves the text — skill: none — verify: comment visible on the PR.
 
 ## Verification
 - Steps 1–2: diff read line by line against the evidence table; full suite + typecheck + lint; verifier (fresh context) checks the diff against this plan.
@@ -76,6 +76,8 @@ Kacper approves this as part of the plan). The full suite, typecheck and lint ar
 ## Progress log
 - Step 1: no tests first (docs only, approved) · `Architecture.md`: header line 2 → after task coderabbit-pr22-fixes; line 332 "All five migrations are pushed" → "All seven migrations are on the hosted project (checked 2026-10-21 with Supabase MCP `list_migrations`)"; line 581 stale limitation → migration repair + photo-viewer delete not checked on a device; changelog line · skill used: none · deviation: plan said "line 1" for the header, it is line 2 (plan text corrected).
 - Step 2: no tests first (docs only, approved) · `context/app-context.md:48` → "On the hosted Supabase; device check passed." (D1) · `pnpm typecheck` ✓, `pnpm lint` ✓, `pnpm test` 122/122 suites, 2674/2674 tests ✓ (Jest printed its existing "worker process has failed to exit gracefully" warning; exit 0) · verifier PASS on steps 1–2 · skill used: none · verifier notes outside this task: `Architecture.md:19` "Current state" does not mention friend-code linking; `prompts/friend-invite/plan.md:170` records an unconfirmed device observation ("Dalej" on the budget step went back to step 1 once) that no doc lists — both reported to Kacper.
+- Step 3 (Kacper's go-ahead 2026-10-21): commit `0757fbe` (`Architecture.md`, `context/app-context.md`, this plan; untracked `screenshots/` left out) pushed to `feature/friend-invite` (873b7aa..0757fbe) · skill used: git-workflow-and-versioning · this progress-log entry went in a second docs commit.
+- Step 4 (text approved by Kacper 2026-10-21): reply posted verbatim — https://github.com/KacperBartlomiejczak/Travelo/pull/22#issuecomment-6322763138 · skill used: none.
 
 ## Risks & open questions
 - **Q1:** F3 wording — product context without the repair detail ("On the hosted Supabase; device check passed.", recommended; the repair lives in `Architecture.md` and the friend-invite plan) vs CodeRabbit's version that also mentions `supabase migration repair`.
