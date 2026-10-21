@@ -41,7 +41,8 @@ function serverTrip() {
     owner_id: SIGNED_IN_USER_ID,
     created_at: '2026-10-04T12:00:00+00:00',
     budget_updated_at: '2026-10-04T12:00:00+00:00',
-    trip_members: args.members as MemberRow[],
+    // The stored rows: the server keeps no account for a friend without a code (friend-invite D12).
+    trip_members: (args.members as Partial<MemberRow>[]).map((member) => ({ ...member, user_id: null })) as MemberRow[],
     flight_segments: args.segments as SegmentRow[],
   };
   return { row, trip: { ...built.trip, id: TRIP_ID } };

@@ -4,8 +4,10 @@ import { avatarPath } from '@/lib/avatar';
 import {
   FRIEND_CODE_ALPHABET,
   FRIEND_CODE_LENGTH,
+  FriendCodeInputSchema,
   ProfileSetupInputSchema,
   ShownProfileSchema,
+  type FoundFriend,
   type ProfileSetupInputValues,
   type ShownProfile,
 } from '@/schemas';
@@ -25,6 +27,13 @@ export interface ProfileRepository {
    * Rejects with `UsernameTakenError` when the nick is taken and with `ZodError` for invalid input, before any request. Online only.
    */
   createProfile(input: ProfileSetupInputValues): Promise<ShownProfile>;
+  /**
+   * The account that has this friend code (friend-invite D12): its nick and interests, or null when nobody has it.
+   * The code is trimmed and uppercased; an invalid one rejects with `ZodError`, before any request. Signed-in users only.
+   * Rejects with `ServerUnreachableError` offline: the check needs the server. The account's own code is found too;
+   * telling the user "that is your code" is the caller's job (it knows its own code).
+   */
+  findByFriendCode(code: string): Promise<FoundFriend | null>;
 }
 
 /** The only user of the in-memory repository, which only tests use. */
@@ -33,6 +42,8 @@ export const LOCAL_PROFILE_ID = '00000000-0000-4000-8000-000000000001';
 type InMemoryOptions = {
   /** Nicks other accounts already have; compared in lowercase. */
   takenUsernames?: readonly string[];
+  /** Other accounts by their friend code (uppercase), for `findByFriendCode`. */
+  friendAccounts?: Readonly<Record<string, FoundFriend>>;
   now?: () => Date;
   newId?: () => string;
 };
@@ -44,6 +55,7 @@ function randomFriendCode(): string {
 /** One profile in memory, lost on restart. Tests only. */
 export function createInMemoryProfileRepository({
   takenUsernames = [],
+  friendAccounts = {},
   now = () => new Date(),
   newId = randomUUID,
 }: InMemoryOptions = {}): ProfileRepository {
@@ -69,6 +81,11 @@ export function createInMemoryProfileRepository({
         ...(avatarId ? { avatarUrl: `https://avatars.invalid/${avatarPath(LOCAL_PROFILE_ID, avatarId)}` } : {}),
       });
       return stored;
+    },
+    async findByFriendCode(code) {
+      const normalised = FriendCodeInputSchema.parse(code);
+      if (stored?.friendCode === normalised) return { username: stored.username, interests: stored.interests };
+      return friendAccounts[normalised] ?? null;
     },
   };
 }

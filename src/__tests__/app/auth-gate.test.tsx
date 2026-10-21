@@ -413,7 +413,7 @@ describe('signed in without a profile', () => {
   it('saving the real profile setup form lands on the app at /, and the screen navigates nowhere by itself', async () => {
     const base = createInMemoryProfileRepository();
     const createProfile = jest.fn((input: Parameters<ProfileRepository['createProfile']>[0]) => base.createProfile(input));
-    setAppProfileRepository({ myProfile: () => base.myProfile(), createProfile });
+    setAppProfileRepository({ ...base, myProfile: () => base.myProfile(), createProfile });
     const rendered = await open();
     await expectOnly(ONBOARDING);
 
@@ -430,7 +430,7 @@ describe('signed in without a profile', () => {
   it('a form that is not valid stays on profile setup and does not save', async () => {
     const base = createInMemoryProfileRepository();
     const createProfile = jest.fn((input: Parameters<ProfileRepository['createProfile']>[0]) => base.createProfile(input));
-    setAppProfileRepository({ myProfile: () => base.myProfile(), createProfile });
+    setAppProfileRepository({ ...base, myProfile: () => base.myProfile(), createProfile });
     await open();
     await expectOnly(ONBOARDING);
 
@@ -454,6 +454,7 @@ describe('a profile save that finishes after the sign-out', () => {
     const secondUser = new Promise<void>((resolve) => (secondUserRead = resolve));
     let reads = 0;
     setAppProfileRepository({
+      ...base,
       myProfile: async () => {
         if (reads++ === 0) return null; // the first user has no profile yet
         await secondUser; // the next user's profile is still being read

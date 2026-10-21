@@ -86,7 +86,7 @@ type Created = jest.Mock<ReturnType<ProfileRepository['createProfile']>, Paramet
 function useRepository(options: Parameters<typeof createInMemoryProfileRepository>[0] = {}) {
   const base = createInMemoryProfileRepository(options);
   const createProfile: Created = jest.fn((input) => base.createProfile(input));
-  setAppProfileRepository({ myProfile: () => base.myProfile(), createProfile });
+  setAppProfileRepository({ ...base, myProfile: () => base.myProfile(), createProfile });
   return createProfile;
 }
 
@@ -102,7 +102,7 @@ function holdSave() {
         fail = reject;
       }),
   );
-  setAppProfileRepository({ myProfile: () => base.myProfile(), createProfile });
+  setAppProfileRepository({ ...base, myProfile: () => base.myProfile(), createProfile });
   return { createProfile, finish: () => finish(), fail: (error: Error) => fail(error) };
 }
 
@@ -110,7 +110,7 @@ function holdSave() {
 function failSave(error: Error) {
   const base = createInMemoryProfileRepository();
   const createProfile = jest.fn<ReturnType<ProfileRepository['createProfile']>, Parameters<ProfileRepository['createProfile']>>(() => Promise.reject(error));
-  setAppProfileRepository({ myProfile: () => base.myProfile(), createProfile });
+  setAppProfileRepository({ ...base, myProfile: () => base.myProfile(), createProfile });
   return createProfile;
 }
 
@@ -822,7 +822,7 @@ describe('ProfileSetupScreen (auth-onboarding D7, D20, P1, P2, P4, P5)', () => {
         .fn<ReturnType<ProfileRepository['createProfile']>, Parameters<ProfileRepository['createProfile']>>()
         .mockRejectedValueOnce(new Error('x'))
         .mockImplementation((input) => base.createProfile(input));
-      setAppProfileRepository({ myProfile: () => base.myProfile(), createProfile: create });
+      setAppProfileRepository({ ...base, myProfile: () => base.myProfile(), createProfile: create });
       await openSetup();
       await fillValid();
       await fireEvent.press(saveButton());

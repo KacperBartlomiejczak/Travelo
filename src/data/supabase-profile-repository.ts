@@ -4,7 +4,15 @@ import { Image } from 'expo-image';
 import { z } from 'zod';
 
 import { avatarPath } from '@/lib/avatar';
-import { HttpUrlSchema, ProfileSetupInputSchema, ShownProfileSchema, type Profile, type ShownProfile } from '@/schemas';
+import {
+  FoundFriendSchema,
+  FriendCodeInputSchema,
+  HttpUrlSchema,
+  ProfileSetupInputSchema,
+  ShownProfileSchema,
+  type Profile,
+  type ShownProfile,
+} from '@/schemas';
 
 import { ensureSession } from './auth';
 import type { Database } from './database.types';
@@ -206,6 +214,16 @@ export function createSupabaseProfileRepository({
       const shown = await show(local, epoch, userId, profile);
       if (avatar && profile.avatarId === avatar.id) await seedQuietly(avatar);
       return shown;
+    },
+
+    async findByFriendCode(code) {
+      const normalised = FriendCodeInputSchema.parse(code);
+      // Signed in first: without a session the request would go out as `anon`, and the server would answer "nobody" (not "unknown code").
+      await signedIn();
+      const { data, error, status } = await supabase.rpc('find_profile_by_friend_code', { code: normalised });
+      if (error) throw failure(error, status);
+      // At most one account has a code; the rows carry nick and interests only (an extra field such as an id is dropped).
+      return FoundFriendSchema.array().max(1).parse(data)[0] ?? null;
     },
   };
 }

@@ -29,4 +29,5 @@ export function resetAppProfileRepository() {
 export const delegatingProfileRepository: ProfileRepository = {
   myProfile: async () => (await active).myProfile(),
   createProfile: async (input) => (await active).createProfile(input),
+  findByFriendCode: async (code) => (await active).findByFriendCode(code),
 };
