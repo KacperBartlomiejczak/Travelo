@@ -1,4 +1,7 @@
 {
+  "app": {
+    "loading": "Loading"
+  },
   "trips": {
     "title": "Your trips",
     "empty": {

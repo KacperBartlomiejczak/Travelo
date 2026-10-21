@@ -11,9 +11,10 @@ import { HeaderBackButton } from "expo-router/react-navigation";
 import * as SplashScreen from "expo-splash-screen";
 import { useEffect } from "react";
 import { useTranslation } from "react-i18next";
-import { Platform, View } from "react-native";
+import { Platform } from "react-native";
 
 import "@/i18n";
+import { AppLoading } from "@/features/auth/AppLoading";
 import { FullScreenError } from "@/features/auth/FullScreenError";
 import { useGateView } from "@/features/auth/useGateView";
 import { AppProviders } from "@/providers/AppProviders";
@@ -51,8 +52,8 @@ export default function RootLayout() {
 // - signed out: the (auth) group only;
 // - signed in without a profile: profile setup only;
 // - signed in with a profile: the app.
-// While the session or the profile is still being read the splash screen stays (afterwards, a blank screen in the theme's
-// background); a failure to read either is a full-screen error with a retry, never the welcome screen or the setup form.
+// While the session or the profile is still being read the splash screen stays (afterwards, e.g. right after signing in,
+// the home skeleton: `AppLoading`); a failure to read either is a full-screen error with a retry, never the welcome screen or the setup form.
 function Gate() {
   const { t } = useTranslation();
   const { view, retry } = useGateView();
@@ -63,7 +64,7 @@ function Gate() {
   }, [view]);
 
   if (view === "loading") {
-    return <View testID="app-loading" accessible accessibilityState={{ busy: true }} style={{ flex: 1, backgroundColor: colors.background }} />;
+    return <AppLoading />;
   }
   if (view === "startError") {
     return <FullScreenError testID="start-error" message={t("auth.startError")} retryLabel={t("auth.retry")} onRetry={retry} />;

@@ -51,6 +51,15 @@ describe('SkeletonBlock (profile-screen D9, §10.18)', () => {
     expect(style(screen.getByTestId('block', { includeHiddenElements: true })).backgroundColor).toBe(darkTheme.colors.surface.secondary);
   });
 
+  it('uses the colour it is given instead of the default (app-loading-skeleton D5)', async () => {
+    mockScheme = 'dark';
+    const { unmount } = await render(<SkeletonBlock testID="block" width={48} height={30} color={darkTheme.colors.surface.elevated} />);
+    expect(style(screen.getByTestId('block', { includeHiddenElements: true })).backgroundColor).toBe(darkTheme.colors.surface.elevated);
+    await unmount();
+    await render(<SkeletonBlock testID="block" width={48} height={30} />);
+    expect(style(screen.getByTestId('block', { includeHiddenElements: true })).backgroundColor).toBe(darkTheme.colors.surface.secondary);
+  });
+
   it('takes the pulse from tokens: 1200 ms per cycle (§10.18) down to opacity 0.5, the same in both themes', () => {
     expect(lightTheme.duration.skeletonPulse).toBe(1200);
     expect(lightTheme.opacity.skeletonPulseMin).toBe(0.5);

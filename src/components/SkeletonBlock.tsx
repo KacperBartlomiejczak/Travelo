@@ -13,13 +13,14 @@ import Animated, {
 import { useReduceMotion } from '@/hooks/useReduceMotion';
 import { useTheme } from '@/theme/useTheme';
 
-type Props = { width: DimensionValue; height: number; radius?: number; testID?: string };
+type Props = { width: DimensionValue; height: number; radius?: number; color?: string; testID?: string };
 
 // A placeholder block with the geometry of the content it stands for (§10.18, profile-screen D9). Neutral surface
 // (light neutral.100, dark secondary surface = `surface.secondary`) that pulses in opacity 1 -> skeletonPulseMin -> 1,
 // one cycle per `duration.skeletonPulse`, ease in-out, repeating. It never scales (§9.4). It stays still with reduce
 // motion on, and until the system has said whether it is on. Hidden from screen readers: the parent says "loading".
-export function SkeletonBlock({ width, height, radius, testID }: Props) {
+// `color` is for a block on a surface that is itself `surface.secondary` (dark card, app-loading-skeleton D5).
+export function SkeletonBlock({ width, height, radius, color, testID }: Props) {
   const theme = useTheme();
   const reduceMotion = useReduceMotion();
   const opacity = useSharedValue(1);
@@ -43,7 +44,7 @@ export function SkeletonBlock({ width, height, radius, testID }: Props) {
       testID={testID}
       aria-hidden
       style={[
-        { width, height, borderRadius: radius ?? theme.radius.sm, backgroundColor: theme.colors.surface.secondary },
+        { width, height, borderRadius: radius ?? theme.radius.sm, backgroundColor: color ?? theme.colors.surface.secondary },
         animatedStyle,
       ]}
     />

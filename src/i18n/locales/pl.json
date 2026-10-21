@@ -1,4 +1,7 @@
 {
+  "app": {
+    "loading": "Wczytywanie"
+  },
   "trips": {
     "title": "Twoje podróże",
     "empty": {

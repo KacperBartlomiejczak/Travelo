@@ -11,10 +11,10 @@ import { OfflineBanner } from '@/components/OfflineBanner';
 import { PrimaryButton } from '@/components/PrimaryButton';
 import { Snackbar } from '@/components/Snackbar';
 import { TextButton } from '@/components/TextButton';
-import { TripHeroSkeleton } from '@/components/TripHeroSkeleton';
 import { TripsEmptyIllustration } from '@/components/TripsEmptyIllustration';
 import { CurrentTrip } from '@/features/home/CurrentTrip';
 import { HeroMenuButton } from '@/features/home/HeroMenuButton';
+import { HomeSkeleton } from '@/features/home/HomeSkeleton';
 import { useCurrentTrip } from '@/hooks/useTrips';
 import { usePillClearance } from '@/features/nav/usePillClearance';
 import { useIsOffline } from '@/providers/BudgetSync';
@@ -85,7 +85,7 @@ export default function HomeScreen() {
   }
 
   if (trips.isPending) {
-    // Same geometry as the trip view: the hero placeholder edge to edge, the menu button in its place (§10.18).
+    // Same geometry as the trip view: the hero and the three cards as placeholders, the menu button in its place (§10.18).
     return (
       <View testID="trips-screen" style={[styles.screen, { backgroundColor: colors.background }]}>
         <HeroMenuButton onPress={openMenu} />
@@ -96,7 +96,7 @@ export default function HomeScreen() {
           accessibilityState={{ busy: true }}
           style={styles.fill}
         >
-          <TripHeroSkeleton />
+          <HomeSkeleton />
         </View>
         {toast()}
       </View>
