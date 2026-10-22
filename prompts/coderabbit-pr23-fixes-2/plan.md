@@ -1,5 +1,5 @@
 # Task: Fix the valid CodeRabbit findings of the second review on PR #23
-Status: in progress
+Status: done (2026-10-22)
 
 Source: CodeRabbit review 5612779518 on https://github.com/KacperBartlomiejczak/Travelo/pull/23 (2026-10-22 10:29, after
 "@coderabbitai full review", commit 6da09e5): 5 inline comments. The first review is done in
@@ -59,7 +59,7 @@ All in `src/schemas/__tests__/code-email-template.test.ts`, written first:
 - [x] 1. [backend] G3 + G5: tighten the two config assertions, add the "no promise" test, remove the sentence — skill:
   test-driven-development — tests first: see Tests — verify: red → green (G5), mutation check (G3), `config.toml` unchanged,
   full suite + typecheck + lint; verifier
-- [ ] 2. [orchestrator] `Architecture.md` line 2 + changelog ("coderabbit-pr23-fixes-2 — e-mail copy + config test only, no
+- [x] 2. [orchestrator] `Architecture.md` line 2 + changelog ("coderabbit-pr23-fixes-2 — e-mail copy + config test only, no
   architecture change"); after Kacper's go-ahead: commit, push; after his go-ahead on the text: post the PR reply below
 
 ## Draft PR reply (posted only after Kacper approves it)
@@ -84,7 +84,10 @@ All in `src/schemas/__tests__/code-email-template.test.ts`, written first:
   reports `w/crlf`, but `grep -c $'\r'` = 0). typecheck ✓, lint ✓, `pnpm test` 132 suites / 2900 tests ✓ (one "worker failed
   to exit gracefully" warning, not from this change) · verifier PASS (re-ran both mutations) · skill used:
   test-driven-development · no deviations.
-- Step 2: `Architecture.md` line 2 + changelog entry done. Commit, push and PR reply wait for Kacper's go-ahead.
+- Step 2: `Architecture.md` line 2 + changelog entry done. After Kacper's go-ahead (2026-10-22): commits bc9986c (fix) and
+  a611d78 (docs) pushed to `feature/profile-screen` (5ea04eb..a611d78); reply posted on PR #23
+  (https://github.com/KacperBartlomiejczak/Travelo/pull/23#issuecomment-6339390509). Still manual: paste the new template
+  into the hosted dashboard (Confirm signup + Magic Link).
 
 ## Risks & open questions
 - After the merge the hosted e-mail still has the old sentence until Kacper pastes the template in the dashboard
