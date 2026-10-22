@@ -6,12 +6,15 @@ import { useTranslation } from 'react-i18next';
 import { AccessibilityInfo, ActivityIndicator, Pressable, Text, View } from 'react-native';
 
 import { AvatarUriSchema } from '@/lib/avatar';
-import { useTheme } from '@/theme/legacy/useTheme';
+import { tokens } from '@/theme/tokens';
+import { useTheme } from '@/theme/useTheme';
 
 import { FormError } from './AuthFormScreen';
 
 // The profile photo is square-cropped in the system picker (P2); the app downsizes and re-encodes it when the profile is saved.
 const ASPECT: [number, number] = [1, 1];
+
+const { avatar, focusRing, input } = tokens.components;
 
 type Props = {
   /** The picked photo, a `file://` uri; null while there is none. */
@@ -36,7 +39,7 @@ export function AvatarPicker({ uri, onPick, disabled = false, loading = false }:
   const [failed, setFailed] = useState(false);
   // A second tap before React renders anything (or while the gallery is still opening) must not open it again (D21).
   const picking = useRef(false);
-  const { colors, spacing } = theme;
+  const { spacing } = tokens;
   const label = t(uri ? 'auth.profile.avatarChange' : 'auth.profile.avatar');
 
   function fail() {
@@ -62,10 +65,10 @@ export function AvatarPicker({ uri, onPick, disabled = false, loading = false }:
   }
 
   const circle = {
-    width: theme.size.avatarSetup,
-    height: theme.size.avatarSetup,
-    borderRadius: theme.radius.full,
-    borderWidth: 1,
+    width: avatar.xxl,
+    height: avatar.xxl,
+    borderRadius: tokens.radii.pill,
+    borderWidth: input.borderWidth,
   };
 
   return (
@@ -79,13 +82,13 @@ export function AvatarPicker({ uri, onPick, disabled = false, loading = false }:
         onFocus={() => setFocused(true)}
         onBlur={() => setFocused(false)}
         style={[
-          { alignItems: 'center', gap: spacing[2], minHeight: theme.size.touchTarget, opacity: disabled ? theme.opacity.disabled : 1 },
+          { alignItems: 'center', gap: spacing[2], minHeight: tokens.layout.touchTarget },
           focused && {
             outlineStyle: 'solid',
-            outlineWidth: theme.size.focusRing,
-            outlineColor: colors.action.primary,
-            outlineOffset: spacing[1],
-            borderRadius: theme.radius.md,
+            outlineWidth: focusRing.width,
+            outlineColor: theme.border.focus,
+            outlineOffset: focusRing.offset,
+            borderRadius: tokens.radii.md,
           },
         ]}
       >
@@ -97,7 +100,7 @@ export function AvatarPicker({ uri, onPick, disabled = false, loading = false }:
                 source={{ uri }}
                 contentFit="cover"
                 aria-hidden
-                style={[circle, { borderColor: pressed ? colors.action.primary : colors.input.border, backgroundColor: colors.surface.secondary }]}
+                style={[circle, { borderColor: pressed ? theme.border.interactive : theme.border.default, backgroundColor: theme.background.sunken }]}
               />
             ) : (
               <View
@@ -107,25 +110,25 @@ export function AvatarPicker({ uri, onPick, disabled = false, loading = false }:
                   {
                     alignItems: 'center',
                     justifyContent: 'center',
-                    borderColor: pressed ? colors.action.primary : colors.input.border,
-                    backgroundColor: pressed ? colors.surface.secondary : colors.surface.default,
+                    borderColor: pressed ? theme.border.interactive : theme.border.default,
+                    backgroundColor: disabled ? theme.disabled.background : pressed ? theme.background.sunken : theme.surface.primary,
                   },
                 ]}
               >
                 {loading ? (
-                  <ActivityIndicator testID="avatar-loading" color={colors.text.secondary} />
+                  <ActivityIndicator testID="avatar-loading" color={theme.icon.secondary} />
                 ) : (
                   <Camera
                     testID="avatar-camera"
-                    size={theme.size.iconFeature}
-                    strokeWidth={theme.size.iconStroke}
-                    color={colors.text.secondary}
+                    size={tokens.iconography.size.xl}
+                    strokeWidth={tokens.iconography.strokeWidth}
+                    color={disabled ? theme.icon.disabled : theme.icon.secondary}
                     aria-hidden
                   />
                 )}
               </View>
             )}
-            <Text style={[theme.typography.bodyMMedium, { color: colors.text.primary }]}>{label}</Text>
+            <Text style={[tokens.typography.styles.labelMD, { color: disabled ? theme.disabled.foreground : theme.text.primary }]}>{label}</Text>
           </>
         )}
       </Pressable>

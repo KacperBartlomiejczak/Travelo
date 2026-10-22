@@ -707,6 +707,8 @@ describe('PhotoStrip: trying again while offline (D24)', () => {
     const { manual, retry } = await withFailedPhotos(2);
     const first = screen.getByRole('button', { name: tileLabel(1, 2) });
     expect(first).toBeEnabled();
+    // An enabled tile is not dimmed: no opacity (A5), it shows its preview.
+    expect(StyleSheet.flatten(first.props.style).opacity).toBeUndefined();
     expect(within(first).getByTestId('photo-tile-image')).toBeTruthy();
 
     await act(async () => setNetwork(OFFLINE));
@@ -752,6 +754,7 @@ describe('PhotoStrip: trying again while offline (D24)', () => {
 
     const first = screen.getByRole('button', { name: tileLabel(1, 2) });
     expect(first).toBeEnabled();
+    expect(StyleSheet.flatten(first.props.style).opacity).toBeUndefined();
     expect(within(first).getByTestId('photo-tile-image')).toBeTruthy();
     expect(within(first).getByTestId('photo-tile-failed-icon', { includeHiddenElements: true }).props.stroke).toBe(lightTheme.hero.text);
     expect(screen.getByRole('button', { name: 'Spróbuj ponownie' })).toBeEnabled();

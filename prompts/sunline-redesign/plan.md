@@ -116,8 +116,10 @@ is UI configuration, not a data shape, so the Zod rule does not apply.
   `TripMenuSheet`, `DeleteTripSheet`, `PhotoStrip`, `PhotoTile`, `PhotoViewer`, `DeletePhotoSheet`, and
   `src/features/nav/usePillClearance.ts` (pill bottom offset 16 → 12, D23). â€” Â§8.10, Â§9.1
   (hero only) â€” same pattern.
-- [ ] 8. [frontend] Sign-in and onboarding: `WelcomeScreen`, `SignInSheet`, `AuthFormScreen`, `EmailScreen`,
-  `CodeScreen`, `ProfileSetupScreen`, `AvatarPicker`, `AppLoading`, `FullScreenError`. â€” same pattern.
+- [x] 8. [frontend] Sign-in and onboarding: `WelcomeScreen`, `SignInSheet`, `AuthFormScreen`, `EmailScreen`,
+  `CodeScreen`, `ProfileSetupScreen`, `AvatarPicker`, `AppLoading`, `FullScreenError`. â€” same pattern. Also
+  (D28): inline form errors get `CircleAlert` + text in `BudgetSheet`, `TripDetailsSheet`, `DeleteTripSheet`,
+  `DeletePhotoSheet`, and the step-7 test fix in `PhotoStrip.test.tsx:710` / `:755` (enabled tile has no opacity).
 - [ ] 9. [frontend] New-trip wizard: `WizardScreen`, `FriendCard`, `SegmentCard`, the step routes under
   `src/app/trips/new/`. â€” same pattern.
 - [ ] 10. (runs after step 11's prerequisites except the legacy delete; waits for profile-screen in `main`, D4)
@@ -283,6 +285,25 @@ Manual test steps (Kacper / tester), each in light and in dark mode:
   one shared gutter helper (`CurrentTrip`, `PhotoViewer`, `TripHero`); `TripMenuSheet` full-width divider borrows
   `components.card.borderWidth`; no test for the `PhotoSkeleton` pulse stopping on unmount; `PhotoSkeleton` radius
   16 vs §8.19's 12; `PhotoViewer` spinner uses `hero.text` on the canvas (D6) · device check: not run (step 12).
+- Step 8: tests written first (red ✓: auth + layout 36 failed / 230 passed in 7 suites, all assertion failures;
+  sheets 4 failed / 33 passed, missing `*-error-icon`) · changed: `WelcomeScreen` (`DarkThemeScope`, `hero.scrim`
+  D30, `displayXL` title, `enter` easing), `SignInSheet`, `AuthFormScreen` (`FormError` = CircleAlert + `bodySM`,
+  headings D31), `FullScreenError` (32 dp CircleAlert), `AvatarPicker` (`avatar.xxl`, pressed / focus / disabled
+  tokens, no opacity), `src/app/(auth)/_layout.tsx` header; D28 icon + text in `BudgetSheet`, `TripDetailsSheet`,
+  `DeleteTripSheet`, `DeletePhotoSheet`; `PhotoStrip.test.tsx` enabled-tile opacity assertion restored (no red: tightens
+  a check on correct behavior) · new: `FullScreenError.test.tsx`, `BudgetSheet.test.tsx`, test helper
+  `src/test/alert-icon.ts` (tells CircleAlert from CircleX) · the root-layout loading background (`app-loading` on
+  `background.canvas`) and its test landed in `dd58cf2` / `f06304d` through the gate-startup-timing session sharing
+  this worktree; its red run is part of the 36 above · green ✓ 135 suites / 2917 tests, typecheck ✓, lint ✓
+  (verifier re-run) · verifier PASS, no issues · skill used: test-driven-development, incremental-implementation,
+  frontend-ui-engineering (implementer), ui-taste, code-review-and-quality (verifier) · deviations: gutters 16 / 20
+  at 390 with no 32 dp tablet tier, as in steps 6–7 · open minors: `WelcomeScreen.tsx:25` `ENTRANCE_STAGGER_MS = 150`
+  is a pre-existing literal (move to `tokens.motion` in step 11); Welcome borrows
+  `screenMetrics.tripOverview.heroFadeStart` (neutral key later); the CircleAlert + text block is copied in six places
+  (extract a shared inline error in step 11); focus ring is `brand.focus` on primary (§8.1) and `border.focus`
+  elsewhere (§8.0) · device check: not run (step 12; manual steps from the implementer: Welcome dim, sign-in sheet
+  error offline, email / code / profile headings and errors, avatar pressed / focus / disabled, sheet errors offline,
+  max font scale, cold-start canvas).
 
 ## Risks & open questions
 Answers (Kacper, 2026-10-22, with the approval):
@@ -333,6 +354,14 @@ Answers (Kacper, 2026-10-22, with the approval):
 - **D27 (Kacper, 2026-10-22, step 6):** pill tab min width is §8.14's 56 dp from `layout.compactBreakpoint` (390) up and
   `layout.touchTarget` (44) below it, because five 56 dp tabs need 328 dp and overflow a 320 dp phone. `EmptyScreen`
   keeps two gutter tiers (16 / 20, no ≥768 tablet tier) under D25, as before the step.
+- **D28 (Kacper, 2026-10-22, before step 8):** every inline error message is `CircleAlert` + text (§8.0), like `Field`
+  and `PhotoStrip`. Applies to the step-8 screens and, in the same step, to the four step-7 sheets that show text only.
+- **D29 (Kacper, 2026-10-22, before step 8):** the pressed photo tile keeps the `hero.scrim` (0.82) overlay for now;
+  Kacper judges it on the device in step 12.
+- **D30 (Kacper, 2026-10-22, step 8):** the Welcome photo dim is `hero.scrim` (0.82, was 0.5 ink); Kacper judges it on
+  the device in step 12.
+- **D31 (Kacper, 2026-10-22, step 8):** auth screen headings (email, code, profile setup) are DM Sans `headingLG`, not
+  Fraunces `headingXL`; hints `bodyMD`; screen and sheet errors `bodySM`, field errors stay `caption`.
 
 - **Q1 Skeleton:** keep today's opacity pulse (profile-screen D9, 1200 ms) in the new `skeleton.base` color, or switch
   to the DESIGN.md Â§8.19 shimmer (`skeleton.highlight` sweeping, 360 ms per pass, static under reduced motion)?

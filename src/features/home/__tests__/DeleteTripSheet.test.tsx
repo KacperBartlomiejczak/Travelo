@@ -6,6 +6,7 @@ import { createInMemoryTripRepository, type TripRepository } from '@/data/trip-r
 import i18n from '@/i18n';
 import { AppProviders } from '@/providers/AppProviders';
 import type { TripSummary } from '@/schemas';
+import { drawsCircleAlert } from '@/test/alert-icon';
 import { setNetwork } from '@/test/mock-network';
 import { lightTheme } from '@/theme/theme';
 import { tokens } from '@/theme/tokens';
@@ -126,6 +127,10 @@ describe('DeleteTripSheet (trip-edit-menu D7, D8, D10, D19)', () => {
       ...tokens.typography.styles.bodySM,
       color: lightTheme.semantic.error.foreground,
     });
+    // CircleAlert at 16dp in the error colour next to the text, never colour alone (§8.0 error, D28).
+    const icon = screen.getByTestId('delete-trip-error-icon', { includeHiddenElements: true });
+    expect(icon.props).toMatchObject({ width: tokens.iconography.size.xs, stroke: lightTheme.semantic.error.foreground, strokeWidth: tokens.iconography.strokeWidth });
+    expect(drawsCircleAlert(icon)).toBe(true);
     // Announced once, by the call; a live region on the text would read it a second time (as in Snackbar).
     expect(announce).toHaveBeenCalledTimes(1);
     expect(announce).toHaveBeenCalledWith('Nie udało się usunąć podróży. Spróbuj ponownie.');

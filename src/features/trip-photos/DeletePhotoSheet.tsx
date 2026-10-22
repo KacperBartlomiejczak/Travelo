@@ -1,3 +1,4 @@
+import { CircleAlert } from 'lucide-react-native';
 import { useTranslation } from 'react-i18next';
 import { AccessibilityInfo, Text, View } from 'react-native';
 
@@ -33,7 +34,18 @@ export function DeletePhotoSheet({ photo, onClose, onDeleted }: Props) {
       <Text style={[tokens.typography.styles.bodyMD, { color: theme.text.secondary }]}>{t('deletePhoto.body')}</Text>
       {remove.isError && (
         // Announced by the call in `confirm`; a live region as well would read it twice.
-        <Text style={[tokens.typography.styles.bodySM, { color: theme.semantic.error.foreground }]}>{t('deletePhoto.error')}</Text>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: tokens.spacing[1] }}>
+          <CircleAlert
+            testID="delete-photo-error-icon"
+            size={tokens.iconography.size.xs}
+            strokeWidth={tokens.iconography.strokeWidth}
+            color={theme.semantic.error.foreground}
+            aria-hidden
+          />
+          <Text style={[tokens.typography.styles.bodySM, { color: theme.semantic.error.foreground, flexShrink: 1 }]}>
+            {t('deletePhoto.error')}
+          </Text>
+        </View>
       )}
       {offline && <Text style={[tokens.typography.styles.bodySM, { color: theme.text.secondary }]}>{t('tripPhotos.offlineHint')}</Text>}
       {/* TextButton has no loading state, so while deleting both buttons are disabled (greyed, not pressable). */}

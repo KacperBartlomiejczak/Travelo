@@ -6,10 +6,11 @@ import { appAuth } from '@/data/app-auth';
 import { InvalidCodeError } from '@/data/auth';
 import { ServerUnreachableError } from '@/data/errors';
 import i18n from '@/i18n';
+import { drawsCircleAlert } from '@/test/alert-icon';
 import { headerConfigs, openCodeScreen, renderEmailFlow } from '@/test/auth-email-flow';
 import { setNetwork } from '@/test/mock-network';
-import { lightTheme } from '@/theme/legacy/theme';
-import { lightTheme as sunlineLight } from '@/theme/theme';
+import { lightTheme } from '@/theme/theme';
+import { tokens } from '@/theme/tokens';
 
 // The real sign-in (Supabase) is mocked for every test by jest.setup.ts.
 const sendEmailCode = jest.mocked(appAuth.sendEmailCode);
@@ -156,7 +157,7 @@ describe('CodeScreen (auth-onboarding D6, P3, P5, D17)', () => {
 
       expect(screen.getByText(FORMAT_ERROR)).toBeTruthy();
       expect(field().props.accessibilityHint).toBe(FORMAT_ERROR);
-      expect(field()).toHaveStyle({ borderWidth: 2, borderColor: sunlineLight.semantic.error.foreground });
+      expect(field()).toHaveStyle({ borderWidth: 2, borderColor: lightTheme.semantic.error.foreground });
       expect(announce).toHaveBeenCalledWith(FORMAT_ERROR);
       expect(verifyEmailCode).not.toHaveBeenCalled();
     });
@@ -237,8 +238,8 @@ describe('CodeScreen (auth-onboarding D6, P3, P5, D17)', () => {
 
       await waitFor(() => expect(screen.getByText(WRONG_CODE)).toBeTruthy());
       expect(field().props.accessibilityHint).toBe(WRONG_CODE);
-      expect(field()).toHaveStyle({ borderWidth: 2, borderColor: sunlineLight.semantic.error.foreground });
-      expect(screen.getByText(WRONG_CODE)).toHaveStyle({ color: sunlineLight.semantic.error.foreground });
+      expect(field()).toHaveStyle({ borderWidth: 2, borderColor: lightTheme.semantic.error.foreground });
+      expect(screen.getByText(WRONG_CODE)).toHaveStyle({ color: lightTheme.semantic.error.foreground });
       expect(announce).toHaveBeenCalledWith(WRONG_CODE);
       expect(field().props.value).toBe('123456');
       expect(field().props.editable).not.toBe(false);
@@ -299,14 +300,17 @@ describe('CodeScreen (auth-onboarding D6, P3, P5, D17)', () => {
 
       await waitFor(() => expect(screen.getByText(SIGN_IN_ERROR)).toBeTruthy());
       expect(announce).toHaveBeenCalledWith(SIGN_IN_ERROR);
-      expect(screen.getByText(SIGN_IN_ERROR)).toHaveStyle({ color: lightTheme.colors.status.error });
+      expect(screen.getByText(SIGN_IN_ERROR)).toHaveStyle({ ...tokens.typography.styles.bodySM, color: lightTheme.semantic.error.foreground });
       expect(screen.queryByText(WRONG_CODE)).toBeNull();
       expect(JSON.stringify(screen.toJSON())).not.toContain('evil.example');
       expect(JSON.stringify(screen.toJSON())).not.toContain(ATTACKER_TEXT);
       expect(field().props.value).toBe('123456');
       expect(signInButton()).toBeEnabled();
       expect(signInButton()).not.toBeBusy();
-      expect(screen.getByTestId('code-error-icon', { includeHiddenElements: true })).toBeTruthy();
+      // CircleAlert at 16dp in the error foreground, with Body SM text (§8.0 error, D28).
+      const icon = screen.getByTestId('code-error-icon', { includeHiddenElements: true });
+      expect(icon.props).toMatchObject({ width: tokens.iconography.size.xs, stroke: lightTheme.semantic.error.foreground, strokeWidth: tokens.iconography.strokeWidth });
+      expect(drawsCircleAlert(icon)).toBe(true);
     });
 
     it('is in English on an English phone', async () => {

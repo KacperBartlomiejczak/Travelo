@@ -1,6 +1,7 @@
+import { CircleAlert } from 'lucide-react-native';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { AccessibilityInfo, Text } from 'react-native';
+import { AccessibilityInfo, Text, View } from 'react-native';
 
 import { AmountField } from '@/components/AmountField';
 import { BottomSheet } from '@/components/BottomSheet';
@@ -60,9 +61,18 @@ export function BudgetSheet({ trip, onClose }: Props) {
         error={errorKey ? t(errorKey) : undefined}
       />
       {setBudget.isError && (
-        <Text accessibilityLiveRegion="polite" style={[tokens.typography.styles.bodySM, { color: theme.semantic.error.foreground }]}>
-          {t('home.saveBudgetError')}
-        </Text>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: tokens.spacing[1] }}>
+          <CircleAlert
+            testID="budget-error-icon"
+            size={tokens.iconography.size.xs}
+            strokeWidth={tokens.iconography.strokeWidth}
+            color={theme.semantic.error.foreground}
+            aria-hidden
+          />
+          <Text accessibilityLiveRegion="polite" style={[tokens.typography.styles.bodySM, { color: theme.semantic.error.foreground, flexShrink: 1 }]}>
+            {t('home.saveBudgetError')}
+          </Text>
+        </View>
       )}
       <PrimaryButton label={t('home.saveBudget')} onPress={save} loading={setBudget.isPending} />
     </BottomSheet>

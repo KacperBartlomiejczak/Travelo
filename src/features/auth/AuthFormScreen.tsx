@@ -1,12 +1,13 @@
 import { useHeaderHeight } from 'expo-router/react-navigation';
-import { CircleX } from 'lucide-react-native';
+import { CircleAlert } from 'lucide-react-native';
 import type { ReactNode, Ref } from 'react';
 import { KeyboardAvoidingView, ScrollView, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { OfflineBanner } from '@/components/OfflineBanner';
 import { useIsOffline } from '@/providers/BudgetSync';
-import { useTheme } from '@/theme/legacy/useTheme';
+import { tokens } from '@/theme/tokens';
+import { useTheme } from '@/theme/useTheme';
 
 type Props = {
   /** `<testID>` is the frame, `<testID>-scroll` the scrolling part. */
@@ -35,32 +36,32 @@ export function AuthFormScreen({ testID, title, hint, children, footer, topInset
   const headerHeight = useHeaderHeight();
   const { width } = useWindowDimensions();
   const offline = useIsOffline();
-  const side = width < theme.breakpoints.compact ? theme.spacing[4] : theme.spacing[5];
-  const { colors, typography, spacing } = theme;
+  const { spacing, typography } = tokens;
+  const side = width < tokens.layout.compactBreakpoint ? spacing[4] : spacing[5];
 
   return (
     <KeyboardAvoidingView
       testID={testID}
       behavior="padding"
       keyboardVerticalOffset={headerHeight}
-      style={[styles.screen, { backgroundColor: colors.background }]}
+      style={[styles.screen, { backgroundColor: theme.background.canvas }]}
     >
       {/* Without a header the status bar area is a solid, fixed strip, so what scrolls up is hidden behind it and never drawn under the clock (D24). */}
-      {topInset && <View testID={`${testID}-top-inset`} style={{ height: insets.top, backgroundColor: colors.background }} />}
+      {topInset && <View testID={`${testID}-top-inset`} style={{ height: insets.top, backgroundColor: theme.background.canvas }} />}
       <ScrollView
         ref={scrollRef}
         testID={`${testID}-scroll`}
         keyboardShouldPersistTaps="handled"
         contentContainerStyle={[
           styles.column,
-          { maxWidth: theme.size.maxContentWidth, paddingHorizontal: side, paddingTop: spacing[4], gap: spacing[6] },
+          { maxWidth: tokens.layout.maxContentWidth, paddingHorizontal: side, paddingTop: spacing[4], gap: spacing[6] },
         ]}
       >
         <View style={{ gap: spacing[2] }}>
-          <Text accessibilityRole="header" style={[typography.heading1, { color: colors.text.primary }]}>
+          <Text accessibilityRole="header" style={[typography.styles.headingLG, { color: theme.text.primary }]}>
             {title}
           </Text>
-          {hint && <Text style={[typography.bodyM, { color: colors.text.secondary }]}>{hint}</Text>}
+          {hint && <Text style={[typography.styles.bodyMD, { color: theme.text.secondary }]}>{hint}</Text>}
         </View>
         {offline && <OfflineBanner />}
         {children}
@@ -68,7 +69,7 @@ export function AuthFormScreen({ testID, title, hint, children, footer, topInset
       <View
         style={[
           styles.column,
-          { maxWidth: theme.size.maxContentWidth, paddingHorizontal: side, paddingTop: spacing[3], paddingBottom: insets.bottom + spacing[4], gap: spacing[3] },
+          { maxWidth: tokens.layout.maxContentWidth, paddingHorizontal: side, paddingTop: spacing[3], paddingBottom: insets.bottom + spacing[4], gap: spacing[3] },
         ]}
       >
         {footer}
@@ -84,15 +85,15 @@ export function AuthFormScreen({ testID, title, hint, children, footer, topInset
 export function FormError({ testID, message }: { testID: string; message: string }) {
   const theme = useTheme();
   return (
-    <View testID={testID} style={{ flexDirection: 'row', alignItems: 'center', gap: theme.spacing[1] }}>
-      <CircleX
+    <View testID={testID} style={{ flexDirection: 'row', alignItems: 'center', gap: tokens.spacing[1] }}>
+      <CircleAlert
         testID={`${testID}-icon`}
-        size={theme.size.iconInline}
-        strokeWidth={theme.size.iconStroke}
-        color={theme.colors.status.error}
+        size={tokens.iconography.size.xs}
+        strokeWidth={tokens.iconography.strokeWidth}
+        color={theme.semantic.error.foreground}
         aria-hidden
       />
-      <Text style={[theme.typography.bodyS, { color: theme.colors.status.error, flexShrink: 1 }]}>{message}</Text>
+      <Text style={[tokens.typography.styles.bodySM, { color: theme.semantic.error.foreground, flexShrink: 1 }]}>{message}</Text>
     </View>
   );
 }

@@ -1,7 +1,7 @@
 import { Stack } from 'expo-router';
 import { act, fireEvent, renderRouter, screen, waitFor, within } from 'expo-router/testing-library';
 import { launchImageLibraryAsync } from 'expo-image-picker';
-import { AccessibilityInfo, findNodeHandle, ScrollView } from 'react-native';
+import { AccessibilityInfo, findNodeHandle, ScrollView, StyleSheet } from 'react-native';
 import { ZodError } from 'zod';
 
 import { appProviderProfile } from '@/data/app-provider-profile';
@@ -10,9 +10,10 @@ import { createInMemoryProfileRepository, UsernameTakenError, type ProfileReposi
 import i18n from '@/i18n';
 import { AppProviders } from '@/providers/AppProviders';
 import { setAppProfileRepository } from '@/test/fake-profile-repository';
+import { drawsCircleAlert } from '@/test/alert-icon';
 import { setNetwork } from '@/test/mock-network';
-import { lightTheme } from '@/theme/legacy/theme';
-import { lightTheme as sunlineLight } from '@/theme/theme';
+import { lightTheme } from '@/theme/theme';
+import { tokens } from '@/theme/tokens';
 
 import { ProfileSetupScreen } from '../ProfileSetupScreen';
 
@@ -225,7 +226,7 @@ describe('ProfileSetupScreen (auth-onboarding D7, D20, P1, P2, P4, P5)', () => {
 
     it('uses the theme background', async () => {
       await openSetup();
-      expect(screen.getByTestId('profile-setup-screen')).toHaveStyle({ backgroundColor: lightTheme.colors.background });
+      expect(screen.getByTestId('profile-setup-screen')).toHaveStyle({ backgroundColor: lightTheme.background.canvas });
     });
   });
 
@@ -250,7 +251,7 @@ describe('ProfileSetupScreen (auth-onboarding D7, D20, P1, P2, P4, P5)', () => {
       expect(screen.queryAllByTestId('field-error-icon', hidden)).toHaveLength(0);
       // The hints stay what they are, in their own colour.
       expect(screen.getByText(NICK_HINT)).toBeTruthy();
-      expect(screen.getByText(INTERESTS_HINT)).toHaveStyle({ color: sunlineLight.text.secondary });
+      expect(screen.getByText(INTERESTS_HINT)).toHaveStyle({ color: lightTheme.text.secondary });
     };
 
     it('an empty form: the button is disabled, a tap and the keyboard key do nothing', async () => {
@@ -381,15 +382,92 @@ describe('ProfileSetupScreen (auth-onboarding D7, D20, P1, P2, P4, P5)', () => {
       await openSetup();
       expect(avatarButton().props.accessibilityLabel).toBe(AVATAR);
       expect(screen.getByTestId('avatar-placeholder')).toHaveStyle({
-        width: lightTheme.size.avatarSetup,
-        height: lightTheme.size.avatarSetup,
-        borderRadius: lightTheme.radius.full,
+        width: tokens.components.avatar.xxl,
+        height: tokens.components.avatar.xxl,
+        borderRadius: tokens.radii.pill,
       });
       expect(screen.getByTestId('avatar-camera', hidden)).toBeTruthy();
       expect(screen.queryByTestId('avatar-camera')).toBeNull(); // not in the accessibility tree
       expect(screen.queryByTestId('avatar-preview', hidden)).toBeNull();
       // The 96dp circle is far above the 44dp minimum touch target.
-      expect(lightTheme.size.avatarSetup).toBeGreaterThanOrEqual(lightTheme.size.touchTarget);
+      expect(tokens.components.avatar.xxl).toBeGreaterThanOrEqual(tokens.layout.touchTarget);
+    });
+
+    describe('look (§8.4 control states, D10, A5)', () => {
+      const { focusRing } = tokens.components;
+      const grant = (element: ReturnType<typeof avatarButton>) =>
+        fireEvent(element, 'responderGrant', { nativeEvent: { timestamp: Date.now() }, persist: jest.fn() });
+
+      it('draws the placeholder on surface.primary with a 1dp border.default, a 32dp camera in icon.secondary and the label in labelMD text.primary', async () => {
+        await openSetup();
+        expect(screen.getByTestId('avatar-placeholder')).toHaveStyle({
+          backgroundColor: lightTheme.surface.primary,
+          borderWidth: 1,
+          borderColor: lightTheme.border.default,
+        });
+        expect(screen.getByTestId('avatar-camera', hidden).props).toMatchObject({
+          width: tokens.iconography.size.xl,
+          stroke: lightTheme.icon.secondary,
+          strokeWidth: tokens.iconography.strokeWidth,
+        });
+        expect(screen.getByText(AVATAR)).toHaveStyle({ ...tokens.typography.styles.labelMD, color: lightTheme.text.primary });
+        expect(StyleSheet.flatten(avatarButton().props.style).minHeight).toBeGreaterThanOrEqual(tokens.layout.touchTarget);
+      });
+
+      it('is background.sunken with a border.interactive border while pressed, placeholder or photo', async () => {
+        launch.mockResolvedValue(picked(PHOTO));
+        await openSetup();
+        await grant(avatarButton());
+        expect(screen.getByTestId('avatar-placeholder')).toHaveStyle({
+          backgroundColor: lightTheme.background.sunken,
+          borderColor: lightTheme.border.interactive,
+        });
+      });
+
+      it('shows a 2dp border.focus ring with a 2dp gap while focused, and none after', async () => {
+        await openSetup();
+        expect(avatarButton()).not.toHaveStyle({ outlineWidth: focusRing.width });
+        await fireEvent(avatarButton(), 'focus');
+        expect(avatarButton()).toHaveStyle({
+          outlineWidth: focusRing.width,
+          outlineColor: lightTheme.border.focus,
+          outlineOffset: focusRing.offset,
+        });
+        await fireEvent(avatarButton(), 'blur');
+        expect(avatarButton()).not.toHaveStyle({ outlineWidth: focusRing.width });
+      });
+
+      it('uses the disabled tokens and no opacity while the profile is saved', async () => {
+        const save = holdSave();
+        await openSetup();
+        await fillValid();
+        await fireEvent.press(saveButton());
+        await waitFor(() => expect(saveButton()).toBeBusy());
+
+        expect(StyleSheet.flatten(avatarButton().props.style).opacity).toBeUndefined();
+        expect(screen.getByTestId('avatar-placeholder')).toHaveStyle({ backgroundColor: lightTheme.disabled.background });
+        expect(screen.getByTestId('avatar-camera', hidden).props.stroke).toBe(lightTheme.icon.disabled);
+        expect(screen.getByText(AVATAR)).toHaveStyle({ color: lightTheme.disabled.foreground });
+
+        await act(async () => save.finish());
+      });
+
+      it('keeps the photo undimmed and only turns the label to the disabled foreground while the profile is saved', async () => {
+        const save = holdSave();
+        launch.mockResolvedValue(picked(PHOTO));
+        await openSetup();
+        await fillValid();
+        await fireEvent.press(avatarButton());
+        await waitFor(() => expect(screen.getByTestId('avatar-preview', hidden)).toBeTruthy());
+        await fireEvent.press(saveButton());
+        await waitFor(() => expect(saveButton()).toBeBusy());
+
+        expect(StyleSheet.flatten(screen.getByTestId('avatar-preview', hidden).props.style).opacity).toBeUndefined();
+        expect(StyleSheet.flatten(avatarButton().props.style).opacity).toBeUndefined();
+        expect(screen.getByText(AVATAR_CHANGE)).toHaveStyle({ color: lightTheme.disabled.foreground });
+
+        await act(async () => save.finish());
+      });
     });
 
     it('opens the gallery with a square crop, images only', async () => {
@@ -412,9 +490,9 @@ describe('ProfileSetupScreen (auth-onboarding D7, D20, P1, P2, P4, P5)', () => {
       await waitFor(() => expect(screen.getByTestId('avatar-preview', hidden)).toBeTruthy());
       expect(screen.getByTestId('avatar-preview', hidden).props.source).toEqual([{ uri: PHOTO }]);
       expect(screen.getByTestId('avatar-preview', hidden)).toHaveStyle({
-        width: lightTheme.size.avatarSetup,
-        height: lightTheme.size.avatarSetup,
-        borderRadius: lightTheme.radius.full,
+        width: tokens.components.avatar.xxl,
+        height: tokens.components.avatar.xxl,
+        borderRadius: tokens.radii.pill,
       });
       expect(screen.queryByTestId('avatar-placeholder', hidden)).toBeNull();
       // A decorative picture: the button's label says what it does.
@@ -573,8 +651,11 @@ describe('ProfileSetupScreen (auth-onboarding D7, D20, P1, P2, P4, P5)', () => {
 
       await waitFor(() => expect(screen.getByText(PICK_ERROR)).toBeTruthy());
       expect(announce).toHaveBeenCalledWith(PICK_ERROR);
-      expect(screen.getByText(PICK_ERROR)).toHaveStyle({ color: lightTheme.colors.status.error });
-      expect(screen.getByTestId('avatar-error-icon', hidden)).toBeTruthy();
+      expect(screen.getByText(PICK_ERROR)).toHaveStyle({ ...tokens.typography.styles.bodySM, color: lightTheme.semantic.error.foreground });
+      // CircleAlert at 16dp in the error foreground next to the text, never colour alone (§8.0 error, D28).
+      const pickIcon = screen.getByTestId('avatar-error-icon', hidden);
+      expect(pickIcon.props).toMatchObject({ width: tokens.iconography.size.xs, stroke: lightTheme.semantic.error.foreground, strokeWidth: tokens.iconography.strokeWidth });
+      expect(drawsCircleAlert(pickIcon)).toBe(true);
       expect(JSON.stringify(screen.toJSON())).not.toContain(ATTACKER_TEXT);
       expect(screen.getByTestId('avatar-preview', hidden).props.source).toEqual([{ uri: PHOTO }]);
     });
@@ -734,9 +815,9 @@ describe('ProfileSetupScreen (auth-onboarding D7, D20, P1, P2, P4, P5)', () => {
       await fireEvent.press(saveButton());
 
       await waitFor(() => expect(screen.getByText(NICK_TAKEN)).toBeTruthy());
-      expect(screen.getByText(NICK_TAKEN)).toHaveStyle({ color: sunlineLight.semantic.error.foreground });
+      expect(screen.getByText(NICK_TAKEN)).toHaveStyle({ color: lightTheme.semantic.error.foreground });
       expect(nickField().props.accessibilityHint).toBe(NICK_TAKEN);
-      expect(nickField()).toHaveStyle({ borderWidth: 2, borderColor: sunlineLight.semantic.error.foreground });
+      expect(nickField()).toHaveStyle({ borderWidth: 2, borderColor: lightTheme.semantic.error.foreground });
       expect(screen.queryByText(NICK_HINT)).toBeNull();
       // Not the general save error: it is about the field.
       expect(screen.queryByText(SAVE_ERROR)).toBeNull();
@@ -789,8 +870,10 @@ describe('ProfileSetupScreen (auth-onboarding D7, D20, P1, P2, P4, P5)', () => {
       await waitFor(() => expect(screen.getByText(SAVE_ERROR)).toBeTruthy());
       expect(create).toHaveBeenCalledTimes(1);
       expect(announce).toHaveBeenCalledWith(SAVE_ERROR);
-      expect(screen.getByText(SAVE_ERROR)).toHaveStyle({ color: lightTheme.colors.status.error });
-      expect(screen.getByTestId('profile-save-error-icon', hidden)).toBeTruthy();
+      expect(screen.getByText(SAVE_ERROR)).toHaveStyle({ ...tokens.typography.styles.bodySM, color: lightTheme.semantic.error.foreground });
+      const saveIcon = screen.getByTestId('profile-save-error-icon', hidden);
+      expect(saveIcon.props).toMatchObject({ width: tokens.iconography.size.xs, stroke: lightTheme.semantic.error.foreground, strokeWidth: tokens.iconography.strokeWidth });
+      expect(drawsCircleAlert(saveIcon)).toBe(true);
       expect(JSON.stringify(screen.toJSON())).not.toContain('evil.example');
       expect(JSON.stringify(screen.toJSON())).not.toContain(ATTACKER_TEXT);
       expect(getPathname()).toBe('/onboarding');
@@ -881,7 +964,7 @@ describe('ProfileSetupScreen (auth-onboarding D7, D20, P1, P2, P4, P5)', () => {
       expect(tree().indexOf(INTERESTS_LABEL)).toBeLessThan(tree().indexOf(INTERESTS_HINT));
       expect(tree().indexOf(INTERESTS_HINT)).toBeLessThan(tree().indexOf('Zabawa'));
       expect(screen.getAllByText(INTERESTS_HINT)).toHaveLength(1);
-      expect(screen.getByText(INTERESTS_HINT)).toHaveStyle({ color: sunlineLight.text.secondary });
+      expect(screen.getByText(INTERESTS_HINT)).toHaveStyle({ color: lightTheme.text.secondary });
       expect(screen.queryAllByTestId('field-error-icon', hidden)).toHaveLength(0);
     });
 
@@ -1065,7 +1148,7 @@ describe('ProfileSetupScreen (auth-onboarding D7, D20, P1, P2, P4, P5)', () => {
       await openSetup();
       const scroll = screen.getByTestId('profile-setup-screen-scroll');
       const inset = screen.getByTestId('profile-setup-screen-top-inset', hidden);
-      expect(inset).toHaveStyle({ height: INSET_TOP, backgroundColor: lightTheme.colors.background });
+      expect(inset).toHaveStyle({ height: INSET_TOP, backgroundColor: lightTheme.background.canvas });
       // Outside the scroll view, so what scrolls up is hidden behind it; and above it.
       expect(within(scroll).queryByTestId('profile-setup-screen-top-inset', hidden)).toBeNull();
       const tree = JSON.stringify(screen.toJSON());
@@ -1077,7 +1160,7 @@ describe('ProfileSetupScreen (auth-onboarding D7, D20, P1, P2, P4, P5)', () => {
       const style = Object.assign({}, ...[screen.getByTestId('profile-setup-screen-scroll').props.contentContainerStyle].flat(2)) as {
         paddingTop: number;
       };
-      expect(style.paddingTop).toBe(lightTheme.spacing[4]);
+      expect(style.paddingTop).toBe(tokens.spacing[4]);
     });
   });
 
@@ -1204,12 +1287,21 @@ describe('ProfileSetupScreen (auth-onboarding D7, D20, P1, P2, P4, P5)', () => {
         expect(avatarButton()).toBeBusy();
         expect(avatarButton()).toBeDisabled();
         expect(screen.getByTestId('avatar-placeholder')).toHaveStyle({
-          width: lightTheme.size.avatarSetup,
-          height: lightTheme.size.avatarSetup,
+          width: tokens.components.avatar.xxl,
+          height: tokens.components.avatar.xxl,
         });
 
         await fireEvent.press(avatarButton());
         expect(launch).not.toHaveBeenCalled();
+      });
+
+      it('loading the account photo is not the disabled look: the spinner stays on the normal placeholder', async () => {
+        holdDownload(GOOGLE);
+        await openSetup();
+        await waitFor(() => expect(screen.getByTestId('avatar-loading', hidden)).toBeTruthy());
+        expect(screen.getByTestId('avatar-placeholder')).toHaveStyle({ backgroundColor: lightTheme.surface.primary });
+        expect(screen.getByTestId('avatar-loading', hidden).props.color).toBe(lightTheme.icon.secondary);
+        expect(screen.getByText(AVATAR)).toHaveStyle({ color: lightTheme.text.primary });
       });
 
       it('the nick is filled in at once and the button follows the form, not the download', async () => {

@@ -6,6 +6,7 @@ import { createInMemoryTripRepository, type TripRepository } from '@/data/trip-r
 import i18n from '@/i18n';
 import { AppProviders } from '@/providers/AppProviders';
 import { TRIP_NAME_MAX_LENGTH, type TripSummary } from '@/schemas';
+import { drawsCircleAlert } from '@/test/alert-icon';
 import { setNetwork } from '@/test/mock-network';
 import { lightTheme } from '@/theme/theme';
 import { tokens } from '@/theme/tokens';
@@ -168,6 +169,11 @@ describe('TripDetailsSheet (trip-edit-menu A2, A3, D5, D12)', () => {
       ...tokens.typography.styles.bodySM,
       color: lightTheme.semantic.error.foreground,
     });
+    expect(screen.getByText('Nie udało się zapisać. Spróbuj ponownie.').props.accessibilityLiveRegion).toBe('polite');
+    // CircleAlert at 16dp in the error colour next to the text, never colour alone (§8.0 error, D28).
+    const icon = screen.getByTestId('trip-details-error-icon', { includeHiddenElements: true });
+    expect(icon.props).toMatchObject({ width: tokens.iconography.size.xs, stroke: lightTheme.semantic.error.foreground, strokeWidth: tokens.iconography.strokeWidth });
+    expect(drawsCircleAlert(icon)).toBe(true);
     expect(announce).toHaveBeenCalledWith('Nie udało się zapisać. Spróbuj ponownie.');
     expect(updateDetails).toHaveBeenCalledTimes(1);
     expect(onClose).not.toHaveBeenCalled();

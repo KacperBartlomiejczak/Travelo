@@ -7,6 +7,7 @@ import { DeletePhotoSheet } from '@/features/trip-photos/DeletePhotoSheet';
 import i18n from '@/i18n';
 import { AppProviders } from '@/providers/AppProviders';
 import type { ShownTripPhoto, TripPhoto } from '@/schemas';
+import { drawsCircleAlert } from '@/test/alert-icon';
 import { setNetwork } from '@/test/mock-network';
 import { lightTheme } from '@/theme/theme';
 import { tokens } from '@/theme/tokens';
@@ -112,6 +113,10 @@ describe('DeletePhotoSheet (trip-photos P5, D8)', () => {
     const { onClose, onDeleted } = await setup(deletePhoto);
     await fireEvent.press(confirm());
     expect(await screen.findByText(ERROR)).toHaveStyle({ ...tokens.typography.styles.bodySM, color: lightTheme.semantic.error.foreground });
+    // CircleAlert at 16dp in the error colour next to the text, never colour alone (§8.0 error, D28).
+    const icon = screen.getByTestId('delete-photo-error-icon', { includeHiddenElements: true });
+    expect(icon.props).toMatchObject({ width: tokens.iconography.size.xs, stroke: lightTheme.semantic.error.foreground, strokeWidth: tokens.iconography.strokeWidth });
+    expect(drawsCircleAlert(icon)).toBe(true);
     // Announced once, by the call; a live region on the text would read it a second time.
     expect(announce).toHaveBeenCalledTimes(1);
     expect(announce).toHaveBeenCalledWith(ERROR);

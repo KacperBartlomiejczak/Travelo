@@ -1,6 +1,7 @@
+import { CircleAlert } from 'lucide-react-native';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { AccessibilityInfo, ScrollView, Text } from 'react-native';
+import { AccessibilityInfo, ScrollView, Text, View } from 'react-native';
 
 import { BottomSheet } from '@/components/BottomSheet';
 import { CoverPicker } from '@/components/CoverPicker';
@@ -56,9 +57,18 @@ export function TripDetailsSheet({ trip, onClose }: Props) {
         <CoverPicker value={coverImageUri} onChange={setCoverImageUri} urls={trip.coverUrls} />
       </ScrollView>
       {update.isError && (
-        <Text accessibilityLiveRegion="polite" style={[tokens.typography.styles.bodySM, { color: theme.semantic.error.foreground }]}>
-          {t('tripDetails.saveError')}
-        </Text>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: tokens.spacing[1] }}>
+          <CircleAlert
+            testID="trip-details-error-icon"
+            size={tokens.iconography.size.xs}
+            strokeWidth={tokens.iconography.strokeWidth}
+            color={theme.semantic.error.foreground}
+            aria-hidden
+          />
+          <Text accessibilityLiveRegion="polite" style={[tokens.typography.styles.bodySM, { color: theme.semantic.error.foreground, flexShrink: 1 }]}>
+            {t('tripDetails.saveError')}
+          </Text>
+        </View>
       )}
       {offline && <Text style={[tokens.typography.styles.bodySM, { color: theme.text.secondary }]}>{t('tripMenu.offlineHint')}</Text>}
       <PrimaryButton label={t('tripDetails.save')} onPress={save} loading={update.isPending} disabled={offline} />

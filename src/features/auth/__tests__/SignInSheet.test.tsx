@@ -7,8 +7,10 @@ import { OAuthSignInError, type OAuthProvider } from '@/data/auth';
 import { ServerUnreachableError } from '@/data/errors';
 import i18n from '@/i18n';
 import { AppProviders } from '@/providers/AppProviders';
+import { drawsCircleAlert } from '@/test/alert-icon';
 import { setNetwork } from '@/test/mock-network';
-import { lightTheme } from '@/theme/legacy/theme';
+import { lightTheme } from '@/theme/theme';
+import { tokens } from '@/theme/tokens';
 
 import { SignInSheet } from '../SignInSheet';
 
@@ -76,7 +78,7 @@ describe('SignInSheet (auth-onboarding D6, D10, D13, P5)', () => {
     expect(screen.getByRole('header', { name: 'Zaloguj się' })).toBeTruthy();
     const options = screen.getByTestId('sign-in-options');
     expect(within(options).getAllByRole('button').map((button) => button.props.accessibilityLabel)).toEqual([GOOGLE, DISCORD, EMAIL]);
-    expect(options).toHaveStyle({ gap: lightTheme.spacing[3] });
+    expect(options).toHaveStyle({ gap: tokens.spacing[3] });
   });
 
   it('speaks English on an English phone', async () => {
@@ -233,8 +235,11 @@ describe('SignInSheet (auth-onboarding D6, D10, D13, P5)', () => {
       await setup();
       await fireEvent.press(google());
       const error = await screen.findByTestId('sign-in-error');
-      expect(within(error).getByTestId('sign-in-error-icon', { includeHiddenElements: true })).toBeTruthy();
-      expect(within(error).getByText(GOOGLE_ERROR)).toHaveStyle({ color: lightTheme.colors.status.error });
+      // CircleAlert at 16dp in the error foreground next to Body SM text (§8.0 error, D28).
+      const icon = within(error).getByTestId('sign-in-error-icon', { includeHiddenElements: true });
+      expect(icon.props).toMatchObject({ width: tokens.iconography.size.xs, stroke: lightTheme.semantic.error.foreground, strokeWidth: tokens.iconography.strokeWidth });
+      expect(drawsCircleAlert(icon)).toBe(true);
+      expect(within(error).getByText(GOOGLE_ERROR)).toHaveStyle({ ...tokens.typography.styles.bodySM, color: lightTheme.semantic.error.foreground });
       const everything = JSON.stringify(screen.toJSON());
       expect(everything.indexOf(EMAIL)).toBeLessThan(everything.indexOf(GOOGLE_ERROR));
     });

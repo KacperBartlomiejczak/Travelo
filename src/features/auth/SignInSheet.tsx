@@ -1,5 +1,5 @@
 import { useRouter } from 'expo-router';
-import { CircleX, Mail } from 'lucide-react-native';
+import { CircleAlert, Mail } from 'lucide-react-native';
 import { useTranslation } from 'react-i18next';
 import { AccessibilityInfo, Text, View } from 'react-native';
 
@@ -9,7 +9,8 @@ import { TextButton } from '@/components/TextButton';
 import type { OAuthProvider } from '@/data/auth';
 import { useSignIn } from '@/hooks/useSignIn';
 import { useIsOffline } from '@/providers/BudgetSync';
-import { useTheme } from '@/theme/legacy/useTheme';
+import { tokens } from '@/theme/tokens';
+import { useTheme } from '@/theme/useTheme';
 
 import { DiscordButton } from './DiscordButton';
 import { GoogleButton } from './GoogleButton';
@@ -47,7 +48,7 @@ export function SignInSheet({ onClose }: Props) {
   return (
     <BottomSheet visible title={t('auth.signIn.title')} onClose={onClose} dismissible={!pending}>
       {offline && <OfflineBanner />}
-      <View testID="sign-in-options" style={{ gap: theme.spacing[3] }}>
+      <View testID="sign-in-options" style={{ gap: tokens.spacing[3] }}>
         <GoogleButton
           label={t('auth.signIn.google')}
           onPress={() => start('google')}
@@ -64,15 +65,15 @@ export function SignInSheet({ onClose }: Props) {
       </View>
       {signIn.isError && tapped && (
         // Announced by the call in `start`; a live region as well would read it twice.
-        <View testID="sign-in-error" style={{ flexDirection: 'row', alignItems: 'center', gap: theme.spacing[2] }}>
-          <CircleX
+        <View testID="sign-in-error" style={{ flexDirection: 'row', alignItems: 'center', gap: tokens.spacing[1] }}>
+          <CircleAlert
             testID="sign-in-error-icon"
-            size={theme.size.iconInline}
-            strokeWidth={theme.size.iconStroke}
-            color={theme.colors.status.error}
+            size={tokens.iconography.size.xs}
+            strokeWidth={tokens.iconography.strokeWidth}
+            color={theme.semantic.error.foreground}
             aria-hidden
           />
-          <Text style={[theme.typography.bodyS, { color: theme.colors.status.error, flexShrink: 1 }]}>{errorCopy[tapped]}</Text>
+          <Text style={[tokens.typography.styles.bodySM, { color: theme.semantic.error.foreground, flexShrink: 1 }]}>{errorCopy[tapped]}</Text>
         </View>
       )}
     </BottomSheet>
