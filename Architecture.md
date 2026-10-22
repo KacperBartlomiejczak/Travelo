@@ -645,6 +645,7 @@ The airport list is a static bundled file, validated row by row in its test (not
 - Template images in `assets/images/` (React/Expo logos, `tabIcons/`, `tutorial-web.png`) are not referenced by any code.
 
 ## Changelog
+- 2026-10-22 — gate-startup-timing — temporary startup traces added for a measurement and removed again (files byte-identical to before); no architectural change. Finding: the long splash spinner was an emulator/Expo Go effect; on a real phone the gate path takes ≈ 1–4 s.
 - 2026-10-22 — splash-animation (steps 1–5; device check pending) — Lottie logo animation `assets/animations/splash.json` (LottieFiles Creator; symbol centered → slides left, wordmark revealed from behind it through a track matte, 1.6 s); new `AnimatedSplash` component + `lottie-react-native` dependency; the root `Gate` hides the native splash on mount and overlays `AnimatedSplash` until the gate is ready; native splash moved from the Expo template to paper / dark canvas with the logo symbol (`splash-icon.png`, new `splash-icon-dark.png`); token `screenMetrics.splash.animationWidth`; i18n `splash.loading`; tests `app-config.test.ts`, `assets/splash-animation.test.ts`. Icons unchanged (the app-icon task was not done).
 - 2026-10-21 — coderabbit-pr22-fixes — doc fixes only (migration count, stale friend-invite limitation); no architectural change.
 - 2026-10-21 — friend-invite (step 8, device check on two accounts, PASS) — migrations pushed to the hosted project; no other architecture change.

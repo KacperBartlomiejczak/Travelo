@@ -5,7 +5,6 @@ import { startNewUserEpoch } from '@/data/local-store';
 import type { SessionChange, SessionSource } from '@/data/session-source';
 
 import { useRequestBudgetSync } from './BudgetSync';
-import { trace } from '@/lib/startupTrace';
 
 /**
  * Who is using the app (auth-onboarding step 5):
@@ -107,7 +106,6 @@ export function SessionProvider({ source, children }: Props) {
 
   const start = useCallback(async () => {
     const mine = ++run.current;
-    trace('session:read:start');
     let snapshot;
     try {
       snapshot = await source.current();
@@ -115,7 +113,6 @@ export function SessionProvider({ source, children }: Props) {
       if (run.current === mine) apply({ status: 'error' });
       return;
     }
-    trace('session:read:end');
     if (run.current !== mine) return;
     if (snapshot.status === 'signedOut') {
       await leave('signedOut');

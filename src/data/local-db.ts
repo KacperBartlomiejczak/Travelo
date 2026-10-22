@@ -1,5 +1,4 @@
 import { openDatabaseAsync, type SQLiteBindValue } from 'expo-sqlite';
-import { trace } from '@/lib/startupTrace';
 
 /** The part of expo-sqlite's database the app uses (tests use Node's SQLite behind the same shape). */
 export interface LocalDb {
@@ -67,10 +66,7 @@ export async function migrateLocalDb(db: LocalDb): Promise<void> {
  * photo list copies, trip-photos D8; the own profile copy, auth-onboarding D9).
  */
 export async function openLocalDb(): Promise<LocalDb> {
-  trace('db:open:start');
   const db = await openDatabaseAsync('travelo.db');
-  trace('db:open:end');
   await migrateLocalDb(db);
-  trace('db:migrated');
   return db;
 }

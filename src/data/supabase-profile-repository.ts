@@ -21,7 +21,6 @@ import { currentUserEpoch, type LocalStore } from './local-store';
 import { prepareAvatar } from './photo-files';
 import { UsernameTakenError, type MyProfile, type ProfileRepository } from './profile-repository';
 import { profileFromRow } from './profile-rows';
-import { trace } from '@/lib/startupTrace';
 
 /** The private Storage bucket of profile photos (auth-onboarding P2). */
 const AVATAR_BUCKET = 'avatars';
@@ -99,16 +98,13 @@ export function createSupabaseProfileRepository({
   /** Keeps the profile as the copy on the device (without the signed url) and gives it back with the avatar's url. */
   async function show(local: LocalStore, epoch: number, userId: string, profile: Profile): Promise<ShownProfile> {
     const avatarUrl = await signAvatar(userId, profile.avatarId);
-    trace('profile:avatar');
     await local.cacheProfile(profile, now().toISOString(), epoch);
-    trace('profile:cached');
     return ShownProfileSchema.parse({ ...profile, ...(avatarUrl ? { avatarUrl } : {}) });
   }
 
   /** The user's profile from the server, or null when there is none (the copy is then forgotten too). */
   async function fetchProfile(local: LocalStore, epoch: number, userId: string): Promise<ShownProfile | null> {
     const { data, error, status } = await supabase.from('profiles').select('*').eq('id', userId).maybeSingle();
-    trace('profile:select');
     if (error) throw failure(error, status);
     if (!data) {
       await local.clearProfile();
@@ -123,7 +119,6 @@ export function createSupabaseProfileRepository({
    * copy of the previous user first (D2). Throws `unreachable` when there is no usable copy.
    */
   async function cached(local: LocalStore, userId: string | null, unreachable: ServerUnreachableError): Promise<MyProfile> {
-    trace('profile:fallback');
     const copy = await local.cachedProfile();
     if (!copy || (userId !== null && copy.id !== userId)) throw unreachable;
     return { profile: copy, fromCache: true };
@@ -159,10 +154,8 @@ export function createSupabaseProfileRepository({
 
   return {
     async myProfile() {
-      trace('profile:start');
       const epoch = currentUserEpoch();
       const local = await localStore;
-      trace('profile:store');
       let userId: string;
       try {
         userId = await signedIn();
@@ -170,10 +163,8 @@ export function createSupabaseProfileRepository({
         if (error instanceof ServerUnreachableError) return cached(local, null, error);
         throw error;
       }
-      trace('profile:session');
       try {
         const profile = await fetchProfile(local, epoch, userId);
-        trace('profile:end');
         return profile ? { profile, fromCache: false } : null;
       } catch (error) {
         if (!(error instanceof ServerUnreachableError)) throw error;

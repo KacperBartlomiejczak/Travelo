@@ -10,7 +10,6 @@ import { tokens } from '@/theme/tokens';
 import { useTheme } from '@/theme/useTheme';
 
 import splash from '../../assets/animations/splash.json';
-import { trace } from '@/lib/startupTrace';
 
 type Props = { ready: boolean; onDone: () => void };
 
@@ -40,14 +39,11 @@ export function AnimatedSplash({ ready, onDone }: Props) {
   // `autoPlay` only acts when the native view mounts, and then the answer is still `null`: start by hand once it says "false".
   useEffect(() => {
     if (reduceMotion === false) lottie.current?.play();
-    if (reduceMotion === false) trace('splash:play');
   }, [reduceMotion]);
-  useEffect(() => { if (played) trace('splash:played'); }, [played]);
 
   useEffect(() => {
     if (!leaving) return;
     opacity.value = withTiming(0, { duration: fadeDuration, easing: Easing.bezier(...tokens.motion.easing.exit) });
-    trace('splash:fade');
     const timer = setTimeout(() => onDoneRef.current(), fadeDuration);
     return () => clearTimeout(timer);
   }, [leaving, fadeDuration, opacity]);

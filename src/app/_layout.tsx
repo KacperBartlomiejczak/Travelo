@@ -17,8 +17,7 @@ import { AnimatedSplash } from "@/components/AnimatedSplash";
 import { FullScreenError } from "@/features/auth/FullScreenError";
 import { useGateView } from "@/features/auth/useGateView";
 import { AppProviders } from "@/providers/AppProviders";
-import { useTheme } from "@/theme/legacy/useTheme";
-import { trace } from "@/lib/startupTrace";
+import { useTheme } from "@/theme/useTheme";
 
 SplashScreen.preventAutoHideAsync();
 
@@ -39,7 +38,6 @@ export default function RootLayout() {
     return null;
   }
 
-  trace('fonts:ready');
   return (
     <AppProviders>
       <Gate />
@@ -63,10 +61,8 @@ function Gate() {
   const { view, retry } = useGateView();
 
   useEffect(() => {
-    trace('gate:mount');
     SplashScreen.hideAsync();
   }, []);
-  useEffect(() => trace(`gate:view=${view}`), [view]);
 
   return (
     <>
@@ -78,10 +74,10 @@ function Gate() {
 
 function GateContent({ view, retry }: ReturnType<typeof useGateView>) {
   const { t } = useTranslation();
-  const { colors } = useTheme();
+  const theme = useTheme();
 
   if (view === "loading") {
-    return <View testID="app-loading" accessible accessibilityState={{ busy: true }} style={{ flex: 1, backgroundColor: colors.background }} />;
+    return <View testID="app-loading" accessible accessibilityState={{ busy: true }} style={{ flex: 1, backgroundColor: theme.background.canvas }} />;
   }
   if (view === "startError") {
     return <FullScreenError testID="start-error" message={t("auth.startError")} retryLabel={t("auth.retry")} onRetry={retry} />;
