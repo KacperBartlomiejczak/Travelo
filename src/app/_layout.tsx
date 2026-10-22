@@ -8,15 +8,17 @@ import { Fraunces_500Medium, Fraunces_600SemiBold, Fraunces_700Bold } from "@exp
 import { useFonts } from "expo-font";
 import { Stack } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { View } from "react-native";
 
 import "@/i18n";
+import { AnimatedSplash } from "@/components/AnimatedSplash";
 import { FullScreenError } from "@/features/auth/FullScreenError";
 import { useGateView } from "@/features/auth/useGateView";
 import { AppProviders } from "@/providers/AppProviders";
 import { useTheme } from "@/theme/legacy/useTheme";
+import { trace } from "@/lib/startupTrace";
 
 SplashScreen.preventAutoHideAsync();
 
@@ -37,6 +39,7 @@ export default function RootLayout() {
     return null;
   }
 
+  trace('fonts:ready');
   return (
     <AppProviders>
       <Gate />
@@ -50,16 +53,32 @@ export default function RootLayout() {
 // - signed out: the (auth) group only;
 // - signed in without a profile: profile setup only;
 // - signed in with a profile: the app.
-// While the session or the profile is still being read the splash screen stays (afterwards, a blank screen in the theme's
-// background); a failure to read either is a full-screen error with a retry, never the welcome screen or the setup form.
+// While the session or the profile is still being read a blank screen in the theme's background is rendered; a failure to read
+// either is a full-screen error with a retry, never the welcome screen or the setup form.
+// The animated splash (splash-animation step 5) covers all of it on a cold start: the native splash is hidden as soon as the gate
+// mounts (the fonts are loaded) and hands over to it; it goes away once it has played and the gate is no longer loading (an error
+// counts as ready), and it is never shown again during the session.
 function Gate() {
-  const { t } = useTranslation();
+  const [splashDone, setSplashDone] = useState(false);
   const { view, retry } = useGateView();
-  const { colors } = useTheme();
 
   useEffect(() => {
-    if (view !== "loading") SplashScreen.hideAsync();
-  }, [view]);
+    trace('gate:mount');
+    SplashScreen.hideAsync();
+  }, []);
+  useEffect(() => trace(`gate:view=${view}`), [view]);
+
+  return (
+    <>
+      <GateContent view={view} retry={retry} />
+      {splashDone ? null : <AnimatedSplash ready={view !== "loading"} onDone={() => setSplashDone(true)} />}
+    </>
+  );
+}
+
+function GateContent({ view, retry }: ReturnType<typeof useGateView>) {
+  const { t } = useTranslation();
+  const { colors } = useTheme();
 
   if (view === "loading") {
     return <View testID="app-loading" accessible accessibilityState={{ busy: true }} style={{ flex: 1, backgroundColor: colors.background }} />;

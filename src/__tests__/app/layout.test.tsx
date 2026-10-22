@@ -1,5 +1,5 @@
 import { useFonts } from 'expo-font';
-import { renderRouter, screen } from 'expo-router/testing-library';
+import { act, renderRouter, screen, waitFor } from 'expo-router/testing-library';
 import * as SplashScreen from 'expo-splash-screen';
 import { Text } from 'react-native';
 
@@ -7,7 +7,11 @@ import TabsLayout from '@/app/(drawer)/(tabs)/_layout';
 import DrawerLayout from '@/app/(drawer)/_layout';
 import RootLayout from '@/app/_layout';
 import { useCurrentTrip } from '@/hooks/useTrips';
+import { tokens } from '@/theme/tokens';
 import { drawerStatus } from '@/test/drawer-status';
+import { useFakeAppSession } from '@/test/fake-session-source';
+import { SIGNED_IN_USER_ID } from '@/test/fake-supabase';
+import { allowGateToStayLoading } from '@/test/settle-gate';
 
 jest.mock('expo-font', () => ({ ...jest.requireActual('expo-font'), useFonts: jest.fn() }));
 jest.mock('expo-splash-screen', () => ({
@@ -34,6 +38,7 @@ describe('RootLayout', () => {
     mockedUseFonts.mockReturnValue([false, null]);
     await renderApp();
     expect(screen.queryByText('home screen')).toBeNull();
+    expect(screen.queryByTestId('splash-overlay')).toBeNull();
     expect(SplashScreen.hideAsync).not.toHaveBeenCalled();
   });
 
@@ -41,7 +46,72 @@ describe('RootLayout', () => {
     mockedUseFonts.mockReturnValue([true, null]);
     await renderApp();
     expect(screen.getByText('home screen')).toBeTruthy();
-    expect(SplashScreen.hideAsync).toHaveBeenCalled();
+    expect(SplashScreen.hideAsync).toHaveBeenCalledTimes(1);
+  });
+
+  // splash-animation step 5: the native splash hands over to the animated one as soon as the fonts are loaded.
+  it('hides the native splash once fonts are loaded, without waiting for the gate', async () => {
+    mockedUseFonts.mockReturnValue([true, null]);
+    const session = useFakeAppSession({ status: 'signedIn', userId: SIGNED_IN_USER_ID });
+    const release = session.holdCurrent();
+    allowGateToStayLoading();
+    await renderApp();
+    expect(screen.getByTestId('app-loading')).toBeTruthy();
+    expect(SplashScreen.hideAsync).toHaveBeenCalledTimes(1);
+    await act(async () => release());
+    await screen.findByText('home screen');
+    expect(SplashScreen.hideAsync).toHaveBeenCalledTimes(1);
+  });
+
+  it('shows the animated splash above the gate while the gate is loading', async () => {
+    mockedUseFonts.mockReturnValue([true, null]);
+    const session = useFakeAppSession({ status: 'signedIn', userId: SIGNED_IN_USER_ID });
+    session.holdCurrent();
+    allowGateToStayLoading();
+    await renderApp();
+    expect(screen.getByTestId('splash-overlay')).toBeTruthy();
+    expect(screen.getByTestId('splash-lottie')).toBeTruthy();
+    expect(screen.getByTestId('app-loading')).toBeTruthy();
+  });
+
+  it('removes the animated splash after it has finished and the gate is ready, and the navigator stays', async () => {
+    mockedUseFonts.mockReturnValue([true, null]);
+    await renderApp();
+    expect(screen.getByTestId('splash-overlay')).toBeTruthy();
+    expect(screen.getByText('home screen')).toBeTruthy();
+
+    await act(async () => screen.getByTestId('splash-lottie').props.onAnimationFinish(false));
+    await waitFor(() => expect(screen.queryByTestId('splash-overlay')).toBeNull(), { timeout: tokens.motion.duration.standard * 5 });
+    expect(screen.getByText('home screen')).toBeTruthy();
+  });
+
+  it('keeps the animated splash while the gate is still loading after the animation has finished', async () => {
+    mockedUseFonts.mockReturnValue([true, null]);
+    const session = useFakeAppSession({ status: 'signedIn', userId: SIGNED_IN_USER_ID });
+    const release = session.holdCurrent();
+    allowGateToStayLoading();
+    await renderApp();
+    await act(async () => screen.getByTestId('splash-lottie').props.onAnimationFinish(false));
+    expect(screen.getByTestId('splash-spinner')).toBeTruthy();
+    await act(async () => jest.advanceTimersByTime(tokens.motion.duration.standard * 2));
+    expect(screen.getByTestId('splash-overlay')).toBeTruthy();
+
+    await act(async () => release());
+    await waitFor(() => expect(screen.queryByTestId('splash-overlay')).toBeNull(), { timeout: tokens.motion.duration.standard * 5 });
+  });
+
+  it('never shows the animated splash again during the session, even when the gate goes back to loading', async () => {
+    mockedUseFonts.mockReturnValue([true, null]);
+    const session = useFakeAppSession({ status: 'signedIn', userId: SIGNED_IN_USER_ID });
+    await renderApp();
+    await act(async () => screen.getByTestId('splash-lottie').props.onAnimationFinish(false));
+    await waitFor(() => expect(screen.queryByTestId('splash-overlay')).toBeNull(), { timeout: tokens.motion.duration.standard * 5 });
+
+    session.holdClear();
+    allowGateToStayLoading();
+    await act(async () => session.emit({ type: 'signedOut' }));
+    expect(screen.getByTestId('app-loading')).toBeTruthy();
+    expect(screen.queryByTestId('splash-overlay')).toBeNull();
   });
 
   it('shows the home screen at / inside the side panel navigator, closed at start (trips-drawer)', async () => {
@@ -58,7 +128,7 @@ describe('RootLayout', () => {
     mockedUseFonts.mockReturnValue([false, new Error('font failed')]);
     await renderApp();
     expect(screen.getByText('home screen')).toBeTruthy();
-    expect(SplashScreen.hideAsync).toHaveBeenCalled();
+    expect(SplashScreen.hideAsync).toHaveBeenCalledTimes(1);
   });
 
   it('gives screens the trips data layer (query client + trip repository)', async () => {

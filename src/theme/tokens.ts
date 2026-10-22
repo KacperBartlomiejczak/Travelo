@@ -645,6 +645,7 @@ export const screenMetrics = {
     safeInset: 72,
     photoHeightRatio: 0.4,
   },
+  splash: { animationWidth: 280 }, // splash-animation A8: Lottie render width in dp; native splash imageWidth derives from it
 } as const;
 
 export const elevation = {

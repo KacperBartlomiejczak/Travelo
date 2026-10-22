@@ -80,6 +80,24 @@ jest.mock('expo-file-system', () => {
   return { File };
 });
 
+// The splash animation (splash-animation step 4) plays in a native Lottie view, which has no native side in Jest. This stand-in is a
+// host View that passes every prop through, so a test reads `autoPlay`, `loop`, `progress`, `colorFilters` and triggers
+// `onAnimationFinish`. `play` is on the prototype, so a test can spy on it. How the real animation looks is checked on a device.
+jest.mock('lottie-react-native', () => {
+  const { Component, createElement } = jest.requireActual('react');
+  const { View } = jest.requireActual('react-native');
+  class MockLottieView extends Component<Record<string, unknown>> {
+    play() {}
+    reset() {}
+    pause() {}
+    resume() {}
+    render() {
+      return createElement(View, { testID: 'splash-lottie', ...this.props });
+    }
+  }
+  return { __esModule: true, default: MockLottieView };
+});
+
 afterEach(async () => {
   // A test that signed out with a fake session closed the user epoch for good; open it for the next test.
   const epoch = jest.requireActual('@/data/local-store');

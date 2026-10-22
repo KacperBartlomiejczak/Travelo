@@ -1,0 +1,34 @@
+{
+  "brand": "Travelo",
+  "tagline": "Podróż dla całej grupy, w rękach jednego organizatora",
+  "brief": "Aplikacja mobilna dla jednej osoby, która organizuje wyjazd grupie znajomych: loty, podróżni, budżet, plan dnia. Znak ma być ciepły, redakcyjny i spokojny, zgodny z systemem Sunline (Fraunces, koral, kość słoniowa), i działać jako ikona aplikacji w 16 px.",
+  "adjectives": ["ciepły", "redakcyjny", "spokojny", "towarzyski"],
+  "criteria": "Sukces: bez samolotów, globusów i pinezek; czytelny w 16 px; działa w jednym kolorze i w odwróceniu; pasuje do Sunline.",
+  "industry": "consumer-app",
+  "nav": ["Jak to działa", "Pobierz"],
+  "brand_color": "#E96F51",
+  "tile_color": "#242321",
+  "greyscale": false,
+  "final": true,
+  "designer": "Travelo",
+  "concepts": [
+    {
+      "name": "t-podróżnik",
+      "symbol": "../master/travelo-symbol.svg",
+      "lockup": "../master/travelo-horizontal.svg",
+      "stacked": "../master/travelo-stacked.svg",
+      "symbol_on_tile": "../master/travelo-symbol-reversed.svg",
+      "symbol_on_dark": "../master/travelo-symbol-reversed.svg",
+      "lockup_on_dark": "../master/travelo-horizontal-reversed.svg",
+      "idea": "Litera t: poprzeczka to horyzont, kropka nad nią to słońce, razem sylwetka podróżnika z rozłożonymi ramionami.",
+      "rationale": [
+        "Jeden znak działa jako ikona aplikacji, favicon i obok napisu",
+        "Koralowe słońce to jedyny akcent koloru, tak jak koral w Sunline",
+        "Zaokrąglone końcówki rymują się z miękkimi szeryfami Fraunces",
+        "Bez kliszy branży: żadnego samolotu, globusa ani pinezki"
+      ]
+    }
+  ],
+  "recommendation": "Kierunek zatwierdzony przez Kacpra (runda 1, koncepcja B).",
+  "next_steps": ["Podmiana ikon aplikacji w assets/ (osobny plan)", "Sprawdzenie znaku towarowego", "Weryfikacja travelo.icon w Icon Composer"]
+}

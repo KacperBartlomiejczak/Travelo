@@ -123,18 +123,20 @@ describe('signed out', () => {
     await waitFor(() => expect(screen.getByText('Welcome to Travelo')).toBeTruthy());
   });
 
-  it('keeps the splash screen, and shows nothing, until the clear has finished', async () => {
+  // splash-animation step 5: the native splash is hidden on mount; the animated splash covers the screen until the clear has finished.
+  it('covers the screen with the animated splash, and shows no welcome screen, until the clear has finished', async () => {
     const session = useFakeAppSession(signedOut);
     const release = session.holdClear();
     allowGateToStayLoading();
     await open();
     await waitFor(() => expect(session.clearUserData).toHaveBeenCalled());
     expect(shown(WELCOME)).toBe(false);
-    expect(SplashScreen.hideAsync).not.toHaveBeenCalled();
+    expect(screen.getByTestId('splash-overlay')).toBeTruthy();
+    expect(SplashScreen.hideAsync).toHaveBeenCalledTimes(1);
 
     await act(async () => release());
     await expectOnly(WELCOME);
-    expect(SplashScreen.hideAsync).toHaveBeenCalled();
+    expect(SplashScreen.hideAsync).toHaveBeenCalledTimes(1);
   });
 
   it('a failed clear never shows the welcome screen: an error with a retry that then continues', async () => {
@@ -527,17 +529,18 @@ describe('signed in with a profile', () => {
     await expectOnly('home screen');
   });
 
-  it('keeps the splash screen until the session and the profile are known', async () => {
+  it('covers the screen with the animated splash until the session and the profile are known', async () => {
     const session = useFakeAppSession(signedIn);
     const release = session.holdCurrent();
     allowGateToStayLoading();
     await open();
     expect(shown('home screen')).toBe(false);
-    expect(SplashScreen.hideAsync).not.toHaveBeenCalled();
+    expect(screen.getByTestId('splash-overlay')).toBeTruthy();
+    expect(SplashScreen.hideAsync).toHaveBeenCalledTimes(1);
 
     await act(async () => release());
     await expectOnly('home screen');
-    expect(SplashScreen.hideAsync).toHaveBeenCalled();
+    expect(SplashScreen.hideAsync).toHaveBeenCalledTimes(1);
   });
 
   it('a sign-out later clears the user data and leaves for the welcome screen', async () => {
