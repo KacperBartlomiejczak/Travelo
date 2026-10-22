@@ -135,13 +135,13 @@ describe('Settings — screen (profile-screen A4)', () => {
     }
   });
 
-  it('on Android the back control keeps the library size: its hitSlop already makes the touch area 44dp, and a wider control would push the title', async () => {
+  it('on Android the back control is 44dp tall (the library hitSlop is clipped vertically, D26) but not wider, which would push the title', async () => {
     const platform = jest.replaceProperty(Platform, 'OS', 'android');
     try {
       await openSettings();
       const style = StyleSheet.flatten(screen.getByRole('button', { name: 'Wróć, Profil' }).props.style);
+      expect(style.minHeight).toBe(lightTheme.size.touchTarget);
       expect(style.minWidth).not.toBe(lightTheme.size.touchTarget);
-      expect(style.minHeight).toBeUndefined();
       // Not asserted here: the library's Android hitSlop of 16dp on every side (HeaderButton.js, Platform.select). Jest runs as
       // iOS, and Platform.select is bound to that, so the rendered hitSlop cannot be read as Android's; the device run checks it.
     } finally {

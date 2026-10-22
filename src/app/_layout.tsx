@@ -99,9 +99,13 @@ function Gate() {
                 accessibilityLabel={t("settings.back")}
                 tintColor={tintColor}
                 // iOS has no hitSlop on header buttons, so the control itself must be 44 dp (design-context §5.2, profile-screen
-                // D17). Android needs nothing: the library gives header buttons a 16 dp hitSlop on every side (HeaderButton.js),
-                // and a wider control there would push the title, which sits next to it.
-                style={Platform.OS === "ios" ? { minWidth: size.touchTarget, minHeight: size.touchTarget } : undefined}
+                // D17). Android has a 16 dp hitSlop (HeaderButton.js), but the header view clips it vertically, so only the height
+                // is set there (D26); a wider control would push the title, which sits next to it.
+                style={
+                  Platform.OS === "ios"
+                    ? { minWidth: size.touchTarget, minHeight: size.touchTarget }
+                    : { minHeight: size.touchTarget }
+                }
                 onPress={() => router.back()}
               />
             ),
