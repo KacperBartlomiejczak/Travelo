@@ -49,9 +49,9 @@ None. No data shape changes; the log lines are not data the app reads.
 - `debugging-and-error-recovery` — step 2 — root cause first, if the logs do not show up or the numbers do not add up.
 
 ## Steps
-- [ ] 1. [frontend] Save hashes of the 5 files, add `startupTrace.ts` and the trace lines from the table. — skill: none — tests first: none (exemption above) — verify: typecheck + lint on touched files, the touched files' Jest suites pass with no console output.
-- [ ] 2. [manual, orchestrator] Metro `--no-dev --minify`, 3 cold starts on the emulator, `adb logcat -v epoch -s ReactNativeJS` captured per run (plus one screen recording to match `splash:play` with the screen). Results table (median of 3) into this plan. — skill: performance-optimization, debugging-and-error-recovery — verify: every label appears in every run, in a plausible order.
-- [ ] 3. [frontend] Remove every trace and the helper. — skill: none — verify: hashes equal the saved ones, `grep -rn startupTrace src` empty, typecheck + lint on touched files.
+- [x] 1. [frontend] Save hashes of the 5 files, add `startupTrace.ts` and the trace lines from the table. — skill: none — tests first: none (exemption above) — verify: typecheck + lint on touched files, the touched files' Jest suites pass with no console output.
+- [x] 2. [manual, orchestrator] Metro `--no-dev --minify`, 3 cold starts on the emulator, `adb logcat -v epoch -s ReactNativeJS` captured per run (plus one screen recording to match `splash:play` with the screen). Results table (median of 3) into this plan. — skill: performance-optimization, debugging-and-error-recovery — verify: every label appears in every run, in a plausible order.
+- [x] 3. [frontend] Remove every trace and the helper. — skill: none — verify: hashes equal the saved ones, `grep -rn startupTrace src` empty, typecheck + lint on touched files.
 
 ## Verification
 - Step 1 / 3: as in the Steps.

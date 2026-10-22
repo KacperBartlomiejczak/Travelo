@@ -1,5 +1,5 @@
 # Task: Animated splash screen (logo reveal) + loading spinner
-Status: in progress
+Status: done (closed by Kacper 2026-10-22, see Step 6 in the progress log)
 
 ## Understanding & assumptions
 Kacper wants an animated splash on app start, built from the approved logo (`design/logo/kit/`, direction B "t-podróżnik"):
@@ -79,7 +79,7 @@ Status: approved by Kacper 2026-10-22 (with D1–D4 and Q4b = add the native spl
 - [x] 3. [frontend] Native splash only (Q4b): config test first (`src/__tests__/app-config.test.ts`: splash `backgroundColor` = light canvas token, `dark.backgroundColor` = dark canvas token, both images exist and are the kit's 512×512 splash images, `imageWidth` matches the Lottie's first frame), then `app.json` splash plugin options + `assets/images/splash-icon.png` / `splash-icon-dark.png`. Icons are not touched. — skill: source-driven-development (`expo-splash-screen` plugin `dark` option), test-driven-development — verify: full suite, typecheck, lint; `npx expo config --type public` resolves; verifier PASS.
 - [x] 4. [frontend] Add `lottie-react-native` (`npx expo install`), Jest mock, `AnimatedSplash` component with spinner, reduce motion and (Q2) dark colours. Tests first. — skill: source-driven-development, test-driven-development, frontend-ui-engineering — verify: full suite, typecheck, lint; verifier PASS.
 - [x] 5. [frontend] Wire `AnimatedSplash` into `_layout.tsx` (hide native splash on mount, overlay over the gate, remove on `onDone`). Tests first. — skill: test-driven-development — verify: full suite, typecheck, lint; verifier PASS.
-- [ ] 6. [manual] Device check (tester via mobile-mcp, or Kacper). — skill: ui-taste — verify: manual steps below.
+- [x] 6. [manual] Device check (tester via mobile-mcp, or Kacper). — skill: ui-taste — verify: manual steps below.
 
 ## Verification
 - Steps 2–4: full suite, typecheck, lint green; verifier PASS per step.
@@ -101,6 +101,8 @@ Status: approved by Kacper 2026-10-22 (with D1–D4 and Q4b = add the native spl
   **Full suite NOT green (blocker outside this task):** the concurrent sunline-redesign work in this worktree has `src/components/__tests__/TripHero.test.tsx` with a syntax error (typecheck + lint fail) and ≈ 50 failing tests in home, trips/photos, DeleteTripSheet, TripDetailsSheet, TripMenuSheet, DeletePhotoSheet, PhotoStrip (theme/token values such as `#665D51` vs `#56524C`, `tokens.spacing[1]` undefined in `PhotoStrip.tsx:174`). No failure message mentions splash/Lottie/overlay. Per CLAUDE.md the task is not reported done until the whole suite is green. · skill used: test-driven-development
 
 - Step 6 (in progress, 2026-10-22): tester agent on emulator `Medium_Phone_API_37.0` (Android API 37), Expo Go + Metro `exp://192.168.5.179:8081`, signed-in user. mobile-mcp unusable (Windows Smart App Control blocks unsigned `mobilecli.exe`), so Kacper approved driving the emulator with adb (screencap, screenrecord + ffmpeg frames, `emu network`, `animator_duration_scale`, `cmd uimode night`). Expo Go shows its own launch splash for 50–60 s per cold start while downloading the bundle; the Lottie plays after it. Results: (1) light cold start PASS — centred symbol, slides left, wordmark comes out, lockup ≈ 229 dp wide (A8: 226), fades into the trip screen; (2) native → Lottie handoff not testable in Expo Go (needs a dev build); (3) slow start NOT PASS — throttled gprs/gsm run never showed the spinner (app already ready when the animation ended, likely the SQLite copies); (4) fast start INCONCLUSIVE — on normal network the spinner showed 6–20 s in every run, then the trip screen showed skeletons ~10 s more; cause unknown (logcat had Binder "No space left on device" errors; Expo Go dev mode); (5) reduce motion PASS — static lockup, no slide; (6) dark PASS — pixels #171716 ground, #F8F4EC t/wordmark, #F07D5E sun. Spinner centre ≈ 55–60 dp under the lockup baseline (orchestrator checked `dark_shots/d014.png`: ≈ 60 dp). Orchestrator checked the light frame sheet and the dark screenshot by eye. Device settings restored (night mode back to on, as before the run). Step stays `[ ]` until Q5–Q7. · skill used: none (ui-taste not run yet)
+
+- Step 6 closed (2026-10-22): Kacper marked the task done. Accepted as-is: scenarios 1, 5, 6 PASS on the emulator; Q5 closed (spinner length is an emulator effect, short on a real phone, `prompts/gate-startup-timing/plan.md`); not done: scenario 2 (native → Lottie handoff, needs a dev build), scenario 3 (slow-start spinner, Q6), scenario 4 on screen; Q7 spinner distance (≈ 60 dp) kept as built. ui-taste review not run. Committed and pushed on `feature/sunline-redesign` (PR #24). · skill used: none
 
 ## Decisions (Kacper, 2026-10-22)
 - D1 (Q1): yes, add `lottie-react-native`.
