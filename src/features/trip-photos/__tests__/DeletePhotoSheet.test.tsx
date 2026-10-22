@@ -8,8 +8,8 @@ import i18n from '@/i18n';
 import { AppProviders } from '@/providers/AppProviders';
 import type { ShownTripPhoto, TripPhoto } from '@/schemas';
 import { setNetwork } from '@/test/mock-network';
-import { lightTheme } from '@/theme/legacy/theme';
-import { lightTheme as sunlineLightTheme } from '@/theme/theme';
+import { lightTheme } from '@/theme/theme';
+import { tokens } from '@/theme/tokens';
 
 const metrics = { frame: { x: 0, y: 0, width: 390, height: 844 }, insets: { top: 47, left: 0, right: 0, bottom: 34 } };
 const TRIP_ID = '0b9e7c4e-6a43-4c4b-9a55-2f6f0f7e1a01';
@@ -58,14 +58,17 @@ describe('DeletePhotoSheet (trip-photos P5, D8)', () => {
   it('asks "Usunąć to zdjęcie?" and says it cannot be undone', async () => {
     await setup();
     expect(screen.getByRole('header', { name: 'Usunąć to zdjęcie?' })).toBeTruthy();
-    expect(screen.getByText('Zniknie z tej podróży. Tego nie da się cofnąć.')).toBeTruthy();
+    expect(screen.getByText('Zniknie z tej podróży. Tego nie da się cofnąć.')).toHaveStyle({
+      ...tokens.typography.styles.bodyMD,
+      color: lightTheme.text.secondary,
+    });
   });
 
   it('puts the destructive "Usuń zdjęcie" above "Anuluj", full width and 16dp apart, never adjacent (trip-edit-menu D19)', async () => {
     await setup();
-    expect(screen.getByText('Usuń zdjęcie')).toHaveStyle({ color: sunlineLightTheme.semantic.error.foreground });
+    expect(screen.getByText('Usuń zdjęcie')).toHaveStyle({ color: lightTheme.semantic.error.foreground });
     const actions = screen.getByTestId('delete-photo-actions');
-    expect(actions).toHaveStyle({ gap: lightTheme.spacing[4] });
+    expect(actions).toHaveStyle({ gap: tokens.spacing[4] });
     expect(within(actions).getAllByRole('button').map((button) => button.props.accessibilityLabel)).toEqual(['Usuń zdjęcie', 'Anuluj']);
     expect(StyleSheet.flatten(actions.props.style).alignItems).toBeUndefined();
     expect(StyleSheet.flatten(actions.props.style).flexDirection).toBeUndefined();
@@ -108,7 +111,7 @@ describe('DeletePhotoSheet (trip-photos P5, D8)', () => {
     deletePhoto.mockRejectedValueOnce(new Error('photo-not-deletable'));
     const { onClose, onDeleted } = await setup(deletePhoto);
     await fireEvent.press(confirm());
-    expect(await screen.findByText(ERROR)).toBeTruthy();
+    expect(await screen.findByText(ERROR)).toHaveStyle({ ...tokens.typography.styles.bodySM, color: lightTheme.semantic.error.foreground });
     // Announced once, by the call; a live region on the text would read it a second time.
     expect(announce).toHaveBeenCalledTimes(1);
     expect(announce).toHaveBeenCalledWith(ERROR);
@@ -148,7 +151,7 @@ describe('DeletePhotoSheet (trip-photos P5, D8)', () => {
     const { deletePhoto } = await setup();
     expect(screen.queryByText(OFFLINE_HINT)).toBeNull();
     await act(async () => setNetwork({ isConnected: false, isInternetReachable: false }));
-    expect(screen.getByText(OFFLINE_HINT)).toBeTruthy();
+    expect(screen.getByText(OFFLINE_HINT)).toHaveStyle({ ...tokens.typography.styles.bodySM, color: lightTheme.text.secondary });
     expect(confirm()).toBeDisabled();
     await fireEvent.press(confirm());
     expect(deletePhoto).not.toHaveBeenCalled();

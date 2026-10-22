@@ -1,6 +1,6 @@
 import { Image } from 'expo-image';
 import { StatusBar } from 'expo-status-bar';
-import { CircleX, Trash2, X } from 'lucide-react-native';
+import { CircleAlert, Trash2, X } from 'lucide-react-native';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ActivityIndicator, FlatList, Text, useWindowDimensions, View, type NativeScrollEvent, type NativeSyntheticEvent } from 'react-native';
@@ -12,9 +12,13 @@ import { useTripPhotos } from '@/hooks/useTripPhotos';
 import { photoPaths } from '@/lib/trip-photos';
 import { useIsOffline } from '@/providers/BudgetSync';
 import type { ShownTripPhoto } from '@/schemas';
-import { useTheme } from '@/theme/legacy/useTheme';
+import { tokens } from '@/theme/tokens';
+import { useTheme } from '@/theme/useTheme';
 
 import { DeletePhotoSheet } from './DeletePhotoSheet';
+
+const { spacing, layout, typography, iconography } = tokens;
+const gutter = (width: number) => (width < layout.compactBreakpoint ? layout.screenGutterCompact : layout.screenGutter);
 
 // Above the pages, so the buttons stay drawn over the photo and are reached first by screen readers (as HeroMenuButton).
 const ABOVE_CONTENT = 1;
@@ -36,13 +40,13 @@ type Props = {
 };
 
 /**
- * One photo of the trip at a time, full screen on ink (trip-photos D6, P4): swipe sideways between photos, "Usuń zdjęcie"
+ * One photo of the trip at a time, full screen on the dark canvas (trip-photos D6, P4; the route forces the dark theme): swipe sideways between photos, "Usuń zdjęcie"
  * with a confirmation (P5). The photos come from the same query as the strip, so a photo seen there is here at once.
  * Loading and a failed read keep the close button; with no photo left there is nothing to show, so it closes.
  */
 export function PhotoViewer({ tripId, photoId, isOwner, onClose }: Props) {
   const { t } = useTranslation();
-  const { colors, size, spacing, typography } = useTheme();
+  const theme = useTheme();
   const photos = useTripPhotos(tripId);
   const offline = useIsOffline();
   const list = photos.data;
@@ -71,7 +75,7 @@ export function PhotoViewer({ tripId, photoId, isOwner, onClose }: Props) {
           accessibilityState={{ busy: true }}
           style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}
         >
-          <ActivityIndicator color={colors.hero.text} />
+          <ActivityIndicator color={theme.hero.text} />
         </View>
       </Chrome>
     );
@@ -79,8 +83,8 @@ export function PhotoViewer({ tripId, photoId, isOwner, onClose }: Props) {
     body = (
       <Chrome onClose={onClose}>
         <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', gap: spacing[3], paddingHorizontal: spacing[5] }}>
-          <CircleX aria-hidden size={size.iconFeature} strokeWidth={size.iconStroke} color={colors.status.error} />
-          <Text style={[typography.bodyM, { color: colors.text.primary, textAlign: 'center' }]}>{t('tripPhotos.loadError')}</Text>
+          <CircleAlert aria-hidden size={iconography.size.xl} strokeWidth={iconography.strokeWidth} color={theme.semantic.error.foreground} />
+          <Text style={[typography.styles.bodyMD, { color: theme.text.primary, textAlign: 'center' }]}>{t('tripPhotos.loadError')}</Text>
           <TextButton variant="secondary" label={t('tripPhotos.retry')} onPress={() => photos.refetch()} />
         </View>
       </Chrome>
@@ -88,7 +92,7 @@ export function PhotoViewer({ tripId, photoId, isOwner, onClose }: Props) {
   }
 
   return (
-    <View testID="photo-viewer" style={{ flex: 1, backgroundColor: colors.hero.background }}>
+    <View testID="photo-viewer" style={{ flex: 1, backgroundColor: theme.background.canvas }}>
       <StatusBar style="light" />
       {body}
       {offline && isOwner !== false && <OfflineHint />}
@@ -100,30 +104,30 @@ export function PhotoViewer({ tripId, photoId, isOwner, onClose }: Props) {
 // above the bottom safe area. The same text as under the strip.
 function OfflineHint() {
   const { t } = useTranslation();
-  const { colors, spacing, typography, breakpoints } = useTheme();
+  const theme = useTheme();
   const insets = useSafeAreaInsets();
   const { width } = useWindowDimensions();
-  const side = width < breakpoints.compact ? spacing[4] : spacing[5];
+  const side = gutter(width);
   return (
     <View
       pointerEvents="none"
       style={{ position: 'absolute', zIndex: ABOVE_CONTENT, left: side, right: side, bottom: insets.bottom + spacing[4], alignItems: 'center' }}
     >
       <Pill testID="photo-viewer-offline-hint">
-        <Text style={[typography.bodyS, { color: colors.hero.text, textAlign: 'center' }]}>{t('tripPhotos.offlineHint')}</Text>
+        <Text style={[typography.styles.bodySM, { color: theme.hero.text, textAlign: 'center' }]}>{t('tripPhotos.offlineHint')}</Text>
       </Pill>
     </View>
   );
 }
 
-// The backing of the counter and the offline hint (trip-photos D32, D35): the round buttons' colour and rounding, so the
+// The backing of the counter and the offline hint (trip-photos D32, D35): the round buttons' background and rounding, so the
 // text reads over any photo. It wraps its text.
 function Pill({ testID, children }: { testID: string; children: ReactNode }) {
-  const { colors, radius, spacing } = useTheme();
+  const { hero } = useTheme();
   return (
     <View
       testID={testID}
-      style={{ backgroundColor: colors.hero.control, borderRadius: radius.full, paddingHorizontal: spacing[3], paddingVertical: spacing[1] }}
+      style={{ backgroundColor: hero.controlBackground, borderRadius: tokens.radii.pill, paddingHorizontal: spacing[3], paddingVertical: spacing[1] }}
     >
       {children}
     </View>
@@ -145,10 +149,9 @@ type ChromeProps = {
 // under the status bar like the menu button of the trip view. The counter sits between two 44dp slots, so it stays centred.
 function Chrome({ onClose, counter, onDelete, deleteDisabled = false, children }: ChromeProps) {
   const { t } = useTranslation();
-  const { spacing, size, breakpoints } = useTheme();
   const insets = useSafeAreaInsets();
   const { width } = useWindowDimensions();
-  const side = width < breakpoints.compact ? spacing[4] : spacing[5];
+  const side = gutter(width);
   return (
     <>
       <View
@@ -170,7 +173,7 @@ function Chrome({ onClose, counter, onDelete, deleteDisabled = false, children }
         {onDelete ? (
           <HeroIconButton icon={Trash2} label={t('photoViewer.delete')} onPress={onDelete} disabled={deleteDisabled} />
         ) : (
-          <View style={{ width: size.touchTarget }} />
+          <View style={{ width: layout.touchTarget }} />
         )}
       </View>
       {children}
@@ -184,7 +187,7 @@ type PagerProps = { photos: ShownTripPhoto[]; photoId?: string; canDelete: boole
 // from the first render (`initialScrollIndex` needs `getItemLayout`, which a fixed page width gives).
 function Pager({ photos, photoId, canDelete, onClose }: PagerProps) {
   const { t } = useTranslation();
-  const { colors, typography } = useTheme();
+  const theme = useTheme();
   const offline = useIsOffline();
   const { width, height } = useWindowDimensions();
   const [initialIndex] = useState(() => Math.max(0, photos.findIndex((photo) => photo.id === photoId)));
@@ -226,7 +229,7 @@ function Pager({ photos, photoId, canDelete, onClose }: PagerProps) {
               <Text
                 accessibilityLabel={t('tripPhotos.photo', place)}
                 accessibilityLiveRegion="polite"
-                style={[typography.caption, { color: colors.hero.textSecondary, textAlign: 'center' }]}
+                style={[typography.styles.caption, { color: theme.hero.text, textAlign: 'center' }]}
               >
                 {t('photoViewer.counter', place)}
               </Text>
@@ -261,7 +264,7 @@ type PageProps = { photo: ShownTripPhoto; width: number; height: number };
 // The picture is decoration for a screen reader: the counter names the photo.
 function PhotoPage({ photo, width, height }: PageProps) {
   const { t } = useTranslation();
-  const { colors, size, spacing, typography } = useTheme();
+  const theme = useTheme();
   // The address that failed, not a flag: a signed address that was renewed (R5) is tried again.
   const [failedUrl, setFailedUrl] = useState<string | null>(null);
   const failed = failedUrl === photo.url;
@@ -269,8 +272,8 @@ function PhotoPage({ photo, width, height }: PageProps) {
     <View style={{ width, height, alignItems: 'center', justifyContent: 'center' }}>
       {failed ? (
         <View style={{ alignItems: 'center', gap: spacing[3], paddingHorizontal: spacing[5] }}>
-          <CircleX aria-hidden size={size.iconFeature} strokeWidth={size.iconStroke} color={colors.status.error} />
-          <Text style={[typography.bodyM, { color: colors.text.primary, textAlign: 'center' }]}>{t('photoViewer.loadError')}</Text>
+          <CircleAlert aria-hidden size={iconography.size.xl} strokeWidth={iconography.strokeWidth} color={theme.semantic.error.foreground} />
+          <Text style={[typography.styles.bodyMD, { color: theme.text.primary, textAlign: 'center' }]}>{t('photoViewer.loadError')}</Text>
         </View>
       ) : (
         <Image

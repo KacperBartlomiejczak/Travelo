@@ -14,6 +14,7 @@ import { LOCAL_PROFILE_ID } from '@/test/fake-profile-repository';
 import { setNetwork } from '@/test/mock-network';
 import { darkTheme, lightTheme } from '@/theme/legacy/theme';
 import { darkTheme as sunlineDarkTheme, lightTheme as sunlineLightTheme } from '@/theme/theme';
+import { tokens } from '@/theme/tokens';
 
 jest.mock('expo-font', () => ({ ...jest.requireActual('expo-font'), useFonts: jest.fn() }));
 jest.mocked(useFonts).mockReturnValue([true, null]);
@@ -193,40 +194,54 @@ describe('Home screen — current trip (D4)', () => {
   });
 
   it.each([
-    ['light', lightTheme],
-    ['dark', darkTheme],
-  ] as const)('follows the phone theme: %s background and cards (theme-split D1, D6)', async (scheme, theme) => {
+    ['light', sunlineLightTheme],
+    ['dark', sunlineDarkTheme],
+  ] as const)('follows the phone theme: %s canvas and text (theme-split D1, D6)', async (scheme, theme) => {
     mockScheme = scheme;
     mockCurrent = () => Promise.resolve(overview());
     await renderHome();
-    expect(await screen.findByTestId('home-screen')).toHaveStyle({ backgroundColor: theme.colors.background });
-    expect(screen.getByTestId('trip-hero')).toHaveStyle({ backgroundColor: theme.colors.background });
-    expect(screen.getByText('Ty')).toHaveStyle({ color: theme.colors.text.primary });
-    expect(screen.getByRole('header', { name: 'Warsaw → Bangkok' })).toHaveStyle({ color: theme.colors.text.primary });
+    expect(await screen.findByTestId('home-screen')).toHaveStyle({ backgroundColor: theme.background.canvas });
+    expect(screen.getByTestId('trip-hero')).toHaveStyle({ backgroundColor: theme.background.canvas });
+    expect(screen.getByText('Ty')).toHaveStyle({ ...tokens.typography.styles.bodyMD, color: theme.text.primary });
+    expect(screen.getByRole('header', { name: 'Warsaw → Bangkok' })).toHaveStyle({ color: theme.text.primary });
   });
 
-  // theme-split D7: white cards with the card shadow in light mode, the secondary surface without a shadow in dark mode.
+  // §8.9 Base Card (sunline-redesign step 7, replaces theme-split D7's white card with a shadow): primary surface, 20dp
+  // corners, 16dp padding; a 1dp subtle border in light, the dark level 1 border (no shadow) in dark.
   it.each([
-    ['light', lightTheme.colors.surface.default, true],
-    ['dark', darkTheme.colors.surface.secondary, false],
-  ] as const)('draws the cards in the %s theme on the right surface, with the shadow only in light (theme-split D7)', async (scheme, surface, shadow) => {
+    ['light', sunlineLightTheme],
+    ['dark', sunlineDarkTheme],
+  ] as const)('draws the cards as §8.9 base cards in the %s theme', async (scheme, theme) => {
     mockScheme = scheme;
     mockCurrent = () => Promise.resolve(overview());
     await renderHome();
     await screen.findByTestId('home-screen');
     for (const testID of ['home-flights', 'home-travellers', 'home-budget']) {
       const style = StyleSheet.flatten(screen.getByTestId(testID).props.style);
-      expect(style.backgroundColor).toBe(surface);
-      if (shadow) {
-        expect(style).toMatchObject(lightTheme.elevation.card);
-      } else {
-        expect(style.shadowColor).toBeUndefined();
-        expect(style.shadowOpacity).toBeUndefined();
-        expect(style.shadowRadius).toBeUndefined();
-        expect(style.shadowOffset).toBeUndefined();
-        expect(style.elevation).toBeUndefined();
-      }
+      expect(style).toMatchObject({
+        backgroundColor: theme.surface.primary,
+        borderRadius: tokens.components.card.radius,
+        padding: tokens.components.card.padding,
+        borderWidth: tokens.components.card.borderWidth,
+        borderColor: theme.border.subtle,
+      });
+      expect(style.shadowOpacity ?? 0).toBe(0);
+      expect(style.elevation ?? 0).toBe(0);
     }
+  });
+
+  it('sets the card titles in Heading SM, the flight directions in Label LG, the lines in Body MD and the budget in Money LG', async () => {
+    mockCurrent = () => Promise.resolve(overview());
+    await renderHome();
+    const { styles } = tokens.typography;
+    const flights = within(await screen.findByTestId('home-flights'));
+    expect(flights.getByRole('header', { name: 'Loty' })).toHaveStyle({ ...styles.headingSM, color: sunlineLightTheme.text.primary });
+    expect(flights.getByText('Lot tam')).toHaveStyle({ ...styles.labelLG, color: sunlineLightTheme.text.primary });
+    expect(flights.getByText('WAW 2 lis, 10:00 → DXB 2 lis, 18:30')).toHaveStyle({ ...styles.bodyMD, color: sunlineLightTheme.text.primary });
+    const budget = within(screen.getByTestId('home-budget'));
+    expect(budget.getByText('3000 THB')).toHaveStyle({ ...styles.moneyLG, color: sunlineLightTheme.text.primary });
+    expect(budget.getByText('na osobę')).toHaveStyle({ ...styles.bodyMD, color: sunlineLightTheme.text.secondary });
+    expect(budget.getByText('Razem 9000 THB · ~231 THB dziennie na osobę')).toHaveStyle({ ...styles.bodyMD, color: sunlineLightTheme.text.secondary });
   });
 
   it.each([
@@ -316,7 +331,10 @@ describe('Home screen — changing the budget (trips-supabase D5, D10–D13)', (
     await renderHome();
     await openSheet();
     expect(screen.getByRole('header', { name: 'Ile chcecie wydać na osobę?' })).toBeTruthy();
-    expect(screen.getByText('Na cały wyjazd, bez lotów: noclegi, jedzenie, atrakcje, transport na miejscu.')).toBeTruthy();
+    expect(screen.getByText('Na cały wyjazd, bez lotów: noclegi, jedzenie, atrakcje, transport na miejscu.')).toHaveStyle({
+      ...tokens.typography.styles.bodyMD,
+      color: sunlineLightTheme.text.secondary,
+    });
     expect(screen.getByLabelText('Kwota na osobę').props.value).toBe('3000');
     expect(within(screen.getByTestId('amount-field-box')).getByText('THB')).toBeTruthy();
   });
@@ -383,7 +401,10 @@ describe('Home screen — changing the budget (trips-supabase D5, D10–D13)', (
     await openSheet();
     await fireEvent.changeText(screen.getByLabelText('Kwota na osobę'), '2500');
     await fireEvent.press(screen.getByRole('button', { name: 'Zapisz' }));
-    expect(await screen.findByText('Nie udało się zapisać. Spróbuj ponownie.')).toBeTruthy();
+    expect(await screen.findByText('Nie udało się zapisać. Spróbuj ponownie.')).toHaveStyle({
+      ...tokens.typography.styles.bodySM,
+      color: sunlineLightTheme.semantic.error.foreground,
+    });
     expect(announce).toHaveBeenCalledWith('Nie udało się zapisać. Spróbuj ponownie.');
     expect(screen.getByRole('header', { name: 'Ile chcecie wydać na osobę?' })).toBeTruthy();
   });
@@ -450,7 +471,7 @@ describe('Home screen — offline (D6, D11)', () => {
     setNetwork({ isConnected: false, isInternetReachable: false });
     mockCurrent = () => Promise.resolve(overview());
     await renderHome();
-    expect(await screen.findByTestId('home-action')).toHaveStyle({ maxWidth: lightTheme.size.maxContentWidth, alignSelf: 'center' });
+    expect(await screen.findByTestId('home-action')).toHaveStyle({ maxWidth: tokens.layout.maxContentWidth, alignSelf: 'center' });
   });
 
   it('still lets the budget be changed offline', async () => {
@@ -922,18 +943,18 @@ describe('Home screen — photo strip (trip-photos P1, A3, D23)', () => {
     await renderHome();
     await screen.findByLabelText('Zdjęcie 1 z 2');
     const wrapper = screen.getByTestId('home-photos');
-    expect(wrapper).toHaveStyle({ width: '100%', maxWidth: lightTheme.size.maxContentWidth, alignSelf: 'center' });
+    expect(wrapper).toHaveStyle({ width: '100%', maxWidth: tokens.layout.maxContentWidth, alignSelf: 'center' });
     expect(StyleSheet.flatten(wrapper.props.style).paddingHorizontal).toBeUndefined();
     expect(within(wrapper).getByTestId('photo-strip')).toBeTruthy();
     // The cards keep their side padding in the column; the strip pads its own row by the same amount, so the first tile lines up.
-    expect(StyleSheet.flatten(screen.getByTestId('home-flights').parent?.props.style).paddingHorizontal).toBe(lightTheme.spacing[5]);
-    expect(StyleSheet.flatten(within(wrapper).getByLabelText('Zdjęcia z podróży').props.contentContainerStyle).paddingHorizontal).toBe(lightTheme.spacing[5]);
+    expect(StyleSheet.flatten(screen.getByTestId('home-flights').parent?.props.style).paddingHorizontal).toBe(tokens.layout.screenGutter);
+    expect(StyleSheet.flatten(within(wrapper).getByLabelText('Zdjęcia z podróży').props.contentContainerStyle).paddingHorizontal).toBe(tokens.layout.screenGutter);
   });
 
   it('keeps the 16dp rhythm between the strip and "Loty"', async () => {
     mockCurrent = () => Promise.resolve(overview());
     await renderHome();
-    expect(await screen.findByTestId('home-photos')).toHaveStyle({ marginBottom: lightTheme.spacing[4] });
+    expect(await screen.findByTestId('home-photos')).toHaveStyle({ marginBottom: tokens.spacing[4] });
   });
 
   it('shows the add tile and the hint when the trip has no photos', async () => {
@@ -942,7 +963,7 @@ describe('Home screen — photo strip (trip-photos P1, A3, D23)', () => {
     expect(await screen.findByText(NO_PHOTOS_HINT)).toBeTruthy();
     expect(within(screen.getByTestId('photo-strip')).getByRole('button', { name: 'Dodaj zdjęcia' })).toBeEnabled();
     // The row pads itself like the cards, so the add tile lines up with them.
-    expect(screen.getByLabelText('Zdjęcia z podróży')).toHaveStyle({ paddingHorizontal: lightTheme.spacing[5] });
+    expect(screen.getByLabelText('Zdjęcia z podróży')).toHaveStyle({ paddingHorizontal: tokens.layout.screenGutter });
   });
 
   it('shows skeleton tiles while the photos load, and the trip is already there', async () => {

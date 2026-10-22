@@ -112,7 +112,7 @@ is UI configuration, not a data shape, so the Zod rule does not apply.
   `SyncIndicator`, `SkeletonBlock`, `TripHeroSkeleton`, `LayoverLabel`, `TripsEmptyIllustration`, `CoverImage`,
   `CoverPicker`. â€” Â§8.9, Â§8.13, Â§8.17â€“Â§8.20, Â§10 â€” same pattern; skeleton per Q1.
 - [x] 6. [frontend] Navigation: `PillNav`, tabs layout, `TripsDrawer`, `EmptyScreen`. â€” Â§8.14 â€” same pattern.
-- [ ] 7. [frontend] Trip view: `TripHero` (per Q2), `CurrentTrip`, `HomeSkeleton`, `BudgetSheet`, `TripDetailsSheet`,
+- [x] 7. [frontend] Trip view: `TripHero` (per Q2), `CurrentTrip`, `TripHeroSkeleton` (unchanged since step 5; there is no `HomeSkeleton`), `BudgetSheet`, `TripDetailsSheet`,
   `TripMenuSheet`, `DeleteTripSheet`, `PhotoStrip`, `PhotoTile`, `PhotoViewer`, `DeletePhotoSheet`, and
   `src/features/nav/usePillClearance.ts` (pill bottom offset 16 → 12, D23). â€” Â§8.10, Â§9.1
   (hero only) â€” same pattern.
@@ -267,6 +267,22 @@ Manual test steps (Kacper / tester), each in light and in dark mode:
   placeholder screens) · environment: another session works on `splash-animation` in this same worktree and branch
   (untracked folders plus edits to `app.json`, `package.json`, `pnpm-lock.yaml`, `jest.setup.ts`, i18n and
   `src/theme/tokens.ts`); step commits list their files explicitly and leave that work out.
+- Step 7: tests written first (red ✓, new pulse / hero / menu / strip / clearance assertions failed on behavior) ·
+  changed: `TripHero`, `CurrentTrip`, `BudgetSheet`, `TripDetailsSheet`, `TripMenuSheet`, `DeleteTripSheet`,
+  `PhotoStrip`, `PhotoTile` (new pulsing `PhotoSkeleton`, D5 / D19), `PhotoViewer`, `DeletePhotoSheet`,
+  `usePillClearance` (pill offset 16 → 12, D23) and their tests · hero height `max(360, round(h * 0.52))`, gutters
+  16 below 390 dp / 20 at 390+ (§4.2) · green ✓ 133 suites / 2896 tests, typecheck ✓, lint ✓ (verifier re-run) ·
+  verifier PASS, no blockers · skill used: test-driven-development, incremental-implementation,
+  frontend-ui-engineering (implementer), ui-taste, code-review-and-quality (verifier) · deviations / deferrals:
+  plan wording `HomeSkeleton` corrected to `TripHeroSkeleton`; `home.test.tsx` and `home-clearance.test.tsx` still
+  import `@/theme/legacy/theme` because `index.tsx` stays legacy until step 10 — migrate them before step 11
+  deletes legacy; `home-clearance.test.tsx:146` pins the snackbar-to-pill gap at 20 dp (transitional, revert the
+  `+ (spacing[4] - PILL_GAP)` term in step 10) · open minors for the next session: tighten
+  `PhotoStrip.test.tsx:710` / `:755` back to an opacity assertion (`opacity` undefined on enabled tiles); pressed
+  photo tile uses `hero.scrim` 0.82 (ask Kacper / ui-taste); log the 390 dp breakpoint as a decision and consider
+  one shared gutter helper (`CurrentTrip`, `PhotoViewer`, `TripHero`); `TripMenuSheet` full-width divider borrows
+  `components.card.borderWidth`; no test for the `PhotoSkeleton` pulse stopping on unmount; `PhotoSkeleton` radius
+  16 vs §8.19's 12; `PhotoViewer` spinner uses `hero.text` on the canvas (D6) · device check: not run (step 12).
 
 ## Risks & open questions
 Answers (Kacper, 2026-10-22, with the approval):

@@ -33,7 +33,7 @@ describe('TripHeroSkeleton', () => {
     expect(screen.queryByTestId('trip-hero-skeleton')).toBeNull();
     expect(skeleton().props['aria-hidden']).toBe(true);
     // Same geometry as the full-bleed hero (§10.1, radius none).
-    expect(skeleton()).toHaveStyle({ height: 406, borderRadius: tokens.radii.none, backgroundColor: lightTheme.skeleton.base });
+    expect(skeleton()).toHaveStyle({ height: 422, borderRadius: tokens.radii.none, backgroundColor: lightTheme.skeleton.base });
   });
 
   it('uses the dark skeleton color in dark mode', async () => {

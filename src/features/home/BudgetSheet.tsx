@@ -8,7 +8,8 @@ import { PrimaryButton } from '@/components/PrimaryButton';
 import { useSetTripBudget } from '@/hooks/useTrips';
 import { currencyMinorDigits, formatAmountInput, parseAmountToMinor } from '@/lib/money';
 import { TripBudgetFormSchema, type TripSummary } from '@/schemas';
-import { useTheme } from '@/theme/legacy/useTheme';
+import { tokens } from '@/theme/tokens';
+import { useTheme } from '@/theme/useTheme';
 
 type Props = { trip: TripSummary; onClose: () => void };
 
@@ -50,7 +51,7 @@ export function BudgetSheet({ trip, onClose }: Props) {
 
   return (
     <BottomSheet visible title={t(solo ? 'newTrip.budget.headingSolo' : 'newTrip.budget.heading')} onClose={onClose}>
-      <Text style={[theme.typography.bodyM, { color: theme.colors.text.secondary }]}>{t('newTrip.budget.hint')}</Text>
+      <Text style={[tokens.typography.styles.bodyMD, { color: theme.text.secondary }]}>{t('newTrip.budget.hint')}</Text>
       <AmountField
         label={t(solo ? 'newTrip.budget.amountSolo' : 'newTrip.budget.amount')}
         amountText={amountText}
@@ -59,7 +60,7 @@ export function BudgetSheet({ trip, onClose }: Props) {
         error={errorKey ? t(errorKey) : undefined}
       />
       {setBudget.isError && (
-        <Text accessibilityLiveRegion="polite" style={[theme.typography.bodyS, { color: theme.colors.status.error }]}>
+        <Text accessibilityLiveRegion="polite" style={[tokens.typography.styles.bodySM, { color: theme.semantic.error.foreground }]}>
           {t('home.saveBudgetError')}
         </Text>
       )}

@@ -5,6 +5,7 @@ import { Fragment, useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ScrollView, Text, useWindowDimensions, View } from 'react-native';
 
+import { Card } from '@/components/Card';
 import { LayoverLabel } from '@/components/LayoverLabel';
 import { OfflineBanner } from '@/components/OfflineBanner';
 import { SyncIndicator } from '@/components/SyncIndicator';
@@ -21,8 +22,8 @@ import { isoToLocal } from '@/lib/time';
 import { perPersonPerDay, tripDayCount } from '@/lib/trip-days';
 import { useIsOffline, useRequestBudgetSync } from '@/providers/BudgetSync';
 import type { FlightSegment, SyncStatus, TripOverview } from '@/schemas';
-import { darkTheme } from '@/theme/legacy/theme';
-import { useTheme } from '@/theme/legacy/useTheme';
+import { tokens } from '@/theme/tokens';
+import { useTheme } from '@/theme/useTheme';
 
 import { BudgetSheet } from './BudgetSheet';
 import { DeleteTripSheet } from './DeleteTripSheet';
@@ -30,6 +31,8 @@ import { HeroMenuButton } from './HeroMenuButton';
 import { TripDetailsSheet } from './TripDetailsSheet';
 import { TripMenuButton } from './TripMenuButton';
 import { TripMenuSheet } from './TripMenuSheet';
+
+const { spacing, layout, typography } = tokens;
 
 type Props = { overview: TripOverview; budgetSyncStatus: SyncStatus; onOpenMenu: () => void; onDeleted: () => void };
 
@@ -48,8 +51,7 @@ export function CurrentTrip({ overview, budgetSyncStatus, onOpenMenu, onDeleted 
   const clearance = usePillClearance();
   const router = useRouter();
   const { width } = useWindowDimensions();
-  const { spacing, colors } = theme;
-  const side = width < theme.breakpoints.compact ? spacing[4] : spacing[5];
+  const side = width < layout.compactBreakpoint ? layout.screenGutterCompact : layout.screenGutter;
   const { trip, members, segments, organizerUsername } = overview;
   const owner = useIsTripOwner(trip.ownerId);
   const myId = useMyProfileId();
@@ -66,7 +68,7 @@ export function CurrentTrip({ overview, budgetSyncStatus, onOpenMenu, onDeleted 
   const closeSheet = () => setSheet(null);
 
   return (
-    <View testID="home-screen" style={{ flex: 1, backgroundColor: colors.background }}>
+    <View testID="home-screen" style={{ flex: 1, backgroundColor: theme.background.canvas }}>
       <StatusBar style={focused && !panelOpen ? 'light' : 'auto'} />
       {/* First, so screen readers reach the navigation before the trip (§15); drawn above the photo. */}
       <HeroMenuButton onPress={onOpenMenu} />
@@ -78,7 +80,7 @@ export function CurrentTrip({ overview, budgetSyncStatus, onOpenMenu, onDeleted 
         {!noPhotosToShow && (
           <View
             testID="home-photos"
-            style={{ width: '100%', maxWidth: theme.size.maxContentWidth, alignSelf: 'center', marginBottom: spacing[4] }}
+            style={{ width: '100%', maxWidth: layout.maxContentWidth, alignSelf: 'center', marginBottom: spacing[4] }}
           >
             <PhotoStrip
               tripId={trip.id}
@@ -88,7 +90,7 @@ export function CurrentTrip({ overview, budgetSyncStatus, onOpenMenu, onDeleted 
             />
           </View>
         )}
-        <View style={{ gap: spacing[4], paddingHorizontal: side, width: '100%', maxWidth: theme.size.maxContentWidth, alignSelf: 'center' }}>
+        <View style={{ gap: spacing[4], paddingHorizontal: side, width: '100%', maxWidth: layout.maxContentWidth, alignSelf: 'center' }}>
           <Section testID="home-flights" title={t('home.flights')}>
             <Direction label={t('newTrip.flights.outbound')} segments={segments.filter((s) => s.direction === 'outbound')} />
             <Direction label={t('newTrip.flights.return')} segments={segments.filter((s) => s.direction === 'return')} />
@@ -123,7 +125,7 @@ export function CurrentTrip({ overview, budgetSyncStatus, onOpenMenu, onDeleted 
           testID="home-action"
           style={{
             width: '100%',
-            maxWidth: theme.size.maxContentWidth,
+            maxWidth: layout.maxContentWidth,
             alignSelf: 'center',
             paddingHorizontal: side,
             paddingTop: spacing[3],
@@ -139,28 +141,23 @@ export function CurrentTrip({ overview, budgetSyncStatus, onOpenMenu, onDeleted 
 
 function Section({ title, testID, action, children }: { title: string; testID: string; action?: ReactNode; children: ReactNode }) {
   const theme = useTheme();
-  // Light: white with the card shadow, like the wizard's Card (theme-split D7). Dark: the secondary surface, because the
-  // default surface is close to the background itself; no shadow there (elevation.card is empty in dark).
-  const surface = theme === darkTheme ? theme.colors.surface.secondary : theme.colors.surface.default;
+  // The base card of the design system (§8.9): the wizard's Card, so both screens share one surface.
   return (
-    <View
-      testID={testID}
-      style={[{ backgroundColor: surface, borderRadius: theme.radius.lg, padding: theme.spacing[4], gap: theme.spacing[3] }, theme.elevation.card]}
-    >
-      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: theme.spacing[2] }}>
-        <Text accessibilityRole="header" style={[theme.typography.heading3, { color: theme.colors.text.primary, flexShrink: 1 }]}>
+    <Card testID={testID}>
+      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: spacing[2] }}>
+        <Text accessibilityRole="header" style={[typography.styles.headingSM, { color: theme.text.primary, flexShrink: 1 }]}>
           {title}
         </Text>
         {action}
       </View>
       {children}
-    </View>
+    </Card>
   );
 }
 
 function Body({ children, tone = 'primary' }: { children: ReactNode; tone?: 'primary' | 'secondary' }) {
   const theme = useTheme();
-  return <Text style={[theme.typography.bodyM, { color: theme.colors.text[tone] }]}>{children}</Text>;
+  return <Text style={[typography.styles.bodyMD, { color: theme.text[tone] }]}>{children}</Text>;
 }
 
 function Direction({ label, segments }: { label: string; segments: FlightSegment[] }) {
@@ -170,8 +167,8 @@ function Direction({ label, segments }: { label: string; segments: FlightSegment
   // Stored as instants; shown as on the ticket, in each airport's time.
   const shown = (iso: string, timeZone: string) => formatLocalShort(isoToLocal(iso, timeZone), i18n.language);
   return (
-    <View style={{ gap: theme.spacing[2] }}>
-      <Text style={[theme.typography.bodyMMedium, { color: theme.colors.text.primary }]}>{label}</Text>
+    <View style={{ gap: spacing[2] }}>
+      <Text style={[typography.styles.labelLG, { color: theme.text.primary }]}>{label}</Text>
       {sorted.map((segment, index) => {
         const previous = sorted[index - 1];
         const layover = previous ? savedLayoverMinutes(previous, segment) : null;
@@ -217,8 +214,8 @@ function Budget({ trip, syncStatus, onChangeBudget }: BudgetProps) {
         )
       }
     >
-      <View style={{ flexDirection: 'row', alignItems: 'baseline', flexWrap: 'wrap', gap: theme.spacing[2] }}>
-        <Text style={[theme.typography.numericL, { color: theme.colors.text.primary }]}>{formatMoney(perPerson, locale)}</Text>
+      <View style={{ flexDirection: 'row', alignItems: 'baseline', flexWrap: 'wrap', gap: spacing[2] }}>
+        <Text style={[typography.styles.moneyLG, { color: theme.text.primary }]}>{formatMoney(perPerson, locale)}</Text>
         <Body tone="secondary">{t('newTrip.summary.perPerson')}</Body>
       </View>
       <Body tone="secondary">

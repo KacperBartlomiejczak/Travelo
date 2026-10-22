@@ -9,7 +9,8 @@ import { TextField } from '@/components/TextField';
 import { useUpdateTripDetails } from '@/hooks/useTrips';
 import { useIsOffline } from '@/providers/BudgetSync';
 import { TRIP_NAME_MAX_LENGTH, TripDetailsInputSchema, type CoverChoice, type TripSummary } from '@/schemas';
-import { useTheme } from '@/theme/legacy/useTheme';
+import { tokens } from '@/theme/tokens';
+import { useTheme } from '@/theme/useTheme';
 
 type Props = { trip: TripSummary; onClose: () => void };
 
@@ -44,7 +45,7 @@ export function TripDetailsSheet({ trip, onClose }: Props) {
   return (
     <BottomSheet visible title={t('tripDetails.title')} onClose={onClose}>
       {/* Scrolls when the cover preview and the keyboard do not fit; the save button below stays in reach. */}
-      <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={{ gap: theme.spacing[4] }}>
+      <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={{ gap: tokens.spacing[4] }}>
         <TextField
           label={t('newTrip.summary.name')}
           value={name}
@@ -55,11 +56,11 @@ export function TripDetailsSheet({ trip, onClose }: Props) {
         <CoverPicker value={coverImageUri} onChange={setCoverImageUri} urls={trip.coverUrls} />
       </ScrollView>
       {update.isError && (
-        <Text accessibilityLiveRegion="polite" style={[theme.typography.bodyS, { color: theme.colors.status.error }]}>
+        <Text accessibilityLiveRegion="polite" style={[tokens.typography.styles.bodySM, { color: theme.semantic.error.foreground }]}>
           {t('tripDetails.saveError')}
         </Text>
       )}
-      {offline && <Text style={[theme.typography.bodyS, { color: theme.colors.text.secondary }]}>{t('tripMenu.offlineHint')}</Text>}
+      {offline && <Text style={[tokens.typography.styles.bodySM, { color: theme.text.secondary }]}>{t('tripMenu.offlineHint')}</Text>}
       <PrimaryButton label={t('tripDetails.save')} onPress={save} loading={update.isPending} disabled={offline} />
     </BottomSheet>
   );

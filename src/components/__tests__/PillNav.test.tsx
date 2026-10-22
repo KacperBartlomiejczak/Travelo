@@ -192,11 +192,11 @@ describe('PillNav (design-context §8.14, pill-nav-and-dialog D1, D2, D4)', () =
       expect(style(screen.getByTestId('pill-nav'))).toMatchObject({ borderWidth: 1, shadowOpacity: 0, elevation: 0 });
     });
 
-    it('sits above the bottom safe area, centred, 16dp from each side', async () => {
+    it('sits 12dp above the bottom safe area (§8.14, D23), centred, 16dp from each side', async () => {
       await render(ui());
       expect(screen.getByTestId('pill-nav-container')).toHaveStyle({
         position: 'absolute',
-        bottom: metrics.insets.bottom + tokens.spacing[4],
+        bottom: metrics.insets.bottom + tokens.spacing[3],
         left: 0,
         right: 0,
         alignItems: 'center',

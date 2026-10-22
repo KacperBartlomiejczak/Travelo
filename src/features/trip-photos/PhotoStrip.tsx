@@ -1,4 +1,4 @@
-import { CircleX } from 'lucide-react-native';
+import { CircleAlert } from 'lucide-react-native';
 import { useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { FlatList, Text, View } from 'react-native';
@@ -8,7 +8,8 @@ import { usePhotoUploads, useTripPhotos, type PhotoUpload } from '@/hooks/useTri
 import { compareTakenAt } from '@/lib/trip-photos';
 import { useIsOffline } from '@/providers/BudgetSync';
 import type { ShownTripPhoto } from '@/schemas';
-import { useTheme } from '@/theme/legacy/useTheme';
+import { tokens } from '@/theme/tokens';
+import { useTheme } from '@/theme/useTheme';
 
 import { pickTripPhotos } from './pick-trip-photos';
 import { AddPhotoTile, PhotoSkeleton, PhotoTile, type StripItem } from './PhotoTile';
@@ -55,7 +56,7 @@ type Props = {
 export function PhotoStrip({ tripId, sidePadding, onOpenPhoto, readOnly = false }: Props) {
   const { t } = useTranslation();
   const theme = useTheme();
-  const { spacing, typography, colors } = theme;
+  const { spacing, typography } = tokens;
   const offline = useIsOffline();
   const photos = useTripPhotos(tripId);
   const uploads = usePhotoUploads(tripId);
@@ -126,7 +127,7 @@ export function PhotoStrip({ tripId, sidePadding, onOpenPhoto, readOnly = false 
         ) : loadFailed ? (
           loadError
         ) : (
-          <Text style={[typography.bodyS, { color: colors.text.secondary, flex: 1 }]}>{t('tripPhotos.emptyHint')}</Text>
+          <Text style={[typography.styles.bodySM, { color: theme.text.secondary, flex: 1 }]}>{t('tripPhotos.emptyHint')}</Text>
         )}
       </View>
     );
@@ -165,24 +166,24 @@ export function PhotoStrip({ tripId, sidePadding, onOpenPhoto, readOnly = false 
 
 type StatusLineProps = { tone?: 'neutral' | 'error'; live?: boolean; children: string };
 
-// A line of status text under the strip (Body S, wraps). An error also carries an icon, never colour alone (§15).
+// A line of status text under the strip (Body SM, wraps). An error also carries an icon, never colour alone (§15).
 function StatusLine({ tone = 'neutral', live = false, children }: StatusLineProps) {
   const theme = useTheme();
   const error = tone === 'error';
   return (
-    <View style={{ flexDirection: 'row', alignItems: 'center', gap: theme.spacing[1] }}>
+    <View style={{ flexDirection: 'row', alignItems: 'center', gap: tokens.spacing[1] }}>
       {error && (
-        <CircleX
+        <CircleAlert
           testID="photo-strip-error-icon"
           aria-hidden
-          size={theme.size.iconInline}
-          strokeWidth={theme.size.iconStroke}
-          color={theme.colors.status.error}
+          size={tokens.iconography.size.xs}
+          strokeWidth={tokens.iconography.strokeWidth}
+          color={theme.semantic.error.foreground}
         />
       )}
       <Text
         accessibilityLiveRegion={live ? 'polite' : undefined}
-        style={[theme.typography.bodyS, { color: error ? theme.colors.status.error : theme.colors.text.secondary, flexShrink: 1 }]}
+        style={[tokens.typography.styles.bodySM, { color: error ? theme.semantic.error.foreground : theme.text.secondary, flexShrink: 1 }]}
       >
         {children}
       </Text>

@@ -50,7 +50,7 @@ describe('EmptyScreen (pill-nav-and-dialog D3, A8, design-context §8.20)', () =
 
   it('leaves room under the content for the pill: at least its clearance plus spacing[4]', async () => {
     await render(ui());
-    const clearance = metrics.insets.bottom + tokens.spacing[4] + tokens.components.tabs.height;
+    const clearance = metrics.insets.bottom + tokens.spacing[3] + tokens.components.tabs.height; // the pill floats 12dp above the inset (§8.14, D23)
     expect(style(screen.getByTestId('empty-screen')).paddingBottom).toBeGreaterThanOrEqual(clearance + tokens.spacing[4]);
   });
 
