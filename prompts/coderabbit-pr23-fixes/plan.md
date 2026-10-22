@@ -1,5 +1,5 @@
 # Task: Fix the valid CodeRabbit findings on PR #23
-Status: in progress (step 3: commit, push and PR reply wait for Kacper's go-ahead)
+Status: done (2026-10-22)
 
 Source: CodeRabbit review 5604995244 on https://github.com/KacperBartlomiejczak/Travelo/pull/23 (2026-10-21, commit d2a91b9):
 1 inline (Minor, the only unresolved thread), 1 outside-diff (Minor), 1 nitpick (Trivial). No other CodeRabbit review on this PR.
@@ -67,7 +67,7 @@ None — no data shape changes.
 ## Steps
 - [x] 1. [docs, orchestrator] F2 + F3 text changes — skill: none — tests first: none (no behavior) — verify: diff read, full suite + typecheck + lint green
 - [x] 2. ~~[frontend]~~ skipped: Q1-A chosen (only if Q1-B) sign-out error message — skill: test-driven-development — tests first: see Tests — verify: red → green, full suite, typecheck, lint; verifier
-- [ ] 3. [orchestrator] `Architecture.md` line 2 + changelog; draft the PR reply (F1–F3, fixed + skipped with reasons) for Kacper to approve, then commit, push, post
+- [x] 3. [orchestrator] `Architecture.md` line 2 + changelog; draft the PR reply (F1–F3, fixed + skipped with reasons) for Kacper to approve, then commit, push, post
 
 ## Progress log
 - Decisions (Kacper, 2026-10-22): plan approved; **Q1 = A** (no code change for F1, reply with the auth-js evidence);
@@ -78,8 +78,10 @@ None — no data shape changes.
   2890 tests ✓ (4 of 5 runs green; the first run had 1 failed test whose name was not captured, not reproduced in 4 reruns;
   a docs-only diff cannot cause it, so it is a flaky test to watch) · verifier PASS · skill used: none.
 - Step 2: skipped (Q1-A).
-- Step 3: `Architecture.md` line 2 + changelog entry done (verifier PASS). PR reply drafted; commit, push and posting wait for
-  Kacper's go-ahead.
+- Step 3: `Architecture.md` line 2 + changelog entry done (verifier PASS). After Kacper's go-ahead (2026-10-22): commit cb979ce
+  pushed to `feature/profile-screen` (d2a91b9..cb979ce); reply posted on PR #23
+  (https://github.com/KacperBartlomiejczak/Travelo/pull/23#issuecomment-6338057768). The main checkout's WIP commit b49f9d2
+  still has to be rebased onto the new `origin/feature/profile-screen`.
 
 ## Risks & open questions
 - **Q1:** F1 — A (no code, reply with the auth-js evidence; recommended) or B (fixed retry message in Settings)?
