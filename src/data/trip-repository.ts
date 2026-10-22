@@ -71,6 +71,8 @@ export interface TripRepository {
   setBudget(trip: Pick<Trip, 'id' | 'baseCurrency'>, amountMinor: number): Promise<void>;
   /** Sends budget changes still on the device; says when the next retry is due. */
   syncBudgets(): Promise<SyncResult>;
+  /** True while the device holds budget changes the server has not got yet (pending or failed): signing out would lose them. */
+  hasUnsentChanges(): Promise<boolean>;
   /**
    * Changes the trip's name and cover on the server; online only (trip-edit-menu D5).
    * A `file://` cover is sent first and stored as `photo:<id>`; a `preset:` cover is stored as is; an unchanged `photo:` cover sends nothing.
@@ -210,7 +212,13 @@ export function createInMemoryTripRepository(
   const list = (): TripList =>
     [...stored]
       .sort((a, b) => a.trip.startDate.localeCompare(b.trip.startDate) || a.trip.createdAt.localeCompare(b.trip.createdAt))
-      .map(({ trip }) => TripListItemSchema.parse({ ...trip, ...fakeCoverUrls(trip) }));
+      .map(({ trip, segments }) =>
+        TripListItemSchema.parse({
+          ...trip,
+          ...fakeCoverUrls(trip),
+          flights: segments.map(({ fromIata, toIata }) => ({ fromIata, toIata })),
+        }),
+      );
   return {
     async list() {
       return list();
@@ -243,6 +251,10 @@ export function createInMemoryTripRepository(
     },
     async syncBudgets() {
       return { nextAttemptAt: null };
+    },
+    // No device copy here: `setBudget` applies at once and `syncBudgets` has nothing to send, so nothing is ever waiting.
+    async hasUnsentChanges() {
+      return false;
     },
     async updateDetails(tripId, input) {
       const { name, coverImageUri } = TripDetailsInputSchema.parse(input);

@@ -144,6 +144,8 @@ export const size = {
 // §10.2: a disabled control is drawn at this opacity (trip-photos D25).
 export const opacity = {
   disabled: 0.4,
+  // profile-screen D9: the lowest point of the skeleton pulse (opacity 1 -> 0.5 -> 1).
+  skeletonPulseMin: 0.5,
 } as const;
 
 // §9.1 durations in ms (only the ones in use).
@@ -155,6 +157,8 @@ export const duration = {
   celebration: 500,
   // §10.16: a snackbar hides itself after 3500 ms.
   snackbarAutoDismiss: 3500,
+  // §10.18: one full cycle of the skeleton pulse is 1200 ms.
+  skeletonPulse: 1200,
 } as const;
 
 // design-context §18: below this width the screen uses compact horizontal padding.

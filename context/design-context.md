@@ -860,13 +860,19 @@ Never use dialogs for ordinary reversible actions.
 
 ## 10.18 Skeleton loaders
 
-Use neutral surfaces:
-- light: neutral.100;
-- dark: surface secondary.
+Colour (theme role `colors.skeleton`, the same value as `border` in each scheme, so the pulse shows on the page;
+profile-screen D24, D27):
+- light: neutral.200;
+- dark: dark.border.
 
-Animation:
-- 1200ms shimmer only if reduced motion is off;
-- otherwise static.
+A block on a surface of the same colour uses another existing role (dark cards: `surface.elevated`,
+app-loading-skeleton D5). Chrome drawn over a skeleton (e.g. the app-loading menu button and pill) uses
+`input.border` (profile-screen D25, D27).
+
+Animation (profile-screen D9):
+- a pulse in opacity 1 → `opacity.skeletonPulseMin` (0.5) → 1, one cycle `duration.skeletonPulse` (1200ms),
+  ease in-out, repeating; never scale (§9.4);
+- only if reduced motion is off; otherwise static.
 
 Skeleton must match the final content geometry.
 

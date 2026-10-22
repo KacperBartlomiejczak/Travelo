@@ -32,6 +32,11 @@ describe('lightTheme', () => {
     expect(lightTheme.colors.action.onPrimary).toBe('#FFFFFF');
   });
 
+  it('has a skeleton role: neutral.200, noticeable on the page (profile-screen D24, D27)', () => {
+    expect(lightTheme.colors.skeleton).toBe('#DDD5C7');
+    expect(lightTheme.colors.skeleton).toBe(lightTheme.colors.border);
+  });
+
   it('has the segmented control radius (§10.14)', () => {
     expect(lightTheme.radius.segmented).toBe(10);
   });
@@ -75,6 +80,10 @@ describe('darkTheme', () => {
     expect(darkTheme.colors.action.primary).toBe('#F08A6C');
     expect(darkTheme.colors.action.primaryPressed).toBe('#F59A82');
     expect(darkTheme.colors.action.onPrimary).toBe('#17211B');
+  });
+
+  it('has a skeleton role: the border colour, visible on the background (profile-screen D24)', () => {
+    expect(darkTheme.colors.skeleton).toBe('#39443B');
   });
 
   it('has a dark link role for ghost buttons (D28)', () => {

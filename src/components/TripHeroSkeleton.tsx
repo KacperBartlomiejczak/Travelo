@@ -1,18 +1,14 @@
-import { useWindowDimensions, View } from 'react-native';
+import { useWindowDimensions } from 'react-native';
 
 import { useTheme } from '@/theme/useTheme';
 
+import { SkeletonBlock } from './SkeletonBlock';
 import { heroHeight } from './TripHero';
 
-// Static placeholder with the full-bleed hero's geometry while the current trip loads (§10.18; no shimmer).
+// Placeholder with the full-bleed hero's geometry while the current trip loads (§10.18). It pulses like every other
+// loading block (app-loading-skeleton D3).
 export function TripHeroSkeleton() {
   const theme = useTheme();
   const { height } = useWindowDimensions();
-  return (
-    <View
-      testID="trip-hero-skeleton"
-      aria-hidden
-      style={{ height: heroHeight(height), borderRadius: theme.radius.none, backgroundColor: theme.colors.surface.secondary }}
-    />
-  );
+  return <SkeletonBlock testID="trip-hero-skeleton" width="100%" height={heroHeight(height)} radius={theme.radius.none} />;
 }

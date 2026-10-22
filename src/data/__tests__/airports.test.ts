@@ -24,6 +24,16 @@ describe('AIRPORTS', () => {
   });
 
   it.each([
+    ['WAW', 52.17, 20.97],
+    ['JFK', 40.64, -73.78],
+  ])('has the coordinates of %s', (iata, latitude, longitude) => {
+    const airport = AIRPORTS.find((candidate) => candidate.iata === iata);
+    expect(airport).toBeDefined();
+    expect(Math.abs((airport?.latitude ?? 0) - latitude)).toBeLessThan(0.05);
+    expect(Math.abs((airport?.longitude ?? 0) - longitude)).toBeLessThan(0.05);
+  });
+
+  it.each([
     ['WAW', 'Warsaw', 'PL', 'Europe/Warsaw', 'PLN'],
     ['KRK', 'Kraków', 'PL', 'Europe/Warsaw', 'PLN'],
     ['BCN', 'Barcelona', 'ES', 'Europe/Madrid', 'EUR'],

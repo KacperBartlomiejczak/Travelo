@@ -1,5 +1,5 @@
-import { render, screen } from '@testing-library/react-native';
-import { processColor } from 'react-native';
+import { act, render, screen } from '@testing-library/react-native';
+import { AccessibilityInfo, processColor } from 'react-native';
 
 import { TripHero } from '@/components/TripHero';
 import { TripHeroSkeleton } from '@/components/TripHeroSkeleton';
@@ -14,6 +14,17 @@ jest.mock('react-native/Libraries/Utilities/useColorScheme', () => ({ __esModule
 jest.mock('react-native/Libraries/Utilities/useWindowDimensions', () => ({
   __esModule: true,
   default: () => ({ width: 375, height: 812, scale: 2, fontScale: 1 }),
+}));
+
+// The Reanimated test mock turns every animation into a plain number; these wrappers record how the pulse was built.
+const mockWithTiming = jest.fn((toValue: number, _config?: { duration?: number }) => toValue);
+const mockWithSequence = jest.fn((...steps: number[]) => steps[steps.length - 1]);
+const mockWithRepeat = jest.fn((animation: number, _times?: number) => animation);
+jest.mock('react-native-reanimated', () => ({
+  ...jest.requireActual('react-native-reanimated/mock'),
+  withTiming: (toValue: number, config?: { duration?: number }) => mockWithTiming(toValue, config),
+  withSequence: (...steps: number[]) => mockWithSequence(...steps),
+  withRepeat: (animation: number, times?: number) => mockWithRepeat(animation, times),
 }));
 
 // Jest turns every image into the number 1, so the Bali files are stood in by distinct objects.
@@ -134,12 +145,38 @@ describe('TripHero (D4)', () => {
 });
 
 describe('TripHeroSkeleton', () => {
-  it('is a static block of the hero height, hidden from screen readers', async () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    jest.spyOn(AccessibilityInfo, 'isReduceMotionEnabled').mockResolvedValue(false);
+  });
+
+  it('is a full-width block of the hero height, hidden from screen readers', async () => {
     await render(<TripHeroSkeleton />);
     expect(screen.queryByTestId('trip-hero-skeleton')).toBeNull();
     const skeleton = screen.getByTestId('trip-hero-skeleton', { includeHiddenElements: true });
     expect(skeleton.props['aria-hidden']).toBe(true);
     // Same geometry as the full-bleed hero (§10.18, §5.4 radius.none).
-    expect(skeleton).toHaveStyle({ height: 406, borderRadius: lightTheme.radius.none, backgroundColor: lightTheme.colors.surface.secondary });
+    expect(skeleton).toHaveStyle({
+      width: '100%',
+      height: 406,
+      borderRadius: lightTheme.radius.none,
+      backgroundColor: '#DDD5C7', // the light skeleton role (profile-screen D27)
+    });
+  });
+
+  it('pulses like every other loading block with reduced motion off (app-loading-skeleton D3)', async () => {
+    await render(<TripHeroSkeleton />);
+    await act(async () => {});
+    expect(mockWithRepeat).toHaveBeenCalledWith(expect.anything(), -1);
+    expect(mockWithTiming.mock.calls.map(([toValue]) => toValue)).toEqual([lightTheme.opacity.skeletonPulseMin, 1]);
+  });
+
+  it('stays still with reduced motion on', async () => {
+    jest.spyOn(AccessibilityInfo, 'isReduceMotionEnabled').mockResolvedValue(true);
+    await render(<TripHeroSkeleton />);
+    await act(async () => {});
+    expect(mockWithTiming).not.toHaveBeenCalled();
+    expect(mockWithRepeat).not.toHaveBeenCalled();
+    expect(screen.getByTestId('trip-hero-skeleton', { includeHiddenElements: true })).toHaveStyle({ opacity: 1 });
   });
 });

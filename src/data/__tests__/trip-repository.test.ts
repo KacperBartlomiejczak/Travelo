@@ -225,8 +225,43 @@ describe('in-memory trip repository', () => {
       const list = await repo.list();
       expect(TripListSchema.safeParse(list).success).toBe(true);
       expect(list).toEqual([
-        { id: sooner.id, name: 'Dubai', coverImageUri: 'preset:auckland', startDate: '2026-10-20', endDate: '2026-10-25' },
-        { id: later.id, name: 'Warsaw → Bangkok', coverImageUri: 'preset:auckland', startDate: '2026-11-03', endDate: '2026-11-15' },
+        {
+          id: sooner.id,
+          name: 'Dubai',
+          coverImageUri: 'preset:auckland',
+          destination: 'DXB',
+          flights: [
+            { fromIata: 'WAW', toIata: 'DXB' },
+            { fromIata: 'DXB', toIata: 'WAW' },
+          ],
+          startDate: '2026-10-20',
+          endDate: '2026-10-25',
+        },
+        {
+          id: later.id,
+          name: 'Warsaw → Bangkok',
+          coverImageUri: 'preset:auckland',
+          destination: 'BKK',
+          flights: [
+            { fromIata: 'WAW', toIata: 'DXB' },
+            { fromIata: 'DXB', toIata: 'BKK' },
+            { fromIata: 'BKK', toIata: 'WAW' },
+          ],
+          startDate: '2026-11-03',
+          endDate: '2026-11-15',
+        },
+      ]);
+    });
+
+    it('carries the destination and the route of every segment of the trip (profile-screen D11)', async () => {
+      const repo = repository();
+      const created = await repo.create(createTripInputFixture());
+      const [item] = await repo.list();
+      expect(item.destination).toBe(created.destination);
+      expect(item.flights).toEqual([
+        { fromIata: 'WAW', toIata: 'DXB' },
+        { fromIata: 'DXB', toIata: 'BKK' },
+        { fromIata: 'BKK', toIata: 'WAW' },
       ]);
     });
 
@@ -299,6 +334,14 @@ describe('in-memory trip repository', () => {
     expect((await repo.current())?.overview.trip.budgetPerPerson).toEqual({ amountMinor: 250000, currency: 'THB' });
     await expect(repo.setBudget(created, 0)).rejects.toThrow();
     await expect(repo.syncBudgets()).resolves.toEqual({ nextAttemptAt: null });
+  });
+
+  it('never holds unsent changes: a budget change applies at once, with no device copy waiting to be sent (profile-screen D5)', async () => {
+    const repo = repository();
+    await expect(repo.hasUnsentChanges()).resolves.toBe(false);
+    const created = await repo.create(createTripInputFixture());
+    await repo.setBudget(created, 250000);
+    await expect(repo.hasUnsentChanges()).resolves.toBe(false);
   });
 
   describe('updateDetails and delete (trip-edit-menu)', () => {

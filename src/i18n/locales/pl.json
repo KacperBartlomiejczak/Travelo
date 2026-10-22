@@ -1,4 +1,7 @@
 {
+  "app": {
+    "loading": "Wczytywanie"
+  },
   "trips": {
     "title": "Twoje podróże",
     "empty": {
@@ -17,7 +20,6 @@
     "places": "Miejsca",
     "plan": "Plan",
     "profile": "Profil",
-    "profileTitle": "Profil użytkownika",
     "comingSoon": "Ten ekran pojawi się wkrótce."
   },
   "drawer": {
@@ -308,6 +310,31 @@
     "startError": "Nie udało się uruchomić aplikacji.",
     "profileLoadError": "Nie udało się wczytać profilu.",
     "retry": "Spróbuj ponownie"
+  },
+  "profile": {
+    "settings": "Ustawienia",
+    "statsTitle": "Twoje podróże",
+    "statsLoading": "Wczytywanie statystyk",
+    "noData": "brak danych",
+    "stats": {
+      "trips": "Podróże",
+      "countries": "Kraje",
+      "days": "Dni w podróży",
+      "flights": "Loty",
+      "km": "Przelecone km"
+    }
+  },
+  "settings": {
+    "signOut": "Wyloguj się",
+    "signOutOffline": "Połącz się z internetem, żeby się wylogować.",
+    "back": "Wróć, Profil",
+    "confirm": {
+      "title": "Wylogować się?",
+      "message": "Wylogujesz się z tego telefonu.",
+      "messageUnsent": "Wylogujesz się z tego telefonu. Niewysłane zmiany budżetu przepadną.",
+      "confirm": "Wyloguj",
+      "cancel": "Anuluj"
+    }
   },
   "offline": {
     "banner": "Jesteś offline. Zmiany zapiszą się po połączeniu."

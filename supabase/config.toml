@@ -248,11 +248,11 @@ otp_expiry = 3600
 # signInWithOtp sends the "magic link" template to a known address and the "confirmation" template to a new one,
 # so both use the same file. The hosted project needs the same two templates set in the dashboard.
 [auth.email.template.magic_link]
-subject = "Twój kod do Travelo"
+subject = "Your Travelo code"
 content_path = "./supabase/templates/magic_link.html"
 
 [auth.email.template.confirmation]
-subject = "Twój kod do Travelo"
+subject = "Your Travelo code"
 content_path = "./supabase/templates/magic_link.html"
 
 # Uncomment to customize email template

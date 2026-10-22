@@ -10,10 +10,10 @@ import { reorderingDb, seeded } from '@/test/reordering-db';
 const TRIP_ID = '0b9e7c4e-6a43-4c4b-9a55-2f6f0f7e1a01';
 const OTHER_TRIP_ID = '1c0f8d5f-7b54-4d5c-8b66-3a7f1f8f2b02';
 const AT = '2026-10-18T10:00:00.000Z';
-const list: TripList = [{ id: TRIP_ID, name: 'Barcelona', coverImageUri: 'preset:auckland', startDate: '2026-11-02', endDate: '2026-11-09' }];
+const list: TripList = [{ id: TRIP_ID, name: 'Barcelona', coverImageUri: 'preset:auckland', destination: 'BCN', flights: [], startDate: '2026-11-02', endDate: '2026-11-09' }];
 const listWithOther: TripList = [
   ...list,
-  { id: OTHER_TRIP_ID, name: 'Rome', coverImageUri: 'preset:bali', startDate: '2026-12-01', endDate: '2026-12-05' },
+  { id: OTHER_TRIP_ID, name: 'Rome', coverImageUri: 'preset:bali', destination: 'BCN', flights: [], startDate: '2026-12-01', endDate: '2026-12-05' },
 ];
 const photos: TripPhotoList = [
   {

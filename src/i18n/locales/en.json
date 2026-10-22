@@ -1,4 +1,7 @@
 {
+  "app": {
+    "loading": "Loading"
+  },
   "trips": {
     "title": "Your trips",
     "empty": {
@@ -17,7 +20,6 @@
     "places": "Places",
     "plan": "Plan",
     "profile": "Profile",
-    "profileTitle": "User profile",
     "comingSoon": "This screen is coming soon."
   },
   "drawer": {
@@ -308,6 +310,31 @@
     "startError": "Couldn't start the app.",
     "profileLoadError": "Couldn't load your profile.",
     "retry": "Try again"
+  },
+  "profile": {
+    "settings": "Settings",
+    "statsTitle": "Your travels",
+    "statsLoading": "Loading stats",
+    "noData": "no data",
+    "stats": {
+      "trips": "Trips",
+      "countries": "Countries",
+      "days": "Days travelled",
+      "flights": "Flights",
+      "km": "Km flown"
+    }
+  },
+  "settings": {
+    "signOut": "Sign out",
+    "signOutOffline": "Connect to the internet to sign out.",
+    "back": "Back, Profile",
+    "confirm": {
+      "title": "Sign out?",
+      "message": "You will be signed out on this phone.",
+      "messageUnsent": "You will be signed out on this phone. Unsent budget changes will be lost.",
+      "confirm": "Sign out",
+      "cancel": "Cancel"
+    }
   },
   "offline": {
     "banner": "You're offline. Changes will sync when you're connected."

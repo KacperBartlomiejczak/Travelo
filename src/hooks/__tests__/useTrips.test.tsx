@@ -65,6 +65,7 @@ describe('useCurrentTrip', () => {
       create: () => Promise.reject(new Error('offline')),
       setBudget: () => Promise.reject(new Error('offline')),
       syncBudgets: () => Promise.reject(new Error('offline')),
+      hasUnsentChanges: () => Promise.reject(new Error('offline')),
       updateDetails: () => Promise.reject(new Error('offline')),
       delete: () => Promise.reject(new Error('offline')),
       photos: () => Promise.reject(new Error('offline')),
@@ -82,7 +83,21 @@ describe('useTripList (trips-drawer D4)', () => {
     const trip = await repository.create(createTripInputFixture());
     const { result } = await renderHook(() => useTripList(), { wrapper: setup(repository) });
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
-    expect(result.current.data).toEqual([{ id: trip.id, name: 'Warsaw → Bangkok', coverImageUri: 'preset:auckland', startDate: '2026-11-03', endDate: '2026-11-15' }]);
+    expect(result.current.data).toEqual([
+      {
+        id: trip.id,
+        name: 'Warsaw → Bangkok',
+        coverImageUri: 'preset:auckland',
+        destination: 'BKK',
+        flights: [
+          { fromIata: 'WAW', toIata: 'DXB' },
+          { fromIata: 'DXB', toIata: 'BKK' },
+          { fromIata: 'BKK', toIata: 'WAW' },
+        ],
+        startDate: '2026-11-03',
+        endDate: '2026-11-15',
+      },
+    ]);
   });
 
   it('still asks the repository offline, which answers from the device copy', async () => {

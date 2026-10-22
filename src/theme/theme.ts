@@ -55,6 +55,8 @@ const light = {
     },
     border: palette.neutral[200],
     divider: palette.neutral[100],
+    // Skeleton blocks (profile-screen D24, D27): noticeable on the background in both schemes (the dark value is the border).
+    skeleton: palette.neutral[200],
     input: { border: palette.neutral[300] },
     action: {
       primary: palette.brand[500],
@@ -109,6 +111,7 @@ export const darkTheme: Theme = {
     },
     border: palette.dark.border,
     divider: palette.dark.divider,
+    skeleton: palette.dark.border,
     input: { border: palette.dark.inputBorder },
     action: {
       primary: palette.dark.brand,
