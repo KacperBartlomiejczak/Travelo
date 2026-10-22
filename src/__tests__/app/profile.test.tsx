@@ -451,6 +451,20 @@ describe('Profile screen — photo and nick (A3)', () => {
       expect(within(box).getByTestId('profile-photo-skeleton', { includeHiddenElements: true })).toBeTruthy();
     });
 
+    // The skeleton pulses over the Image; a backdrop of the skeleton's own colour behind it would hide the pulse (6h).
+    it.each([
+      ['light', lightTheme],
+      ['dark', darkTheme],
+    ] as const)('%s: the Image under the skeleton has no backdrop, so the skeleton pulses on the page', async (scheme, theme) => {
+      mockScheme = scheme;
+      setAppProfileRepository(await profileWithPhoto());
+      await renderProfile();
+      const shown = await findPhoto();
+      expect(photoSkeleton()).toBeTruthy();
+      expect(style(shown).backgroundColor).toBeUndefined();
+      expect(style(theSkeleton()).backgroundColor).toBe(theme.colors.skeleton);
+    });
+
     it('a photo that cannot load is the skeleton, not the placeholder', async () => {
       setAppProfileRepository(await profileWithPhoto());
       await renderProfile();

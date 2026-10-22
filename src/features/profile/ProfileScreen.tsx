@@ -162,7 +162,7 @@ function ProfilePhoto({ uri, avatarId, offline }: { uri: string | undefined; ava
         onError={() => {
           if (!loaded) setFailed(source);
         }}
-        style={[circle, { backgroundColor: colors.surface.secondary }]}
+        style={circle}
       />
       {!(loaded && faded) && (
         <SkeletonCover photoLoaded={loaded} onFaded={markFaded}>
