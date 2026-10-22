@@ -4,6 +4,7 @@ import { AccessibilityInfo, Animated, StyleSheet } from 'react-native';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
 import i18n from '@/i18n';
 import { darkTheme, lightTheme } from '@/theme/legacy/theme';
+import { lightTheme as sunlineLightTheme } from '@/theme/theme';
 import { DarkThemeScope } from '@/theme/legacy/useTheme';
 
 const TITLE = 'Odrzucić wpisane dane?';
@@ -133,16 +134,16 @@ describe('ConfirmDialog (design-context §10.17)', () => {
   describe('destructive', () => {
     it('draws the confirm label in the error colour, still with its text label', async () => {
       await renderDialog({ destructive: true });
-      expect(screen.getByText('Odrzuć')).toHaveStyle({ color: lightTheme.colors.status.error });
+      expect(screen.getByText('Odrzuć')).toHaveStyle({ color: sunlineLightTheme.semantic.error.foreground });
       expect(confirmButton()).toBeTruthy(); // the label carries the meaning, not the colour
-      expect(screen.getByText('Zostań')).toHaveStyle({ color: lightTheme.colors.text.primary });
+      expect(screen.getByText('Zostań')).toHaveStyle({ color: sunlineLightTheme.text.primary });
     });
 
     it('uses the primary button when it is not destructive', async () => {
       await renderDialog();
-      expect(confirmButton()).toHaveStyle({ backgroundColor: lightTheme.colors.action.primary });
-      expect(screen.getByText('Odrzuć')).toHaveStyle({ color: lightTheme.colors.action.onPrimary });
-      expect(screen.getByText('Odrzuć')).not.toHaveStyle({ color: lightTheme.colors.status.error });
+      expect(confirmButton()).toHaveStyle({ backgroundColor: sunlineLightTheme.brand.primary });
+      expect(screen.getByText('Odrzuć')).toHaveStyle({ color: sunlineLightTheme.brand.onBrand });
+      expect(screen.getByText('Odrzuć')).not.toHaveStyle({ color: sunlineLightTheme.semantic.error.foreground });
     });
   });
 

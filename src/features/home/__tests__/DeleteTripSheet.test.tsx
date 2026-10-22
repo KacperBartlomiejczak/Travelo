@@ -8,6 +8,7 @@ import { AppProviders } from '@/providers/AppProviders';
 import type { TripSummary } from '@/schemas';
 import { setNetwork } from '@/test/mock-network';
 import { lightTheme } from '@/theme/legacy/theme';
+import { lightTheme as sunlineLightTheme } from '@/theme/theme';
 
 import { DeleteTripSheet } from '../DeleteTripSheet';
 
@@ -70,7 +71,7 @@ describe('DeleteTripSheet (trip-edit-menu D7, D8, D10, D19)', () => {
 
   it('puts the destructive "Usuń podróż" above "Anuluj", full width and 16dp apart, never adjacent (D19)', async () => {
     await setup();
-    expect(screen.getByText('Usuń podróż')).toHaveStyle({ color: lightTheme.colors.status.error });
+    expect(screen.getByText('Usuń podróż')).toHaveStyle({ color: sunlineLightTheme.semantic.error.foreground });
     // One column, "Usuń podróż" first; the gap between the two is spacing[4].
     const actions = screen.getByTestId('delete-trip-actions');
     expect(actions).toHaveStyle({ gap: lightTheme.spacing[4] });

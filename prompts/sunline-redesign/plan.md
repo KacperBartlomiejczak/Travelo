@@ -103,7 +103,7 @@ is UI configuration, not a data shape, so the Zod rule does not apply.
   `tokens.ts` and `useTheme.ts`. â€” skill: test-driven-development, incremental-implementation â€” tests first:
   tokens.test.ts, useTheme.test.ts (red: modules missing) â€” verify: full suite (legacy move changes nothing), typecheck,
   lint; verifier.
-- [ ] 3. [frontend] Buttons: `PrimaryButton`, `TextButton`, `IconButton`, `HeroIconButton`, `HeroMenuButton`,
+- [x] 3. [frontend] Buttons: `PrimaryButton`, `TextButton`, `IconButton`, `HeroIconButton`, `HeroMenuButton`,
   `TripMenuButton`, `BrandButton` / `GoogleButton` / `DiscordButton` (layout only, A3 colors). â€” Â§8.1, Â§8.2 â€” tests
   first: their tests to the new spec â€” verify: suite, typecheck, lint; verifier.
 - [ ] 4. [frontend] Inputs and selection: `Field`, `TextField`, `AmountField`, `AirportField`, `DateTimeField*`, `Chip`,
@@ -124,7 +124,11 @@ is UI configuration, not a data shape, so the Zod rule does not apply.
   still on legacy. â€” same pattern.
 - [ ] 11. [frontend] Cleanup: delete `src/theme/legacy/`, drop `Fraunces_700Bold` if unused (A7). â€” tests first:
   themeGuards.test.ts (red while legacy exists) â€” verify: suite, typecheck, lint; verifier.
-- [ ] 12. [tester] Device run of the manual steps below, light and dark. â€” verify: PASS per scenario.
+- [ ] 12. [tester] Device run of the manual steps below, light and dark. â€” verify: PASS per scenario. Also the step-3
+  checks the blocked device run did not cover (Kacper, 2026-10-22): trip menu sheet and delete-trip dialog buttons
+  (cancel only), light-mode Welcome, press scale 0.98 and no stuck shrink after release, disabled button look (no
+  opacity; does a disabled secondary keep its outline), font scale 1.3, ⋮ trip menu button reachable by the screen
+  reader. Needs the emulator to itself (no other session's Metro) and a signed-in account.
 - [ ] 13. [orchestrator] `Architecture.md` (theme module, key decisions D1â€“D4, changelog). â€” verify: every statement
   checked in the code.
 
@@ -170,6 +174,29 @@ Manual test steps (Kacper / tester), each in light and in dark mode:
   test-driven-development, incremental-implementation Â· minor notes for later: contrast test asserts the WCAG tier, not
   the exact Â§2.9 ratio; the font check reads `_layout.tsx` as text; the `profile-screen D9` comment points to a plan that
   is not on this branch yet.
+- Step 3 (in progress, not committed): implementation in the working tree · red ✓ (orchestrator, 2026-10-22: the 13
+  source files reverted to HEAD with the new tests kept → 8 suites fail, 57 failed / 64 passed, assertion failures, not
+  import errors) · green ✓ 126 suites / 2769 tests, typecheck ✓, lint ✓ · new `src/components/usePressScale.ts` (D10
+  press motion) · deviation: legacy `DarkThemeScope` also wraps children in the new `DarkThemeScope` (bridge so new-theme
+  buttons inside legacy Welcome / photo viewer get dark; `src/theme/legacy/__tests__/bridge.test.tsx`; removed in step
+  11) · verifier: FAIL, one issue: `HeroMenuButton` / `TripMenuButton` switched the side-inset breakpoint from legacy 360
+  to `layout.compactBreakpoint` 390 (on 360–389 dp the gutter drops 20 → 16 while other screens still use 360) →
+  Kacper accepted it as a deviation (D12) · re-verify: PASS · skill used: test-driven-development,
+  incremental-implementation (implementer), ui-taste, code-review-and-quality (verifier) · minor notes for later:
+  `BrandButton.tsx` Pressable body not re-indented inside `Animated.View` and import order; `usePressScale` lives in
+  `src/components/` (hooks are in `src/hooks/`) and has no direct test; disabled secondary keeps its `border.default`
+  outline (check on device); `held` may stay true if a button turns disabled while pressed; `motion.press.scale`
+  duplicates `microinteraction.expenseSaved.pressScale`.
+- Step 3 device check (2026-10-22, `tester`, emulator Medium Phone API 37.0, Expo Go from this worktree's Metro on
+  8081 via `REACT_NATIVE_PACKAGER_HOSTNAME=127.0.0.1` + `adb reverse`, config `expo-go-emulator` in
+  `.claude/launch.json`): **blocked**. The emulator was shared with another session (main checkout's Metro on 8083):
+  night mode, tabs and the loaded bundle changed without the tester's input, and the app ended signed out (cause not
+  established). Seen before that: dark Welcome "Sign in" coral, ~52 dp; Google white / Discord blurple in the sign-in
+  sheet; hero menu button ~44 dp, readable over the photo in light and dark; drawer "New trip" coral ~52 dp. Not
+  checked: trip menu and delete dialog, light Welcome, press scale (inconclusive from screenshots), disabled look,
+  font scale 1.3. Kacper (2026-10-22): commit step 3 now, the missing checks move to step 12.
+- Open question (tester, step 3 run, not in this task's scope): should "Send code" on the e-mail screen be disabled
+  while the field is empty? Today it is enabled. Ask Kacper; A1 keeps behavior unchanged here.
 
 ## Risks & open questions
 Answers (Kacper, 2026-10-22, with the approval):
@@ -179,6 +206,16 @@ Answers (Kacper, 2026-10-22, with the approval):
 - **D7 (Q3):** keep today's copy; Â§11 voice and strings are their own task.
 - **D8 (Q4):** category icons wait for the expenses UI; DESIGN.md is copied with both lists as they are.
 - **D9 (Q5):** DESIGN.md is enough; the prototype PDF is not used as a layout source.
+- **D10 (Kacper, 2026-10-22, step 3):** new generic tokens instead of borrowing input/expense tokens:
+  `components.button.borderWidth: 1`, `components.focusRing: { width: 2, offset: 2 }`, `motion.press: { scale: 0.98 }`
+  (design-context §14.18; documented in its Project notes).
+- **D11 (Kacper, 2026-10-22, step 3):** a disabled Google / Discord button keeps its provider colors, with no opacity
+  and no disabled tokens (keeps auth-onboarding D16 minus the dimming); disabled shows through no response and
+  `accessibilityState.disabled`. Exception to A5 for these two buttons only.
+- **D12 (Kacper, 2026-10-22, step 3):** the hero buttons (`HeroMenuButton`, `TripMenuButton`) switch to the new
+  `layout.compactBreakpoint` (390) now. Accepted temporary mismatch: on 360–389 dp widths they sit at the 16 dp gutter
+  while screens still on legacy use the 360 breakpoint (20 dp), until steps 6–7 move those screens; on the home route
+  `src/app/(drawer)/(tabs)/index.tsx` (renders `HeroMenuButton`, legacy 360 at its own gutters) it lasts until step 10.
 
 - **Q1 Skeleton:** keep today's opacity pulse (profile-screen D9, 1200 ms) in the new `skeleton.base` color, or switch
   to the DESIGN.md Â§8.19 shimmer (`skeleton.highlight` sweeping, 360 ms per pass, static under reduced motion)?

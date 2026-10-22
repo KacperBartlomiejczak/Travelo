@@ -13,6 +13,7 @@ import { drawerStatus } from '@/test/drawer-status';
 import { LOCAL_PROFILE_ID } from '@/test/fake-profile-repository';
 import { setNetwork } from '@/test/mock-network';
 import { darkTheme, lightTheme } from '@/theme/legacy/theme';
+import { darkTheme as sunlineDarkTheme, lightTheme as sunlineLightTheme } from '@/theme/theme';
 
 jest.mock('expo-font', () => ({ ...jest.requireActual('expo-font'), useFonts: jest.fn() }));
 jest.mocked(useFonts).mockReturnValue([true, null]);
@@ -238,8 +239,8 @@ describe('Home screen — current trip (D4)', () => {
     await screen.findByTestId('home-screen');
     for (const name of [MENU, 'Opcje podróży']) {
       const button = screen.getByRole('button', { name });
-      expect(button).toHaveStyle({ backgroundColor: theme.colors.hero.control });
-      expect(within(button).getByTestId('hero-icon-button-icon', { includeHiddenElements: true }).props.stroke).toBe(theme.colors.hero.text);
+      expect(button).toHaveStyle({ backgroundColor: (scheme === 'dark' ? sunlineDarkTheme : sunlineLightTheme).hero.controlBackground });
+      expect(within(button).getByTestId('hero-icon-button-icon', { includeHiddenElements: true }).props.stroke).toBe((scheme === 'dark' ? sunlineDarkTheme : sunlineLightTheme).hero.text);
     }
   });
 
@@ -524,13 +525,13 @@ describe('Home screen — menu button (trips-drawer P5)', () => {
 
   it('stays pinned over the photo: it does not scroll away with the trip', async () => {
     await showState('trip');
-    expect(screen.getByRole('button', { name: MENU })).toHaveStyle({ backgroundColor: lightTheme.colors.hero.control });
+    expect(screen.getByRole('button', { name: MENU })).toHaveStyle({ backgroundColor: sunlineLightTheme.hero.controlBackground });
     expect(within(screen.getByTestId('home-scroll')).queryByRole('button', { name: MENU })).toBeNull();
   });
 
   it('is there over the skeleton while the trip loads (§10.18)', async () => {
     await showState('loading');
-    expect(screen.getByRole('button', { name: MENU })).toHaveStyle({ backgroundColor: lightTheme.colors.hero.control });
+    expect(screen.getByRole('button', { name: MENU })).toHaveStyle({ backgroundColor: sunlineLightTheme.hero.controlBackground });
   });
 
   it('comes first for screen readers, before the trip (§15 focus order: navigation first)', async () => {
@@ -562,7 +563,7 @@ describe('Home screen — trip menu ⋮ (trip-edit-menu D3, D4, D6, D8, D15)', (
     mockCurrent = () => Promise.resolve(overview());
     await renderHome();
     await screen.findByTestId('home-screen');
-    expect(screen.getByRole('button', { name: OPEN })).toHaveStyle({ backgroundColor: lightTheme.colors.hero.control });
+    expect(screen.getByRole('button', { name: OPEN })).toHaveStyle({ backgroundColor: sunlineLightTheme.hero.controlBackground });
     expect(within(screen.getByTestId('home-scroll')).queryByRole('button', { name: OPEN })).toBeNull();
     // The mirror image of ☰ (D4): same top, the same side inset, but on the right.
     const menu = screen.getByRole('button', { name: MENU }).parent;

@@ -7,6 +7,7 @@ import i18n from '@/i18n';
 import { AppProviders } from '@/providers/AppProviders';
 import { setNetwork } from '@/test/mock-network';
 import { darkTheme, lightTheme } from '@/theme/legacy/theme';
+import { darkTheme as sunlineDarkTheme, lightTheme as sunlineLightTheme } from '@/theme/theme';
 
 import { WelcomeScreen } from '../WelcomeScreen';
 
@@ -100,8 +101,8 @@ describe('WelcomeScreen (auth-onboarding D5, D6, P4, P5, P6)', () => {
     expect(screen.getByTestId('welcome-screen')).toHaveStyle({ backgroundColor: darkTheme.colors.hero.background });
     expect(screen.getByText('Witaj w Travelo')).toHaveStyle({ ...darkTheme.typography.displayXL, color: darkTheme.colors.hero.text });
     expect(screen.getByText(/Zaplanuj wyjazd/)).toHaveStyle({ color: darkTheme.colors.hero.textSecondary });
-    expect(signInButton()).toHaveStyle({ backgroundColor: darkTheme.colors.action.primary });
-    expect(signInButton()).not.toHaveStyle({ backgroundColor: lightTheme.colors.action.primary });
+    expect(signInButton()).toHaveStyle({ backgroundColor: sunlineDarkTheme.brand.primary });
+    expect(signInButton()).not.toHaveStyle({ backgroundColor: sunlineLightTheme.brand.primary });
     expect(mockStatusBarStyle).toBe('light');
   });
 

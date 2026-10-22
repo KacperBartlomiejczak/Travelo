@@ -1,17 +1,16 @@
 import Svg, { Path } from 'react-native-svg';
 
-import { useTheme } from '@/theme/legacy/useTheme';
+import { partnerBrand, tokens } from '@/theme/tokens';
 
-// Google's official multicolour "G" (auth-onboarding D10), colours from the theme's brand tokens.
+// Google's official multicolour "G" (auth-onboarding D10), colours from the `partnerBrand` tokens.
 export function GoogleLogo() {
-  const theme = useTheme();
-  const { logo } = theme.colors.brand.google;
+  const { logo } = partnerBrand.google;
   return (
     <Svg
       testID="google-logo"
       aria-hidden
-      width={theme.size.iconStandard}
-      height={theme.size.iconStandard}
+      width={tokens.iconography.size.sm}
+      height={tokens.iconography.size.sm}
       viewBox="0 0 48 48"
     >
       <Path

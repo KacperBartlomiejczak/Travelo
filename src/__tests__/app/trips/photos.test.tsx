@@ -16,6 +16,7 @@ import type { TripPhoto } from '@/schemas';
 import { createTripInputFixture } from '@/test/fixtures';
 import { setNetwork } from '@/test/mock-network';
 import { darkTheme } from '@/theme/legacy/theme';
+import { darkTheme as sunlineDarkTheme } from '@/theme/theme';
 
 jest.mock('expo-font', () => ({ ...jest.requireActual('expo-font'), useFonts: jest.fn() }));
 jest.mocked(useFonts).mockReturnValue([true, null]);
@@ -235,7 +236,7 @@ describe('Photo viewer — closing', () => {
     await openViewer();
     for (const name of ['Zamknij', 'Usuń zdjęcie']) {
       const button = viewer().getByRole('button', { name });
-      expect(button).toHaveStyle({ width: darkTheme.size.touchTarget, height: darkTheme.size.touchTarget, backgroundColor: darkTheme.colors.hero.control });
+      expect(button).toHaveStyle({ width: darkTheme.size.touchTarget, height: darkTheme.size.touchTarget, backgroundColor: sunlineDarkTheme.hero.controlBackground });
     }
   });
 });
@@ -346,7 +347,8 @@ describe('Photo viewer — deleting a photo (P5)', () => {
     await openViewer();
     const button = viewer().getByRole('button', { name: 'Usuń zdjęcie' });
     expect(button).toBeDisabled();
-    expect(button).toHaveStyle({ opacity: darkTheme.opacity.disabled });
+    expect(button).toHaveStyle({ backgroundColor: sunlineDarkTheme.disabled.background });
+    expect(StyleSheet.flatten(button.props.style).opacity).toBeUndefined();
     await fireEvent.press(button);
     expect(screen.queryByTestId('bottom-sheet')).toBeNull();
     expect(viewer().getByRole('button', { name: 'Zamknij' })).toBeEnabled();

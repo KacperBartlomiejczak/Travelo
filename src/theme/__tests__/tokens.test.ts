@@ -127,4 +127,10 @@ describe('project additions', () => {
     expect(tokens.motion.microinteraction.welcomeRevealed).toEqual({ itemDuration: 500 });
     expect(tokens.motion.microinteraction.skeletonPulse).toEqual({ duration: 1200, minOpacity: 0.5 });
   });
+
+  it('has the shared control tokens (sunline-redesign D10)', () => {
+    expect(tokens.components.button.borderWidth).toBe(1);
+    expect(tokens.components.focusRing).toEqual({ width: 2, offset: 2 });
+    expect(tokens.motion.press).toEqual({ scale: 0.98 });
+  });
 });

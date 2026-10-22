@@ -496,12 +496,14 @@ export const components = {
     horizontalPadding: 20,
     iconGap: 8,
     radius: radii.md,
+    borderWidth: 1, // sunline-redesign D10
   },
   iconButton: {
     size: 44,
     largeSize: 52,
     radius: radii.pill,
   },
+  focusRing: { width: 2, offset: 2 }, // sunline-redesign D10: §8.0 focused state, 2 dp ring with a 2 dp gap
   fab: {
     size: 56,
     iconSize: 24,
@@ -743,6 +745,7 @@ export const motion = {
     exit: [0.4, 0, 1, 1],
     linear: [0, 0, 1, 1],
   },
+  press: { scale: 0.98 }, // sunline-redesign D10: §8.1 pressed motion of every button
   microinteraction: {
     expenseSaved: {
       pressScale: 0.98,

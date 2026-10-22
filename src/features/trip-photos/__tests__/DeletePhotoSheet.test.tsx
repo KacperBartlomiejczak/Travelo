@@ -9,6 +9,7 @@ import { AppProviders } from '@/providers/AppProviders';
 import type { ShownTripPhoto, TripPhoto } from '@/schemas';
 import { setNetwork } from '@/test/mock-network';
 import { lightTheme } from '@/theme/legacy/theme';
+import { lightTheme as sunlineLightTheme } from '@/theme/theme';
 
 const metrics = { frame: { x: 0, y: 0, width: 390, height: 844 }, insets: { top: 47, left: 0, right: 0, bottom: 34 } };
 const TRIP_ID = '0b9e7c4e-6a43-4c4b-9a55-2f6f0f7e1a01';
@@ -62,7 +63,7 @@ describe('DeletePhotoSheet (trip-photos P5, D8)', () => {
 
   it('puts the destructive "Usuń zdjęcie" above "Anuluj", full width and 16dp apart, never adjacent (trip-edit-menu D19)', async () => {
     await setup();
-    expect(screen.getByText('Usuń zdjęcie')).toHaveStyle({ color: lightTheme.colors.status.error });
+    expect(screen.getByText('Usuń zdjęcie')).toHaveStyle({ color: sunlineLightTheme.semantic.error.foreground });
     const actions = screen.getByTestId('delete-photo-actions');
     expect(actions).toHaveStyle({ gap: lightTheme.spacing[4] });
     expect(within(actions).getAllByRole('button').map((button) => button.props.accessibilityLabel)).toEqual(['Usuń zdjęcie', 'Anuluj']);
