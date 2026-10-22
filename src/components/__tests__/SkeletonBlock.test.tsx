@@ -42,13 +42,13 @@ describe('SkeletonBlock (profile-screen D9, §10.18)', () => {
     expect(style(screen.getByTestId('block', { includeHiddenElements: true })).borderRadius).toBe(lightTheme.radius.none);
   });
 
-  it('is neutral.100 in light mode and the secondary surface in dark mode', async () => {
+  it('is #DDD5C7 (neutral.200) in light mode and #39443B (the skeleton role) in dark mode (D24, D27)', async () => {
     const { unmount } = await render(<SkeletonBlock testID="block" width={48} height={30} />);
-    expect(style(screen.getByTestId('block', { includeHiddenElements: true })).backgroundColor).toBe(lightTheme.colors.surface.secondary);
+    expect(style(screen.getByTestId('block', { includeHiddenElements: true })).backgroundColor).toBe('#DDD5C7');
     await unmount();
     mockScheme = 'dark';
     await render(<SkeletonBlock testID="block" width={48} height={30} />);
-    expect(style(screen.getByTestId('block', { includeHiddenElements: true })).backgroundColor).toBe(darkTheme.colors.surface.secondary);
+    expect(style(screen.getByTestId('block', { includeHiddenElements: true })).backgroundColor).toBe('#39443B');
   });
 
   it('uses the colour it is given instead of the default (app-loading-skeleton D5)', async () => {
@@ -57,7 +57,11 @@ describe('SkeletonBlock (profile-screen D9, §10.18)', () => {
     expect(style(screen.getByTestId('block', { includeHiddenElements: true })).backgroundColor).toBe(darkTheme.colors.surface.elevated);
     await unmount();
     await render(<SkeletonBlock testID="block" width={48} height={30} />);
-    expect(style(screen.getByTestId('block', { includeHiddenElements: true })).backgroundColor).toBe(darkTheme.colors.surface.secondary);
+    expect(style(screen.getByTestId('block', { includeHiddenElements: true })).backgroundColor).toBe(darkTheme.colors.skeleton);
+    await unmount();
+    mockScheme = 'light';
+    await render(<SkeletonBlock testID="block" width={48} height={30} color="#123456" />);
+    expect(style(screen.getByTestId('block', { includeHiddenElements: true })).backgroundColor).toBe('#123456');
   });
 
   it('takes the pulse from tokens: 1200 ms per cycle (§10.18) down to opacity 0.5, the same in both themes', () => {

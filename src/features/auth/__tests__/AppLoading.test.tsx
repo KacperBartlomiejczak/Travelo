@@ -107,15 +107,16 @@ describe('AppLoading (app-loading-skeleton step 4, D2, A3, A4)', () => {
   });
 
   it.each([
-    ['light', lightTheme],
-    ['dark', darkTheme],
-  ] as const)('draws the chrome blocks in a colour that shows over the hero skeleton and the page in %s', async (scheme, theme) => {
+    ['light', lightTheme, '#C5BBAA'],
+    ['dark', darkTheme, darkTheme.colors.input.border],
+  ] as const)('draws the chrome blocks in input.border, a colour that shows over the hero skeleton and the page in %s (D25, D27)', async (scheme, theme, chrome) => {
     mockScheme = scheme;
     await render(ui());
     const hero = style(screen.getByTestId('trip-hero-skeleton', hidden)).backgroundColor;
+    expect(hero).toBe(theme.colors.skeleton);
     for (const id of ['app-loading-menu', 'app-loading-pill']) {
       const color = style(screen.getByTestId(id, hidden)).backgroundColor;
-      expect(color).toBe(theme.colors.border);
+      expect(color).toBe(chrome);
       expect(color).not.toBe(hero);
       expect(color).not.toBe(theme.colors.background);
     }

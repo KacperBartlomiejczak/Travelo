@@ -160,7 +160,7 @@ describe('TripHeroSkeleton', () => {
       width: '100%',
       height: 406,
       borderRadius: lightTheme.radius.none,
-      backgroundColor: lightTheme.colors.surface.secondary,
+      backgroundColor: '#DDD5C7', // the light skeleton role (profile-screen D27)
     });
   });
 

@@ -7,8 +7,9 @@ import { useTheme } from '@/theme/useTheme';
 
 // Loading skeleton of the home screen's trip view (app-loading-skeleton D1, D3, A2 revised; §10.18): the hero, then the
 // three cards of `CurrentTrip` (Budget with its "Zmień" button placeholder, amount and two lines) with its column, so the content does not jump when the trip arrives. No photo strip (a trip
-// may have none). Everything pulses (D3). In dark the card and the default block are both `surface.secondary`, so the
-// blocks inside the cards use `surface.elevated` (D5). Hidden from screen readers: the caller says "loading".
+// may have none). Everything pulses (D3). The hero uses the default block colour (`colors.skeleton`). In light the
+// card is `surface.default` and its blocks use the default colour too (D27); in dark the card is `surface.secondary`, close to
+// the default colour (`dark.border`), so the blocks inside the cards use `surface.elevated` (D5). Hidden from screen readers: the caller says "loading".
 export function HomeSkeleton() {
   const theme = useTheme();
   const { width } = useWindowDimensions();

@@ -109,7 +109,7 @@ describe('HomeSkeleton (app-loading-skeleton D1, D3, A2, §10.18)', () => {
     expect(style(screen.getByTestId('home-skeleton-flights', hidden))).toMatchObject(theme.elevation.card);
   });
 
-  it('keeps the card blocks visible: surface.secondary on the white card in light, surface.elevated on the dark card (D5)', async () => {
+  it('keeps the card blocks visible: the skeleton colour (#DDD5C7) on the white card in light, surface.elevated on the dark card (D5, D27)', async () => {
     const blocks = () =>
       ['flights', 'travellers', 'budget'].flatMap((name) => {
         const card = screen.getByTestId(`home-skeleton-${name}`, hidden);
@@ -120,15 +120,19 @@ describe('HomeSkeleton (app-loading-skeleton D1, D3, A2, §10.18)', () => {
         ];
       });
     const { unmount } = await render(<HomeSkeleton />);
-    for (const block of blocks()) expect(style(block).backgroundColor).toBe(lightTheme.colors.surface.secondary);
-    expect(style(screen.getByTestId('trip-hero-skeleton', hidden)).backgroundColor).toBe(lightTheme.colors.surface.secondary);
+    for (const block of blocks()) {
+      expect(style(block).backgroundColor).toBe('#DDD5C7');
+      expect(style(block).backgroundColor).not.toBe(lightTheme.colors.surface.default);
+    }
+    expect(style(screen.getByTestId('trip-hero-skeleton', hidden)).backgroundColor).toBe('#DDD5C7');
+    expect(style(screen.getByTestId('trip-hero-skeleton', hidden)).backgroundColor).not.toBe(lightTheme.colors.background);
     await unmount();
 
     mockScheme = 'dark';
     await render(<HomeSkeleton />);
     for (const block of blocks()) expect(style(block).backgroundColor).toBe(darkTheme.colors.surface.elevated);
     // The hero is on the page background, so it keeps the default block colour.
-    expect(style(screen.getByTestId('trip-hero-skeleton', hidden)).backgroundColor).toBe(darkTheme.colors.surface.secondary);
+    expect(style(screen.getByTestId('trip-hero-skeleton', hidden)).backgroundColor).toBe(darkTheme.colors.skeleton);
   });
 
   it.each([
