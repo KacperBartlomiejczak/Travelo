@@ -55,10 +55,14 @@ describe('code e-mail template', () => {
     expect(used.filter((colour) => !tokenColours.has(colour))).toEqual([]);
   });
 
+  it('makes no promise that only the code can sign in', () => {
+    expect(template).not.toContain('no one can sign in');
+  });
+
   it.each(['magic_link', 'confirmation'])('config sets the English subject and shared file for %s', (name) => {
     const section = configSection(`auth.email.template.${name}`);
 
-    expect(section).toContain('subject = "Your Travelo code"');
-    expect(section).toContain('content_path = "./supabase/templates/magic_link.html"');
+    expect(section).toMatch(/^subject = "Your Travelo code"$/m);
+    expect(section).toMatch(/^content_path = "\.\/supabase\/templates\/magic_link\.html"$/m);
   });
 });
