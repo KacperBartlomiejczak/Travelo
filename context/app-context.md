@@ -43,9 +43,10 @@ Platforms: iOS and Android (Expo / React Native). Languages: Polish (`pl`) and E
 10. **Pill navigation** — a floating bottom pill with five screens (four of them are placeholders).
 11. **Confirm dialog** — in-app dialog used when leaving the wizard with entered data.
 12. **Trip covers** (`prompts/trip-covers/`) — every trip has a cover: one of five bundled photos (Auckland by default) or a photo from the gallery, uploaded to Storage.
-13. **Profile tab** (`prompts/profile-tab/`) — the fifth pill item is "Profil" (route `/profile`, title "Profil użytkownika", `CircleUser` icon); still an empty placeholder.
+13. **Profile tab** (`prompts/profile-tab/`) — the fifth pill item is "Profil" (route `/profile`, title "Profil użytkownika", `CircleUser` icon); since profile-screen it is the profile screen (title "Profil").
 14. **Sign-in and profile** (`prompts/auth-onboarding/`) — a required account: Google, Discord or e-mail with a 6-digit code; on first sign-in a profile with a unique nick, interests and an optional photo; a server-generated friend code, not shown yet. The device run (step 9) is partly done.
 15. **Friend invite** (`prompts/friend-invite/`) — in the wizard's friends step a friend can be added by their 6-character friend code: the card fills with their nick and interests and the account is linked to the trip at once, read-only. The linked friend sees the trip without edit controls. Layover labels line up with the flight lines on the home screen and the summary. On the hosted Supabase; device check passed.
+16. **Profile screen and sign-out** (`prompts/profile-screen/`) — "Profil" shows the photo, the nick and five numbers of the past trips (trips, countries, days travelled, flights, km flown), also offline; the gear opens Settings with "Wyloguj się" (a confirmation, disabled offline). The device run is done except the stats of a past trip (scenario 7).
 
 ### In progress (plans in `prompts/`)
 - **Expenses** (`prompts/expenses/`) — drafting; the "Wydatki" screen is an empty placeholder until then.
@@ -59,7 +60,6 @@ Platforms: iOS and Android (Expo / React Native). Languages: Polish (`pl`) and E
 - Showing the friend code (with a QR code) somewhere in the app, so a friend can share it; a rate limit for code lookups before real users (friend-invite R1).
 - Leaving a trip as a linked friend, and unlinking a friend as the organizer (friend-invite D10).
 - Prefill the profile setup with the name and photo from Google / Discord (Kacper, 2026-10-19).
-- A sign-out button and a Profile screen (auth-onboarding D8).
 
 ### Next (after the MVP)
 - "Rebuild the rest of today" (rain, closed place, tired group) — keeps locked activities.
@@ -77,6 +77,7 @@ Root Stack (a gate decides which group exists)
 │   ├── /email             E-mail address
 │   └── /code              6-digit code from the e-mail
 ├── /onboarding            Signed in without a profile: profile setup
+├── /settings              Settings: "Wyloguj się" (signed in, above the drawer, no pill)
 ├── /auth/callback         OAuth redirect landing (redirects by state)
 ├── (drawer)               Signed in with a profile. Side panel with all trips (swipe from the left edge only on "Podróż")
 │   └── (tabs)             Floating pill with five screens
@@ -84,11 +85,11 @@ Root Stack (a gate decides which group exists)
 │       ├── /expenses      Wydatki   — placeholder
 │       ├── /places        Miejsca   — placeholder
 │       ├── /plan          Plan      — placeholder
-│       └── /profile       Profil    — placeholder (renamed from "Ustawienia")
+│       └── /profile       Profil    — photo, nick, travel stats; gear → /settings
 ├── /trips/new/*           Create-trip wizard (nested Stack, 4 steps)
 └── /trips/[tripId]/photos Full-screen photo viewer
 ```
-The pill is not shown in the wizard or in the photo viewer. The four placeholder screens show only a title and "Ten ekran pojawi się wkrótce." (a deliberate exception to design-context §10.13, §10.19 and §12 until their features exist).
+The pill is not shown in the wizard or in the photo viewer. The three placeholder screens ("Wydatki", "Miejsca", "Plan") show only a title and "Ten ekran pojawi się wkrótce." (a deliberate exception to design-context §10.13, §10.19 and §12 until their features exist).
 
 ### 3.2 Home screen — "Podróż" (`/`)
 Shows the **current trip**: the one chosen in the side panel (remembered on the phone), else the **default trip** (the soonest upcoming or ongoing one, else the most recently ended). Always dark.
@@ -145,7 +146,14 @@ Changes the budget per person (currency fixed to the trip's base currency). Work
   - at least one of the 17 interests;
   - then "Zapisz i zaczynamy" → "Podróż". A failed save scrolls to the first error.
 - **Offline:** the banner shows and the sign-in and save buttons are disabled. A signed-in user with a profile opens the app offline normally.
-- **Signing out:** everything of the previous user is erased from the phone, then the welcome screen shows. It happens when the server ends the session, or when the account was deleted (checked once at startup in the background). There is no sign-out button yet.
+- **Signing out:** everything of the previous user is erased from the phone, then the welcome screen shows. It happens when the server ends the session, or when the account was deleted (checked once at startup in the background), and when the user signs out in Settings (see 3.9).
+
+### 3.9 Profile and Settings (`/profile`, `/settings`)
+- **Profil:** the title "Profil" with a gear (→ Settings), the round photo and the nick, then the card "Twoje podróże" with Podróże, Kraje, Dni w podróży, Loty, Przelecone km.
+  - The numbers count trips that already ended (end date before today on the phone); an ongoing trip does not count yet. A trip's country is its destination airport's country; days are inclusive; every flight segment is one flight; km is the great-circle distance between the airports, summed.
+  - They come from the trip list, so they show offline too. Loading: pulsing blocks; no list and no copy: "–"; no past trips: "0".
+  - The photo: a pulsing circle until it is shown (also offline), a person placeholder without a photo; after an offline start it loads when the phone is back online.
+- **Ustawienia:** one button, "Wyloguj się", at the bottom. It asks "Wylogować się?" first; the message warns when budget changes were not sent yet (they are lost). Disabled offline with "Połącz się z internetem, żeby się wylogować.". Signing out ends the session on this phone only.
 
 ---
 
@@ -167,7 +175,7 @@ TripMember     { id, tripId, userId: string | null,                 // null = fr
                  displayName, role: 'owner' | 'viewer',
                  interests: InterestTag[], budgetLevel?, pace?, dietaryNotes? }
 
-Airport        { iata, name, city, countryCode, timezone: IANA, currency, large }   // bundled list, not a server table
+Airport        { iata, name, city, countryCode, timezone: IANA, currency, large, latitude, longitude }   // bundled list, not a server table
 FlightSegment  { id, tripId, direction: 'outbound' | 'return' | 'internal', order,
                  flightNumber?, fromIata, toIata, departAt, departTz, arriveAt, arriveTz }
                // A layover is the gap between consecutive segments of one direction. Derived, never stored.
@@ -205,9 +213,11 @@ Key facts:
 | Photo list | SQLite copy | Yes (read-only; signed URLs expire after 1 h, images stay in the image cache) |
 | Own profile | Supabase `profiles`, SQLite copy | Read: **yes** (read-only copy). Creating it needs internet |
 | Sign-in | Supabase Auth | **No** — a signed-in user stays signed in offline |
+| Sign-out | Supabase Auth, then the phone's data is erased | **No** — the button is disabled offline |
+| Profile stats | Computed on the phone from the trip list copy | **Yes** |
 | **Expenses** (planned) | SQLite + outbox, synced to Supabase | **Yes** (decided; see below) |
 
-**Offline scope (MVP decision):** expenses and changes to a trip's budget per person work offline. Everything else is server-first. Read-only copies cover the trip list, every trip opened on the phone, and the user's own profile (auth-onboarding D9). Extending offline to other entities is a new decision for Kacper.
+**Offline scope (MVP decision):** expenses and changes to a trip's budget per person work offline. Everything else is server-first. Read-only copies cover the trip list (with each trip's destination and flight routes, for the profile stats — profile-screen D11), every trip opened on the phone, and the user's own profile (auth-onboarding D9). Extending offline to other entities is a new decision for Kacper.
 
 **Budget sync:** `setBudget` writes a `pending` row to `trip_budget_changes` in SQLite with no network. A sync worker sends it with `update … where budget_updated_at < updatedAt` (last write wins). Unreachable → stays `pending` and retries with backoff (1 s × 2ⁿ, max 5 min); refused → `failed` and visible. It runs on start, on reconnect, on app foreground, after each save and on a timer.
 
@@ -253,10 +263,10 @@ Open decision: the exact Gemini model ID (it comes from config, never hardcoded)
 
 - **Stack:** Expo SDK 57, React Native 0.86, React 19.2 (New Architecture, React Compiler, typed routes), expo-router, TypeScript strict, TanStack Query, Zod, `expo-sqlite`, `@supabase/supabase-js`, i18next, lucide icons.
 - **Fonts:** DM Sans (body) and Fraunces (display).
-- **Folders** (`src/`): `app/` (routes only), `components/` (shared UI), `features/` (`auth`, `drawer`, `home`, `nav`, `trip-create`, `trip-photos`), `hooks/` (TanStack Query hooks), `data/` (repositories, Supabase client, SQLite store, sync), `lib/` (pure logic: time zones, layovers, money, airport search), `schemas/`, `providers/`, `i18n/` (pl / en dictionaries), `theme/` (tokens and light/dark themes), `test/` (helpers), `__tests__/app/` (route tests).
+- **Folders** (`src/`): `app/` (routes only), `components/` (shared UI), `features/` (`auth`, `drawer`, `home`, `nav`, `profile`, `trip-create`, `trip-photos`), `hooks/` (TanStack Query hooks), `data/` (repositories, Supabase client, SQLite store, sync), `lib/` (pure logic: time zones, layovers, money, airport search, travel stats), `schemas/`, `providers/`, `i18n/` (pl / en dictionaries), `theme/` (tokens and light/dark themes), `test/` (helpers), `__tests__/app/` (route tests).
 - **Data access:** screens use hooks → a `TripRepository` or a `ProfileRepository` interface, and the session comes from a `SessionProvider`. The app's implementations are Supabase + SQLite; tests use in-memory ones.
 - **Design rules:** all colors, spacing, radii and type come from theme tokens (no hardcoded values); all text goes through i18n keys; touch targets ≥ 44 pt; money is always shown with its currency; every screen has loading, empty, error and (where relevant) offline states. See `context/design-context.md`.
-- **Reusable pieces:** `PillNav`, `ConfirmDialog`, `BottomSheet` (swipe down to close), `Snackbar`, `OfflineBanner`, `SyncIndicator`, `PrimaryButton`, `TextButton`, `IconButton`, `HeroIconButton`, form fields (`TextField`, `AirportField`, `DateTimeField`, `AmountField`), `Chip`, `InterestChips`, `Stepper`, `SegmentedControl`, `Card`, `CoverPicker`, `TripHero`; for forms without a wizard, `AuthFormScreen` (`src/features/auth/`).
+- **Reusable pieces:** `PillNav`, `ConfirmDialog`, `BottomSheet` (swipe down to close), `Snackbar`, `OfflineBanner`, `SyncIndicator`, `PrimaryButton`, `TextButton`, `IconButton`, `HeroIconButton`, form fields (`TextField`, `AirportField`, `DateTimeField`, `AmountField`), `Chip`, `InterestChips`, `Stepper`, `SegmentedControl`, `Card`, `CoverPicker`, `TripHero`, `SkeletonBlock` (pulsing placeholder); for forms without a wizard, `AuthFormScreen` (`src/features/auth/`).
 
 ---
 
@@ -273,10 +283,9 @@ Open decision: the exact Gemini model ID (it comes from config, never hardcoded)
 ## 9. Known gaps (short list)
 
 The full list is in `Architecture.md` → "Known limitations & tech debt". The ones that matter for product decisions:
-- Four of five pill screens are placeholders.
+- Three of five pill screens are placeholders.
 - Photos not yet sent are lost if the app closes.
 - Sign-in:
-  - no sign-out button yet;
   - Sign in with Apple is needed before an iOS release;
   - real users need a custom SMTP for the code e-mails;
   - Google's consent screen is still in testing mode;

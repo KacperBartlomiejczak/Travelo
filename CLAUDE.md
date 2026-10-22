@@ -16,7 +16,7 @@ You are the lead engineer and **orchestrator** on a group trip planner app, work
 Short version: a mobile app for the person who organizes a trip for a group of friends. Only the organizer needs the app; friends are added by name and interests, without an account. Out of scope (do not build): flight/hotel booking, social feed, user reviews, settlements.
 
 ### Decisions made
-- **Offline scope (MVP):** **expenses** and **changes to a trip's budget per person** work offline, stored locally in SQLite and synced to Supabase (last write wins by `budgetUpdatedAt`; decided 2026-10-06, `prompts/trips-supabase/plan.md` D1). Everything else (trips, members, flights, plans) is server-first; creating a trip needs internet. The trip list and every trip opened on the phone are also kept as read-only copies in SQLite, and the trip chosen in the side panel is remembered on the phone, so the home screen and the side panel work offline after a restart (D6, extended 2026-10-08 by `prompts/trips-drawer/plan.md` D2, D3). The signed-in user's own profile is also kept as a read-only copy in SQLite, so a returning user opens the app offline (extended 2026-10-18 by `prompts/auth-onboarding/plan.md` D9). Extending offline to other entities is a new decision for Kacper, not something to do on your own.
+- **Offline scope (MVP):** **expenses** and **changes to a trip's budget per person** work offline, stored locally in SQLite and synced to Supabase (last write wins by `budgetUpdatedAt`; decided 2026-10-06, `prompts/trips-supabase/plan.md` D1). Everything else (trips, members, flights, plans) is server-first; creating a trip needs internet. The trip list and every trip opened on the phone are also kept as read-only copies in SQLite, and the trip chosen in the side panel is remembered on the phone, so the home screen and the side panel work offline after a restart (D6, extended 2026-10-08 by `prompts/trips-drawer/plan.md` D2, D3). The signed-in user's own profile is also kept as a read-only copy in SQLite, so a returning user opens the app offline (extended 2026-10-18 by `prompts/auth-onboarding/plan.md` D9). The trip list copy also carries each trip's destination and flight routes, so the profile's travel stats work offline (extended 2026-10-20 by `prompts/profile-screen/plan.md` D11). Extending offline to other entities is a new decision for Kacper, not something to do on your own.
 - **LLM:** Google Gemini via the **Gemini API with a Google AI Studio key**.
 
 ### Open decisions — ask before assuming
@@ -154,7 +154,8 @@ TripMember     { id, tripId, userId: string | null,      // null = friend withou
                  pace?: 'relaxed' | 'normal' | 'intense', dietaryNotes?: string }
                  // budgetLevel / pace optional until member editing exists
 
-Airport        { iata, name, city, countryCode, timezone: IANA, currency: ISO4217, large: boolean }
+Airport        { iata, name, city, countryCode, timezone: IANA, currency: ISO4217, large: boolean,
+                 latitude, longitude }                    // coordinates for the km stat (profile-screen D12)
                // bundled static list (src/data/airports.json), not a server table
 
 FlightSegment  { id, tripId, direction: 'outbound' | 'return' | 'internal', order: int,

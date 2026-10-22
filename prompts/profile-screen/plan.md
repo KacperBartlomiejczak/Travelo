@@ -74,6 +74,18 @@ green; device run PASS.
   0.5). The default skeleton colour in dark becomes the existing `border` token (#39443B); light stays `neutral.100`. Applies
   to every `SkeletonBlock` without an explicit `color` (profile photo, stats, trip hero); app-loading-skeleton D5 already uses
   `border` for blocks inside cards in dark. design-context §10.18 is updated in step 8.
+- **D25 — App-loading chrome over the new skeleton (2026-10-22, during 6g):** `AppLoading.tsx` draws the menu button and the
+  pill skeletons in `colors.border` over the hero skeleton; with D24 the hero is `border` too in dark, so they would vanish
+  (caught by `AppLoading.test.tsx:112`). In dark they become `input.border` (#4A564C, existing token); light stays `border`.
+  Kacper chose this as the fix inside step 6g.
+- **D26 — Back button height on Android (2026-10-22, Kacper, after the 9.1 device FAIL):** on Android the Settings back
+  button also gets `minHeight: size.touchTarget` (44 dp), no `minWidth` (6b showed a wider control pushes the title); iOS
+  unchanged. Step 6i.
+- **D27 — Light skeleton colour (2026-10-22, Kacper, Q9):** the light `colors.skeleton` becomes `border` (`neutral.200`
+  #DDD5C7), mirroring D24; `AppLoading`'s chrome (menu button, pill skeletons) becomes `input.border` in light too (as D25 in
+  dark), so it stays visible over the hero skeleton. Step 6j. design-context §10.18 updated in step 8.
+- **D28 — 6f fade checked by unit tests only (2026-10-22, Kacper):** the 180 ms fade (D22) cannot be caught on the device with
+  screenshots; the 6f unit tests are its evidence.
 
 ### Assumptions (please confirm — see Risks & open questions)
 - A1. **Country of a trip** = the country of its `destination` airport (`Airport.countryCode`). A domestic trip counts the home
@@ -222,14 +234,14 @@ Written first and seen failing for the expected reason.
 - [x] 5. [frontend] Profile screen: header + gear, photo, nick, stats card, pulsing skeleton + tokens, states, i18n; `nav.profileTitle` removed. — skill: frontend-design, frontend-ui-engineering, test-driven-development — tests first: step 5 — verify: as above; verifier + ui-taste.
 - [x] 6. [frontend] Settings `/settings`, "Wyloguj się" + `ConfirmDialog` (D5), disabled offline (D8), hooks, i18n. — skill: frontend-ui-engineering, test-driven-development — tests first: step 6 — verify: as above; verifier + ui-taste.
 - [x] 6b. [frontend] D17: Settings header back control ≥ 44 dp touch area, same look. — skill: frontend-ui-engineering, test-driven-development — tests first: settings.test.tsx asserts the back control's touch area (min width/height or hitSlop) ≥ the touch-target token and that it still calls `router.back()` — verify: full suite, typecheck, lint; verifier; device (tester).
-- [ ] 6c. [frontend] D18: `ProfilePhoto` retries a failed photo when the phone goes from offline to online. — skill: frontend-ui-engineering, test-driven-development — tests first: profile.test.tsx — photo fails → placeholder; going online → the `Image` is shown again with the same uri; staying offline → placeholder stays; a photo that fails again online → placeholder (no loop) — verify: full suite, typecheck, lint; verifier; device (tester, airplane on → off).
-- [ ] 6d. (approved by Kacper 2026-10-21) [frontend] D18 after an offline start: when the phone goes offline →
+- [x] 6c. [frontend] D18: `ProfilePhoto` retries a failed photo when the phone goes from offline to online. — skill: frontend-ui-engineering, test-driven-development — tests first: profile.test.tsx — photo fails → placeholder; going online → the `Image` is shown again with the same uri; staying offline → placeholder stays; a photo that fails again online → placeholder (no loop) — verify: full suite, typecheck, lint; verifier; device (tester, airplane on → off).
+- [x] 6d. (approved by Kacper 2026-10-21) [frontend] D18 after an offline start: when the phone goes offline →
   online, the Profile screen refetches the own profile (fresh signed `avatarUrl`), so the photo appears without a relaunch; a
   failing refetch keeps the copy and never sends the app to the gate's error screen. — skill: frontend-ui-engineering,
   test-driven-development — tests first: profile.test.tsx — offline start with a copy without `avatarUrl` → placeholder; going
   online → `myProfile` called again and the `Image` shown with the new url; refetch rejects → placeholder stays, screen and gate
   unchanged; staying offline → no refetch — verify: full suite, typecheck, lint; verifier; device (scenario 9).
-- [ ] 6e. (approved by Kacper 2026-10-21) [frontend] D20: `ProfilePhoto` shows a round pulsing `SkeletonBlock`
+- [x] 6e. (approved by Kacper 2026-10-21) [frontend] D20: `ProfilePhoto` shows a round pulsing `SkeletonBlock`
   (`size.avatarSetup`, `radius.full`) instead of the person placeholder whenever `avatarId` is set and the photo is not shown yet
   (no url, loading until expo-image `onLoad`, or failed); the placeholder only for `avatarId` null. — skill:
   frontend-ui-engineering, test-driven-development — tests first: profile.test.tsx — `avatarId` set + no url (offline start) →
@@ -237,7 +249,7 @@ Written first and seen failing for the expected reason.
   `avatarId` null → placeholder, no skeleton; reduced motion → static skeleton; skeleton hidden from screen readers; the 6c/6d D18
   tests updated from "placeholder" to "skeleton" where the user has a photo (assertion meaning per D20, logged) — verify: full
   suite, typecheck, lint; verifier + ui-taste; device (scenario 9).
-- [ ] 6f. (approved by Kacper 2026-10-21) [frontend] D21 + D22 in `ProfilePhoto`. — skill:
+- [x] 6f. (approved by Kacper 2026-10-21) [frontend] D21 + D22 in `ProfilePhoto`. — skill:
   frontend-ui-engineering, test-driven-development — tests first: profile.test.tsx — photo shown → reconnect → the re-signed url
   fails → `profile-photo` stays, no skeleton; next offline → online → tried again; a photo never shown that fails → skeleton
   (unchanged D20); after `load` the skeleton fades out over `duration.small` (Reanimated/expo-image timing asserted like the pulse
@@ -246,13 +258,28 @@ Written first and seen failing for the expected reason.
   `profile-photo` stays (same uri), no skeleton; the next read with a url → no bare circle, no ignored failure; plus the verifier's
   test fixes: "opacity only" asserted on the fading wrapper (scale mutation must go red); the fade timer cleared when the avatar
   changes or the screen unmounts mid-fade (cleanup mutation must go red).
-- [ ] 6g. (approved by Kacper 2026-10-22) [frontend] D24: the theme gets a `colors.skeleton` role (light
+- [x] 6g. (approved by Kacper 2026-10-22) [frontend] D24: the theme gets a `colors.skeleton` role (light
   `neutral.100`, dark `dark.border`) and `SkeletonBlock`'s default colour uses it; explicit `color` props unchanged. — skill:
   frontend-ui-engineering, test-driven-development — tests first: `SkeletonBlock.test.tsx` — dark theme default background =
   `#39443B`, light = `neutral.100`, an explicit `color` still wins; theme test for the new role in both schemes — verify: full
   suite, typecheck, lint; verifier; device (dark mode: the photo skeleton's pulse clearly visible).
+- [x] 6h. (approved by Kacper 2026-10-22) [frontend] Q8: drop the `Image`'s `backgroundColor: surface.secondary`
+  (`ProfileScreen.tsx:165`) so the photo skeleton pulses on the page while a photo loads, as it does offline; the skeleton
+  already covers the Image until it has loaded and faded. — skill: test-driven-development — tests first: profile.test.tsx —
+  while a url loads, nothing under the photo skeleton has the skeleton's colour (Image has no background colour), light and
+  dark — verify: full suite, typecheck, lint; verifier; device (scenario 9, light and dark).
+- [x] 6i. (approved by Kacper 2026-10-22) [frontend] D26: Android back button on Settings gets `minHeight: size.touchTarget`,
+  no `minWidth`; iOS keeps both. — skill: frontend-ui-engineering, test-driven-development — tests first: settings.test.tsx —
+  Android (`jest.replaceProperty(Platform, 'OS')`): back button `minHeight` = `size.touchTarget`, no 44 `minWidth`; iOS
+  unchanged; still calls `router.back()` — verify: full suite, typecheck, lint; verifier; device (9.1 vertical reach ≥ 44 dp,
+  title not moved).
+- [x] 6j. (approved by Kacper 2026-10-22) [frontend] D27: light `colors.skeleton` = `neutral[200]`; `AppLoading` chrome =
+  `colors.input.border` in both schemes. — skill: frontend-ui-engineering, test-driven-development — tests first:
+  theme.test.ts (light skeleton #DDD5C7), SkeletonBlock.test.tsx (light default = #DDD5C7), AppLoading.test.tsx (light chrome
+  = #C5BBAA, still ≠ hero, ≠ background) — verify: full suite, typecheck, lint; verifier; device (light photo skeleton pulse
+  noticeable, app-loading chrome visible).
 - [ ] 7. [tester] Device run of the manual steps below. — skill: none — verify: PASS per scenario. First run done 2026-10-21 (see log); re-run after 6b, 6c + scenarios 7, 8.
-- [ ] 8. [orchestrator] Docs (see Files). — skill: none — verify: every statement checked in the code.
+- [x] 8. [orchestrator] Docs (see Files). — skill: none — verify: every statement checked in the code.
 
 ## Manual test steps (step 7)
 1. Open "Profil": "Profil" left, gear right, photo (or placeholder), nick, the card with five values that match the account's
@@ -468,6 +495,91 @@ Written first and seen failing for the expected reason.
   `setFailed(null)` → each exactly 1 red, files restored byte-identical. Green ✓ 132 suites / 2895 tests, typecheck 0, lint
   clean · **verifier PASS (round 3)** · skills used: frontend-ui-engineering, test-driven-development, ui-taste (verifier). No
   easing token → Q7. Not `[x]` until the device check (scenario 9).
+- Step 6g + D25 (2026-10-22, `frontend`) — **verifier PASS, device check pending**: `colors.skeleton` role in `theme.ts`
+  (light `neutral[100]`, dark `dark.border`); `SkeletonBlock` default `color ?? theme.colors.skeleton`; `AppLoading.tsx` chrome
+  `theme === darkTheme ? input.border : border` (same check as `HomeSkeleton.tsx:42`). Tests red → green: `theme.test.ts`
+  (skeleton role), `SkeletonBlock.test.tsx` (default per scheme, explicit wins), `AppLoading.test.tsx` (per scheme; red
+  `Expected "#4A564C", Received "#39443B"`; guards `not.toBe(hero)`, `not.toBe(background)` kept). Changed for D24 meaning:
+  `HomeSkeleton.test.tsx:131`, `profile.test.tsx:1029` (the latter landed in Kacper's WIP commit `b49f9d2`). Verifier mutations:
+  default back to `surface.secondary` → 4 red; chrome back to `border` → 1 red; dark role = `surfaceSecondary` → 2 red. Green ✓
+  132 / 2897, typecheck 0, lint clean · skills used: frontend-ui-engineering, test-driven-development. **Found:** while a photo
+  with a url loads, its skeleton sits on the `Image`'s own backdrop `surface.secondary` (`ProfileScreen.tsx:165`, since step 5):
+  light skeleton #EEE8DD on #EEE8DD → the pulse is invisible; dark #39443B on #202A23. Offline start (no url) is fine — the
+  skeleton sits on the page. Proposed fix → 6h (Q8).
+- Step 6h (2026-10-22, `frontend`) — **verifier PASS, device check pending**: `ProfileScreen.tsx:165` Image style is just
+  `circle` (no backdrop). Test `it.each` light/dark (`profile.test.tsx:454-466`): before `load` the Image has no
+  `backgroundColor` and the skeleton is `theme.colors.skeleton`; red ✓ light `Received: "#EEE8DD"`, dark `"#202A23"`
+  (reproduced by the verifier in a scratchpad copy). No existing assertion changed. Green ✓ 132 / 2899, typecheck 0, lint clean
+  · skill used: test-driven-development. The skeleton now sits on the page in both schemes: light #EEE8DD on #F7F3EA (1.10:1,
+  faint — from D24, judge on the device), dark #39443B on #111712 (1.79:1).
+- Step 7 re-run 2 (2026-10-22, `tester`, emulator Medium Phone API 37, Android 17, Expo Go `exp://10.0.2.2:8083` = this
+  checkout; phone language English) — **paused at the scenario 8 sign-in**: 9.1 D17 **FAIL vertically** — horizontal reach
+  ≥ 44 dp, but taps 20 dp above / below the icon centre do nothing (17 dp above works), so ≈ 36–40 dp tall; return to Profile
+  works, look unchanged. Cause (orchestrator, from the code): on Android the library's `hitSlop` 16 on every side
+  (`expo-router/build/react-navigation/elements/Header/HeaderButton.js:9-12`) cannot reach outside the parent header view, so
+  the 6b deviation "Android met by the existing hitSlop" holds horizontally only. · 9.2 / 9.3 and the photo-skeleton visibility
+  (3, D24/6h) NOT RUN: an offline cold start in Expo Go fails ("Failed to download remote update", the bundle comes from Metro
+  over the network). Next attempt: `adb reverse tcp:8083 tcp:8083` + `exp://127.0.0.1:8083`, so the bundle loads over adb while
+  airplane mode cuts the internet. · 9.4 PASS (photo stays through airplane on → off; screenshots 2–5 s apart, recording did not
+  save, so a sub-second flash is not excluded) · 3 light / dark look PASS (all stats 0: the only trip is upcoming) · 8 network
+  slowed (`gsm` / `gprs`), sign-out → confirm → welcome PASS; stats skeleton NOT RUN yet (waits for Kacper's sign-in). Notes:
+  heavy input lag on the slowed network (late taps landed on other screens: Places tab, side panel, the new-trip wizard — left
+  with back, nothing created); night mode flipped to light once by itself (set back); home shows a budget line "Total … · ~… per
+  person a day" not from this plan. Device: airplane off, dark mode restored; network still slowed on purpose.
+  Sign-in for scenario 8 blocked (Supabase auth logs, 09:57–09:58 UTC): Google login succeeded, but the callback went to the
+  Site URL `http://localhost:3000` because `exp://10.0.2.2:8083/--/auth/callback` is not an allowed Redirect URL; the email
+  code request returned 200 (sent by Supabase) but did not reach the inbox. Emulator network restored to full meanwhile.
+  Kacper (2026-10-22): **scenario 8 skipped** — the stats skeleton (D9) stays covered by unit tests only; resume the tester on
+  9.2 / 9.3 and the photo-skeleton visibility (light / dark) via `adb reverse` once he is signed in.
+- Step 7 re-run 2, resumed (2026-10-22, `tester`; Kacper signed in with the e-mail code — Google kept landing on the Site URL
+  although the dashboard lists `exp://**`; offline cold starts from `exp://127.0.0.1:8083` over `adb reverse tcp:8083`, sign-in
+  shared with the `172.22.176.1` instance; first load hung ~6.5 min, later 1–1.5 min) · 9.2 (D20) **PASS**: offline cold start →
+  `profile-photo-skeleton` 96 dp, no placeholder; pulse measured on 7 frames, peak ≈ #39443B, trough ≈ half opacity · 9.3 (D18)
+  **PASS**: airplane off, no restart → `profile-photo` within ~4 s; the 180 ms fade (D22) not captured (screenshots too slow) ·
+  3 dark (D24) **PASS**: pulse clearly visible on #111712 · 3 light (6h) **not noticeable**: skeleton 238–242 / 232–237 / 221–226
+  on the page 247/243/234, the pulse moves ~4 levels of 255 → Q9 · 9.4 PASS (earlier) · 9.1 D17 vertical FAIL (earlier) → 6i
+  proposed. Screen recording failed twice (mobile-mcp), evidence = screenshots in the session scratchpad. Device restored:
+  airplane off, dark mode, `adb reverse` 8083 removed, network full / none (re-confirmed by the orchestrator), app left on Profile.
+  **Marked `[x]`:** 6c, 6d, 6e, 6g, 6h (device check passed for their decisions; the light faintness is a colour question, Q9,
+  not a 6h defect — 6h's skeleton now sits on the page). **6f stays `[ ]`** until Kacper accepts the fade as unit-test-only.
+  Kacper then accepted D26–D28 → 6f `[x]`.
+- Step 6i (2026-10-22, `frontend`) — **verifier PASS, device check pending**: `_layout.tsx:103-107` Android style
+  `{ minHeight: size.touchTarget }` (no minWidth), iOS unchanged, comment gives the D26 reason. `settings.test.tsx:142-143`: the
+  6b Android test changed meaning per D26 (`minHeight` undefined → 44; "minWidth not 44" kept). Red ✓ `Expected: 44, Received:
+  undefined` (:143). Verifier mutations: Android minHeight removed → 1 red; Android minWidth 44 → 1 red; files restored
+  byte-identical. · skills used: frontend-ui-engineering, test-driven-development.
+- Step 6j (2026-10-22, `frontend`, run in parallel with 6i on disjoint files) — **verifier PASS, device check pending**:
+  `theme.ts:59` light skeleton `neutral[200]`; `AppLoading.tsx:26` chrome `input.border` in both schemes, `darkTheme` import
+  removed. Tests: theme.test (light #DDD5C7 = border), SkeletonBlock.test (light literal #DDD5C7 replaces "= surface.secondary"),
+  AppLoading.test (light chrome #C5BBAA, guards ≠ hero / ≠ background kept), and — outside the step's file list, D27 meaning
+  changes found by the full run — HomeSkeleton.test (light blocks / hero #DDD5C7 + guards ≠ surface), TripHero.test:163
+  (TripHeroSkeleton light bg #DDD5C7). Red ✓ `Expected "#DDD5C7" Received "#EEE8DD"`, AppLoading `Expected "#C5BBAA" Received
+  "#DDD5C7"`. Verifier mutations: light skeleton back to neutral[100] → 4 red; chrome back to `border` → 2 red. Light contrast:
+  cards 1.46:1, hero 1.32:1, chrome over hero 1.30:1. Green ✓ 132 suites / 2899 tests, typecheck 0, lint clean (verifier's own
+  run); `local-store-queue.test.ts` failed once during the parallel runs, 3 isolated re-runs + full run green (timing flake, not
+  this feature). Stale comments found: `SkeletonBlock.tsx:19` (light neutral.100, from 6j) and `HomeSkeleton.tsx:10` (dark
+  `surface.secondary`, from 6g) → comment-only fix by `frontend`; design-context §10.18 → step 8. · skills used:
+  frontend-ui-engineering, test-driven-development.
+  Comment fix (2026-10-22, `frontend`): `SkeletonBlock.tsx:19`, `HomeSkeleton.tsx:10` now match the code; comments only;
+  typecheck 0, lint clean, the two files' tests 21/21 green.
+- Device check 6i + 6j (2026-10-22, `tester`, same emulator; JS reloaded, back control bounds 79×79 → 79×115 px = 44 dp tall):
+  9.1 (D17/D26) **PASS** light and dark — taps 20 and 22 dp above / below and 22 dp left of the icon centre all return to
+  Profile; the "Settings" title at the same position as before (not moved). 6j light photo skeleton **PASS** — offline cold
+  start (adb reverse), peak 221/213/199 = #DDD5C7, trough 234 = halfway to the page 247, swing ≈ 13 levels, judged
+  noticeable (Kacper to confirm on his screen); 9.3 quick re-check PASS (photo ≈ 3 s after airplane off). App-loading chrome in
+  light NOT RUN (the gate shows too briefly to capture without slowing the network; covered by `AppLoading.test.tsx`). Dark
+  Profile / Settings unchanged. Device restored (airplane off, dark, adb reverse 8083 removed, app on Profile). → 6i, 6j `[x]`.
+  **Step 7 left:** scenario 7 (needs a past trip from Kacper); 8 skipped by Kacper; 6 unsent-budget warning skipped (unit
+  tests).
+- Step 8 (2026-10-22, orchestrator) — docs, every statement checked against the code first: `Architecture.md` (last updated,
+  overview sign-out + „Profil”, folder tree, Modules — routes, schemas, data `signOut` / `hasUnsentChanges`, lib `travelStats`,
+  hooks `useSignOut`, providers `signOut`, new Profile feature row, `AppLoading` chrome; Data model — airport coordinates,
+  `FlightRouteSchema`, list item fields; Data flow — list select, sign-out path; Frontend — `/profile`, `/settings`, root gate,
+  `SkeletonBlock`; Theme tokens; Key decisions; Known limitations; Changelog), `context/app-context.md` (roadmap item 16, ideas,
+  navigation map, §3.8 sign-out, new §3.9, Airport model, offline table + scope, folders, reusable pieces, known gaps),
+  `CLAUDE.md` (offline-scope line, D11; `Airport` + coordinates), `context/design-context.md` §10.18 (colour roles D24 / D27,
+  chrome D25, pulse D9). `GLOSSARY.md` unchanged (no new term). Not changed (outside this feature, surgical): the stale idea
+  "Prefill the profile setup …" in app-context (done by theme-split). · skill used: none.
 
 ## Risks & open questions
 - **Q3 — Order with the background gradient (D14)** — accepted with revision 2 as proposed: profile first. Proposal was: this feature first on today's background, then
@@ -476,6 +588,7 @@ Written first and seen failing for the expected reason.
 - ~~Q4~~ → D21 (keep the shown photo). ~~Q5~~ → D22 (fade in). ~~Q6~~ → D23.
 - **Q7 — Easing token (6f):** design-context §9.2 maps exits to cubic-bezier `(0.4, 0, 1, 1)`, but the theme has no easing
   token, so the photo fade uses Reanimated's default. Add easing tokens (§9.2) as a separate theme step, or keep the default?
+- ~~Q9~~ → D27 (step 6j). ~~6i proposal~~ → D26. ~~6f fade on device~~ → D28.
 - Device note (2026-10-22): while the branch was being merged, `src/app/_layout.tsx` briefly held git conflict markers, so Metro
   failed to bundle and the emulator kept a stale bundle; reloaded after the merge was resolved. The round button next to the
   nick on the emulator is Expo Go's "Tools" button, not the app.
