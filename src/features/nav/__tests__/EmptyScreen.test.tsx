@@ -2,7 +2,8 @@ import { render, screen } from '@testing-library/react-native';
 import { StyleSheet } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
-import { darkTheme, lightTheme } from '@/theme/legacy/theme';
+import { darkTheme, lightTheme } from '@/theme/theme';
+import { tokens } from '@/theme/tokens';
 
 import { EmptyScreen } from '../EmptyScreen';
 
@@ -31,7 +32,9 @@ beforeEach(() => {
   mockWindowWidth = 390;
 });
 
-describe('EmptyScreen (pill-nav-and-dialog D3, A8)', () => {
+const { styles } = tokens.typography;
+
+describe('EmptyScreen (pill-nav-and-dialog D3, A8, design-context §8.20)', () => {
   it('shows the title and the sentence, nothing else', async () => {
     await render(ui());
     expect(screen.getByText('Wydatki')).toBeTruthy();
@@ -47,8 +50,8 @@ describe('EmptyScreen (pill-nav-and-dialog D3, A8)', () => {
 
   it('leaves room under the content for the pill: at least its clearance plus spacing[4]', async () => {
     await render(ui());
-    const clearance = metrics.insets.bottom + lightTheme.spacing[4] + lightTheme.size.navPill;
-    expect(style(screen.getByTestId('empty-screen')).paddingBottom).toBeGreaterThanOrEqual(clearance + lightTheme.spacing[4]);
+    const clearance = metrics.insets.bottom + tokens.spacing[4] + tokens.components.tabs.height;
+    expect(style(screen.getByTestId('empty-screen')).paddingBottom).toBeGreaterThanOrEqual(clearance + tokens.spacing[4]);
   });
 
   it('keeps the content below the status bar', async () => {
@@ -56,42 +59,40 @@ describe('EmptyScreen (pill-nav-and-dialog D3, A8)', () => {
     expect(style(screen.getByTestId('empty-screen')).paddingTop).toBeGreaterThanOrEqual(metrics.insets.top);
   });
 
-  it('uses the light theme tokens', async () => {
+  it('uses the light theme tokens: canvas, headingLG title in text.primary, bodyMD sentence in text.secondary', async () => {
     await render(ui());
-    expect(style(screen.getByTestId('empty-screen')).backgroundColor).toBe(lightTheme.colors.background);
-    expect(style(screen.getByText('Wydatki'))).toMatchObject({
-      color: lightTheme.colors.text.primary,
-      fontSize: lightTheme.typography.heading1.fontSize,
-    });
+    expect(style(screen.getByTestId('empty-screen')).backgroundColor).toBe(lightTheme.background.canvas);
+    expect(style(screen.getByText('Wydatki'))).toMatchObject({ ...styles.headingLG, color: lightTheme.text.primary });
     expect(style(screen.getByText('Ten ekran pojawi się wkrótce.'))).toMatchObject({
-      color: lightTheme.colors.text.secondary,
-      fontSize: lightTheme.typography.bodyM.fontSize,
+      ...styles.bodyMD,
+      color: lightTheme.text.secondary,
+      marginTop: tokens.spacing[2],
     });
   });
 
   it('uses the dark theme tokens', async () => {
     mockScheme = 'dark';
     await render(ui());
-    expect(style(screen.getByTestId('empty-screen')).backgroundColor).toBe(darkTheme.colors.background);
-    expect(style(screen.getByText('Wydatki')).color).toBe(darkTheme.colors.text.primary);
-    expect(style(screen.getByText('Ten ekran pojawi się wkrótce.')).color).toBe(darkTheme.colors.text.secondary);
+    expect(style(screen.getByTestId('empty-screen')).backgroundColor).toBe(darkTheme.background.canvas);
+    expect(style(screen.getByText('Wydatki')).color).toBe(darkTheme.text.primary);
+    expect(style(screen.getByText('Ten ekran pojawi się wkrótce.')).color).toBe(darkTheme.text.secondary);
   });
 
-  it('pads the sides with 20dp, and with 16dp below the compact breakpoint', async () => {
+  it('pads the sides with the 20dp screen gutter, and with the 16dp compact gutter below 390dp (§4.2)', async () => {
     await render(ui());
-    expect(style(screen.getByTestId('empty-screen')).paddingHorizontal).toBe(lightTheme.spacing[5]);
-    expect(lightTheme.spacing[5]).toBe(20);
+    expect(style(screen.getByTestId('empty-screen')).paddingHorizontal).toBe(tokens.layout.screenGutter);
+    expect(tokens.layout.screenGutter).toBe(20);
     await screen.unmount();
-    mockWindowWidth = lightTheme.breakpoints.compact - 1;
+    mockWindowWidth = tokens.layout.compactBreakpoint - 1;
     await render(ui());
-    expect(style(screen.getByTestId('empty-screen')).paddingHorizontal).toBe(lightTheme.spacing[4]);
-    expect(lightTheme.spacing[4]).toBe(16);
+    expect(style(screen.getByTestId('empty-screen')).paddingHorizontal).toBe(tokens.layout.screenGutterCompact);
+    expect(tokens.layout.screenGutterCompact).toBe(16);
   });
 
   it('centres the content up to the maximum content width', async () => {
     await render(ui());
     expect(style(screen.getByTestId('empty-screen-content'))).toMatchObject({
-      maxWidth: lightTheme.size.maxContentWidth,
+      maxWidth: tokens.layout.maxContentWidth,
       alignSelf: 'center',
     });
   });
