@@ -1,5 +1,5 @@
 # Architecture
-Last updated: 2026-10-22 · after task: profile-screen (steps 1–6j done; its device run still has scenario 7, the stats of a past trip, open — see `prompts/profile-screen/plan.md`). Before it: coderabbit-pr23-fixes, doc fixes only — see `prompts/coderabbit-pr23-fixes/plan.md`; app-loading-skeleton (before it: coderabbit-pr22-fixes, doc fixes only — see `prompts/coderabbit-pr22-fixes/plan.md`; friend-invite (done, device check passed — see `prompts/friend-invite/plan.md`); coderabbit-pr21-fixes; auth-onboarding step 11, the code e-mail; jest-ignore-worktrees, theme-split-and-profile-prefill, pkce-sha256, use-reduce-motion; auth-onboarding step 9, the device run, is still partly done — see `prompts/auth-onboarding/plan.md`)
+Last updated: 2026-10-22 · after task: coderabbit-pr23-fixes-2, e-mail copy and its config test only — see `prompts/coderabbit-pr23-fixes-2/plan.md`. Before it: profile-screen (steps 1–6j done; its device run still has scenario 7, the stats of a past trip, open — see `prompts/profile-screen/plan.md`). Before it: coderabbit-pr23-fixes, doc fixes only — see `prompts/coderabbit-pr23-fixes/plan.md`; app-loading-skeleton (before it: coderabbit-pr22-fixes, doc fixes only — see `prompts/coderabbit-pr22-fixes/plan.md`; friend-invite (done, device check passed — see `prompts/friend-invite/plan.md`); coderabbit-pr21-fixes; auth-onboarding step 11, the code e-mail; jest-ignore-worktrees, theme-split-and-profile-prefill, pkce-sha256, use-reduce-motion; auth-onboarding step 9, the device run, is still partly done — see `prompts/auth-onboarding/plan.md`)
 
 ## Overview
 Traveling is a mobile app for the person who organizes a trip for a group of friends: trip setup, members, flights and layovers, AI day plans built from real places, offline expenses, and a plan-vs-reality budget summary. The product scope and rules are defined in `CLAUDE.md`; the visual system ("Sunline") is defined in `context/design-context.md`.
@@ -665,6 +665,7 @@ The airport list is a static bundled file, validated row by row in its test (not
 - Template images in `assets/images/` (React/Expo logos, `tabIcons/`, `tutorial-web.png`) are not referenced by any code.
 
 ## Changelog
+- 2026-10-22 — coderabbit-pr23-fixes-2 — the code e-mail no longer says "Without the code, no one can sign in to your account" (Google/Discord sign-in does not need it); its config test matches whole uncommented `subject` / `content_path` lines; no architectural change.
 - 2026-10-22 — profile-screen —
   - **Schemas:** `AirportSchema` + `latitude` / `longitude`; `FlightRouteSchema`; `TripListItemSchema` + `destination`, `flights`.
   - **Data:** `airports.json` regenerated with coordinates; the list query reads `destination` and `flight_segments(from_iata, to_iata)`; `SessionSource.signOut()`; `TripRepository.hasUnsentChanges()`.
