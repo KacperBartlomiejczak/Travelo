@@ -16,6 +16,8 @@
 - **Partner sign-in buttons** (Google, Discord) keep their providers' official colors, the same in both themes. They live in `tokens.ts` as `partnerBrand` and are used for these two buttons only (auth-onboarding D10, D13).
 - **Disabled partner buttons** keep their provider colors (no opacity, no disabled tokens); they show disabled only through no response and the accessibility state (D11, exception to §8.0 for these two buttons).
 - **Shared control tokens** (D10): `components.button.borderWidth` (1 dp outline of secondary, destructive and hero controls), `components.focusRing` (`width` 2 dp, `offset` 2 dp gap, §8.0 focused state for every interactive component), `motion.press.scale` (0.98, §8.1 pressed motion for every button variant).
+- **Empty-state illustration size** (D22): `components.emptyState.illustrationSize` (96 dp, §8.20).
+- **Sync status, pending** (D20): the clock icon is `sync.pending`, the text `text.secondary` (light `sync.pending` text is below AA); failed keeps icon and text in `sync.failed`.
 - **App-specific sizes** not covered by the system (drawer width, drawer thumbnail, photo tile, cover tile, profile-setup avatar, welcome entrance duration, hero fade start) are tokens in `tokens.ts` under `components` / `screenMetrics` / `motion`, each with a comment naming its decision.
 - **Skeletons pulse** (opacity 1 → 0.5 → 1 over 1200 ms, static under reduced motion) in `skeleton.base` instead of the §8.19 shimmer, until a later task replaces it (D5, profile-screen D9).
 - **Copy:** Section 11 (voice and canonical strings) is not applied yet; today's i18n texts stay until a copy task (D7).

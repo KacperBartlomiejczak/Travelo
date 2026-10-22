@@ -1,12 +1,17 @@
 import { useState } from 'react';
 import { fireEvent, render, screen, within } from '@testing-library/react-native';
-import { ScrollView } from 'react-native';
+import { ScrollView, StyleSheet } from 'react-native';
 import { launchImageLibraryAsync } from 'expo-image-picker';
 
 import { CoverPicker } from '@/components/CoverPicker';
 import i18n from '@/i18n';
 import { COVER_PRESET_IDS, DEFAULT_COVER } from '@/schemas';
-import { lightTheme } from '@/theme/legacy/theme';
+import { darkTheme, lightTheme } from '@/theme/theme';
+import { tokens } from '@/theme/tokens';
+import { DarkThemeScope } from '@/theme/useTheme';
+
+const { coverPicker, focusRing } = tokens.components;
+const flat = (element: ReturnType<typeof screen.getByRole>) => StyleSheet.flatten(element.props.style);
 
 jest.mock('expo-image-picker', () => ({ launchImageLibraryAsync: jest.fn() }));
 const launch = jest.mocked(launchImageLibraryAsync);
@@ -69,21 +74,21 @@ describe('CoverPicker (trip-covers P1)', () => {
     await render(<CoverPicker value="preset:bali" onChange={() => {}} />);
     const selected = screen.getByRole('radio', { name: 'Bali' });
     expect(within(selected).getByTestId('cover-tile-check', hidden)).toBeTruthy();
-    expect(selected).toHaveStyle({ borderColor: lightTheme.colors.action.primary, borderWidth: lightTheme.size.focusRing });
+    expect(selected).toHaveStyle({ borderColor: lightTheme.brand.primary, borderWidth: focusRing.width });
+    expect(within(selected).getByTestId('cover-tile-check', hidden).props.stroke).toBe(lightTheme.brand.onBrand);
     const other = screen.getByRole('radio', { name: 'Auckland' });
     expect(within(other).queryByTestId('cover-tile-check', hidden)).toBeNull();
-    expect(other).toHaveStyle({ borderWidth: lightTheme.size.focusRing, borderColor: 'transparent' });
+    expect(other).toHaveStyle({ borderWidth: focusRing.width, borderColor: 'transparent' });
     expect(screen.getAllByTestId('cover-tile-check', hidden)).toHaveLength(1);
   });
 
   it('gives the tiles the cover tile size from the theme, 16:9, and a touch target of at least 44dp', async () => {
     await render(<CoverPicker value={DEFAULT_COVER} onChange={() => {}} />);
-    expect(lightTheme.size.coverTile).toBe(112);
-    expect(lightTheme.size.coverTile % 4).toBe(0);
+    expect(coverPicker.tileWidth).toBe(112);
     for (const tile of [...tiles(), screen.getByRole('button', { name: 'Z galerii' })]) {
-      expect(tile).toHaveStyle({ width: lightTheme.size.coverTile });
+      expect(tile).toHaveStyle({ width: coverPicker.tileWidth });
       const style = Object.assign({}, ...[tile.props.style].flat(2)) as { minHeight: number };
-      expect(style.minHeight).toBeGreaterThanOrEqual(lightTheme.size.touchTarget);
+      expect(style.minHeight).toBeGreaterThanOrEqual(tokens.layout.touchTarget);
     }
   });
 
@@ -189,12 +194,59 @@ describe('CoverPicker (trip-covers P1)', () => {
     expect(screen.queryByText('Usuń zdjęcie')).toBeNull();
   });
 
-  it('uses one corner radius for the preview and the tiles: radius.sm, like the inputs next to it (§5.4)', async () => {
+  it('uses one corner radius for the preview and the tiles: radii.sm', async () => {
     await render(<CoverPicker value="preset:bali" onChange={() => {}} />);
-    expect(screen.getByTestId('cover-preview', hidden)).toHaveStyle({ borderRadius: lightTheme.radius.sm });
+    expect(screen.getByTestId('cover-preview', hidden)).toHaveStyle({ borderRadius: tokens.radii.sm });
     for (const tile of [...tiles(), screen.getByRole('button', { name: 'Z galerii' })]) {
-      expect(tile).toHaveStyle({ borderRadius: lightTheme.radius.sm });
+      expect(tile).toHaveStyle({ borderRadius: tokens.radii.sm });
     }
+  });
+
+  describe('Sunline Editorial look (§8.0, §8.6)', () => {
+    it('shows the gallery tile on the primary surface with a default border and a 20dp icon, label in caption', async () => {
+      await render(<CoverPicker value={DEFAULT_COVER} onChange={() => {}} />);
+      const gallery = screen.getByRole('button', { name: 'Z galerii' });
+      expect(gallery).toHaveStyle({ borderColor: lightTheme.border.default, backgroundColor: lightTheme.surface.primary, borderWidth: focusRing.width });
+      expect(screen.getByText('Z galerii')).toHaveStyle({ ...tokens.typography.styles.caption, color: lightTheme.text.primary });
+      const icon = within(gallery).getByTestId('cover-gallery-icon', hidden);
+      expect(icon.props.width).toBe(tokens.iconography.size.sm);
+      expect(icon.props.strokeWidth).toBe(tokens.iconography.strokeWidth);
+      expect(icon.props.stroke).toBe(lightTheme.icon.primary);
+    });
+
+    it('presses the gallery tile to the sunken background, and a selected tile to the pressed brand color', async () => {
+      await render(<CoverPicker value="preset:bali" onChange={() => {}} />);
+      const gallery = screen.getByRole('button', { name: 'Z galerii' });
+      await fireEvent(gallery, 'responderGrant', { nativeEvent: { timestamp: Date.now() }, persist: jest.fn() });
+      expect(flat(gallery).backgroundColor).toBe(lightTheme.background.sunken);
+      const selected = screen.getByRole('radio', { name: 'Bali' });
+      await fireEvent(selected, 'responderGrant', { nativeEvent: { timestamp: Date.now() }, persist: jest.fn() });
+      expect(flat(selected).borderColor).toBe(lightTheme.brand.pressed);
+      const other = screen.getByRole('radio', { name: 'Auckland' });
+      await fireEvent(other, 'responderGrant', { nativeEvent: { timestamp: Date.now() }, persist: jest.fn() });
+      expect(flat(other).borderColor).toBe(lightTheme.border.default);
+    });
+
+    it('shows the 2dp focus ring in border.focus with a 2dp gap on a focused tile', async () => {
+      await render(<CoverPicker value="preset:bali" onChange={() => {}} />);
+      const tile = screen.getByRole('radio', { name: 'Auckland' });
+      await fireEvent(tile, 'focus');
+      expect(tile).toHaveStyle({ outlineWidth: focusRing.width, outlineColor: lightTheme.border.focus, outlineOffset: focusRing.offset });
+      const gallery = screen.getByRole('button', { name: 'Z galerii' });
+      await fireEvent(gallery, 'focus');
+      expect(gallery).toHaveStyle({ outlineWidth: focusRing.width, outlineColor: lightTheme.border.focus, outlineOffset: focusRing.offset });
+      await fireEvent(gallery, 'blur');
+      expect(gallery).not.toHaveStyle({ outlineWidth: focusRing.width });
+    });
+
+    it('uses the dark colors in dark mode', async () => {
+      await render(<CoverPicker value="preset:bali" onChange={() => {}} />, { wrapper: DarkThemeScope });
+      expect(screen.getByRole('radio', { name: 'Bali' })).toHaveStyle({ borderColor: darkTheme.brand.primary });
+      expect(screen.getByRole('button', { name: 'Z galerii' })).toHaveStyle({
+        borderColor: darkTheme.border.default,
+        backgroundColor: darkTheme.surface.primary,
+      });
+    });
   });
 
   describe('row position', () => {

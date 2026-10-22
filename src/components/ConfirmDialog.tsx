@@ -5,7 +5,8 @@ import { Animated, Modal, Pressable, StyleSheet, Text, View } from 'react-native
 import { PrimaryButton } from '@/components/PrimaryButton';
 import { TextButton } from '@/components/TextButton';
 import { useReduceMotion } from '@/hooks/useReduceMotion';
-import { useTheme } from '@/theme/legacy/useTheme';
+import { tokens } from '@/theme/tokens';
+import { useTheme } from '@/theme/useTheme';
 
 type Props = {
   visible: boolean;
@@ -20,9 +21,11 @@ type Props = {
   onCancel: () => void;
 };
 
-// Confirm dialog (design-context §10.17, pill-nav-and-dialog A1, A4): centred on a scrim, width viewport − 40dp,
+const { dialog } = tokens.components;
+
+// Confirm dialog (design-context §8.18, pill-nav-and-dialog A1, A4): centred on a backdrop, width viewport − 40dp, at most 360dp,
 // confirm on top and cancel below, full width and 16dp apart (like DeleteTripSheet, so they are never adjacent). The
-// caller passes translated strings. Dismissing (scrim, back button) means cancel. It fades over 220 ms (§9.1), or
+// caller passes translated strings. Dismissing (scrim, back button) means cancel. It fades over 180 ms (`duration.standard`), or
 // appears at once with reduce motion (§9.4). Screen readers: the Android Modal is its own window that TalkBack
 // announces and traps focus in; on iOS `accessibilityViewIsModal` keeps VoiceOver inside the dialog.
 export function ConfirmDialog({ visible, title, message, confirmLabel, cancelLabel, destructive = false, onConfirm, onCancel }: Props) {
@@ -43,43 +46,44 @@ export function ConfirmDialog({ visible, title, message, confirmLabel, cancelLab
       return;
     }
     // JS driver: only opacity moves, and the native driver does not update the rendered style under Jest.
-    const fade = Animated.timing(opacity, { toValue: visible ? 1 : 0, duration: theme.duration.dialog, useNativeDriver: false });
+    const fade = Animated.timing(opacity, { toValue: visible ? 1 : 0, duration: tokens.motion.duration.standard, useNativeDriver: false });
     fade.start(({ finished }) => finished && !visible && setMounted(false));
     return () => fade.stop();
-  }, [visible, reduceMotion, opacity, theme.duration.dialog]);
+  }, [visible, reduceMotion, opacity]);
 
   return (
     <Modal testID="confirm-dialog-modal" visible={open} transparent animationType="none" onRequestClose={onCancel} statusBarTranslucent>
       <Animated.View
         testID="confirm-dialog-container"
-        style={{ flex: 1, opacity, justifyContent: 'center', alignItems: 'center', paddingHorizontal: theme.spacing[5] }}
+        style={{ flex: 1, opacity, justifyContent: 'center', alignItems: 'center', paddingHorizontal: dialog.horizontalMargin }}
       >
         <Pressable
           accessibilityRole="button"
           accessibilityLabel={t('common.close')}
           onPress={onCancel}
-          style={[StyleSheet.absoluteFill, { backgroundColor: theme.colors.overlay.scrim }]}
+          // §8.18: the backdrop is black at the token opacity.
+          style={[StyleSheet.absoluteFill, { backgroundColor: tokens.primitives.pure.black, opacity: dialog.backdropOpacity }]}
         />
         <View
           testID="confirm-dialog"
           accessibilityViewIsModal
           style={{
             width: '100%',
-            maxWidth: theme.size.maxContentWidth,
-            borderRadius: theme.radius.lg,
-            padding: theme.spacing[6],
-            gap: theme.spacing[6],
-            backgroundColor: theme.colors.surface.elevated,
-            ...theme.elevation.dialog,
+            maxWidth: dialog.maxWidth,
+            borderRadius: dialog.radius,
+            padding: dialog.padding,
+            gap: tokens.spacing[6],
+            backgroundColor: theme.surface.overlay,
+            ...theme.elevation.level3, // §5.2: level 3 is for blocking dialogs (a border in dark mode)
           }}
         >
-          <View style={{ gap: theme.spacing[2] }}>
-            <Text accessibilityRole="header" style={[theme.typography.heading3, { color: theme.colors.text.primary }]}>
+          <View style={{ gap: tokens.spacing[2] }}>
+            <Text accessibilityRole="header" style={[tokens.typography.styles.headingSM, { color: theme.text.primary }]}>
               {title}
             </Text>
-            <Text style={[theme.typography.bodyM, { color: theme.colors.text.secondary }]}>{message}</Text>
+            <Text style={[tokens.typography.styles.bodyMD, { color: theme.text.secondary }]}>{message}</Text>
           </View>
-          <View testID="confirm-dialog-actions" style={{ gap: theme.spacing[4] }}>
+          <View testID="confirm-dialog-actions" style={{ gap: tokens.spacing[4] }}>
             {destructive ? (
               <TextButton variant="destructive" label={confirmLabel} onPress={onConfirm} />
             ) : (

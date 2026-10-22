@@ -123,6 +123,7 @@ describe('project additions', () => {
     expect(tokens.components.drawer).toEqual({ maxWidth: 360, thumbnailSize: 48 });
     expect(tokens.components.coverPicker).toEqual({ tileWidth: 112 });
     expect(tokens.components.avatar.xxl).toBe(96);
+    expect(tokens.components.emptyState).toEqual({ illustrationSize: 96 }); // sunline-redesign D22
     expect(tokens.screenMetrics.tripOverview.heroFadeStart).toBe(0.35);
     expect(tokens.motion.microinteraction.welcomeRevealed).toEqual({ itemDuration: 500 });
     expect(tokens.motion.microinteraction.skeletonPulse).toEqual({ duration: 1200, minOpacity: 0.5 });

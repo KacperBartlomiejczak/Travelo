@@ -108,7 +108,7 @@ is UI configuration, not a data shape, so the Zod rule does not apply.
   first: their tests to the new spec â€” verify: suite, typecheck, lint; verifier.
 - [x] 4. [frontend] Inputs and selection: `Field`, `TextField`, `AmountField`, `AirportField`, `DateTimeField*`, `Chip`,
   `InterestChips`, `SegmentedControl`, `Stepper`, `StepIndicator`. â€” Â§8.4â€“Â§8.6, Â§8.15 â€” same pattern.
-- [ ] 5. [frontend] Surfaces and feedback: `Card`, `BottomSheet`, `ConfirmDialog`, `Snackbar`, `OfflineBanner`,
+- [x] 5. [frontend] Surfaces and feedback: `Card`, `BottomSheet`, `ConfirmDialog`, `Snackbar`, `OfflineBanner`,
   `SyncIndicator`, `SkeletonBlock`, `TripHeroSkeleton`, `LayoverLabel`, `TripsEmptyIllustration`, `CoverImage`,
   `CoverPicker`. â€” Â§8.9, Â§8.13, Â§8.17â€“Â§8.20, Â§10 â€” same pattern; skeleton per Q1.
 - [ ] 6. [frontend] Navigation: `PillNav`, tabs layout, `TripsDrawer`, `EmptyScreen`. â€” Â§8.14 â€” same pattern.
@@ -217,6 +217,30 @@ Manual test steps (Kacper / tester), each in light and in dark mode:
   `DateTimeField` reads `useColorScheme`, not the theme scope (unchanged); the 4 dp coral step bar vs §1.3, check on
   device in step 9 · device check: not run (goes to step 12 with the manual steps from the implementer: field focus
   and error, amount 72 dp, airport rows, date picker tint, chips keep width, segmented elevation, max font scale).
+- Step 5: tests written (red ✓, implementer: `pnpm jest src/components` before any production change → 11 suites
+  failed, 42 failed / 293 passed, assertion failures only; D20 fix 2 failed / 3 passed; verifier fixes 3 failed / 118
+  passed plus the `TripsEmptyIllustration` suite on the missing token) · the plan's "SkeletonBlock" is
+  `TripHeroSkeleton` (no shared skeleton component; `PhotoSkeleton` and the drawer rows live in `src/features/`, later
+  steps) · new test files `Card.test.tsx`, `TripHeroSkeleton.test.tsx` (describe moved out of `TripHero.test.tsx`),
+  `TripsEmptyIllustration.test.tsx` · spec-driven value changes: sheet corners 24 → 28, max height 90 → 92 %, handle
+  top 12 → 10, handle-to-title gap 16 → 20 (§8.13 content top padding, a loose reading accepted by the verifier);
+  dialog max width 720 → 360, padding 24 → 20, radius 20 → 24, `elevation.level3`; snackbar inverse surface, side inset
+  16 → 20, max width 360 → 520 (A6); backdrops `primitives.pure.black` at 0.48 (A6); cards lose the light shadow and
+  get a 1 dp `border.subtle`, radius 20; layover amber → info; sync failed icon `CircleX` → `CircleAlert`; empty-state
+  illustration 160 → 96; cover-tile focus gap 4 → 2 (D10) · type mappings not in the spec: sheet and dialog title
+  `headingSM`, dialog message `bodyMD`, offline banner and sync text `bodySM`, layover `labelMD`, sheet handle
+  `border.default`, sheet `elevation.level2` · changed assertions in pre-existing tests (spec changed, not weakened):
+  BottomSheet, ConfirmDialog, Snackbar, OfflineBanner, SyncIndicator, LayoverLabel, CoverImage, CoverPicker, and
+  `WelcomeScreen.test.tsx` (sheet surface), `src/__tests__/app/index.test.tsx` (illustration size), `home.test.tsx`
+  (snackbar colors) · decisions D19–D22 · green ✓ 129 suites / 2837 tests, typecheck ✓, lint ✓ · verifier: FAIL
+  (skeleton pulsed while reduce motion was still unknown; illustration size borrowed `spacing[24]`) → fixed tests-first
+  (pulse only when `useReduceMotion() === false`; D22 token) → re-verify PASS · skill used: test-driven-development,
+  incremental-implementation, frontend-ui-engineering (implementer), ui-taste, code-review-and-quality (verifier) ·
+  `context/design-context.md` Project notes: D20, D22 · notes for later: other components still use the
+  `useReduceMotion() === true` convention (pulse/scale while unknown); `TripHeroSkeleton` keeps radius none (§8.19
+  lists 12 for the hero template); the illustration canvas stays 160 × 160 (§6.2 says 160 × 120) · device check: not
+  run (step 12, with the implementer's manual steps: cards, sheet, dialog, snackbar, offline banner, sync status, empty
+  state, cover picker, skeleton pulse and reduce motion).
 
 ## Risks & open questions
 Answers (Kacper, 2026-10-22, with the approval):
@@ -247,6 +271,14 @@ Answers (Kacper, 2026-10-22, with the approval):
   not only the selected one (§8.15 reads "selected"; this is better for keyboard and screen-reader users).
 - **D18 (Kacper, 2026-10-22, step 4):** airport result dividers start at the text column (§8.8), not full width; a
   focused result row compensates its 2 dp inset border so the text does not move (§8.8 "inset").
+- **D19 (Kacper, 2026-10-22, step 5):** this branch had no skeleton pulse (profile-screen D9 lives on its branch), so
+  D5 means adding it: `TripHeroSkeleton` pulses 1 → 0.5 → 1 over 1200 ms (`motion.microinteraction.skeletonPulse`),
+  static under reduced motion. Align with profile-screen's implementation when that branch is merged in (D4).
+- **D20 (Kacper, 2026-10-22, step 5):** `SyncIndicator` pending: icon in `sync.pending`, text in `text.secondary`
+  (light `sync.pending` text is ~3.6:1, below AA). Failed stays icon + text in `sync.failed`.
+- **D21 (Kacper, 2026-10-22, step 5):** dialog and sheet fades use `duration.standard` (180 ms; dialog was 220 ms).
+- **D22 (Kacper, 2026-10-22, step 5):** new token `components.emptyState.illustrationSize: 96` (§8.20, §14.18) for the
+  empty-state illustration instead of borrowing `spacing[24]`.
 
 - **Q1 Skeleton:** keep today's opacity pulse (profile-screen D9, 1200 ms) in the new `skeleton.base` color, or switch
   to the DESIGN.md Â§8.19 shimmer (`skeleton.highlight` sweeping, 360 ms per pass, static under reduced motion)?

@@ -842,15 +842,15 @@ describe('Home screen — deleting the trip (trip-edit-menu D7, D8, D9, D11, D19
     await confirm();
     // The trip view follows the phone's theme (theme-split D1): on this light device the snackbar is the light theme's.
     expect(await screen.findByRole('header', { name: 'Kraków → Rome' })).toBeTruthy();
-    expect(await screen.findByTestId('snackbar')).toHaveStyle({ backgroundColor: lightTheme.colors.snackbar.background });
-    expect(screen.getByText(SNACKBAR)).toHaveStyle({ color: lightTheme.colors.snackbar.text });
+    expect(await screen.findByTestId('snackbar')).toHaveStyle({ backgroundColor: sunlineLightTheme.surface.inverse });
+    expect(screen.getByText(SNACKBAR)).toHaveStyle({ color: sunlineLightTheme.text.inverse });
 
     await openConfirmation('Kraków → Rome');
     deletingLeaves(null);
     await confirm();
     expect(await screen.findByText('Nie masz jeszcze żadnej podróży.')).toBeTruthy();
-    expect(await screen.findByTestId('snackbar')).toHaveStyle({ backgroundColor: lightTheme.colors.snackbar.background });
-    expect(screen.getByText(SNACKBAR)).toHaveStyle({ color: lightTheme.colors.snackbar.text });
+    expect(await screen.findByTestId('snackbar')).toHaveStyle({ backgroundColor: sunlineLightTheme.surface.inverse });
+    expect(screen.getByText(SNACKBAR)).toHaveStyle({ color: sunlineLightTheme.text.inverse });
   });
 
   it('reads in English', async () => {

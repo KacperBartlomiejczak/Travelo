@@ -169,7 +169,7 @@ describe('WelcomeScreen (auth-onboarding D5, D6, P4, P5, P6)', () => {
     expect(within(sheet).getByRole('header', { name: 'Zaloguj się' })).toBeTruthy();
     expect(within(sheet).getAllByRole('button').filter((b) => /Kontynuuj/.test(String(b.props.accessibilityLabel)))).toHaveLength(3);
     // Inside the dark scope, so the sheet is dark too.
-    expect(sheet).toHaveStyle({ backgroundColor: darkTheme.colors.surface.elevated });
+    expect(sheet).toHaveStyle({ backgroundColor: sunlineDarkTheme.surface.overlay });
   });
 
   it('closing the sheet leaves the welcome screen, and it opens again afresh', async () => {

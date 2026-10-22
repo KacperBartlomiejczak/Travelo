@@ -618,6 +618,7 @@ export const components = {
   },
   drawer: { maxWidth: 360, thumbnailSize: 48 }, // trips-drawer P1
   coverPicker: { tileWidth: 112 }, // trip-covers P1
+  emptyState: { illustrationSize: 96 }, // sunline-redesign D22: §8.20 empty-state illustration
   offlineBanner: {
     minHeight: 44,
     horizontalPadding: 16,

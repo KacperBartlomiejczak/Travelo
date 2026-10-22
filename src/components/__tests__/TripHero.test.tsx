@@ -2,7 +2,6 @@ import { render, screen } from '@testing-library/react-native';
 import { processColor } from 'react-native';
 
 import { TripHero } from '@/components/TripHero';
-import { TripHeroSkeleton } from '@/components/TripHeroSkeleton';
 import i18n from '@/i18n';
 import type { TripSummary } from '@/schemas';
 import { darkTheme, lightTheme } from '@/theme/legacy/theme';
@@ -130,16 +129,5 @@ describe('TripHero (D4)', () => {
     await i18n.changeLanguage('en');
     await render(<TripHero trip={trip} />);
     expect(screen.getByText('Nov 3 – Nov 15, 2026 · 13 days')).toBeTruthy();
-  });
-});
-
-describe('TripHeroSkeleton', () => {
-  it('is a static block of the hero height, hidden from screen readers', async () => {
-    await render(<TripHeroSkeleton />);
-    expect(screen.queryByTestId('trip-hero-skeleton')).toBeNull();
-    const skeleton = screen.getByTestId('trip-hero-skeleton', { includeHiddenElements: true });
-    expect(skeleton.props['aria-hidden']).toBe(true);
-    // Same geometry as the full-bleed hero (§10.18, §5.4 radius.none).
-    expect(skeleton).toHaveStyle({ height: 406, borderRadius: lightTheme.radius.none, backgroundColor: lightTheme.colors.surface.secondary });
   });
 });

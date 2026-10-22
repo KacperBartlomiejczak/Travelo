@@ -10,6 +10,7 @@ import FlightsStep from '@/app/trips/new/index';
 import NewTripLayout from '@/app/trips/new/_layout';
 import i18n from '@/i18n';
 import { darkTheme, lightTheme } from '@/theme/legacy/theme';
+import { tokens } from '@/theme/tokens';
 
 let mockScheme: 'light' | 'dark' | null = 'light';
 let mockWindowWidth = 375;
@@ -94,7 +95,7 @@ describe('Trips screen — empty state', () => {
     expect(illustration.type).toBe('View');
     expect(illustration.props['aria-hidden']).toBe(true);
     const drawing = screen.getByTestId('trips-empty-illustration-svg', { includeHiddenElements: true });
-    expect(drawing.props.width).toBe(lightTheme.size.illustration);
+    expect(drawing.props.width).toBe(tokens.components.emptyState.illustrationSize); // §8.20: 96 × 96
   });
 
   it('uses the light background token in light mode', async () => {

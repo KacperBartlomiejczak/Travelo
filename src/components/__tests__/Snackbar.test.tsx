@@ -4,8 +4,11 @@ import { AccessibilityInfo, Animated, Pressable } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import { Snackbar } from '@/components/Snackbar';
-import { darkTheme, lightTheme } from '@/theme/legacy/theme';
-import { DarkThemeScope } from '@/theme/legacy/useTheme';
+import { darkTheme, lightTheme } from '@/theme/theme';
+import { tokens } from '@/theme/tokens';
+import { DarkThemeScope } from '@/theme/useTheme';
+
+const { snackbar } = tokens.components;
 
 const metrics = { frame: { x: 0, y: 0, width: 390, height: 844 }, insets: { top: 47, left: 0, right: 0, bottom: 34 } };
 
@@ -27,30 +30,32 @@ afterEach(() => {
 });
 
 describe('Snackbar (design-context §10.16, trip-edit-menu D11, D14)', () => {
-  it('shows the message on the inverse ink surface in light mode', async () => {
+  it('shows the message on the inverse surface in light mode, 16 × 12 padding, 16dp corners (§8.17)', async () => {
     await render(ui('Podróż usunięta.'));
-    expect(screen.getByText('Podróż usunięta.')).toHaveStyle({ color: lightTheme.colors.snackbar.text });
+    expect(screen.getByText('Podróż usunięta.')).toHaveStyle({ ...tokens.typography.styles.bodyMD, color: lightTheme.text.inverse });
     expect(screen.getByTestId('snackbar')).toHaveStyle({
-      backgroundColor: lightTheme.colors.snackbar.background,
-      borderRadius: lightTheme.radius.md,
-      padding: lightTheme.spacing[4],
+      backgroundColor: lightTheme.surface.inverse,
+      borderRadius: snackbar.radius,
+      paddingHorizontal: snackbar.horizontalPadding,
+      paddingVertical: snackbar.verticalPadding,
     });
   });
 
   it('uses the inverse colours in dark mode', async () => {
     await render(ui('Podróż usunięta.'), { wrapper: DarkThemeScope });
-    expect(screen.getByText('Podróż usunięta.')).toHaveStyle({ color: darkTheme.colors.snackbar.text });
-    expect(screen.getByTestId('snackbar')).toHaveStyle({ backgroundColor: darkTheme.colors.snackbar.background });
+    expect(screen.getByText('Podróż usunięta.')).toHaveStyle({ color: darkTheme.text.inverse });
+    expect(screen.getByTestId('snackbar')).toHaveStyle({ backgroundColor: darkTheme.surface.inverse });
   });
 
-  it('is at least 48dp high and at most 360dp wide, 16dp above the safe area at the bottom', async () => {
+  it('is at least 48dp high and at most 520dp wide, 20dp from the sides and 16dp above the safe area at the bottom', async () => {
     await render(ui('Podróż usunięta.'));
-    expect(screen.getByTestId('snackbar')).toHaveStyle({ minHeight: 48, maxWidth: 360 });
+    expect(screen.getByTestId('snackbar')).toHaveStyle({ minHeight: snackbar.minHeight, maxWidth: snackbar.maxWidth });
+    expect([snackbar.minHeight, snackbar.maxWidth]).toEqual([48, 520]);
     expect(screen.getByTestId('snackbar-container')).toHaveStyle({
       position: 'absolute',
-      bottom: metrics.insets.bottom + lightTheme.spacing[4],
-      left: lightTheme.spacing[4],
-      right: lightTheme.spacing[4],
+      bottom: metrics.insets.bottom + tokens.spacing[4],
+      left: tokens.layout.screenGutter,
+      right: tokens.layout.screenGutter,
     });
   });
 
@@ -60,7 +65,7 @@ describe('Snackbar (design-context §10.16, trip-edit-menu D11, D14)', () => {
         <Snackbar message="Podróż usunięta." onHide={() => {}} bottomOffset={64} />
       </SafeAreaProvider>,
     );
-    expect(screen.getByTestId('snackbar-container')).toHaveStyle({ bottom: metrics.insets.bottom + lightTheme.spacing[4] + 64 });
+    expect(screen.getByTestId('snackbar-container')).toHaveStyle({ bottom: metrics.insets.bottom + tokens.spacing[4] + 64 });
   });
 
   it('renders nothing without a message', async () => {
@@ -121,7 +126,7 @@ describe('Snackbar (design-context §10.16, trip-edit-menu D11, D14)', () => {
       expect(screen.getByText('Podróż usunięta.')).toBeTruthy();
       await pass(3500);
       expect(screen.getByText('Podróż usunięta.')).toBeTruthy(); // keeps its text while it fades out
-      await pass(lightTheme.duration.small + 50);
+      await pass(tokens.motion.duration.standard + 50);
       expect(screen.queryByText('Podróż usunięta.')).toBeNull();
     });
 
@@ -139,7 +144,7 @@ describe('Snackbar (design-context §10.16, trip-edit-menu D11, D14)', () => {
       await render(<Owner />);
       await show('show');
       await pass(3500);
-      await pass(lightTheme.duration.small + 50);
+      await pass(tokens.motion.duration.standard + 50);
       expect(screen.queryByText('Podróż usunięta.')).toBeNull();
       await show('show');
       expect(screen.getByText('Podróż usunięta.')).toBeTruthy();
@@ -147,7 +152,7 @@ describe('Snackbar (design-context §10.16, trip-edit-menu D11, D14)', () => {
       await pass(3499);
       expect(screen.getByText('Podróż usunięta.')).toBeTruthy();
       await pass(1);
-      await pass(lightTheme.duration.small + 50);
+      await pass(tokens.motion.duration.standard + 50);
       expect(screen.queryByText('Podróż usunięta.')).toBeNull();
     });
 
@@ -155,7 +160,7 @@ describe('Snackbar (design-context §10.16, trip-edit-menu D11, D14)', () => {
       await render(<Owner />);
       await show('show');
       await pass(3500);
-      await pass(lightTheme.duration.small + 50);
+      await pass(tokens.motion.duration.standard + 50);
       await show('show other');
       expect(screen.getByText('Inna wiadomość.')).toBeTruthy();
     });
@@ -194,7 +199,7 @@ describe('Snackbar (design-context §10.16, trip-edit-menu D11, D14)', () => {
     await view.rerender(ui(null));
     expect(screen.getByText('Podróż usunięta.')).toBeTruthy();
     await act(async () => {
-      jest.advanceTimersByTime(lightTheme.duration.small + 50);
+      jest.advanceTimersByTime(tokens.motion.duration.standard + 50);
     });
     expect(screen.queryByText('Podróż usunięta.')).toBeNull();
   });
@@ -216,7 +221,7 @@ describe('Snackbar (design-context §10.16, trip-edit-menu D11, D14)', () => {
     await render(ui('Podróż usunięta.'));
     expect(timing).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({ toValue: 1, duration: 180 }));
     await act(async () => {
-      jest.advanceTimersByTime(lightTheme.duration.small + 50);
+      jest.advanceTimersByTime(tokens.motion.duration.standard + 50);
     });
     expect(screen.getByTestId('snackbar-container')).toHaveStyle({ opacity: 1 });
   });
