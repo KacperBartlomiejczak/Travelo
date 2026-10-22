@@ -22,7 +22,8 @@ import { formatMoney } from '@/lib/money';
 import { perPersonPerDay, tripDayCount } from '@/lib/trip-days';
 import { deriveTripDates } from '@/lib/trip-dates';
 import { CreateTripInputSchema, TRIP_NAME_MAX_LENGTH, TripDetailsInputSchema } from '@/schemas';
-import { useTheme } from '@/theme/legacy/useTheme';
+import { tokens } from '@/theme/tokens';
+import { useTheme } from '@/theme/useTheme';
 
 // Not shown anywhere; only lets the redirect guard ignore the name.
 const GUARD_NAME = 'Trip';
@@ -69,7 +70,7 @@ function Summary() {
   const perDay = formatMoney(perPersonPerDay(perPerson, days), locale);
   const details = TripDetailsInputSchema.safeParse(input.details);
   const nameError = submitted && !details.success ? details.error.issues[0].message : undefined;
-  const text = (style: 'primary' | 'secondary') => [theme.typography.bodyM, { color: theme.colors.text[style] }];
+  const text = (style: 'primary' | 'secondary') => [tokens.typography.styles.bodyMD, { color: theme.text[style] }];
 
   const goTo = (step: WizardStep) => router.dismissTo(stepRoute(step));
 
@@ -129,12 +130,12 @@ function Summary() {
         error: createTrip.isError ? saveErrorText(createTrip.error) : undefined,
       }}
     >
-      <Text accessibilityRole="header" style={[theme.typography.heading2, { color: theme.colors.text.primary }]}>
+      <Text accessibilityRole="header" style={[tokens.typography.styles.headingLG, { color: theme.text.primary }]}>
         {t('newTrip.summary.heading')}
       </Text>
 
       <Card testID="summary-details">
-        <Text accessibilityRole="header" style={[theme.typography.bodyMMedium, { color: theme.colors.text.primary }]}>
+        <Text accessibilityRole="header" style={[tokens.typography.styles.labelLG, { color: theme.text.primary }]}>
           {t('newTrip.summary.detailsTitle')}
         </Text>
         <TextField
@@ -155,11 +156,11 @@ function Summary() {
           })}
         </Text>
         {/* Extra space above each direction so outbound and return read as separate groups. */}
-        <Text style={[theme.typography.bodyMMedium, { color: theme.colors.text.primary, marginTop: theme.spacing[2] }]}>
+        <Text style={[tokens.typography.styles.labelMD, { color: theme.text.primary, marginTop: tokens.spacing[2] }]}>
           {t('newTrip.flights.outbound')}
         </Text>
         {segmentLines(draft.outbound)}
-        <Text style={[theme.typography.bodyMMedium, { color: theme.colors.text.primary, marginTop: theme.spacing[2] }]}>
+        <Text style={[tokens.typography.styles.labelMD, { color: theme.text.primary, marginTop: tokens.spacing[2] }]}>
           {t('newTrip.flights.return')}
         </Text>
         {segmentLines(draft.return)}
@@ -184,8 +185,8 @@ function Summary() {
       </SummaryCard>
 
       <SummaryCard testID="summary-budget" title={t('newTrip.summary.budgetTitle')} onChange={() => goTo('budget')}>
-        <View style={{ flexDirection: 'row', alignItems: 'baseline', flexWrap: 'wrap', gap: theme.spacing[2] }}>
-          <Text style={[theme.typography.numericL, { color: theme.colors.text.primary }]}>{formatMoney(perPerson, locale)}</Text>
+        <View style={{ flexDirection: 'row', alignItems: 'baseline', flexWrap: 'wrap', gap: tokens.spacing[2] }}>
+          <Text style={[tokens.typography.styles.moneyLG, { color: theme.text.primary }]}>{formatMoney(perPerson, locale)}</Text>
           <Text style={text('secondary')}>{t('newTrip.summary.perPerson')}</Text>
         </View>
         <Text style={text('secondary')}>
@@ -218,10 +219,10 @@ function SummaryCard({
   const theme = useTheme();
   return (
     <Card testID={testID}>
-      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: theme.spacing[2] }}>
+      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: tokens.spacing[2] }}>
         <Text
           accessibilityRole="header"
-          style={[heading ? theme.typography.heading3 : theme.typography.bodyMMedium, { color: theme.colors.text.primary, flexShrink: 1 }]}
+          style={[heading ? tokens.typography.styles.headingSM : tokens.typography.styles.labelLG, { color: theme.text.primary, flexShrink: 1 }]}
         >
           {title}
         </Text>

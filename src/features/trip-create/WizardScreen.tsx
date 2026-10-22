@@ -1,6 +1,6 @@
 import { useRouter } from 'expo-router';
 import { useHeaderHeight } from 'expo-router/react-navigation';
-import { CircleX, type LucideIcon } from 'lucide-react-native';
+import { CircleAlert, type LucideIcon } from 'lucide-react-native';
 import { useEffect, useRef, type ReactNode, type RefObject } from 'react';
 import {
   Keyboard,
@@ -18,7 +18,8 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { PrimaryButton } from '@/components/PrimaryButton';
 import { StepIndicator } from '@/components/StepIndicator';
-import { useTheme } from '@/theme/legacy/useTheme';
+import { tokens } from '@/theme/tokens';
+import { useTheme } from '@/theme/useTheme';
 
 import { nextStep, stepRoute, wizardSteps, type WizardStep } from './steps';
 import { useTripDraft } from './TripDraftContext';
@@ -74,10 +75,11 @@ export function WizardScreen({ step, children, action, scrollRef }: Props) {
   const { width } = useWindowDimensions();
   const { draft } = useTripDraft();
   const steps = wizardSteps(draft.companionCount);
-  const horizontal = width < theme.breakpoints.compact ? theme.spacing[4] : theme.spacing[5];
+  const { spacing } = tokens;
+  const horizontal = width < tokens.layout.compactBreakpoint ? spacing[4] : spacing[5];
   const ownScrollRef = useRef<ScrollView>(null);
   const scroll = scrollRef ?? ownScrollRef;
-  const keyboardScrollProps = useScrollFocusedFieldIntoView(scroll, theme.spacing[4]);
+  const keyboardScrollProps = useScrollFocusedFieldIntoView(scroll, spacing[4]);
 
   return (
     // `padding` on Android too: with edge-to-edge the window is not resized for the keyboard (D3).
@@ -85,7 +87,7 @@ export function WizardScreen({ step, children, action, scrollRef }: Props) {
       testID="wizard-screen"
       behavior="padding"
       keyboardVerticalOffset={headerHeight}
-      style={[styles.screen, { backgroundColor: theme.colors.background }]}
+      style={[styles.screen, { backgroundColor: theme.background.canvas }]}
     >
       <ScrollView
         ref={scroll}
@@ -94,7 +96,7 @@ export function WizardScreen({ step, children, action, scrollRef }: Props) {
         {...keyboardScrollProps}
         contentContainerStyle={[
           styles.content,
-          { maxWidth: theme.size.maxContentWidth, paddingHorizontal: horizontal, paddingTop: theme.spacing[4], gap: theme.spacing[6] },
+          { maxWidth: tokens.layout.maxContentWidth, paddingHorizontal: horizontal, paddingTop: spacing[4], gap: spacing[6] },
         ]}
       >
         <StepIndicator current={steps.indexOf(step) + 1} total={steps.length} />
@@ -102,22 +104,32 @@ export function WizardScreen({ step, children, action, scrollRef }: Props) {
       </ScrollView>
       {action && (
         <View
+          testID="wizard-action"
           style={[
             styles.content,
             {
-              maxWidth: theme.size.maxContentWidth,
+              maxWidth: tokens.layout.maxContentWidth,
               paddingHorizontal: horizontal,
-              paddingTop: theme.spacing[3],
-              paddingBottom: insets.bottom + theme.spacing[4],
+              paddingTop: spacing[3],
+              paddingBottom: insets.bottom + spacing[4],
             },
           ]}
         >
           {action.error && (
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: theme.spacing[1], marginBottom: theme.spacing[3] }}>
-              <CircleX size={theme.size.iconInline} strokeWidth={theme.size.iconStroke} color={theme.colors.status.error} aria-hidden />
+            <View
+              testID="wizard-action-error"
+              style={{ flexDirection: 'row', alignItems: 'center', gap: spacing[1], marginBottom: spacing[3] }}
+            >
+              <CircleAlert
+                testID="wizard-action-error-icon"
+                size={tokens.iconography.size.xs}
+                strokeWidth={tokens.iconography.strokeWidth}
+                color={theme.semantic.error.foreground}
+                aria-hidden
+              />
               <Text
                 accessibilityLiveRegion="polite"
-                style={[theme.typography.bodyS, { color: theme.colors.status.error, flexShrink: 1 }]}
+                style={[tokens.typography.styles.bodySM, { color: theme.semantic.error.foreground, flexShrink: 1 }]}
               >
                 {action.error}
               </Text>

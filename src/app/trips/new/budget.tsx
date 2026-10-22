@@ -11,7 +11,8 @@ import { currencyMinorDigits, formatMoney, parseAmountToMinor } from '@/lib/mone
 import { tripDayCount, perPersonPerDay } from '@/lib/trip-days';
 import { deriveTripDates } from '@/lib/trip-dates';
 import { BudgetStepInputSchema } from '@/schemas';
-import { useTheme } from '@/theme/legacy/useTheme';
+import { tokens } from '@/theme/tokens';
+import { useTheme } from '@/theme/useTheme';
 
 // Step 3 — budget per person for the whole trip, without flights (D5, D8, D33–D37).
 export default function BudgetStep() {
@@ -53,11 +54,11 @@ export default function BudgetStep() {
 
   return (
     <WizardScreen step="budget" action={{ label: t('newTrip.next'), onPress: next }}>
-      <View style={{ gap: theme.spacing[2] }}>
-        <Text accessibilityRole="header" style={[theme.typography.heading2, { color: theme.colors.text.primary }]}>
+      <View style={{ gap: tokens.spacing[2] }}>
+        <Text accessibilityRole="header" style={[tokens.typography.styles.headingLG, { color: theme.text.primary }]}>
           {t(solo ? 'newTrip.budget.headingSolo' : 'newTrip.budget.heading')}
         </Text>
-        <Text style={[theme.typography.bodyM, { color: theme.colors.text.secondary }]}>{t('newTrip.budget.hint')}</Text>
+        <Text style={[tokens.typography.styles.bodyMD, { color: theme.text.secondary }]}>{t('newTrip.budget.hint')}</Text>
       </View>
       <AmountField
         label={t(solo ? 'newTrip.budget.amountSolo' : 'newTrip.budget.amount')}
@@ -66,8 +67,8 @@ export default function BudgetStep() {
         error={errorKey ? t(errorKey) : undefined}
         onChangeText={(text) => setBudget({ amountText: text })}
       />
-      <View style={{ gap: theme.spacing[1] }}>
-        <Text style={[theme.typography.bodyMMedium, { color: theme.colors.text.primary }]}>{t('newTrip.budget.currency')}</Text>
+      <View style={{ gap: tokens.spacing[1] }}>
+        <Text style={[tokens.typography.styles.labelMD, { color: theme.text.primary }]}>{t('newTrip.budget.currency')}</Text>
         <SegmentedControl
           label={t('newTrip.budget.currency')}
           options={currencies.map((code) => ({ value: code, label: code }))}
@@ -76,16 +77,16 @@ export default function BudgetStep() {
         />
       </View>
       {budgetPerPerson && (
-        <View style={{ gap: theme.spacing[1] }}>
+        <View style={{ gap: tokens.spacing[1] }}>
           {travellers > 1 && (
-            <Text style={[theme.typography.bodyM, { color: theme.colors.text.primary }]}>
+            <Text style={[tokens.typography.styles.bodyMD, { color: theme.text.primary }]}>
               {t('newTrip.budget.groupTotal', {
                 count: travellers,
                 total: formatMoney({ ...budgetPerPerson, amountMinor: budgetPerPerson.amountMinor * travellers }, i18n.language),
               })}
             </Text>
           )}
-          <Text style={[theme.typography.bodyM, { color: theme.colors.text.secondary }]}>
+          <Text style={[tokens.typography.styles.bodyMD, { color: theme.text.secondary }]}>
             {t('newTrip.budget.perDay', {
               amount: formatMoney(perPersonPerDay(budgetPerPerson, tripDayCount(startDate, endDate)), i18n.language),
             })}

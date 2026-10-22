@@ -6,7 +6,8 @@ import { Card } from '@/components/Card';
 import { DateTimeField } from '@/components/DateTimeField';
 import { TextButton } from '@/components/TextButton';
 import { TextField } from '@/components/TextField';
-import { useTheme } from '@/theme/legacy/useTheme';
+import { tokens } from '@/theme/tokens';
+import { useTheme } from '@/theme/useTheme';
 
 import type { SegmentDraft } from './draft';
 
@@ -33,8 +34,8 @@ export function SegmentCard({ title, segment, onChange, errors, suggestedDepartu
 
   return (
     <Card testID={testID} onLayout={onLayout}>
-      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', minHeight: theme.size.touchTarget }}>
-        <Text style={[theme.typography.bodyMMedium, { color: theme.colors.text.primary }]}>{title}</Text>
+      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', minHeight: tokens.layout.touchTarget }}>
+        <Text style={[tokens.typography.styles.labelLG, { color: theme.text.primary }]}>{title}</Text>
         {onRemove && <TextButton variant="ghost" label={t('newTrip.flights.remove')} onPress={onRemove} />}
       </View>
       <AirportField

@@ -304,6 +304,9 @@ Manual test steps (Kacper / tester), each in light and in dark mode:
   elsewhere (§8.0) · device check: not run (step 12; manual steps from the implementer: Welcome dim, sign-in sheet
   error offline, email / code / profile headings and errors, avatar pressed / focus / disabled, sheet errors offline,
   max font scale, cold-start canvas).
+- Step 9 (interrupted, 2026-10-22, by Kacper): the implementer was stopped mid-step; its partial work (wizard
+  sources, `src/app/trips/new/*`, tests incl. new `look.test.tsx`) is committed as WIP, not verified, tests not run.
+  Resume: re-run the full gate, finish the step, then verifier.
 
 ## Risks & open questions
 Answers (Kacper, 2026-10-22, with the approval):

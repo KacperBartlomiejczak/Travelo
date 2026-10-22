@@ -8,7 +8,8 @@ import { FriendCard } from '@/features/trip-create/FriendCard';
 import { useTripDraft } from '@/features/trip-create/TripDraftContext';
 import { useGoToNextStep, WizardScreen } from '@/features/trip-create/WizardScreen';
 import { DISPLAY_NAME_MAX_LENGTH, FriendsStepInputSchema } from '@/schemas';
-import { useTheme } from '@/theme/legacy/useTheme';
+import { tokens } from '@/theme/tokens';
+import { useTheme } from '@/theme/useTheme';
 
 // Step 2 — who flies along and what they enjoy (D7, D11, D32). A friend with an account is linked by the friend code (friend-invite).
 export default function FriendsStep() {
@@ -35,16 +36,16 @@ export default function FriendsStep() {
     AccessibilityInfo.announceForAccessibility(t('newTrip.fixErrors'));
     const failed = Object.keys(fieldErrors(result));
     const index = draft.friends.findIndex((_, i) => waitingForCode[i] || failed.some((key) => key.startsWith(`friends.${i}.`)));
-    if (index >= 0) scrollRef.current?.scrollTo({ y: Math.max(0, (cardY.current[index] ?? 0) - theme.spacing[4]), animated: true });
+    if (index >= 0) scrollRef.current?.scrollTo({ y: Math.max(0, (cardY.current[index] ?? 0) - tokens.spacing[4]), animated: true });
   }
 
   return (
     <WizardScreen step="friends" scrollRef={scrollRef} action={{ label: t('newTrip.next'), onPress: next }}>
-      <View style={{ gap: theme.spacing[2] }}>
-        <Text accessibilityRole="header" style={[theme.typography.heading2, { color: theme.colors.text.primary }]}>
+      <View style={{ gap: tokens.spacing[2] }}>
+        <Text accessibilityRole="header" style={[tokens.typography.styles.headingLG, { color: theme.text.primary }]}>
           {t('newTrip.friends.heading')}
         </Text>
-        <Text style={[theme.typography.bodyM, { color: theme.colors.text.secondary }]}>{t('newTrip.friends.hint')}</Text>
+        <Text style={[tokens.typography.styles.bodyMD, { color: theme.text.secondary }]}>{t('newTrip.friends.hint')}</Text>
       </View>
       {draft.friends.map((friend, index) => {
         const nameError = errors[`friends.${index}.displayName`];
