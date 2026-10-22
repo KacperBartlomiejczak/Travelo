@@ -7,6 +7,7 @@ import TabsLayout from '@/app/(drawer)/(tabs)/_layout';
 import DrawerLayout from '@/app/(drawer)/_layout';
 import RootLayout from '@/app/_layout';
 import { useCurrentTrip } from '@/hooks/useTrips';
+import { darkTheme, lightTheme } from '@/theme/theme';
 import { tokens } from '@/theme/tokens';
 import { drawerStatus } from '@/test/drawer-status';
 import { useFakeAppSession } from '@/test/fake-session-source';
@@ -21,6 +22,9 @@ jest.mock('expo-splash-screen', () => ({
 
 const mockedUseFonts = jest.mocked(useFonts);
 
+let mockScheme: 'light' | 'dark' = 'light';
+jest.mock('react-native/Libraries/Utilities/useColorScheme', () => ({ __esModule: true, default: () => mockScheme }));
+
 function renderApp() {
   return renderRouter({
     _layout: RootLayout,
@@ -30,6 +34,10 @@ function renderApp() {
     'trips/new/index': () => null,
   });
 }
+
+beforeEach(() => {
+  mockScheme = 'light';
+});
 
 afterEach(() => jest.clearAllMocks());
 
@@ -72,6 +80,21 @@ describe('RootLayout', () => {
     expect(screen.getByTestId('splash-overlay')).toBeTruthy();
     expect(screen.getByTestId('splash-lottie')).toBeTruthy();
     expect(screen.getByTestId('app-loading')).toBeTruthy();
+  });
+
+  it.each([
+    ['light', lightTheme],
+    ['dark', darkTheme],
+  ] as const)('draws the loading screen in the %s canvas colour (design-context §9.0)', async (scheme, theme) => {
+    mockScheme = scheme;
+    mockedUseFonts.mockReturnValue([true, null]);
+    const session = useFakeAppSession({ status: 'signedIn', userId: SIGNED_IN_USER_ID });
+    const release = session.holdCurrent();
+    allowGateToStayLoading();
+    await renderApp();
+    expect(screen.getByTestId('app-loading')).toHaveStyle({ flex: 1, backgroundColor: theme.background.canvas });
+    await act(async () => release());
+    await screen.findByText('home screen');
   });
 
   it('removes the animated splash after it has finished and the gate is ready, and the navigator stays', async () => {
