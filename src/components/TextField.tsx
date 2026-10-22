@@ -1,9 +1,9 @@
 import { useState, type Ref } from 'react';
 import { TextInput, type TextInputProps } from 'react-native';
 
-import { useTheme } from '@/theme/legacy/useTheme';
+import { useTheme } from '@/theme/useTheme';
 
-import { Field, inputBoxStyle, inputTextStyle } from './Field';
+import { Field, inputBoxStyle, inputCursorProps, inputTextStyle } from './Field';
 
 type Props = Pick<
   TextInputProps,
@@ -33,6 +33,7 @@ type Props = Pick<
 export function TextField({ label, value, onChangeText, optional, hint, error, inputRef, ...inputProps }: Props) {
   const theme = useTheme();
   const [focused, setFocused] = useState(false);
+  const disabled = inputProps.editable === false;
   return (
     <Field label={label} optional={optional} hint={hint} error={error}>
       <TextInput
@@ -44,13 +45,9 @@ export function TextField({ label, value, onChangeText, optional, hint, error, i
         onChangeText={onChangeText}
         onFocus={() => setFocused(true)}
         onBlur={() => setFocused(false)}
-        placeholderTextColor={theme.colors.text.tertiary}
-        style={[
-          inputBoxStyle(theme, { focused, error: Boolean(error) }),
-          // §10.4: a disabled input is neutral.100.
-          inputProps.editable === false && { backgroundColor: theme.colors.surface.secondary },
-          inputTextStyle(theme),
-        ]}
+        placeholderTextColor={theme.text.tertiary}
+        {...inputCursorProps(theme)}
+        style={[inputBoxStyle(theme, { focused, error: Boolean(error), disabled }), inputTextStyle(theme, disabled)]}
       />
     </Field>
   );

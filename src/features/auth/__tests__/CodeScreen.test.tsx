@@ -9,6 +9,7 @@ import i18n from '@/i18n';
 import { headerConfigs, openCodeScreen, renderEmailFlow } from '@/test/auth-email-flow';
 import { setNetwork } from '@/test/mock-network';
 import { lightTheme } from '@/theme/legacy/theme';
+import { lightTheme as sunlineLight } from '@/theme/theme';
 
 // The real sign-in (Supabase) is mocked for every test by jest.setup.ts.
 const sendEmailCode = jest.mocked(appAuth.sendEmailCode);
@@ -155,7 +156,7 @@ describe('CodeScreen (auth-onboarding D6, P3, P5, D17)', () => {
 
       expect(screen.getByText(FORMAT_ERROR)).toBeTruthy();
       expect(field().props.accessibilityHint).toBe(FORMAT_ERROR);
-      expect(field()).toHaveStyle({ borderWidth: 2, borderColor: lightTheme.colors.status.error });
+      expect(field()).toHaveStyle({ borderWidth: 2, borderColor: sunlineLight.semantic.error.foreground });
       expect(announce).toHaveBeenCalledWith(FORMAT_ERROR);
       expect(verifyEmailCode).not.toHaveBeenCalled();
     });
@@ -236,8 +237,8 @@ describe('CodeScreen (auth-onboarding D6, P3, P5, D17)', () => {
 
       await waitFor(() => expect(screen.getByText(WRONG_CODE)).toBeTruthy());
       expect(field().props.accessibilityHint).toBe(WRONG_CODE);
-      expect(field()).toHaveStyle({ borderWidth: 2, borderColor: lightTheme.colors.status.error });
-      expect(screen.getByText(WRONG_CODE)).toHaveStyle({ color: lightTheme.colors.status.error });
+      expect(field()).toHaveStyle({ borderWidth: 2, borderColor: sunlineLight.semantic.error.foreground });
+      expect(screen.getByText(WRONG_CODE)).toHaveStyle({ color: sunlineLight.semantic.error.foreground });
       expect(announce).toHaveBeenCalledWith(WRONG_CODE);
       expect(field().props.value).toBe('123456');
       expect(field().props.editable).not.toBe(false);

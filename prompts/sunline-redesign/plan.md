@@ -106,7 +106,7 @@ is UI configuration, not a data shape, so the Zod rule does not apply.
 - [x] 3. [frontend] Buttons: `PrimaryButton`, `TextButton`, `IconButton`, `HeroIconButton`, `HeroMenuButton`,
   `TripMenuButton`, `BrandButton` / `GoogleButton` / `DiscordButton` (layout only, A3 colors). â€” Â§8.1, Â§8.2 â€” tests
   first: their tests to the new spec â€” verify: suite, typecheck, lint; verifier.
-- [ ] 4. [frontend] Inputs and selection: `Field`, `TextField`, `AmountField`, `AirportField`, `DateTimeField*`, `Chip`,
+- [x] 4. [frontend] Inputs and selection: `Field`, `TextField`, `AmountField`, `AirportField`, `DateTimeField*`, `Chip`,
   `InterestChips`, `SegmentedControl`, `Stepper`, `StepIndicator`. â€” Â§8.4â€“Â§8.6, Â§8.15 â€” same pattern.
 - [ ] 5. [frontend] Surfaces and feedback: `Card`, `BottomSheet`, `ConfirmDialog`, `Snackbar`, `OfflineBanner`,
   `SyncIndicator`, `SkeletonBlock`, `TripHeroSkeleton`, `LayoverLabel`, `TripsEmptyIllustration`, `CoverImage`,
@@ -197,6 +197,26 @@ Manual test steps (Kacper / tester), each in light and in dark mode:
   font scale 1.3. Kacper (2026-10-22): commit step 3 now, the missing checks move to step 12.
 - Open question (tester, step 3 run, not in this task's scope): should "Send code" on the e-mail screen be disabled
   while the field is empty? Today it is enabled. Ask Kacper; A1 keeps behavior unchanged here.
+- Step 4: tests written (red ✓, implementer: the 11 suites against the old code → 11 failed, 54 failed / 45 passed,
+  assertion failures plus TypeErrors from new tests calling legacy `inputBorder` with the new theme, no module errors;
+  `StepIndicator` 3 failed / 3 passed; D16/D18 fixes 3 failed / 23 passed) · all 13 components on the new theme per
+  §8.4–§8.6, §8.15 (airport results as §8.8 list rows); `Field.tsx` exports `inputCursorProps` (cursor `brand.primary`),
+  `inputBorder` / `inputBoxStyle` / `inputTextStyle` take the new `Theme` and an optional `disabled`; inputs and chips
+  give up border width from padding so text does not move on focus · spec-driven size changes: chip 32 → 36 (row gap
+  12 → 8), segmented 52 → 44, amount 64 → 72, airport row min 56, label gap 4 → 8, helper gap 4 → 6, field label
+  `labelMD`, hint and error `caption` with `CircleAlert` (was `CircleX`) · type mappings not in the spec: InterestChips
+  group label `bodySM`, airport row title `labelLG` over `caption`, amount currency `moneyMD` · changed assertions in
+  pre-existing tests (spec changed, not weakened): TextField, AmountField, Chip (opacity → disabled tokens, hitSlop
+  6 → 4), InterestChips, SegmentedControl, Stepper, StepIndicator, and error/hint colors in
+  `src/features/auth/__tests__/{EmailScreen,CodeScreen,ProfileSetupScreen}.test.tsx` · decisions D13–D18 · green ✓
+  126 suites / 2810 tests, typecheck ✓, lint ✓ (orchestrator re-run) · verifier PASS (red not re-run, judged from
+  diffs) with 4 minor issues → D16, D18 fixed tests-first, D17 kept · skill used: test-driven-development,
+  incremental-implementation, frontend-ui-engineering (implementer), ui-taste, code-review-and-quality (verifier) ·
+  mixed-theme state: `CoverPicker` and the auth screens render the new `Field` until steps 5 / 8 · not built (A1):
+  chip error/loading, input loading, airport disabled · notes for later: iOS `selectionColor` branch untested; the web
+  `DateTimeField` reads `useColorScheme`, not the theme scope (unchanged); the 4 dp coral step bar vs §1.3, check on
+  device in step 9 · device check: not run (goes to step 12 with the manual steps from the implementer: field focus
+  and error, amount 72 dp, airport rows, date picker tint, chips keep width, segmented elevation, max font scale).
 
 ## Risks & open questions
 Answers (Kacper, 2026-10-22, with the approval):
@@ -216,6 +236,17 @@ Answers (Kacper, 2026-10-22, with the approval):
   `layout.compactBreakpoint` (390) now. Accepted temporary mismatch: on 360–389 dp widths they sit at the 16 dp gutter
   while screens still on legacy use the 360 breakpoint (20 dp), until steps 6–7 move those screens; on the home route
   `src/app/(drawer)/(tabs)/index.tsx` (renders `HeroMenuButton`, legacy 360 at its own gutters) it lasts until step 10.
+- **D13 (Kacper, 2026-10-22, step 4):** `StepIndicator` (no §8 section) keeps today's 4 dp bar (`spacing[1]`), track
+  `border.subtle`, fill `brand.primary`, label `bodySM` in `text.secondary`; no layout change.
+- **D14 (Kacper, 2026-10-22, step 4):** Segmented control details the spec leaves open: pressed underlay of an
+  unselected segment `surface.primary`; track radius = segment radius + track padding (16, concentric).
+- **D15 (Kacper, 2026-10-22, step 4):** `Stepper` label `labelMD`, count `numeric` (§3.3 rule 4).
+- **D16 (Kacper, 2026-10-22, step 4):** a disabled field with an error keeps the 2 dp error border (error wins over
+  disabled, as in the legacy look; §8.4 is silent).
+- **D17 (Kacper, 2026-10-22, step 4):** the segmented control's 2 dp `border.focus` goes on the segment that has focus,
+  not only the selected one (§8.15 reads "selected"; this is better for keyboard and screen-reader users).
+- **D18 (Kacper, 2026-10-22, step 4):** airport result dividers start at the text column (§8.8), not full width; a
+  focused result row compensates its 2 dp inset border so the text does not move (§8.8 "inset").
 
 - **Q1 Skeleton:** keep today's opacity pulse (profile-screen D9, 1200 ms) in the new `skeleton.base` color, or switch
   to the DESIGN.md Â§8.19 shimmer (`skeleton.highlight` sweeping, 360 ms per pass, static under reduced motion)?

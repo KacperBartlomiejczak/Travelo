@@ -1,9 +1,10 @@
-import type { ReactNode } from 'react';
+import { useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Pressable, Text } from 'react-native';
 
 import { formatLocalDateTime } from '@/lib/date-time';
-import { useTheme } from '@/theme/legacy/useTheme';
+import { tokens } from '@/theme/tokens';
+import { useTheme } from '@/theme/useTheme';
 
 import { Field, inputBoxStyle } from './Field';
 
@@ -35,6 +36,7 @@ export function DateTimeFieldBase({
 }: Pick<DateTimeFieldProps, 'label' | 'value' | 'error'> & { open: boolean; onPress: () => void; children?: ReactNode }) {
   const { t, i18n } = useTranslation();
   const theme = useTheme();
+  const [focused, setFocused] = useState(false);
   return (
     <Field label={label} error={error}>
       <Pressable
@@ -43,9 +45,11 @@ export function DateTimeFieldBase({
         accessibilityHint={error}
         accessibilityState={{ expanded: open }}
         onPress={onPress}
-        style={[inputBoxStyle(theme, { focused: open, error: Boolean(error) }), { justifyContent: 'center' }]}
+        onFocus={() => setFocused(true)}
+        onBlur={() => setFocused(false)}
+        style={[inputBoxStyle(theme, { focused: focused || open, error: Boolean(error) }), { justifyContent: 'center' }]}
       >
-        <Text style={[theme.typography.bodyM, { color: value ? theme.colors.text.primary : theme.colors.text.tertiary }]}>
+        <Text style={[tokens.typography.styles.bodyLG, { color: value ? theme.text.primary : theme.text.tertiary }]}>
           {value ? formatLocalDateTime(value, i18n.language) : t('dateTimeField.placeholder')}
         </Text>
       </Pressable>

@@ -1,9 +1,11 @@
 import { useTranslation } from 'react-i18next';
 import { StyleSheet, Text, View } from 'react-native';
 
-import { useTheme } from '@/theme/legacy/useTheme';
+import { tokens } from '@/theme/tokens';
+import { useTheme } from '@/theme/useTheme';
 
-const BAR_HEIGHT = 4;
+// 4 dp as before (sunline-redesign D13): the spacing step, since tokens have no 4 dp bar.
+const BAR_HEIGHT = tokens.spacing[1];
 
 // "Krok 2 z 4" + progress bar (D12, D23).
 export function StepIndicator({ current, total }: { current: number; total: number }) {
@@ -12,9 +14,9 @@ export function StepIndicator({ current, total }: { current: number; total: numb
   const label = t('newTrip.step', { current, total });
 
   return (
-    <View style={{ gap: theme.spacing[2] }}>
+    <View style={{ gap: tokens.spacing[2] }}>
       {/* Hidden from screen readers: the progress bar below announces the same label once. */}
-      <Text aria-hidden style={[theme.typography.bodyS, { color: theme.colors.text.secondary }]}>
+      <Text aria-hidden style={[tokens.typography.styles.bodySM, { color: theme.text.secondary }]}>
         {label}
       </Text>
       <View
@@ -24,7 +26,7 @@ export function StepIndicator({ current, total }: { current: number; total: numb
         accessibilityValue={{ min: 1, max: total, now: current }}
         style={[
           styles.track,
-          { height: BAR_HEIGHT, borderRadius: theme.radius.full, backgroundColor: theme.colors.border },
+          { height: BAR_HEIGHT, borderRadius: tokens.radii.pill, backgroundColor: theme.border.subtle },
         ]}
       >
         <View
@@ -32,8 +34,8 @@ export function StepIndicator({ current, total }: { current: number; total: numb
           style={{
             width: `${(current / total) * 100}%`,
             height: BAR_HEIGHT,
-            borderRadius: theme.radius.full,
-            backgroundColor: theme.colors.action.primary,
+            borderRadius: tokens.radii.pill,
+            backgroundColor: theme.brand.primary,
           }}
         />
       </View>

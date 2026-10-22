@@ -12,6 +12,7 @@ import { AppProviders } from '@/providers/AppProviders';
 import { setAppProfileRepository } from '@/test/fake-profile-repository';
 import { setNetwork } from '@/test/mock-network';
 import { lightTheme } from '@/theme/legacy/theme';
+import { lightTheme as sunlineLight } from '@/theme/theme';
 
 import { ProfileSetupScreen } from '../ProfileSetupScreen';
 
@@ -249,7 +250,7 @@ describe('ProfileSetupScreen (auth-onboarding D7, D20, P1, P2, P4, P5)', () => {
       expect(screen.queryAllByTestId('field-error-icon', hidden)).toHaveLength(0);
       // The hints stay what they are, in their own colour.
       expect(screen.getByText(NICK_HINT)).toBeTruthy();
-      expect(screen.getByText(INTERESTS_HINT)).toHaveStyle({ color: lightTheme.colors.text.secondary });
+      expect(screen.getByText(INTERESTS_HINT)).toHaveStyle({ color: sunlineLight.text.secondary });
     };
 
     it('an empty form: the button is disabled, a tap and the keyboard key do nothing', async () => {
@@ -733,9 +734,9 @@ describe('ProfileSetupScreen (auth-onboarding D7, D20, P1, P2, P4, P5)', () => {
       await fireEvent.press(saveButton());
 
       await waitFor(() => expect(screen.getByText(NICK_TAKEN)).toBeTruthy());
-      expect(screen.getByText(NICK_TAKEN)).toHaveStyle({ color: lightTheme.colors.status.error });
+      expect(screen.getByText(NICK_TAKEN)).toHaveStyle({ color: sunlineLight.semantic.error.foreground });
       expect(nickField().props.accessibilityHint).toBe(NICK_TAKEN);
-      expect(nickField()).toHaveStyle({ borderWidth: 2, borderColor: lightTheme.colors.status.error });
+      expect(nickField()).toHaveStyle({ borderWidth: 2, borderColor: sunlineLight.semantic.error.foreground });
       expect(screen.queryByText(NICK_HINT)).toBeNull();
       // Not the general save error: it is about the field.
       expect(screen.queryByText(SAVE_ERROR)).toBeNull();
@@ -880,7 +881,7 @@ describe('ProfileSetupScreen (auth-onboarding D7, D20, P1, P2, P4, P5)', () => {
       expect(tree().indexOf(INTERESTS_LABEL)).toBeLessThan(tree().indexOf(INTERESTS_HINT));
       expect(tree().indexOf(INTERESTS_HINT)).toBeLessThan(tree().indexOf('Zabawa'));
       expect(screen.getAllByText(INTERESTS_HINT)).toHaveLength(1);
-      expect(screen.getByText(INTERESTS_HINT)).toHaveStyle({ color: lightTheme.colors.text.secondary });
+      expect(screen.getByText(INTERESTS_HINT)).toHaveStyle({ color: sunlineLight.text.secondary });
       expect(screen.queryAllByTestId('field-error-icon', hidden)).toHaveLength(0);
     });
 

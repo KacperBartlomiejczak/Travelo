@@ -9,6 +9,7 @@ import i18n from '@/i18n';
 import { setNetwork } from '@/test/mock-network';
 import { headerConfigs, openEmailScreen } from '@/test/auth-email-flow';
 import { lightTheme } from '@/theme/legacy/theme';
+import { lightTheme as sunlineLight } from '@/theme/theme';
 
 // The real sign-in (Supabase) is mocked for every test by jest.setup.ts.
 const sendEmailCode = jest.mocked(appAuth.sendEmailCode);
@@ -127,9 +128,9 @@ describe('EmailScreen (auth-onboarding D6, P3, P5, D17)', () => {
       await fireEvent.press(sendButton());
 
       expect(screen.getByText(FORMAT_ERROR)).toBeTruthy();
-      expect(screen.getByText(FORMAT_ERROR)).toHaveStyle({ color: lightTheme.colors.status.error });
+      expect(screen.getByText(FORMAT_ERROR)).toHaveStyle({ color: sunlineLight.semantic.error.foreground });
       expect(field().props.accessibilityHint).toBe(FORMAT_ERROR);
-      expect(field()).toHaveStyle({ borderWidth: 2, borderColor: lightTheme.colors.status.error });
+      expect(field()).toHaveStyle({ borderWidth: 2, borderColor: sunlineLight.semantic.error.foreground });
       expect(announce).toHaveBeenCalledWith(FORMAT_ERROR);
       expect(sendEmailCode).not.toHaveBeenCalled();
     });

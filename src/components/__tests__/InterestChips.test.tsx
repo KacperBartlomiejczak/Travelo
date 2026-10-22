@@ -4,7 +4,9 @@ import { Keyboard, StyleSheet } from 'react-native';
 import { InterestChips } from '@/components/InterestChips';
 import i18n from '@/i18n';
 import { INTEREST_GROUPS, InterestGroupSchema, InterestTagSchema, type InterestTag } from '@/schemas';
-import { lightTheme } from '@/theme/legacy/theme';
+import { darkTheme, lightTheme } from '@/theme/theme';
+import { tokens } from '@/theme/tokens';
+import { DarkThemeScope } from '@/theme/useTheme';
 
 beforeEach(async () => {
   await i18n.changeLanguage('pl');
@@ -72,18 +74,30 @@ describe('InterestChips (extracted from FriendCard, auth-onboarding step 8)', ()
     expect(onChange).not.toHaveBeenCalled();
   });
 
-  // coderabbit-pr21-fixes A3: a chip is 32dp tall with a 44dp touch target (6dp slop above and below), so the rows
-  // must be 44 - 32 = 12dp apart, otherwise the touch areas of two wrapped rows overlap.
+  // coderabbit-pr21-fixes A3: a chip has a 44dp touch target around its visual height (4dp slop above and below), so the rows
+  // must be touchHeight - visualHeight apart, otherwise the touch areas of two wrapped rows overlap.
   it('keeps wrapped chip rows far enough apart that their 44dp touch areas do not overlap', async () => {
+    const { chip } = tokens.components;
     await render(<InterestChips selected={[]} onChange={() => {}} />);
-    const chip = screen.getByRole('checkbox', { name: 'Muzea' });
-    const row = chip.parent;
+    const target = screen.getByRole('checkbox', { name: 'Muzea' });
+    const row = target.parent;
     const style = StyleSheet.flatten(row?.props.style);
     expect(style.flexWrap).toBe('wrap');
-    expect(style.rowGap).toBe(lightTheme.size.touchTarget - 32);
-    expect(style.rowGap).toBe(lightTheme.spacing[3]);
-    expect(style.columnGap).toBe(lightTheme.spacing[2]);
+    expect(style.rowGap).toBe(chip.touchHeight - chip.visualHeight);
+    expect(style.rowGap).toBe(tokens.spacing[2]);
+    expect(style.columnGap).toBe(tokens.spacing[2]);
     expect(style.gap).toBeUndefined();
+  });
+
+  it('labels each group in bodySM text.secondary', async () => {
+    await render(<InterestChips selected={[]} onChange={() => {}} />);
+    expect(screen.getByText('Zabawa')).toHaveStyle({ ...tokens.typography.styles.bodySM, color: lightTheme.text.secondary });
+  });
+
+  it('uses the dark colors in dark mode', async () => {
+    await render(<InterestChips selected={['museums']} onChange={() => {}} />, { wrapper: DarkThemeScope });
+    expect(screen.getByText('Zabawa')).toHaveStyle({ color: darkTheme.text.secondary });
+    expect(screen.getByRole('checkbox', { name: 'Muzea' })).toHaveStyle({ backgroundColor: darkTheme.brand.tint });
   });
 
   it('speaks English on an English phone', async () => {

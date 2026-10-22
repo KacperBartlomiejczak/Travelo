@@ -3,7 +3,7 @@ import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { fromPickerDate, toPickerDate } from '@/lib/date-time';
-import { useTheme } from '@/theme/legacy/useTheme';
+import { useTheme } from '@/theme/useTheme';
 
 import { DateTimeFieldBase, fallbackSuggestion, type DateTimeFieldProps } from './DateTimeFieldBase';
 
@@ -29,7 +29,7 @@ export function DateTimeField({ label, value, onChange, suggested, error }: Date
           value={toPickerDate(start)}
           timeZoneName="UTC"
           locale={i18n.language}
-          accentColor={theme.colors.action.primary}
+          accentColor={theme.brand.primary}
           onValueChange={(_, date) => onChange(fromPickerDate(date))}
         />
       )}

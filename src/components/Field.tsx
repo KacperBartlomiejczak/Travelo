@@ -1,10 +1,11 @@
-import { CircleX } from 'lucide-react-native';
+import { CircleAlert } from 'lucide-react-native';
 import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Text, View, type TextStyle } from 'react-native';
+import { Platform, Text, View, type TextStyle } from 'react-native';
 
-import type { Theme } from '@/theme/legacy/theme';
-import { useTheme } from '@/theme/legacy/useTheme';
+import type { Theme } from '@/theme/theme';
+import { tokens } from '@/theme/tokens';
+import { useTheme } from '@/theme/useTheme';
 
 type Props = {
   label: string;
@@ -16,34 +17,42 @@ type Props = {
   children: ReactNode;
 };
 
-// Label above, control, error below (§10.4, D27). A hint sits where the error would; while an error shows, the hint is hidden.
+const { input } = tokens.components;
+const { styles } = tokens.typography;
+
+// External label, control, helper or error line (design-context §8.4). A hint sits where the error would; while an error shows, the hint is hidden.
 export function Field({ label, optional = false, hint, error, messagesFirst = false, children }: Props) {
   const { t } = useTranslation();
   const theme = useTheme();
-  const messages = (
-    <>
-      {hint && !error && <Text style={[theme.typography.bodyS, { color: theme.colors.text.secondary }]}>{hint}</Text>}
-      {error && (
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: theme.spacing[1] }}>
-          <CircleX
-            testID="field-error-icon"
-            size={theme.size.iconInline}
-            strokeWidth={theme.size.iconStroke}
-            color={theme.colors.status.error}
-            aria-hidden
-          />
-          <Text accessibilityLiveRegion="polite" style={[theme.typography.bodyS, { color: theme.colors.status.error, flexShrink: 1 }]}>
-            {error}
-          </Text>
-        </View>
-      )}
-    </>
-  );
+  const messages =
+    error || hint ? (
+      <View testID="field-messages" style={messagesFirst ? { marginBottom: input.helperGap } : { marginTop: input.helperGap }}>
+        {error ? (
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: tokens.spacing[1] }}>
+            <CircleAlert
+              testID="field-error-icon"
+              size={tokens.iconography.size.xs}
+              strokeWidth={tokens.iconography.strokeWidth}
+              color={theme.semantic.error.foreground}
+              aria-hidden
+            />
+            <Text
+              accessibilityLiveRegion="polite"
+              style={[styles.caption, { color: theme.semantic.error.foreground, flexShrink: 1 }]}
+            >
+              {error}
+            </Text>
+          </View>
+        ) : (
+          <Text style={[styles.caption, { color: theme.text.secondary }]}>{hint}</Text>
+        )}
+      </View>
+    ) : null;
   return (
-    <View style={{ gap: theme.spacing[1] }}>
-      <Text style={[theme.typography.bodyMMedium, { color: theme.colors.text.primary }]}>
+    <View>
+      <Text style={[styles.labelMD, { color: theme.text.primary, marginBottom: input.labelGap }]}>
         {label}
-        {optional && <Text style={{ color: theme.colors.text.secondary }}>{` ${t('common.optional')}`}</Text>}
+        {optional && <Text style={{ color: theme.text.secondary }}>{` ${t('common.optional')}`}</Text>}
       </Text>
       {messagesFirst && messages}
       {children}
@@ -52,17 +61,18 @@ export function Field({ label, optional = false, hint, error, messagesFirst = fa
   );
 }
 
-type InputState = { focused: boolean; error: boolean };
+type InputState = { focused: boolean; error: boolean; disabled?: boolean };
 
-/** 1dp input border, 2dp brand when focused, 2dp error (§10.4, D26). */
-export function inputBorder(theme: Theme, { focused, error }: InputState): { borderWidth: number; borderColor: string } {
-  return {
-    borderWidth: focused || error ? 2 : 1,
-    borderColor: error ? theme.colors.status.error : focused ? theme.colors.action.primary : theme.colors.input.border,
-  };
+/** 1dp border.default; 2dp border.focus when focused; 2dp error foreground on error (§8.4). Disabled stays 1dp default unless there is an error. */
+export function inputBorder(theme: Theme, { focused, error, disabled = false }: InputState): { borderWidth: number; borderColor: string } {
+  // D16: an error stays visible on a disabled field.
+  if (error) return { borderWidth: input.focusBorderWidth, borderColor: theme.semantic.error.foreground };
+  if (disabled) return { borderWidth: input.borderWidth, borderColor: theme.border.default };
+  if (focused) return { borderWidth: input.focusBorderWidth, borderColor: theme.border.focus };
+  return { borderWidth: input.borderWidth, borderColor: theme.border.default };
 }
 
-/** Box of a text-like control: 52dp, padding 16, radius sm, surface background (§10.4, D27). */
+/** Box of a text-like control: 52dp, padding 16 less what the thicker border takes, radius 16 (§8.4). */
 // Plain numbers/strings so the style fits both View (Pressable) and Text (TextInput) props.
 export function inputBoxStyle(
   theme: Theme,
@@ -77,18 +87,25 @@ export function inputBoxStyle(
   outlineStyle: 'solid';
   outlineWidth: number;
 } {
+  const border = inputBorder(theme, state);
   return {
-    minHeight: theme.size.buttonPrimary,
+    minHeight: input.height,
     // Web: no browser focus outline over the 2dp focus border.
     outlineStyle: 'solid',
     outlineWidth: 0,
-    paddingHorizontal: theme.spacing[4],
-    borderRadius: theme.radius.sm,
-    backgroundColor: theme.colors.surface.default,
-    ...inputBorder(theme, state),
+    // §8.4: the thicker focus/error border is paid for by the padding, so the text does not move.
+    paddingHorizontal: input.horizontalPadding - (border.borderWidth - input.borderWidth),
+    borderRadius: input.radius,
+    backgroundColor: state.disabled ? theme.disabled.background : theme.surface.primary,
+    ...border,
   };
 }
 
-export function inputTextStyle(theme: Theme): TextStyle {
-  return { ...theme.typography.bodyM, color: theme.colors.text.primary };
+export function inputTextStyle(theme: Theme, disabled = false): TextStyle {
+  return { ...styles.bodyLG, color: disabled ? theme.disabled.foreground : theme.text.primary };
+}
+
+/** Cursor in brand.primary (§8.4). iOS has no separate cursor color; Android keeps its own selection highlight. */
+export function inputCursorProps(theme: Theme): { cursorColor: string; selectionColor?: string } {
+  return { cursorColor: theme.brand.primary, ...(Platform.OS === 'ios' && { selectionColor: theme.brand.primary }) };
 }
