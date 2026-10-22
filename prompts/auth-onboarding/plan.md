@@ -240,7 +240,7 @@ Written first, run red for the expected reason, per step:
 3. **Supabase dashboard** → Authentication → Sign In / Providers → Google: enable, paste the Client ID and secret, save.
 4. Authentication → Sign In / Providers → turn **off** "Allow anonymous sign-ins".
 5. Authentication → URL Configuration → Redirect URLs: add `traveling://**` and `exp://**`.
-6. Authentication → Emails → Templates: in **Confirm signup** and in **Magic Link** set the subject "Twój kod do Travelo" and paste the body of `supabase/templates/magic_link.html`; save both.
+6. Authentication → Emails → Templates (needs the custom SMTP, D25): in **Confirm signup** and in **Magic Link** set the subject "Your Travelo code" and paste the body of `supabase/templates/magic_link.html`; save both.
 6a. **Discord** (done by Kacper, 2026-10-18): Discord Developer Portal → the app → OAuth2 → Redirects: `https://hwsqdlxojllclbwlhuwb.supabase.co/auth/v1/callback`; Supabase → Sign In / Providers → Discord with the Client ID and secret.
 7. Migration: I apply `20261018150000_profiles.sql` through the Supabase MCP when you say so.
 
