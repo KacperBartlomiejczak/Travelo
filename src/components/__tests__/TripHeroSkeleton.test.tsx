@@ -1,94 +1,84 @@
-import { act, render, screen } from '@testing-library/react-native';
-import { AccessibilityInfo, Animated, StyleSheet } from 'react-native';
+import { act, isHiddenFromAccessibility, render, screen } from '@testing-library/react-native';
+import { AccessibilityInfo, StyleSheet } from 'react-native';
 
+import { heroHeight } from '@/components/TripHero';
 import { TripHeroSkeleton } from '@/components/TripHeroSkeleton';
-import { darkTheme, lightTheme } from '@/theme/theme';
-import { tokens } from '@/theme/tokens';
-import { DarkThemeScope } from '@/theme/useTheme';
+import { colors, tokens } from '@/theme/tokens';
+
+let mockScheme: 'light' | 'dark' = 'light';
+jest.mock('react-native/Libraries/Utilities/useColorScheme', () => ({ __esModule: true, default: () => mockScheme }));
 
 jest.mock('react-native/Libraries/Utilities/useWindowDimensions', () => ({
   __esModule: true,
   default: () => ({ width: 375, height: 812, scale: 2, fontScale: 1 }),
 }));
 
-const { duration, minOpacity } = tokens.motion.microinteraction.skeletonPulse;
+// The Reanimated test mock turns every animation into a plain number; these wrappers record how the pulse was built.
+const mockWithTiming = jest.fn((toValue: number, _config?: { duration?: number }) => toValue);
+const mockWithRepeat = jest.fn((animation: number, _times?: number) => animation);
+jest.mock('react-native-reanimated', () => ({
+  ...jest.requireActual('react-native-reanimated/mock'),
+  withTiming: (toValue: number, config?: { duration?: number }) => mockWithTiming(toValue, config),
+  withRepeat: (animation: number, times?: number) => mockWithRepeat(animation, times),
+}));
+
+const { skeletonPulse } = tokens.motion.microinteraction;
 const hidden = { includeHiddenElements: true };
 const skeleton = () => screen.getByTestId('trip-hero-skeleton', hidden);
-const opacity = () => StyleSheet.flatten(skeleton().props.style).opacity as number;
-const pass = (ms: number) =>
-  act(async () => {
-    jest.advanceTimersByTime(ms);
-  });
+const style = () => StyleSheet.flatten(skeleton().props.style);
 
-beforeEach(() => jest.useFakeTimers());
-afterEach(() => {
-  jest.useRealTimers();
-  jest.restoreAllMocks();
+beforeEach(() => {
+  mockScheme = 'light';
+  jest.clearAllMocks();
+  jest.spyOn(AccessibilityInfo, 'isReduceMotionEnabled').mockResolvedValue(false);
 });
 
-// Sunline Editorial §8.19 geometry and colors, motion per sunline-redesign D5 (pulse, not shimmer).
+// Sunline Editorial §8.19 geometry and colors; a SkeletonBlock of the hero's size (sunline-merge-main, D19).
 describe('TripHeroSkeleton', () => {
-  it('is a block of the hero height in skeleton.base, hidden from screen readers', async () => {
+  it('is a full-width, square-cornered block of the hero height, hidden from screen readers', async () => {
     await render(<TripHeroSkeleton />);
     expect(screen.queryByTestId('trip-hero-skeleton')).toBeNull();
-    expect(skeleton().props['aria-hidden']).toBe(true);
-    // Same geometry as the full-bleed hero (§10.1, radius none).
-    expect(skeleton()).toHaveStyle({ height: 422, borderRadius: tokens.radii.none, backgroundColor: lightTheme.skeleton.base });
+    expect(isHiddenFromAccessibility(skeleton())).toBe(true);
+    expect(style()).toMatchObject({ width: '100%', height: heroHeight(812), borderRadius: tokens.radii.none });
+    expect(heroHeight(812)).toBe(422);
   });
 
-  it('uses the dark skeleton color in dark mode', async () => {
-    await render(<TripHeroSkeleton />, { wrapper: DarkThemeScope });
-    expect(skeleton()).toHaveStyle({ backgroundColor: darkTheme.skeleton.base });
-  });
-
-  it('pulses its opacity 1 → 0.5 → 1 over 1200 ms and repeats (D5)', async () => {
-    expect([duration, minOpacity]).toEqual([1200, 0.5]);
+  it.each(['light', 'dark'] as const)('is skeleton.base in %s', async (scheme) => {
+    mockScheme = scheme;
     await render(<TripHeroSkeleton />);
-    await act(async () => {}); // the reduce-motion answer arrives
-    expect(opacity()).toBeCloseTo(1, 1);
-    await pass(duration / 2);
-    expect(opacity()).toBeCloseTo(minOpacity, 1);
-    await pass(duration / 2);
-    expect(opacity()).toBeCloseTo(1, 1);
-    await pass(duration / 2);
-    expect(opacity()).toBeCloseTo(minOpacity, 1);
+    expect(style().backgroundColor).toBe(colors[scheme].skeleton.base);
+  });
+
+  it('pulses opacity 1 -> minOpacity -> 1 over skeletonPulse.duration, forever', async () => {
+    await render(<TripHeroSkeleton />);
+    await act(async () => {});
+    const legs = mockWithTiming.mock.calls.map(([toValue, config]) => ({ toValue, duration: config?.duration }));
+    expect(legs.map((leg) => leg.toValue)).toEqual([skeletonPulse.minOpacity, 1]);
+    expect(legs.reduce((sum, leg) => sum + (leg.duration ?? 0), 0)).toBe(skeletonPulse.duration);
+    expect(mockWithRepeat).toHaveBeenCalledWith(expect.anything(), -1);
   });
 
   it('stays static at full opacity when the system asks to reduce motion', async () => {
     jest.spyOn(AccessibilityInfo, 'isReduceMotionEnabled').mockResolvedValue(true);
     await render(<TripHeroSkeleton />);
     await act(async () => {});
-    await pass(duration / 2);
-    expect(opacity()).toBe(1);
-    await pass(duration);
-    expect(opacity()).toBe(1);
+    expect(mockWithRepeat).not.toHaveBeenCalled();
+    expect(style().opacity).toBe(1);
   });
 
   it('does not pulse while the system has not yet said whether to reduce motion', async () => {
     jest.spyOn(AccessibilityInfo, 'isReduceMotionEnabled').mockReturnValue(new Promise(() => {}));
-    const loop = jest.spyOn(Animated, 'loop');
     await render(<TripHeroSkeleton />);
     await act(async () => {});
-    await pass(duration / 2);
-    expect(loop).not.toHaveBeenCalled();
-    expect(opacity()).toBe(1);
+    expect(mockWithRepeat).not.toHaveBeenCalled();
+    expect(style().opacity).toBe(1);
   });
 
   it('stays static when the system cannot say whether to reduce motion', async () => {
     jest.spyOn(AccessibilityInfo, 'isReduceMotionEnabled').mockRejectedValue(new Error('no native module'));
     await render(<TripHeroSkeleton />);
     await act(async () => {});
-    await pass(duration / 2);
-    expect(opacity()).toBe(1);
-  });
-
-  it('stops pulsing when it unmounts', async () => {
-    const stop = jest.fn();
-    jest.spyOn(AccessibilityInfo, 'isReduceMotionEnabled').mockResolvedValue(false);
-    jest.spyOn(Animated, 'loop').mockReturnValue({ start: jest.fn(), stop, reset: jest.fn() });
-    const view = await render(<TripHeroSkeleton />);
-    await act(async () => {}); // the pulse starts once the reduce-motion answer (false) has arrived
-    await view.unmount();
-    expect(stop).toHaveBeenCalled();
+    expect(mockWithRepeat).not.toHaveBeenCalled();
+    expect(style().opacity).toBe(1);
   });
 });

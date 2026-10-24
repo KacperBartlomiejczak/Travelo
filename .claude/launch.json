@@ -12,6 +12,20 @@
       "runtimeExecutable": "powershell",
       "runtimeArgs": ["-NoProfile", "-Command", "$env:CI='1'; $env:REACT_NATIVE_PACKAGER_HOSTNAME='127.0.0.1'; pnpm exec expo start --port 8081"],
       "port": 8081
+    },
+    {
+      "name": "expo-metro",
+      "runtimeExecutable": "pnpm",
+      "runtimeArgs": ["exec", "expo", "start", "--port", "8083"],
+      "port": 8083,
+      "autoPort": false
+    },
+    {
+      "name": "expo-ios-simulator",
+      "runtimeExecutable": "env",
+      "runtimeArgs": ["CI=1", "pnpm", "exec", "expo", "start", "--ios", "--port", "8083"],
+      "port": 8083,
+      "autoPort": false
     }
   ]
 }

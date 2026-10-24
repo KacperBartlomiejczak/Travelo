@@ -6,17 +6,20 @@ import {
 } from "@expo-google-fonts/dm-sans";
 import { Fraunces_500Medium, Fraunces_600SemiBold, Fraunces_700Bold } from "@expo-google-fonts/fraunces";
 import { useFonts } from "expo-font";
-import { Stack } from "expo-router";
+import { router, Stack } from "expo-router";
+import { HeaderBackButton } from "expo-router/react-navigation";
 import * as SplashScreen from "expo-splash-screen";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { View } from "react-native";
+import { Platform } from "react-native";
 
 import "@/i18n";
 import { AnimatedSplash } from "@/components/AnimatedSplash";
+import { AppLoading } from "@/features/auth/AppLoading";
 import { FullScreenError } from "@/features/auth/FullScreenError";
 import { useGateView } from "@/features/auth/useGateView";
 import { AppProviders } from "@/providers/AppProviders";
+import { tokens } from "@/theme/tokens";
 import { useTheme } from "@/theme/useTheme";
 
 SplashScreen.preventAutoHideAsync();
@@ -51,11 +54,11 @@ export default function RootLayout() {
 // - signed out: the (auth) group only;
 // - signed in without a profile: profile setup only;
 // - signed in with a profile: the app.
-// While the session or the profile is still being read a blank screen in the theme's background is rendered; a failure to read
-// either is a full-screen error with a retry, never the welcome screen or the setup form.
+// While the session or the profile is still being read the gate shows the home skeleton (`AppLoading`); a failure to
+// read either is a full-screen error with a retry, never the welcome screen or the setup form.
 // The animated splash (splash-animation step 5) covers all of it on a cold start: the native splash is hidden as soon as the gate
 // mounts (the fonts are loaded) and hands over to it; it goes away once it has played and the gate is no longer loading (an error
-// counts as ready), and it is never shown again during the session.
+// counts as ready), and it is never shown again during the session. After a sign-in the skeleton shows without the splash.
 function Gate() {
   const [splashDone, setSplashDone] = useState(false);
   const { view, retry } = useGateView();
@@ -77,7 +80,7 @@ function GateContent({ view, retry }: ReturnType<typeof useGateView>) {
   const theme = useTheme();
 
   if (view === "loading") {
-    return <View testID="app-loading" accessible accessibilityState={{ busy: true }} style={{ flex: 1, backgroundColor: theme.background.canvas }} />;
+    return <AppLoading />;
   }
   if (view === "startError") {
     return <FullScreenError testID="start-error" message={t("auth.startError")} retryLabel={t("auth.retry")} onRetry={retry} />;
@@ -97,6 +100,33 @@ function GateContent({ view, retry }: ReturnType<typeof useGateView>) {
       <Stack.Protected guard={view === "app"}>
         <Stack.Screen name="(drawer)" options={{ headerShown: false }} />
         <Stack.Screen name="trips/new" options={{ headerShown: false }} />
+        {/* Settings above the drawer, so without the pill (profile-screen A4); its back button returns to the profile. */}
+        <Stack.Screen
+          name="settings"
+          options={{
+            title: t("profile.settings"),
+            headerStyle: { backgroundColor: theme.background.canvas },
+            headerTintColor: theme.text.primary,
+            headerTitleStyle: tokens.typography.styles.headingSM,
+            headerShadowVisible: false,
+            headerLeft: ({ tintColor }) => (
+              <HeaderBackButton
+                label={t("nav.profile")}
+                accessibilityLabel={t("settings.back")}
+                tintColor={tintColor}
+                // iOS has no hitSlop on header buttons, so the control itself must be 44 dp (design-context §5.2, profile-screen
+                // D17). Android has a 16 dp hitSlop (HeaderButton.js), but the header view clips it vertically, so only the height
+                // is set there (D26); a wider control would push the title, which sits next to it.
+                style={
+                  Platform.OS === "ios"
+                    ? { minWidth: tokens.layout.touchTarget, minHeight: tokens.layout.touchTarget }
+                    : { minHeight: tokens.layout.touchTarget }
+                }
+                onPress={() => router.back()}
+              />
+            ),
+          }}
+        />
         {/* The trip's photos full screen over the home screen (trip-photos D6, P4). */}
         <Stack.Screen name="trips/[tripId]/photos" options={{ headerShown: false, presentation: 'fullScreenModal' }} />
       </Stack.Protected>

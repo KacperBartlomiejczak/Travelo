@@ -30,16 +30,18 @@ const METRICS = { frame: { x: 0, y: 0, width: 320, height: 640 }, insets: { top:
 // "Today" for the sections: 8 Oct 2026, in the morning on the device.
 const NOW = new Date(2026, 9, 8, 9, 0);
 
-const LISBON: TripListItem = { id: '00000000-0000-4000-8000-0000000000a1', name: 'Lizbona', coverImageUri: DEFAULT_COVER, startDate: '2026-05-01', endDate: '2026-05-08' };
-const OSLO: TripListItem = { id: '00000000-0000-4000-8000-0000000000a2', name: 'Oslo', coverImageUri: DEFAULT_COVER, startDate: '2026-08-10', endDate: '2026-08-14' };
+const LISBON: TripListItem = { id: '00000000-0000-4000-8000-0000000000a1', name: 'Lizbona', coverImageUri: DEFAULT_COVER, destination: 'BCN', flights: [], startDate: '2026-05-01', endDate: '2026-05-08' };
+const OSLO: TripListItem = { id: '00000000-0000-4000-8000-0000000000a2', name: 'Oslo', coverImageUri: DEFAULT_COVER, destination: 'BCN', flights: [], startDate: '2026-08-10', endDate: '2026-08-14' };
 const ROME: TripListItem = {
   id: '00000000-0000-4000-8000-0000000000a3',
   name: 'Rzym',
   coverImageUri: 'preset:bali',
+  destination: 'BCN',
+  flights: [],
   startDate: '2026-10-05',
   endDate: '2026-10-12',
 };
-const BANGKOK: TripListItem = { id: '00000000-0000-4000-8000-0000000000a4', name: 'Warsaw → Bangkok', coverImageUri: DEFAULT_COVER, startDate: '2026-11-03', endDate: '2026-11-15' };
+const BANGKOK: TripListItem = { id: '00000000-0000-4000-8000-0000000000a4', name: 'Warsaw → Bangkok', coverImageUri: DEFAULT_COVER, destination: 'BCN', flights: [], startDate: '2026-11-03', endDate: '2026-11-15' };
 
 function current(item: TripListItem): CurrentTrip {
   return {
@@ -81,6 +83,7 @@ function setup({ list = async () => [BANGKOK, LISBON, ROME, OSLO], currentId = R
     }),
     setBudget: jest.fn(async () => {}),
     syncBudgets: jest.fn(async () => ({ nextAttemptAt: null })),
+    hasUnsentChanges: jest.fn(async () => false),
     updateDetails: jest.fn(async () => {}),
     delete: jest.fn(async () => {}),
     photos: jest.fn(async () => []),

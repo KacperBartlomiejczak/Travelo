@@ -16,7 +16,7 @@ You are the lead engineer and **orchestrator** on a group trip planner app, work
 Short version: a mobile app for the person who organizes a trip for a group of friends. Only the organizer needs the app; friends are added by name and interests, without an account. Out of scope (do not build): flight/hotel booking, social feed, user reviews, settlements.
 
 ### Decisions made
-- **Offline scope (MVP):** **expenses** and **changes to a trip's budget per person** work offline, stored locally in SQLite and synced to Supabase (last write wins by `budgetUpdatedAt`; decided 2026-10-06, `prompts/trips-supabase/plan.md` D1). Everything else (trips, members, flights, plans) is server-first; creating a trip needs internet. The trip list and every trip opened on the phone are also kept as read-only copies in SQLite, and the trip chosen in the side panel is remembered on the phone, so the home screen and the side panel work offline after a restart (D6, extended 2026-10-08 by `prompts/trips-drawer/plan.md` D2, D3). The signed-in user's own profile is also kept as a read-only copy in SQLite, so a returning user opens the app offline (extended 2026-10-18 by `prompts/auth-onboarding/plan.md` D9). Extending offline to other entities is a new decision for Kacper, not something to do on your own.
+- **Offline scope (MVP):** **expenses** and **changes to a trip's budget per person** work offline, stored locally in SQLite and synced to Supabase (last write wins by `budgetUpdatedAt`; decided 2026-10-06, `prompts/trips-supabase/plan.md` D1). Everything else (trips, members, flights, plans) is server-first; creating a trip needs internet. The trip list and every trip opened on the phone are also kept as read-only copies in SQLite, and the trip chosen in the side panel is remembered on the phone, so the home screen and the side panel work offline after a restart (D6, extended 2026-10-08 by `prompts/trips-drawer/plan.md` D2, D3). The signed-in user's own profile is also kept as a read-only copy in SQLite, so a returning user opens the app offline (extended 2026-10-18 by `prompts/auth-onboarding/plan.md` D9). The trip list copy also carries each trip's destination and flight routes, so the profile's travel stats work offline (extended 2026-10-20 by `prompts/profile-screen/plan.md` D11). Extending offline to other entities is a new decision for Kacper, not something to do on your own.
 - **LLM:** Google Gemini via the **Gemini API with a Google AI Studio key**.
 
 ### Open decisions — ask before assuming
@@ -154,7 +154,8 @@ TripMember     { id, tripId, userId: string | null,      // null = friend withou
                  pace?: 'relaxed' | 'normal' | 'intense', dietaryNotes?: string }
                  // budgetLevel / pace optional until member editing exists
 
-Airport        { iata, name, city, countryCode, timezone: IANA, currency: ISO4217, large: boolean }
+Airport        { iata, name, city, countryCode, timezone: IANA, currency: ISO4217, large: boolean,
+                 latitude, longitude }                    // coordinates for the km stat (profile-screen D12)
                // bundled static list (src/data/airports.json), not a server table
 
 FlightSegment  { id, tripId, direction: 'outbound' | 'return' | 'internal', order: int,
@@ -352,7 +353,7 @@ Definitions live in `.claude/agents/`.
 |---|---|---|---|---|
 | **explorer** (read-only) | Haiku 5.5 (`claude-haiku-5-5`) | Answers one concrete question about the codebase: where X lives, which schemas / components / hooks / tests / migrations already exist, which pattern to follow. Returns `file:line` locations and short conclusions | nothing | Edit files, propose implementations |
 | **planner** (read-only) | opus | Drafts a plan in the plan template format, every step tagged `[backend]` or `[frontend]` | nothing — returns the plan to the orchestrator | Start implementing, edit any `plan.md` |
-| **backend** | sonnet | Executes **one approved backend step**: tests first (red), then code (green) | `packages/schemas/`, `supabase/migrations/`, `supabase/functions/` | Touch `apps/mobile/`, return with any failing test |
+| **backend** | sonnet | Executes **one approved backend step**: tests first (red), then code (green) | `packages/schemas/` (now `src/schemas/`), the data layer (`src/data/`, `src/lib/`, `src/providers/`, `src/test/`; Kacper 2026-10-20), `supabase/migrations/`, `supabase/functions/` | Touch `apps/mobile/`, return with any failing test |
 | **frontend** | sonnet | Executes **one approved frontend step** following `context/design-context.md`: tests first, then code | `apps/mobile/` | Change Zod schemas or `supabase/` (stop and report instead), return with any failing test |
 | **verifier** (fresh context) | Haiku 5.5 (`claude-haiku-5-5`) | Checks a finished step against the plan, Rules, design context and Verification loop; runs the checks itself | nothing | Fix things itself — it reports PASS / FAIL |
 | **tester** (device, via `mobile-mcp`) | Haiku 5.5 (`claude-haiku-5-5`), effort high | Drives the app on a connected phone/emulator and walks the plan's manual test steps; checks the screens match the plan | nothing | Fix things itself, guess undefined behavior, use real personal data — it reports PASS / FAIL per scenario |

@@ -137,6 +137,30 @@ describe('Home screen — current trip (D4)', () => {
     expect(screen.queryByRole('button', { name: 'Utwórz podróż' })).toBeNull();
   });
 
+  // app-loading-skeleton step 3: the placeholder is the whole trip view (hero + the three cards), not only the hero.
+  it('loads with the hero skeleton and the three card skeletons inside the loading element', async () => {
+    mockCurrent = () => new Promise(() => {});
+    await renderHome();
+    const loading = within(screen.getByTestId('trips-loading'));
+    const skeleton = within(loading.getByTestId('home-skeleton', { includeHiddenElements: true }));
+    expect(skeleton.getByTestId('trip-hero-skeleton', { includeHiddenElements: true })).toBeTruthy();
+    for (const testID of ['home-skeleton-flights', 'home-skeleton-travellers', 'home-skeleton-budget']) {
+      expect(skeleton.getByTestId(testID, { includeHiddenElements: true })).toBeTruthy();
+    }
+  });
+
+  it('swaps the skeleton for the trip view when the trip arrives', async () => {
+    let load: () => void = () => {};
+    mockCurrent = () => new Promise((resolve) => (load = () => resolve(overview())));
+    await renderHome();
+    expect(screen.getByTestId('trips-loading')).toBeTruthy();
+    await act(async () => load());
+    expect(await screen.findByRole('header', { name: 'Warsaw → Bangkok' })).toBeTruthy();
+    expect(screen.queryByTestId('trips-loading')).toBeNull();
+    expect(screen.queryByTestId('home-skeleton', { includeHiddenElements: true })).toBeNull();
+    expect(screen.getByTestId('home-flights')).toBeTruthy();
+  });
+
   it('opens on the current trip: the hero with its name and dates', async () => {
     mockCurrent = () => Promise.resolve(overview());
     await renderHome();

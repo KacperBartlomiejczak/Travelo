@@ -220,6 +220,70 @@ describe('SessionProvider — a sign-out later', () => {
   });
 });
 
+describe('SessionProvider — signOut() (profile-screen A7)', () => {
+  /** Hands the context's `signOut` to the test. */
+  function captureSignOut() {
+    const captured: { signOut: () => Promise<void> } = { signOut: async () => {} };
+    function Capture() {
+      const { signOut } = useSession();
+      useEffect(() => {
+        captured.signOut = signOut;
+      }, [signOut]);
+      return null;
+    }
+    return { captured, extra: <Capture /> };
+  }
+
+  it('asks the source to sign out once; the session ending then clears the phone and only then shows signed out', async () => {
+    const { captured, extra } = captureSignOut();
+    const { fake } = await setup({ extra });
+    await expectStatus('signedIn');
+    fake.log.length = 0;
+
+    await act(async () => captured.signOut());
+    await expectStatus('signedOut');
+
+    expect(fake.signOut).toHaveBeenCalledTimes(1);
+    expect(fake.log.filter((entry) => entry !== 'state:loading')).toEqual(['signOut', 'clear:start', 'clear:done', 'state:signedOut']);
+    expect(fake.clearUserData).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not clear or show signed out by itself: without the session ending the user stays signed in', async () => {
+    const { captured, extra } = captureSignOut();
+    const { fake } = await setup({ extra });
+    await expectStatus('signedIn');
+    fake.signOut.mockImplementationOnce(async () => {});
+
+    await act(async () => captured.signOut());
+    expect(status()).toHaveTextContent('signedIn');
+    expect(fake.clearUserData).not.toHaveBeenCalled();
+  });
+
+  it('an error from the source reaches the caller, and the user stays signed in', async () => {
+    const { captured, extra } = captureSignOut();
+    const { fake } = await setup({ extra });
+    await expectStatus('signedIn');
+    const error = new Error('boom');
+    fake.signOut.mockRejectedValueOnce(error);
+
+    await expect(captured.signOut()).rejects.toBe(error);
+    expect(status()).toHaveTextContent('signedIn');
+    expect(screen.getByTestId('user')).toHaveTextContent(SIGNED_IN_USER_ID);
+    expect(fake.clearUserData).not.toHaveBeenCalled();
+  });
+
+  it('keeps the same function between renders (a screen may use it in an effect or a memo)', async () => {
+    const { captured, extra } = captureSignOut();
+    const { fake } = await setup({ extra });
+    await expectStatus('signedIn');
+    const first = captured.signOut;
+    await act(async () => fake.emit({ type: 'signedIn', userId: SIGNED_IN_USER_ID }));
+    await act(async () => screen.getByTestId('retry').props.onPress());
+    await expectStatus('signedIn');
+    expect(captured.signOut).toBe(first);
+  });
+});
+
 describe('SessionProvider — the user epoch (auth-onboarding D15)', () => {
   it('moves the moment the app starts to forget the previous user, before the clear has even started', async () => {
     const { fake } = await setup();

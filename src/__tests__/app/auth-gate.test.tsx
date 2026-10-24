@@ -2,7 +2,8 @@ import { useFonts } from 'expo-font';
 import { router } from 'expo-router';
 import { act, fireEvent, renderRouter, screen, waitFor } from 'expo-router/testing-library';
 import * as SplashScreen from 'expo-splash-screen';
-import { AccessibilityInfo, Text } from 'react-native';
+import { isHiddenFromAccessibility } from '@testing-library/react-native';
+import { AccessibilityInfo, StyleSheet, Text } from 'react-native';
 
 import DrawerLayout from '@/app/(drawer)/_layout';
 import TabsLayout from '@/app/(drawer)/(tabs)/_layout';
@@ -552,6 +553,102 @@ describe('signed in with a profile', () => {
 
     await expectOnly(WELCOME);
     expect(session.log).toContain('clear:done');
+  });
+});
+
+// app-loading-skeleton step 4 (D2, A3, A4): after signing in the splash is already gone, so while the profile is read the
+// gate draws the home skeleton with placeholders for the menu button and the pill, never a blank screen.
+describe('the loading view while the profile is read', () => {
+  const hidden = { includeHiddenElements: true };
+
+  /** The profile read hangs until the test lets it answer. */
+  function pendingProfile(answer: ProfileRepository['myProfile'] | null = null) {
+    let release: () => void = () => {};
+    const gate = new Promise<void>((resolve) => (release = resolve));
+    return async function setUp(base: ProfileRepository) {
+      setAppProfileRepository(
+        withMyProfile(base, async () => {
+          await gate;
+          if (answer) return answer();
+          return base.myProfile();
+        }),
+      );
+      return release;
+    };
+  }
+
+  it('shows the home skeleton with the menu and pill placeholders, labelled and busy, and hides it from screen readers', async () => {
+    useFakeAppSession(signedIn);
+    await pendingProfile()(await repositoryWithProfile());
+    allowGateToStayLoading();
+    await open();
+
+    const loading = screen.getByTestId('app-loading');
+    expect(loading.props.accessibilityLabel).toBe('Wczytywanie');
+    expect(loading.props.accessibilityState).toEqual({ busy: true });
+    expect(screen.getByTestId('home-skeleton', hidden)).toBeTruthy();
+    expect(screen.getByTestId('trip-hero-skeleton', hidden)).toBeTruthy();
+    for (const name of ['flights', 'travellers', 'budget']) expect(screen.getByTestId(`home-skeleton-${name}`, hidden)).toBeTruthy();
+    expect(StyleSheet.flatten(screen.getByTestId('app-loading-menu', hidden).props.style)).toMatchObject({ width: 44, height: 44 });
+    expect(screen.getByTestId('app-loading-pill', hidden)).toBeTruthy();
+    for (const id of ['home-skeleton', 'trip-hero-skeleton', 'app-loading-menu', 'app-loading-pill']) {
+      expect(isHiddenFromAccessibility(screen.getByTestId(id, hidden))).toBe(true);
+    }
+    // splash-animation: the native splash is hidden on mount; the skeleton is rendered under the animated splash.
+    expect(SplashScreen.hideAsync).toHaveBeenCalledTimes(1);
+    expect(screen.getByTestId('splash-overlay')).toBeTruthy();
+  });
+
+  it('is labelled "Loading" on an English phone', async () => {
+    await i18n.changeLanguage('en');
+    useFakeAppSession(signedIn);
+    await pendingProfile()(await repositoryWithProfile());
+    allowGateToStayLoading();
+    await open();
+    expect(screen.getByTestId('app-loading').props.accessibilityLabel).toBe('Loading');
+  });
+
+  it('hands over to the app when the account has a profile: the skeleton is gone', async () => {
+    useFakeAppSession(signedIn);
+    const release = await pendingProfile()(await repositoryWithProfile());
+    allowGateToStayLoading();
+    await open();
+    expect(screen.getByTestId('home-skeleton', hidden)).toBeTruthy();
+
+    await act(async () => release());
+
+    await expectOnly('home screen');
+    expect(screen.queryByTestId('app-loading')).toBeNull();
+    expect(screen.queryByTestId('home-skeleton', hidden)).toBeNull();
+  });
+
+  it('shows the home skeleton for a new account too, then profile setup (D2)', async () => {
+    useFakeAppSession(signedIn);
+    const release = await pendingProfile()(createInMemoryProfileRepository());
+    allowGateToStayLoading();
+    await open();
+    expect(screen.getByTestId('home-skeleton', hidden)).toBeTruthy();
+
+    await act(async () => release());
+
+    await expectOnly(ONBOARDING);
+    expect(screen.queryByTestId('app-loading')).toBeNull();
+  });
+
+  it('hands over to the error screen when the profile cannot be read', async () => {
+    useFakeAppSession(signedIn);
+    const release = await pendingProfile(async () => {
+      throw new ServerUnreachableError('offline');
+    })(await repositoryWithProfile());
+    allowGateToStayLoading();
+    await open();
+    expect(screen.getByTestId('home-skeleton', hidden)).toBeTruthy();
+
+    await act(async () => release());
+
+    await waitFor(() => expect(screen.getByTestId('profile-error')).toBeTruthy());
+    expect(screen.queryByTestId('app-loading')).toBeNull();
+    expect(screen.queryByTestId('home-skeleton', hidden)).toBeNull();
   });
 });
 

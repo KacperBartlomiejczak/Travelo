@@ -2,7 +2,7 @@
 // Run: node scripts/build-airports.mjs
 //
 // Sources (see prompts/trip-create-wizard/plan.md, Q12):
-// - OurAirports airports.csv (public domain): type, scheduled service, IATA, name, city, country
+// - OurAirports airports.csv (public domain): type, scheduled service, IATA, name, city, country, coordinates
 // - mwgg/Airports airports.json (MIT): IANA time zone per airport
 // - datasets/country-codes country-codes.csv (PDDL): country → ISO 4217 currency
 // - the system tz database's zone.tab (public domain): which zones belong to which country
@@ -256,6 +256,9 @@ for (const country of parseCsv(countriesCsv)) {
 
 const byIata = new Map();
 const skipped = { noTimezone: [], noCurrency: [], noCity: [] };
+const noCoordinates = [];
+// 4 decimal places is about 11 m: plenty for great-circle distances, and it keeps the JSON small.
+const round4 = (degrees) => Math.round(degrees * 10000) / 10000;
 for (const row of parseCsv(airportsCsv)) {
   const iata = row.iata_code;
   if (!KEPT_TYPES.has(row.type) || row.scheduled_service !== 'yes' || !/^[A-Z]{3}$/.test(iata)) continue;
@@ -277,6 +280,12 @@ for (const row of parseCsv(airportsCsv)) {
   const existing = byIata.get(iata);
   // Two rows with the same IATA code: prefer the large airport.
   if (existing && !(row.type === 'large_airport' && existing.type !== 'large_airport')) continue;
+  const latitude = round4(Number(row.latitude_deg));
+  const longitude = round4(Number(row.longitude_deg));
+  if (row.latitude_deg === '' || row.longitude_deg === '' || !Number.isFinite(latitude) || !Number.isFinite(longitude)) {
+    noCoordinates.push(iata);
+    continue;
+  }
   byIata.set(iata, {
     type: row.type,
     airport: {
@@ -287,10 +296,17 @@ for (const row of parseCsv(airportsCsv)) {
       timezone,
       currency,
       large: row.type === 'large_airport',
+      latitude,
+      longitude,
     },
   });
 }
 
+// An airport without coordinates is never invented or dropped silently: nothing is written.
+if (noCoordinates.length > 0) {
+  console.error(`No coordinates in OurAirports for ${noCoordinates.length}: ${noCoordinates.join(' ')}`);
+  process.exit(1);
+}
 const airports = [...byIata.values()].map((entry) => entry.airport).sort((a, b) => a.iata.localeCompare(b.iata));
 // One airport per line keeps git diffs readable.
 await writeFile(OUTPUT, `[\n${airports.map((airport) => JSON.stringify(airport)).join(',\n')}\n]\n`);

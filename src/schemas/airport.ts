@@ -12,5 +12,8 @@ export const AirportSchema = z.object({
   currency: CurrencyCodeSchema,
   /** OurAirports "large_airport"; ranks higher in search (D20). */
   large: z.boolean(),
+  /** Degrees, WGS84; for great-circle distance between airports. */
+  latitude: z.number().min(-90).max(90),
+  longitude: z.number().min(-180).max(180),
 });
 export type Airport = z.infer<typeof AirportSchema>;

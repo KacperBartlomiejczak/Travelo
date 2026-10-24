@@ -124,14 +124,20 @@ is UI configuration, not a data shape, so the Zod rule does not apply.
   `src/app/trips/new/`. â€” same pattern.
 - [ ] 10. (runs after step 11's prerequisites except the legacy delete; waits for profile-screen in `main`, D4)
   [frontend] Profile and settings: `ProfileScreen`, `SettingsScreen`, `TravelStatsCard`, plus any route file
-  still on legacy. â€” same pattern.
+  still on legacy (after the merge of `main`, 2026-10-24: `src/app/(drawer)/(tabs)/index.tsx`, `src/app/trips/[tripId]/photos.tsx` and their
+  tests; the `profile` / `settings` routes only render the legacy screens; `code-email-template.test.ts` reads the
+  legacy palette and needs a decision before step 11 deletes it). â€” same pattern.
 - [ ] 11. [frontend] Cleanup: delete `src/theme/legacy/`, drop `Fraunces_700Bold` if unused (A7). â€” tests first:
   themeGuards.test.ts (red while legacy exists) â€” verify: suite, typecheck, lint; verifier.
 - [ ] 12. [tester] Device run of the manual steps below, light and dark. â€” verify: PASS per scenario. Also the step-3
   checks the blocked device run did not cover (Kacper, 2026-10-22): trip menu sheet and delete-trip dialog buttons
   (cancel only), light-mode Welcome, press scale 0.98 and no stuck shrink after release, disabled button look (no
   opacity; does a disabled secondary keep its outline), font scale 1.3, ⋮ trip menu button reachable by the screen
-  reader. Needs the emulator to itself (no other session's Metro) and a signed-in account.
+  reader. Needs the emulator to itself (no other session's Metro) and a signed-in account. Also the loading screens
+  `sunline-merge-main` step 3b did not observe (Kacper, 2026-10-24, its D3): the `AppLoading` menu and pill placeholders
+  (`border.default`) in light and dark, the dark home skeleton and its hand-over to the home screen (are the
+  `skeleton.base` blocks visible on the dark cards?), the light profile photo skeleton (clear the cached photo first);
+  hold the loading state (slow network) to catch them. On iOS: iPhone 17 simulator in Expo Go (`expo-ios-simulator`).
 - [ ] 13. [orchestrator] `Architecture.md` (theme module, key decisions D1â€“D4, changelog). â€” verify: every statement
   checked in the code.
 
@@ -330,6 +336,14 @@ Manual test steps (Kacper / tester), each in light and in dark mode:
   segmented control, keyboard above "Dalej" on iOS and Android, field errors with scroll and announce, friend-code
   spinner / offline hint / locked fields, budget amount error and totals colours, summary offline create error above
   the button, discard dialog).
+- Merge of `main` (D4, D19; 2026-10-24): done as its own task, `prompts/sunline-merge-main/plan.md`.
+  - profile-screen, app-loading-skeleton and the coderabbit-pr23 fixes are on this branch now.
+  - `SkeletonBlock`, `TripHeroSkeleton` (now a `SkeletonBlock`, the D19 alignment), `HomeSkeleton` and `AppLoading` are on
+    Sunline.
+  - Main's profile and settings screens are on `src/theme/legacy/` (import rewrite only); step 10's scope grew
+    accordingly (see step 10).
+  - Unobserved loading screens moved to step 12.
+  - Gate: 146 suites / 3153 tests, typecheck ✓, lint ✓; verifier PASS; partial iOS device run with no FAIL.
 
 ## Risks & open questions
 Answers (Kacper, 2026-10-22, with the approval):

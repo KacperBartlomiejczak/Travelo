@@ -19,7 +19,12 @@ export type SessionState =
   | { status: 'signedIn'; userId: string | null }
   | { status: 'error' };
 
-type SessionContextValue = { state: SessionState; retry: () => void };
+type SessionContextValue = {
+  state: SessionState;
+  retry: () => void;
+  /** Signs out on this phone only; rejects with the error Supabase returns. The `signedOut` state comes from the session ending, not from this call. */
+  signOut: () => Promise<void>;
+};
 
 const SessionContext = createContext<SessionContextValue | null>(null);
 
@@ -180,6 +185,7 @@ export function SessionProvider({ source, children }: Props) {
     apply(LOADING);
     void start();
   }, [apply, start]);
-  const value = useMemo(() => ({ state, retry }), [state, retry]);
+  const signOut = useCallback(() => source.signOut(), [source]);
+  const value = useMemo(() => ({ state, retry, signOut }), [state, retry, signOut]);
   return <SessionContext.Provider value={value}>{children}</SessionContext.Provider>;
 }

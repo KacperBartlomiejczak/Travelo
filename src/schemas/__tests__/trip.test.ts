@@ -7,6 +7,12 @@ const item = {
   id: '0b9e7c4e-6a43-4c4b-9a55-2f6f0f7e1a01',
   name: 'Warsaw → Bangkok',
   coverImageUri: 'preset:bali',
+  destination: 'BKK',
+  flights: [
+    { fromIata: 'WAW', toIata: 'DOH' },
+    { fromIata: 'DOH', toIata: 'BKK' },
+    { fromIata: 'BKK', toIata: 'WAW' },
+  ],
   startDate: '2026-11-03',
   endDate: '2026-11-15',
 };
@@ -29,8 +35,25 @@ describe('TripListItem (trips-drawer D4)', () => {
   });
 
   it('keeps only what the side panel needs', () => {
-    const parsed = TripListItemSchema.parse({ ...item, destination: 'BKK', travellerCount: 3 });
-    expect(Object.keys(parsed).sort()).toEqual(['coverImageUri', 'endDate', 'id', 'name', 'startDate']);
+    const parsed = TripListItemSchema.parse({ ...item, travellerCount: 3, baseCurrency: 'THB' });
+    expect(Object.keys(parsed).sort()).toEqual(['coverImageUri', 'destination', 'endDate', 'flights', 'id', 'name', 'startDate']);
+  });
+
+  it('carries the destination and the route of every flight segment (profile-screen D11)', () => {
+    expect(TripListItemSchema.parse(item)).toEqual(item);
+    expect(TripListItemSchema.parse({ ...item, flights: [] }).flights).toEqual([]);
+  });
+
+  it('keeps only the route of a flight segment', () => {
+    const parsed = TripListItemSchema.parse({ ...item, flights: [{ fromIata: 'WAW', toIata: 'DOH', flightNumber: 'QR 8', direction: 'outbound' }] });
+    expect(parsed.flights).toEqual([{ fromIata: 'WAW', toIata: 'DOH' }]);
+  });
+
+  it('requires the destination and the flights (an old offline copy has neither, R1)', () => {
+    const { destination: _destination, ...withoutDestination } = item;
+    const { flights: _flights, ...withoutFlights } = item;
+    expect(TripListItemSchema.safeParse(withoutDestination).success).toBe(false);
+    expect(TripListItemSchema.safeParse(withoutFlights).success).toBe(false);
   });
 
   it.each([
@@ -39,6 +62,11 @@ describe('TripListItem (trips-drawer D4)', () => {
     ['a 61-character name', { name: 'a'.repeat(61) }],
     ['an id that is not a UUID', { id: 'trip-1' }],
     ['an impossible date', { startDate: '2026-02-30' }],
+    ['a destination that is no IATA code', { destination: 'bkk' }],
+    ['a route starting at a bad IATA code', { flights: [{ fromIata: 'wa', toIata: 'DOH' }] }],
+    ['a route ending at a bad IATA code', { flights: [{ fromIata: 'WAW', toIata: 'WAWX' }] }],
+    ['a route without a landing airport', { flights: [{ fromIata: 'WAW' }] }],
+    ['flights that are no list', { flights: { fromIata: 'WAW', toIata: 'DOH' } }],
     ['an empty cover URI', { coverImageUri: '' }],
     ['a device URI as the cover', { coverImageUri: 'file:///cache/cover.jpg' }],
     ['signed URLs that are not http(s)', { coverImageUri: photoCover, coverUrls: { url: 'file:///a.jpg', thumbnailUrl: coverUrls.thumbnailUrl } }],

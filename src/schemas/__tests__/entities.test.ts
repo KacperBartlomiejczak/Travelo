@@ -1,6 +1,7 @@
 import {
   AirportSchema,
   CreateTripMemberPayloadSchema,
+  FlightRouteSchema,
   FlightSegmentSchema,
   TRIP_NAME_MAX_LENGTH,
   TripMemberSchema,
@@ -20,10 +21,17 @@ describe('Airport', () => {
     timezone: 'Europe/Madrid',
     currency: 'EUR',
     large: true,
+    latitude: 41.2971,
+    longitude: 2.0785,
   };
 
   it('accepts a complete airport', () => {
     expect(AirportSchema.safeParse(bcn).success).toBe(true);
+  });
+
+  it('accepts coordinates on the range limits', () => {
+    expect(AirportSchema.safeParse({ ...bcn, latitude: -90, longitude: 180 }).success).toBe(true);
+    expect(AirportSchema.safeParse({ ...bcn, latitude: 90, longitude: -180 }).success).toBe(true);
   });
 
   it.each([
@@ -31,6 +39,13 @@ describe('Airport', () => {
     ['unknown timezone', { ...bcn, timezone: 'Spain/Barcelona' }],
     ['empty city', { ...bcn, city: '' }],
     ['missing size flag', { ...bcn, large: undefined }],
+    ['missing latitude', { ...bcn, latitude: undefined }],
+    ['missing longitude', { ...bcn, longitude: undefined }],
+    ['latitude above 90', { ...bcn, latitude: 91 }],
+    ['latitude below -90', { ...bcn, latitude: -91 }],
+    ['longitude above 180', { ...bcn, longitude: 181 }],
+    ['longitude below -180', { ...bcn, longitude: -181 }],
+    ['latitude as a string', { ...bcn, latitude: '41.2971' }],
   ])('rejects %s', (_, value) => {
     expect(AirportSchema.safeParse(value).success).toBe(false);
   });
@@ -80,6 +95,25 @@ describe('FlightSegment', () => {
     ['non-uuid id', { id: 'seg-1' }],
   ])('rejects %s', (_, patch) => {
     expect(FlightSegmentSchema.safeParse({ ...segment, ...patch }).success).toBe(false);
+  });
+});
+
+describe('FlightRoute (profile-screen D11)', () => {
+  it('accepts the two airports of a segment and keeps nothing else', () => {
+    expect(FlightRouteSchema.parse({ fromIata: 'WAW', toIata: 'BCN' })).toEqual({ fromIata: 'WAW', toIata: 'BCN' });
+    expect(FlightRouteSchema.parse({ fromIata: 'WAW', toIata: 'BCN', direction: 'outbound', flightNumber: 'LO123' })).toEqual({
+      fromIata: 'WAW',
+      toIata: 'BCN',
+    });
+  });
+
+  it.each([
+    ['a lowercase departure airport', { fromIata: 'wa', toIata: 'BCN' }],
+    ['a four-letter landing airport', { fromIata: 'WAW', toIata: 'WAWX' }],
+    ['a missing landing airport', { fromIata: 'WAW' }],
+    ['a missing departure airport', { toIata: 'BCN' }],
+  ])('rejects %s', (_, route) => {
+    expect(FlightRouteSchema.safeParse(route).success).toBe(false);
   });
 });
 

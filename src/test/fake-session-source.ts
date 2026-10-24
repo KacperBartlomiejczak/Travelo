@@ -6,7 +6,7 @@ type Listener = (change: SessionChange) => void;
 
 /**
  * A session the test drives (auth-onboarding step 5): what `current()` answers, when the clear finishes or fails, and
- * sign-ins / sign-outs that happen later. `log` records the calls in order, as `current`, `check`, `clear:start`, `clear:done`, `clear:failed`.
+ * sign-ins / sign-outs that happen later. `log` records the calls in order, as `current`, `check`, `signOut`, `clear:start`, `clear:done`, `clear:failed`.
  */
 export function createFakeSessionSource(initial: SessionSnapshot | Error = { status: 'signedIn', userId: SIGNED_IN_USER_ID }) {
   const listeners = new Set<Listener>();
@@ -39,10 +39,17 @@ export function createFakeSessionSource(initial: SessionSnapshot | Error = { sta
     }
     log.push('clear:done');
   });
+  const emit = (change: SessionChange) => [...listeners].forEach((listener) => listener(change));
+  // Like Supabase: a successful sign-out reaches the listeners as `signedOut`; the source itself clears nothing.
+  const signOut = jest.fn(async () => {
+    log.push('signOut');
+    emit({ type: 'signedOut' });
+  });
   const source: SessionSource = {
     current,
     checkStoredSession,
     clearUserData,
+    signOut,
     onChange(listener) {
       listeners.add(listener);
       return () => listeners.delete(listener);
@@ -54,6 +61,7 @@ export function createFakeSessionSource(initial: SessionSnapshot | Error = { sta
     current,
     checkStoredSession,
     clearUserData,
+    signOut,
     log,
     /** What `current()` answers from now on; an `Error` makes it reject. */
     answerWith(next: SessionSnapshot | Error) {
@@ -97,9 +105,7 @@ export function createFakeSessionSource(initial: SessionSnapshot | Error = { sta
       return release;
     },
     /** A sign-in or sign-out that happens while the app runs. */
-    emit(change: SessionChange) {
-      [...listeners].forEach((listener) => listener(change));
-    },
+    emit,
     listenerCount: () => listeners.size,
   };
 }
@@ -124,4 +130,5 @@ export const delegatingSessionSource: SessionSource = {
   checkStoredSession: () => active.source.checkStoredSession(),
   onChange: (listener) => active.source.onChange(listener),
   clearUserData: () => active.source.clearUserData(),
+  signOut: () => active.source.signOut(),
 };

@@ -9,6 +9,8 @@ const airport = (iata: string, city: string, name: string, countryCode = 'XX', l
   timezone: 'UTC',
   currency: 'EUR',
   large,
+  latitude: 0,
+  longitude: 0,
 });
 
 const AIRPORTS: Airport[] = [
