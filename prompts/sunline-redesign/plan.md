@@ -120,7 +120,7 @@ is UI configuration, not a data shape, so the Zod rule does not apply.
   `CodeScreen`, `ProfileSetupScreen`, `AvatarPicker`, `AppLoading`, `FullScreenError`. â€” same pattern. Also
   (D28): inline form errors get `CircleAlert` + text in `BudgetSheet`, `TripDetailsSheet`, `DeleteTripSheet`,
   `DeletePhotoSheet`, and the step-7 test fix in `PhotoStrip.test.tsx:710` / `:755` (enabled tile has no opacity).
-- [ ] 9. [frontend] New-trip wizard: `WizardScreen`, `FriendCard`, `SegmentCard`, the step routes under
+- [x] 9. [frontend] New-trip wizard: `WizardScreen`, `FriendCard`, `SegmentCard`, the step routes under
   `src/app/trips/new/`. â€” same pattern.
 - [ ] 10. (runs after step 11's prerequisites except the legacy delete; waits for profile-screen in `main`, D4)
   [frontend] Profile and settings: `ProfileScreen`, `SettingsScreen`, `TravelStatsCard`, plus any route file
@@ -307,6 +307,29 @@ Manual test steps (Kacper / tester), each in light and in dark mode:
 - Step 9 (interrupted, 2026-10-22, by Kacper): the implementer was stopped mid-step; its partial work (wizard
   sources, `src/app/trips/new/*`, tests incl. new `look.test.tsx`) is committed as WIP, not verified, tests not run.
   Resume: re-run the full gate, finish the step, then verifier.
+- Step 9 (resumed and done, 2026-10-24, on the Mac in the main checkout, branch `feature/sunline-redesign`): the WIP
+  `e2e9a7d` is the whole step · changed: `WizardScreen` (canvas, gutters, action padding, D28 `CircleAlert` + `bodySM`
+  action error as a polite live region), `FriendCard`, `SegmentCard` (44 dp title row, ghost remove), the routes under
+  `src/app/trips/new/` (header `headingSM` on `background.canvas`, step headings `headingLG` / `headingSM`, hints
+  `bodyMD`, summary `moneyLG`) · tests: new `look.test.tsx` (canvas light/dark, gutters at 389 / 390, action padding,
+  header, per-step typography and card tokens), `WizardScreen.test.tsx` action-error block; `flights.test.tsx` and
+  `summary.test.tsx` only swap legacy names for equal `tokens` values (verifier: no assertion weakened) · red: not run
+  (WIP committed interrupted); substitute is the verifier's check against `e2e9a7d^`: `look.test.tsx` and the
+  action-error block fail there (missing `wizard-action*` testIDs, legacy canvas / heading / card values); the 44 dp
+  title-row and gutter tests are guard tests (legacy values coincide) · an audit by the implementer after the resume
+  found no gaps and changed nothing · green ✓ 136 suites / 2937 tests (`pnpm exec jest --maxWorkers=3`; with default
+  workers 237 tests timed out under Spotlight load, rerun green with no code change), typecheck ✓ (after regenerating
+  the stale `.expo/types/router.d.ts` by starting Metro once), lint ✓ · verifier PASS, no blocking issues · skill used:
+  test-driven-development, incremental-implementation, frontend-ui-engineering (implementer), code-review-and-quality
+  (verifier) · deviations: none · open minors for step 11: `WizardScreen` gutter uses `spacing[4]` / `spacing[5]`
+  instead of `layout.screenGutterCompact` / `screenGutter` (§9.0; values coincide, `look.test.tsx` checks the layout
+  tokens), same in `WelcomeScreen.tsx:92` and `AuthFormScreen.tsx:40` (fold into the shared gutter helper); action
+  error icon is `iconography.size.xs` 16 dp (§8.1 says 20 dp for a button error, §8.4 16 dp for a field; ask Kacper);
+  `FriendCard` spinner uses the default `ActivityIndicator` size (spec silent); one more copy of the inline error block
+  (extract in step 11) · device check: not run (step 12; implementer's wizard steps: flights segment cards and
+  segmented control, keyboard above "Dalej" on iOS and Android, field errors with scroll and announce, friend-code
+  spinner / offline hint / locked fields, budget amount error and totals colours, summary offline create error above
+  the button, discard dialog).
 
 ## Risks & open questions
 Answers (Kacper, 2026-10-22, with the approval):
