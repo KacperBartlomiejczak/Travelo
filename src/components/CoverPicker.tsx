@@ -6,6 +6,7 @@ import { Pressable, ScrollView, Text, View, type LayoutChangeEvent } from 'react
 
 import { COVER_PRESETS, presetIdOf } from '@/lib/cover-presets';
 import { COVER_PRESET_IDS, CoverChoiceSchema, type CoverChoice, type CoverUrls } from '@/schemas';
+import { tokens } from '@/theme/tokens';
 import { useTheme } from '@/theme/useTheme';
 
 import { CoverImage } from './CoverImage';
@@ -22,12 +23,12 @@ type Props = {
 // Crop and preview shape of a cover photo (Android crops to it; iOS always crops square).
 const ASPECT: [number, number] = [16, 9];
 const RATIO = ASPECT[0] / ASPECT[1];
+const { coverPicker, focusRing } = tokens.components;
 
 // A cover is always chosen (trip-covers D1, P1): a large preview of the selected one, under it a row of tiles — a photo
 // picked from the gallery first, then the bundled presets — and "Z galerii" as the last tile. The row is a radio group.
 export function CoverPicker({ value, onChange, urls }: Props) {
   const { t } = useTranslation();
-  const theme = useTheme();
   const [failed, setFailed] = useState(false);
   // A gallery photo stays in the row after a preset is chosen over it, so the organizer can go back to it.
   const [remembered, setRemembered] = useState<string | null>(() => (presetIdOf(value) ? null : value));
@@ -68,17 +69,17 @@ export function CoverPicker({ value, onChange, urls }: Props) {
 
   return (
     <Field label={t('coverPicker.label')} error={failed ? t('coverPicker.error') : undefined}>
-      <View style={{ gap: theme.spacing[2] }}>
+      <View style={{ gap: tokens.spacing[2] }}>
         <CoverImage
           testID="cover-preview"
           cover={value}
           urls={urls}
           variant="full"
-          // One radius for the whole picker: radius.sm, the one of the inputs it sits among (§5.4).
-          style={{ width: '100%', aspectRatio: RATIO, borderRadius: theme.radius.sm }}
+          // One radius for the whole picker: radii.sm, the same for the preview and the tiles.
+          style={{ width: '100%', aspectRatio: RATIO, borderRadius: tokens.radii.sm }}
         />
         <View accessibilityRole="radiogroup" accessibilityLabel={t('coverPicker.label')}>
-          <ScrollView ref={row} horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: theme.spacing[2] }}>
+          <ScrollView ref={row} horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: tokens.spacing[2] }}>
             {custom && (
               <CoverTile cover={custom} urls={urls} label={t('coverPicker.yourPhoto')} checked={custom === value} onLayout={showSelected} onPress={() => onChange(custom)} />
             )}
@@ -101,23 +102,20 @@ export function CoverPicker({ value, onChange, urls }: Props) {
 }
 
 // Every tile has the same 2dp border, transparent unless selected, so choosing one does not move the others.
-function useTileStyle() {
-  const theme = useTheme();
-  return {
-    width: theme.size.coverTile,
-    minHeight: theme.size.coverTile / RATIO,
-    borderWidth: theme.size.focusRing,
-    borderRadius: theme.radius.sm,
-    overflow: 'hidden' as const,
-  };
-}
+const tile = {
+  width: coverPicker.tileWidth,
+  minHeight: coverPicker.tileWidth / RATIO,
+  borderWidth: focusRing.width,
+  borderRadius: tokens.radii.sm,
+  overflow: 'hidden' as const,
+};
 
 function focusOutline(theme: ReturnType<typeof useTheme>) {
   return {
     outlineStyle: 'solid' as const,
-    outlineWidth: theme.size.focusRing,
-    outlineColor: theme.colors.action.primary,
-    outlineOffset: theme.spacing[1],
+    outlineWidth: focusRing.width,
+    outlineColor: theme.border.focus,
+    outlineOffset: focusRing.offset,
   };
 }
 
@@ -134,7 +132,6 @@ type TileProps = {
 // One radio of the group: the selected tile has a brand border and a check mark, never colour alone (§15).
 function CoverTile({ cover, urls, label, checked, onPress, onLayout }: TileProps) {
   const theme = useTheme();
-  const tile = useTileStyle();
   const [focused, setFocused] = useState(false);
   return (
     <Pressable
@@ -148,7 +145,7 @@ function CoverTile({ cover, urls, label, checked, onPress, onLayout }: TileProps
       style={({ pressed }) => [
         tile,
         {
-          borderColor: checked ? (pressed ? theme.colors.action.primaryPressed : theme.colors.action.primary) : pressed ? theme.colors.input.border : 'transparent',
+          borderColor: checked ? (pressed ? theme.brand.pressed : theme.brand.primary) : pressed ? theme.border.default : 'transparent',
         },
         focused && focusOutline(theme),
       ]}
@@ -158,14 +155,20 @@ function CoverTile({ cover, urls, label, checked, onPress, onLayout }: TileProps
         <View
           style={{
             position: 'absolute',
-            top: theme.spacing[1],
-            right: theme.spacing[1],
-            padding: theme.spacing[1],
-            borderRadius: theme.radius.full,
-            backgroundColor: theme.colors.action.primary,
+            top: tokens.spacing[1],
+            right: tokens.spacing[1],
+            padding: tokens.spacing[1],
+            borderRadius: tokens.radii.pill,
+            backgroundColor: theme.brand.primary,
           }}
         >
-          <Check testID="cover-tile-check" size={theme.size.iconInline} strokeWidth={theme.size.iconStroke} color={theme.colors.action.onPrimary} aria-hidden />
+          <Check
+            testID="cover-tile-check"
+            size={tokens.iconography.size.xs}
+            strokeWidth={tokens.iconography.strokeWidth}
+            color={theme.brand.onBrand}
+            aria-hidden
+          />
         </View>
       )}
     </Pressable>
@@ -175,7 +178,6 @@ function CoverTile({ cover, urls, label, checked, onPress, onLayout }: TileProps
 // The last tile: opens the phone's gallery.
 function GalleryTile({ label, onPress }: { label: string; onPress: () => void }) {
   const theme = useTheme();
-  const tile = useTileStyle();
   const [focused, setFocused] = useState(false);
   return (
     <Pressable
@@ -189,16 +191,22 @@ function GalleryTile({ label, onPress }: { label: string; onPress: () => void })
         {
           alignItems: 'center',
           justifyContent: 'center',
-          gap: theme.spacing[1],
-          paddingHorizontal: theme.spacing[1],
-          borderColor: theme.colors.input.border,
-          backgroundColor: pressed ? theme.colors.surface.secondary : theme.colors.surface.default,
+          gap: tokens.spacing[1],
+          paddingHorizontal: tokens.spacing[1],
+          borderColor: theme.border.default,
+          backgroundColor: pressed ? theme.background.sunken : theme.surface.primary,
         },
         focused && focusOutline(theme),
       ]}
     >
-      <ImagePlus size={theme.size.iconStandard} strokeWidth={theme.size.iconStroke} color={theme.colors.text.primary} aria-hidden />
-      <Text style={[theme.typography.caption, { color: theme.colors.text.primary, textAlign: 'center' }]}>{label}</Text>
+      <ImagePlus
+        testID="cover-gallery-icon"
+        size={tokens.iconography.size.sm}
+        strokeWidth={tokens.iconography.strokeWidth}
+        color={theme.icon.primary}
+        aria-hidden
+      />
+      <Text style={[tokens.typography.styles.caption, { color: theme.text.primary, textAlign: 'center' }]}>{label}</Text>
     </Pressable>
   );
 }

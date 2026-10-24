@@ -6,8 +6,10 @@ import { createInMemoryTripRepository, type TripRepository } from '@/data/trip-r
 import i18n from '@/i18n';
 import { AppProviders } from '@/providers/AppProviders';
 import type { TripSummary } from '@/schemas';
+import { drawsCircleAlert } from '@/test/alert-icon';
 import { setNetwork } from '@/test/mock-network';
 import { lightTheme } from '@/theme/theme';
+import { tokens } from '@/theme/tokens';
 
 import { DeleteTripSheet } from '../DeleteTripSheet';
 
@@ -65,15 +67,18 @@ describe('DeleteTripSheet (trip-edit-menu D7, D8, D10, D19)', () => {
   it('asks with the trip\'s name in the title and says what goes away', async () => {
     await setup();
     expect(screen.getByRole('header', { name: 'Usunąć podróż „Warsaw → Bangkok”?' })).toBeTruthy();
-    expect(screen.getByText('Znikną loty, uczestnicy, budżet i zdjęcia. Tego nie da się cofnąć.')).toBeTruthy();
+    expect(screen.getByText('Znikną loty, uczestnicy, budżet i zdjęcia. Tego nie da się cofnąć.')).toHaveStyle({
+      ...tokens.typography.styles.bodyMD,
+      color: lightTheme.text.secondary,
+    });
   });
 
   it('puts the destructive "Usuń podróż" above "Anuluj", full width and 16dp apart, never adjacent (D19)', async () => {
     await setup();
-    expect(screen.getByText('Usuń podróż')).toHaveStyle({ color: lightTheme.colors.status.error });
+    expect(screen.getByText('Usuń podróż')).toHaveStyle({ color: lightTheme.semantic.error.foreground });
     // One column, "Usuń podróż" first; the gap between the two is spacing[4].
     const actions = screen.getByTestId('delete-trip-actions');
-    expect(actions).toHaveStyle({ gap: lightTheme.spacing[4] });
+    expect(actions).toHaveStyle({ gap: tokens.spacing[4] });
     expect(within(actions).getAllByRole('button').map((button) => button.props.accessibilityLabel)).toEqual(['Usuń podróż', 'Anuluj']);
     // Stretched across the sheet: no centring or row direction on the container that would shrink them.
     expect(StyleSheet.flatten(actions.props.style).alignItems).toBeUndefined();
@@ -118,7 +123,14 @@ describe('DeleteTripSheet (trip-edit-menu D7, D8, D10, D19)', () => {
     deleteTrip.mockRejectedValueOnce(new Error('trip-not-deletable'));
     const { onClose, onDeleted } = await setup(deleteTrip);
     await fireEvent.press(confirm());
-    expect(await screen.findByText('Nie udało się usunąć podróży. Spróbuj ponownie.')).toBeTruthy();
+    expect(await screen.findByText('Nie udało się usunąć podróży. Spróbuj ponownie.')).toHaveStyle({
+      ...tokens.typography.styles.bodySM,
+      color: lightTheme.semantic.error.foreground,
+    });
+    // CircleAlert at 16dp in the error colour next to the text, never colour alone (§8.0 error, D28).
+    const icon = screen.getByTestId('delete-trip-error-icon', { includeHiddenElements: true });
+    expect(icon.props).toMatchObject({ width: tokens.iconography.size.xs, stroke: lightTheme.semantic.error.foreground, strokeWidth: tokens.iconography.strokeWidth });
+    expect(drawsCircleAlert(icon)).toBe(true);
     // Announced once, by the call; a live region on the text would read it a second time (as in Snackbar).
     expect(announce).toHaveBeenCalledTimes(1);
     expect(announce).toHaveBeenCalledWith('Nie udało się usunąć podróży. Spróbuj ponownie.');
@@ -158,7 +170,7 @@ describe('DeleteTripSheet (trip-edit-menu D7, D8, D10, D19)', () => {
     const { deleteTrip } = await setup();
     expect(screen.queryByText(OFFLINE_HINT)).toBeNull();
     await act(async () => setNetwork({ isConnected: false, isInternetReachable: false }));
-    expect(screen.getByText(OFFLINE_HINT)).toBeTruthy();
+    expect(screen.getByText(OFFLINE_HINT)).toHaveStyle({ ...tokens.typography.styles.bodySM, color: lightTheme.text.secondary });
     expect(confirm()).toBeDisabled();
     await fireEvent.press(confirm());
     expect(deleteTrip).not.toHaveBeenCalled();

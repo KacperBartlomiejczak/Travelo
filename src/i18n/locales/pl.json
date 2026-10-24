@@ -338,5 +338,8 @@
   },
   "offline": {
     "banner": "Jesteś offline. Zmiany zapiszą się po połączeniu."
+  },
+  "splash": {
+    "loading": "Ładowanie aplikacji"
   }
 }

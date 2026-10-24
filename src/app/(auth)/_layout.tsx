@@ -15,8 +15,8 @@ export default function AuthLayout() {
     headerShown: true,
     title: '',
     headerBackTitle: t('auth.back'),
-    headerStyle: { backgroundColor: theme.colors.background },
-    headerTintColor: theme.colors.text.primary,
+    headerStyle: { backgroundColor: theme.background.canvas },
+    headerTintColor: theme.text.primary,
     headerShadowVisible: false,
   } as const;
 

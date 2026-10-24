@@ -6,7 +6,10 @@ import { createInMemoryTripRepository, type TripRepository } from '@/data/trip-r
 import i18n from '@/i18n';
 import { AppProviders } from '@/providers/AppProviders';
 import { TRIP_NAME_MAX_LENGTH, type TripSummary } from '@/schemas';
+import { drawsCircleAlert } from '@/test/alert-icon';
 import { setNetwork } from '@/test/mock-network';
+import { lightTheme } from '@/theme/theme';
+import { tokens } from '@/theme/tokens';
 
 import { TripDetailsSheet } from '../TripDetailsSheet';
 
@@ -161,7 +164,16 @@ describe('TripDetailsSheet (trip-edit-menu A2, A3, D5, D12)', () => {
     const { onClose, updateDetails } = await setup({}, update(() => Promise.reject(new Error('boom'))));
     await fireEvent.changeText(screen.getByLabelText(NAME), 'Nowa nazwa');
     await fireEvent.press(save());
-    expect(await screen.findByText('Nie udało się zapisać. Spróbuj ponownie.')).toBeTruthy();
+    // Error copy in the error foreground, Body SM (§8.0 error).
+    expect(await screen.findByText('Nie udało się zapisać. Spróbuj ponownie.')).toHaveStyle({
+      ...tokens.typography.styles.bodySM,
+      color: lightTheme.semantic.error.foreground,
+    });
+    expect(screen.getByText('Nie udało się zapisać. Spróbuj ponownie.').props.accessibilityLiveRegion).toBe('polite');
+    // CircleAlert at 16dp in the error colour next to the text, never colour alone (§8.0 error, D28).
+    const icon = screen.getByTestId('trip-details-error-icon', { includeHiddenElements: true });
+    expect(icon.props).toMatchObject({ width: tokens.iconography.size.xs, stroke: lightTheme.semantic.error.foreground, strokeWidth: tokens.iconography.strokeWidth });
+    expect(drawsCircleAlert(icon)).toBe(true);
     expect(announce).toHaveBeenCalledWith('Nie udało się zapisać. Spróbuj ponownie.');
     expect(updateDetails).toHaveBeenCalledTimes(1);
     expect(onClose).not.toHaveBeenCalled();
@@ -184,7 +196,10 @@ describe('TripDetailsSheet (trip-edit-menu A2, A3, D5, D12)', () => {
     const { updateDetails } = await setup();
     expect(screen.queryByText('Bez internetu nie zmienisz nazwy ani nie usuniesz podróży.')).toBeNull();
     await act(async () => setNetwork({ isConnected: false, isInternetReachable: false }));
-    expect(screen.getByText('Bez internetu nie zmienisz nazwy ani nie usuniesz podróży.')).toBeTruthy();
+    expect(screen.getByText('Bez internetu nie zmienisz nazwy ani nie usuniesz podróży.')).toHaveStyle({
+      ...tokens.typography.styles.bodySM,
+      color: lightTheme.text.secondary,
+    });
     expect(save()).toBeDisabled();
     await fireEvent.press(save());
     expect(updateDetails).not.toHaveBeenCalled();

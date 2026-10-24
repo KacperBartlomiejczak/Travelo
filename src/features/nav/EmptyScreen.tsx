@@ -2,9 +2,12 @@ import { Text, useWindowDimensions, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { usePillClearance } from '@/features/nav/usePillClearance';
+import { tokens } from '@/theme/tokens';
 import { useTheme } from '@/theme/useTheme';
 
 type Props = { title: string; message: string };
+
+const { layout, spacing, typography } = tokens;
 
 // Placeholder of a main screen that has no content yet (pill-nav-and-dialog D3, A8): a title and one sentence. It has no
 // loading, error or offline state because there is nothing to load; those arrive with each screen's feature. The bottom
@@ -14,23 +17,22 @@ export function EmptyScreen({ title, message }: Props) {
   const insets = useSafeAreaInsets();
   const clearance = usePillClearance();
   const { width } = useWindowDimensions();
-  const { spacing, colors, typography, size, breakpoints } = theme;
   return (
     <View
       testID="empty-screen"
       style={{
         flex: 1,
-        backgroundColor: colors.background,
+        backgroundColor: theme.background.canvas,
         paddingTop: insets.top + spacing[4],
         paddingBottom: clearance + spacing[4],
-        paddingHorizontal: width < breakpoints.compact ? spacing[4] : spacing[5],
+        paddingHorizontal: width < layout.compactBreakpoint ? layout.screenGutterCompact : layout.screenGutter,
       }}
     >
-      <View testID="empty-screen-content" style={{ flex: 1, width: '100%', maxWidth: size.maxContentWidth, alignSelf: 'center' }}>
-        <Text accessibilityRole="header" style={[typography.heading1, { color: colors.text.primary }]}>
+      <View testID="empty-screen-content" style={{ flex: 1, width: '100%', maxWidth: layout.maxContentWidth, alignSelf: 'center' }}>
+        <Text accessibilityRole="header" style={[typography.styles.headingLG, { color: theme.text.primary }]}>
           {title}
         </Text>
-        <Text style={[typography.bodyM, { color: colors.text.secondary, marginTop: spacing[2] }]}>{message}</Text>
+        <Text style={[typography.styles.bodyMD, { color: theme.text.secondary, marginTop: spacing[2] }]}>{message}</Text>
       </View>
     </View>
   );

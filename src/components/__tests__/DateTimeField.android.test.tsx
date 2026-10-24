@@ -2,6 +2,7 @@ import { fireEvent, render, screen } from '@testing-library/react-native';
 
 import { DateTimeField } from '@/components/DateTimeField.android';
 import i18n from '@/i18n';
+import { lightTheme } from '@/theme/theme';
 
 // Dialog picker stand-in, behaving like @expo/ui on Android: the date dialog returns UTC midnight of
 // the chosen day (2 Nov 2026), the time dialog a device-local time (10:15).
@@ -12,10 +13,12 @@ jest.mock('@expo/ui/community/datetime-picker', () => {
       mode: string;
       presentation?: string;
       is24Hour?: boolean;
+      accentColor?: string;
       onValueChange: (e: object, d: Date) => void;
     }) => (
       <Pressable
         testID={`picker-${props.mode}`}
+        accessibilityHint={props.accentColor}
         onPress={() =>
           props.onValueChange({}, props.mode === 'date' ? new Date(Date.UTC(2026, 10, 2)) : new Date(2000, 0, 1, 10, 15))
         }
@@ -64,5 +67,13 @@ describe('DateTimeField (Android)', () => {
   it('shows the formatted value', async () => {
     await render(<DateTimeField label="Wylot" value="2026-11-02T10:15" onChange={() => {}} />);
     expect(screen.getByText('2 lis 2026, 10:15')).toBeTruthy();
+  });
+
+  it('tints both dialogs with brand.primary', async () => {
+    await render(<DateTimeField label="Wylot" value="" onChange={() => {}} />);
+    await fireEvent.press(screen.getByRole('button', { name: 'Wylot' }));
+    expect(screen.getByTestId('picker-date').props.accessibilityHint).toBe(lightTheme.brand.primary);
+    await fireEvent.press(screen.getByTestId('picker-date'));
+    expect(screen.getByTestId('picker-time').props.accessibilityHint).toBe(lightTheme.brand.primary);
   });
 });

@@ -338,5 +338,8 @@
   },
   "offline": {
     "banner": "You're offline. Changes will sync when you're connected."
+  },
+  "splash": {
+    "loading": "Loading app"
   }
 }

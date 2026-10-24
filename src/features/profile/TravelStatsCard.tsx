@@ -6,7 +6,7 @@ import { Text, useWindowDimensions, View } from 'react-native';
 import { Card } from '@/components/Card';
 import { SkeletonBlock } from '@/components/SkeletonBlock';
 import type { TravelStats } from '@/lib/travel-stats';
-import { useTheme } from '@/theme/useTheme';
+import { useTheme } from '@/theme/legacy/useTheme';
 
 type Props = {
   /** The numbers; without them (the list failed and the phone has no copy) every value is a dash. */

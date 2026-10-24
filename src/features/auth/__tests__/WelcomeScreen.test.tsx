@@ -1,12 +1,13 @@
 import { isHiddenFromAccessibility } from '@testing-library/react-native';
 import { Stack } from 'expo-router';
 import { act, fireEvent, renderRouter, screen, waitFor, within } from 'expo-router/testing-library';
-import { AccessibilityInfo, Animated, StyleSheet, Text } from 'react-native';
+import { AccessibilityInfo, Animated, Easing, StyleSheet, Text } from 'react-native';
 
 import i18n from '@/i18n';
 import { AppProviders } from '@/providers/AppProviders';
 import { setNetwork } from '@/test/mock-network';
 import { darkTheme, lightTheme } from '@/theme/theme';
+import { tokens } from '@/theme/tokens';
 
 import { WelcomeScreen } from '../WelcomeScreen';
 
@@ -97,11 +98,11 @@ describe('WelcomeScreen (auth-onboarding D5, D6, P4, P5, P6)', () => {
 
   it('is always dark: ink background, light text, the dark primary button, a light status bar', async () => {
     await setup();
-    expect(screen.getByTestId('welcome-screen')).toHaveStyle({ backgroundColor: darkTheme.colors.hero.background });
-    expect(screen.getByText('Witaj w Travelo')).toHaveStyle({ ...darkTheme.typography.displayXL, color: darkTheme.colors.hero.text });
-    expect(screen.getByText(/Zaplanuj wyjazd/)).toHaveStyle({ color: darkTheme.colors.hero.textSecondary });
-    expect(signInButton()).toHaveStyle({ backgroundColor: darkTheme.colors.action.primary });
-    expect(signInButton()).not.toHaveStyle({ backgroundColor: lightTheme.colors.action.primary });
+    expect(screen.getByTestId('welcome-screen')).toHaveStyle({ backgroundColor: darkTheme.background.canvas });
+    expect(screen.getByText('Witaj w Travelo')).toHaveStyle({ ...tokens.typography.styles.displayXL, color: darkTheme.hero.text });
+    expect(screen.getByText(/Zaplanuj wyjazd/)).toHaveStyle({ ...tokens.typography.styles.bodyLG, color: darkTheme.text.secondary });
+    expect(signInButton()).toHaveStyle({ backgroundColor: darkTheme.brand.primary });
+    expect(signInButton()).not.toHaveStyle({ backgroundColor: lightTheme.brand.primary });
     expect(mockStatusBarStyle).toBe('light');
   });
 
@@ -111,18 +112,17 @@ describe('WelcomeScreen (auth-onboarding D5, D6, P4, P5, P6)', () => {
     expect(screen.getByTestId('welcome-photo', hidden).props['aria-hidden']).toBe(true);
     const image = screen.getByTestId('welcome-image', hidden);
     expect(image.props.source).toEqual([{ uri: 'bundled/bali.jpg' }]); // expo-image normalises to a list
-    expect(image).toHaveStyle({ backgroundColor: darkTheme.colors.hero.background });
+    expect(image).toHaveStyle({ backgroundColor: darkTheme.background.canvas });
     expect(screen.getByTestId('welcome-gradient', hidden)).toBeTruthy();
-    // The fade follows the theme's gradient token, like the trip hero (§20 rule 20). The native gradient prop is
-    // [offset, colour, offset, colour, …].
+    // The fade starts at the hero fade token, like the trip hero. The native gradient prop is [offset, colour, offset, colour, …].
     const offsets = gradientStops().filter((_, i) => i % 2 === 0);
-    expect(offsets).toEqual([lightTheme.gradient.heroFade.start, 1]);
+    expect(offsets).toEqual([tokens.screenMetrics.tripOverview.heroFadeStart, 1]);
   });
 
-  it('darkens the whole photo with the scrim token, between the image and the fade into ink', async () => {
+  it('darkens the whole photo with the hero.scrim token, between the image and the fade into ink', async () => {
     await setup();
     const dim = screen.getByTestId('welcome-dim', hidden);
-    expect(dim).toHaveStyle({ ...StyleSheet.flatten(StyleSheet.absoluteFill), backgroundColor: darkTheme.colors.overlay.scrim });
+    expect(dim).toHaveStyle({ ...StyleSheet.flatten(StyleSheet.absoluteFill), backgroundColor: darkTheme.hero.scrim });
     const json = JSON.stringify(screen.toJSON());
     const order = ['"welcome-image"', '"welcome-dim"', '"welcome-gradient"'].map((id) => json.indexOf(id));
     expect(order.every((index) => index >= 0)).toBe(true);
@@ -137,17 +137,17 @@ describe('WelcomeScreen (auth-onboarding D5, D6, P4, P5, P6)', () => {
     expect(container).toMatchObject({ flexGrow: 1, justifyContent: 'flex-end' });
     const column = screen.getByTestId('welcome-column');
     expect(column).toHaveStyle({
-      maxWidth: lightTheme.size.maxContentWidth,
-      paddingHorizontal: lightTheme.spacing[5],
-      paddingBottom: 34 + lightTheme.spacing[4],
-      gap: lightTheme.spacing[4],
+      maxWidth: tokens.layout.maxContentWidth,
+      paddingHorizontal: tokens.spacing[5],
+      paddingBottom: 34 + tokens.spacing[4],
+      gap: tokens.spacing[4],
     });
   });
 
-  it('uses 16dp side padding below 360dp', async () => {
-    mockWidth = 340;
+  it.each([340, 389])('uses 16dp side padding below 390dp (§4.2): %s', async (width) => {
+    mockWidth = width;
     await setup();
-    expect(screen.getByTestId('welcome-column')).toHaveStyle({ paddingHorizontal: lightTheme.spacing[4] });
+    expect(screen.getByTestId('welcome-column')).toHaveStyle({ paddingHorizontal: tokens.spacing[4] });
   });
 
   it('reads title, sentence, then the button (focus order follows the visual order)', async () => {
@@ -168,7 +168,7 @@ describe('WelcomeScreen (auth-onboarding D5, D6, P4, P5, P6)', () => {
     expect(within(sheet).getByRole('header', { name: 'Zaloguj się' })).toBeTruthy();
     expect(within(sheet).getAllByRole('button').filter((b) => /Kontynuuj/.test(String(b.props.accessibilityLabel)))).toHaveLength(3);
     // Inside the dark scope, so the sheet is dark too.
-    expect(sheet).toHaveStyle({ backgroundColor: darkTheme.colors.surface.elevated });
+    expect(sheet).toHaveStyle({ backgroundColor: darkTheme.surface.overlay });
   });
 
   it('closing the sheet leaves the welcome screen, and it opens again afresh', async () => {
@@ -217,8 +217,8 @@ describe('WelcomeScreen (auth-onboarding D5, D6, P4, P5, P6)', () => {
   });
 
   describe('entrance animation (theme-split-and-profile-prefill P3, design-context §9)', () => {
-    const { celebration } = darkTheme.duration;
-    const rise = darkTheme.spacing[4];
+    const { itemDuration: celebration } = tokens.motion.microinteraction.welcomeRevealed;
+    const rise = tokens.spacing[4];
     const STEP = 150;
     const parts = ['welcome-title', 'welcome-body', 'welcome-action'] as const;
 
@@ -285,7 +285,10 @@ describe('WelcomeScreen (auth-onboarding D5, D6, P4, P5, P6)', () => {
           expect(typeof config.easing).toBe('function');
           expect(config.easing?.(0)).toBeCloseTo(0, 5);
           expect(config.easing?.(1)).toBeCloseTo(1, 5);
-          expect(config.easing?.(0.2)).toBeGreaterThan(0.5); // cubic-bezier(0.2, 0.8, 0.2, 1) leaves fast
+          // The enter easing of §7.2, not a curve of its own.
+          const enter = Easing.bezier(...tokens.motion.easing.enter);
+          for (const x of [0.1, 0.2, 0.5, 0.8]) expect(config.easing?.(x)).toBeCloseTo(enter(x), 5);
+          expect(config.easing?.(0.2)).toBeGreaterThan(0.5); // leaves fast
         }
       });
 
@@ -362,8 +365,8 @@ describe('WelcomeScreen (auth-onboarding D5, D6, P4, P5, P6)', () => {
       jest.spyOn(AccessibilityInfo, 'isReduceMotionEnabled').mockResolvedValue(false);
       await setup();
       await pass(2 * STEP + celebration);
-      expect(screen.getByTestId('welcome-screen')).toHaveStyle({ backgroundColor: darkTheme.colors.hero.background });
-      expect(screen.getByText('Witaj w Travelo')).toHaveStyle({ color: darkTheme.colors.hero.text });
+      expect(screen.getByTestId('welcome-screen')).toHaveStyle({ backgroundColor: darkTheme.background.canvas });
+      expect(screen.getByText('Witaj w Travelo')).toHaveStyle({ color: darkTheme.hero.text });
     });
   });
 

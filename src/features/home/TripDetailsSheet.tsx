@@ -1,6 +1,7 @@
+import { CircleAlert } from 'lucide-react-native';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { AccessibilityInfo, ScrollView, Text } from 'react-native';
+import { AccessibilityInfo, ScrollView, Text, View } from 'react-native';
 
 import { BottomSheet } from '@/components/BottomSheet';
 import { CoverPicker } from '@/components/CoverPicker';
@@ -9,6 +10,7 @@ import { TextField } from '@/components/TextField';
 import { useUpdateTripDetails } from '@/hooks/useTrips';
 import { useIsOffline } from '@/providers/BudgetSync';
 import { TRIP_NAME_MAX_LENGTH, TripDetailsInputSchema, type CoverChoice, type TripSummary } from '@/schemas';
+import { tokens } from '@/theme/tokens';
 import { useTheme } from '@/theme/useTheme';
 
 type Props = { trip: TripSummary; onClose: () => void };
@@ -44,7 +46,7 @@ export function TripDetailsSheet({ trip, onClose }: Props) {
   return (
     <BottomSheet visible title={t('tripDetails.title')} onClose={onClose}>
       {/* Scrolls when the cover preview and the keyboard do not fit; the save button below stays in reach. */}
-      <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={{ gap: theme.spacing[4] }}>
+      <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={{ gap: tokens.spacing[4] }}>
         <TextField
           label={t('newTrip.summary.name')}
           value={name}
@@ -55,11 +57,20 @@ export function TripDetailsSheet({ trip, onClose }: Props) {
         <CoverPicker value={coverImageUri} onChange={setCoverImageUri} urls={trip.coverUrls} />
       </ScrollView>
       {update.isError && (
-        <Text accessibilityLiveRegion="polite" style={[theme.typography.bodyS, { color: theme.colors.status.error }]}>
-          {t('tripDetails.saveError')}
-        </Text>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: tokens.spacing[1] }}>
+          <CircleAlert
+            testID="trip-details-error-icon"
+            size={tokens.iconography.size.xs}
+            strokeWidth={tokens.iconography.strokeWidth}
+            color={theme.semantic.error.foreground}
+            aria-hidden
+          />
+          <Text accessibilityLiveRegion="polite" style={[tokens.typography.styles.bodySM, { color: theme.semantic.error.foreground, flexShrink: 1 }]}>
+            {t('tripDetails.saveError')}
+          </Text>
+        </View>
       )}
-      {offline && <Text style={[theme.typography.bodyS, { color: theme.colors.text.secondary }]}>{t('tripMenu.offlineHint')}</Text>}
+      {offline && <Text style={[tokens.typography.styles.bodySM, { color: theme.text.secondary }]}>{t('tripMenu.offlineHint')}</Text>}
       <PrimaryButton label={t('tripDetails.save')} onPress={save} loading={update.isPending} disabled={offline} />
     </BottomSheet>
   );

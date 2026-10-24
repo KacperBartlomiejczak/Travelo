@@ -2,6 +2,7 @@ import { QueryClient } from '@tanstack/react-query';
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react-native';
 import { randomUUID } from 'expo-crypto';
 import type { ReactNode } from 'react';
+import { StyleSheet } from 'react-native';
 
 import { createInMemoryTripRepository, type TripRepository } from '@/data/trip-repository';
 import { pickTripPhotos } from '@/features/trip-photos/pick-trip-photos';
@@ -15,6 +16,7 @@ import type { PickedPhoto, ShownTripPhoto } from '@/schemas';
 import { createTripInputFixture } from '@/test/fixtures';
 import { setNetwork } from '@/test/mock-network';
 import { lightTheme } from '@/theme/theme';
+import { tokens } from '@/theme/tokens';
 
 // The gallery is the OS's; jest-expo's native mock of expo-crypto returns undefined, and the uploads need real, known ids.
 jest.mock('@/features/trip-photos/pick-trip-photos', () => ({ pickTripPhotos: jest.fn() }));
@@ -24,6 +26,7 @@ const pick = jest.mocked(pickTripPhotos);
 const NOW = new Date('2026-10-15T12:00:00Z');
 const OFFLINE = { isConnected: false, isInternetReachable: false };
 const SIDE = 20;
+const { photoStripHeight: TILE } = tokens.screenMetrics.tripOverview; // the photo tile size (sunline-redesign A4)
 
 let n = 0;
 const newId = () => `00000000-0000-4000-8000-${String(++n).padStart(12, '0')}`;
@@ -123,14 +126,35 @@ describe('PhotoStrip: the add tile (P2)', () => {
     expect(labels).toEqual(['Dodaj zdjęcia', 'Zdjęcie 1 z 2', 'Zdjęcie 2 z 2']);
   });
 
-  it('is a square of the photo tile size with the medium radius and the secondary surface, with an icon', async () => {
+  it('is an 80dp square with the medium radius on the sunken surface, with a 24dp secondary icon', async () => {
     const { repository, trip } = await tripWithPhotos();
     await renderStrip(repository, trip.id);
     await loaded();
     const add = screen.getByRole('button', { name: 'Dodaj zdjęcia' });
-    expect(add).toHaveStyle({ width: lightTheme.size.photoTile, height: lightTheme.size.photoTile, borderRadius: lightTheme.radius.md });
-    expect(screen.getByTestId('photo-add-tile')).toHaveStyle({ backgroundColor: lightTheme.colors.surface.secondary });
-    expect(within(add).getByTestId('photo-add-icon', { includeHiddenElements: true })).toBeTruthy();
+    expect(TILE).toBe(80);
+    expect(add).toHaveStyle({ width: TILE, height: TILE, borderRadius: tokens.radii.md });
+    expect(screen.getByTestId('photo-add-tile')).toHaveStyle({ backgroundColor: lightTheme.background.sunken, borderRadius: tokens.radii.md });
+    const icon = within(add).getByTestId('photo-add-icon', { includeHiddenElements: true });
+    expect(icon.props).toMatchObject({ width: tokens.iconography.size.md, height: tokens.iconography.size.md, stroke: lightTheme.icon.secondary });
+  });
+
+  it('presses to the primary surface and rings 2dp border.focus 2dp off the tile when focused (§8.0)', async () => {
+    const { repository, trip } = await tripWithPhotos();
+    await renderStrip(repository, trip.id);
+    await loaded();
+    const add = screen.getByRole('button', { name: 'Dodaj zdjęcia' });
+    expect(StyleSheet.flatten(add.props.style).outlineWidth).toBeUndefined();
+    await fireEvent(add, 'focus');
+    expect(add).toHaveStyle({
+      outlineStyle: 'solid',
+      outlineWidth: tokens.components.focusRing.width,
+      outlineOffset: tokens.components.focusRing.offset,
+      outlineColor: lightTheme.border.focus,
+    });
+    await fireEvent(add, 'blur');
+    expect(StyleSheet.flatten(add.props.style).outlineWidth).toBeUndefined();
+    await fireEvent(add, 'responderGrant', { nativeEvent: { timestamp: Date.now() }, persist: jest.fn() });
+    expect(screen.getByTestId('photo-add-tile')).toHaveStyle({ backgroundColor: lightTheme.surface.primary });
   });
 
   it('opens the gallery and shows the picked photos at once, each sending, counted over the whole row', async () => {
@@ -176,9 +200,11 @@ describe('PhotoStrip: the add tile (P2)', () => {
 
     await fireEvent.press(screen.getByRole('button', { name: 'Dodaj zdjęcia' }));
     const message = await screen.findByText('Nie udało się otworzyć galerii.');
-    expect(message).toHaveStyle({ color: lightTheme.colors.status.error });
+    expect(message).toHaveStyle({ ...tokens.typography.styles.bodySM, color: lightTheme.semantic.error.foreground });
     expect(message.props.accessibilityLiveRegion).toBe('polite');
-    expect(screen.getByTestId('photo-strip-error-icon', { includeHiddenElements: true })).toBeTruthy();
+    const icon = screen.getByTestId('photo-strip-error-icon', { includeHiddenElements: true });
+    // CircleAlert at 16dp in the error colour (§8.0 error, §6.1), as in the fields and the side panel.
+    expect(icon.props).toMatchObject({ width: tokens.iconography.size.xs, stroke: lightTheme.semantic.error.foreground, strokeWidth: tokens.iconography.strokeWidth });
     expect(manual.addPhoto).not.toHaveBeenCalled();
 
     pick.mockResolvedValueOnce(gallery(1));
@@ -254,11 +280,19 @@ describe('PhotoStrip: the photos (D10, A6, D23)', () => {
     const { repository, trip } = await tripWithPhotos(sevenDays(1));
     await renderStrip(repository, trip.id);
     await loaded();
-    expect(screen.getByLabelText('Zdjęcie 1 z 1')).toHaveStyle({
-      width: lightTheme.size.photoTile,
-      height: lightTheme.size.photoTile,
-      borderRadius: lightTheme.radius.md,
-    });
+    expect(screen.getByLabelText('Zdjęcie 1 z 1')).toHaveStyle({ width: TILE, height: TILE, borderRadius: tokens.radii.md });
+  });
+
+  it('darkens a photo tile under the hero scrim while it is pressed, and rings it with border.focus when focused', async () => {
+    const { repository, trip } = await tripWithPhotos(sevenDays(1));
+    await renderStrip(repository, trip.id, { onOpenPhoto: jest.fn() });
+    await loaded();
+    const tile = screen.getByRole('button', { name: 'Zdjęcie 1 z 1' });
+    expect(within(tile).queryByTestId('photo-tile-pressed')).toBeNull();
+    await fireEvent(tile, 'responderGrant', { nativeEvent: { timestamp: Date.now() }, persist: jest.fn() });
+    expect(within(tile).getByTestId('photo-tile-pressed')).toHaveStyle({ backgroundColor: lightTheme.hero.scrim });
+    await fireEvent(tile, 'focus');
+    expect(tile).toHaveStyle({ outlineWidth: tokens.components.focusRing.width, outlineColor: lightTheme.border.focus });
   });
 
   it('calls onOpenPhoto with the photo id when its tile is pressed', async () => {
@@ -321,12 +355,7 @@ describe('PhotoStrip: empty, loading and error (P3)', () => {
     const tiles = within(loading).getAllByTestId('photo-skeleton-tile');
     expect(tiles).toHaveLength(3);
     for (const tile of tiles) {
-      expect(tile).toHaveStyle({
-        width: lightTheme.size.photoTile,
-        height: lightTheme.size.photoTile,
-        borderRadius: lightTheme.radius.md,
-        backgroundColor: lightTheme.colors.surface.secondary,
-      });
+      expect(tile).toHaveStyle({ width: TILE, height: TILE, borderRadius: tokens.radii.md, backgroundColor: lightTheme.skeleton.base });
     }
     // One element for a screen reader, and the add tile stays usable.
     expect(loading.props.accessibilityLabel).toBe('Zdjęcia z podróży');
@@ -341,7 +370,7 @@ describe('PhotoStrip: empty, loading and error (P3)', () => {
     await renderStrip({ ...repository, photos }, trip.id);
 
     const message = await screen.findByText('Nie udało się wczytać zdjęć.');
-    expect(message).toHaveStyle({ color: lightTheme.colors.status.error });
+    expect(message).toHaveStyle({ ...tokens.typography.styles.bodySM, color: lightTheme.semantic.error.foreground });
     expect(screen.getByTestId('photo-strip-error-icon', { includeHiddenElements: true })).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Dodaj zdjęcia' })).toBeEnabled();
     expect(screen.queryByText('Dodaj zdjęcia z tej podróży.')).toBeNull();
@@ -408,8 +437,8 @@ describe('PhotoStrip: sending (D15, D22)', () => {
     const sending = await screen.findByLabelText('Zdjęcie 1 z 2, wysyłanie');
     expect(within(sending).getByTestId('photo-tile-image').props.source).toEqual([{ uri: 'file:///gallery/1.jpg' }]);
     expect(within(sending).getByTestId('photo-tile-image').props.contentFit).toBe('cover');
-    expect(within(sending).getByTestId('photo-tile-scrim')).toHaveStyle({ backgroundColor: lightTheme.colors.overlay.scrim });
-    expect(within(sending).getByTestId('photo-tile-spinner', { includeHiddenElements: true })).toBeTruthy();
+    expect(within(sending).getByTestId('photo-tile-scrim')).toHaveStyle({ backgroundColor: lightTheme.hero.scrim });
+    expect(within(sending).getByTestId('photo-tile-spinner', { includeHiddenElements: true }).props.color).toBe(lightTheme.hero.text);
     // The second one waits its turn and looks the same.
     const waiting = screen.getByLabelText('Zdjęcie 2 z 2, wysyłanie');
     expect(within(waiting).getByTestId('photo-tile-spinner', { includeHiddenElements: true })).toBeTruthy();
@@ -428,7 +457,7 @@ describe('PhotoStrip: sending (D15, D22)', () => {
     await fireEvent.press(screen.getByRole('button', { name: 'Dodaj zdjęcia' }));
     const line = await screen.findByText('Wysyłam zdjęcia: 0 z 3');
     expect(line.props.accessibilityLiveRegion).toBe('polite');
-    expect(line).toHaveStyle({ color: lightTheme.colors.text.secondary });
+    expect(line).toHaveStyle({ ...tokens.typography.styles.bodySM, color: lightTheme.text.secondary });
 
     await act(async () => manual.uploads[0].succeed());
     expect(await screen.findByText('Wysyłam zdjęcia: 1 z 3')).toBeTruthy();
@@ -491,7 +520,13 @@ describe('PhotoStrip: photos that could not be sent (P3)', () => {
 
     const failed = await screen.findByRole('button', { name: 'Zdjęcie 1 z 1, nie wysłane. Stuknij, aby spróbować ponownie.' });
     expect(within(failed).getByTestId('photo-tile-scrim')).toBeTruthy();
-    expect(within(failed).getByTestId('photo-tile-failed-icon', { includeHiddenElements: true })).toBeTruthy();
+    // Text over the photo: hero text on the hero scrim, a CircleAlert at 20dp (§6.1, was CircleX).
+    expect(within(failed).getByTestId('photo-tile-scrim')).toHaveStyle({ backgroundColor: lightTheme.hero.scrim });
+    expect(within(failed).getByTestId('photo-tile-failed-icon', { includeHiddenElements: true }).props).toMatchObject({
+      width: tokens.iconography.size.sm,
+      stroke: lightTheme.hero.text,
+      strokeWidth: tokens.iconography.strokeWidth,
+    });
     expect(within(failed).getByTestId('photo-tile-image').props.source).toEqual([{ uri: 'file:///gallery/1.jpg' }]);
     expect(manual.addPhoto).toHaveBeenCalledTimes(1);
 
@@ -520,7 +555,7 @@ describe('PhotoStrip: photos that could not be sent (P3)', () => {
     await act(async () => manual.uploads[2].fail());
 
     const line = await screen.findByText('Nie udało się wysłać 2 zdjęć');
-    expect(line).toHaveStyle({ color: lightTheme.colors.status.error });
+    expect(line).toHaveStyle({ ...tokens.typography.styles.bodySM, color: lightTheme.semantic.error.foreground });
     expect(line.props.accessibilityLiveRegion).toBe('polite');
     expect(screen.getByTestId('photo-strip-error-icon', { includeHiddenElements: true })).toBeTruthy();
     expect(screen.queryByText(/Wysyłam zdjęcia/)).toBeNull();
@@ -580,7 +615,10 @@ describe('PhotoStrip: offline (D8)', () => {
     const add = screen.getByRole('button', { name: 'Dodaj zdjęcia' });
     expect(add).toBeDisabled();
     expect(add.props.accessibilityState).toEqual(expect.objectContaining({ disabled: true }));
-    expect(add).toHaveStyle({ opacity: 0.4 });
+    // Disabled tokens, never opacity (§8.0, sunline-redesign A5).
+    expect(StyleSheet.flatten(add.props.style).opacity).toBeUndefined();
+    expect(screen.getByTestId('photo-add-tile')).toHaveStyle({ backgroundColor: lightTheme.disabled.background });
+    expect(within(add).getByTestId('photo-add-icon', { includeHiddenElements: true }).props.stroke).toBe(lightTheme.disabled.foreground);
     await fireEvent.press(add);
     expect(pick).not.toHaveBeenCalled();
     expect(screen.getByLabelText('Zdjęcie 1 z 2')).toBeTruthy();
@@ -597,7 +635,7 @@ describe('PhotoStrip: offline (D8)', () => {
     await act(async () => setNetwork({ isConnected: true, isInternetReachable: true }));
 
     expect(screen.getByRole('button', { name: 'Dodaj zdjęcia' })).toBeEnabled();
-    expect(screen.getByRole('button', { name: 'Dodaj zdjęcia' })).toHaveStyle({ opacity: 1 });
+    expect(screen.getByTestId('photo-add-tile')).toHaveStyle({ backgroundColor: lightTheme.background.sunken });
     expect(screen.queryByText('Bez internetu nie dodasz ani nie usuniesz zdjęć.')).toBeNull();
   });
 
@@ -665,11 +703,13 @@ describe('PhotoStrip: trying again while offline (D24)', () => {
     return { manual, ...watched };
   }
 
-  it('disables the tile of a failed photo and dims it like the add tile, and pressing it does not send the photo again', async () => {
+  it('disables the tile of a failed photo with the disabled tokens like the add tile, and pressing it does not send the photo again', async () => {
     const { manual, retry } = await withFailedPhotos(2);
     const first = screen.getByRole('button', { name: tileLabel(1, 2) });
     expect(first).toBeEnabled();
-    expect(first).toHaveStyle({ opacity: 1 });
+    // An enabled tile is not dimmed: no opacity (A5), it shows its preview.
+    expect(StyleSheet.flatten(first.props.style).opacity).toBeUndefined();
+    expect(within(first).getByTestId('photo-tile-image')).toBeTruthy();
 
     await act(async () => setNetwork(OFFLINE));
 
@@ -677,7 +717,11 @@ describe('PhotoStrip: trying again while offline (D24)', () => {
       const tile = screen.getByRole('button', { name: offlineTileLabel(index, 2) });
       expect(tile).toBeDisabled();
       expect(tile.props.accessibilityState).toEqual(expect.objectContaining({ disabled: true }));
-      expect(tile).toHaveStyle({ opacity: 0.4 });
+      // No opacity: the tile turns into the disabled surface with the alert icon in the disabled foreground, and the preview goes.
+      expect(StyleSheet.flatten(tile.props.style).opacity).toBeUndefined();
+      expect(within(tile).getByTestId('photo-tile-surface')).toHaveStyle({ backgroundColor: lightTheme.disabled.background });
+      expect(within(tile).getByTestId('photo-tile-failed-icon', { includeHiddenElements: true }).props.stroke).toBe(lightTheme.disabled.foreground);
+      expect(within(tile).queryByTestId('photo-tile-image')).toBeNull();
       await fireEvent.press(tile);
     }
     expect(retry).not.toHaveBeenCalled();
@@ -710,7 +754,9 @@ describe('PhotoStrip: trying again while offline (D24)', () => {
 
     const first = screen.getByRole('button', { name: tileLabel(1, 2) });
     expect(first).toBeEnabled();
-    expect(first).toHaveStyle({ opacity: 1 });
+    expect(StyleSheet.flatten(first.props.style).opacity).toBeUndefined();
+    expect(within(first).getByTestId('photo-tile-image')).toBeTruthy();
+    expect(within(first).getByTestId('photo-tile-failed-icon', { includeHiddenElements: true }).props.stroke).toBe(lightTheme.hero.text);
     expect(screen.getByRole('button', { name: 'Spróbuj ponownie' })).toBeEnabled();
 
     await fireEvent.press(first);
@@ -789,7 +835,7 @@ describe('PhotoStrip: layout', () => {
     await renderStrip(repository, trip.id);
     await loaded();
     expect(screen.getByLabelText('Zdjęcia z podróży').props.contentContainerStyle).toEqual(
-      expect.objectContaining({ paddingHorizontal: SIDE, gap: lightTheme.spacing[2] }),
+      expect.objectContaining({ paddingHorizontal: SIDE, gap: tokens.spacing[2] }),
     );
   });
 });

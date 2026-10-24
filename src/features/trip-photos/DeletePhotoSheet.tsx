@@ -1,3 +1,4 @@
+import { CircleAlert } from 'lucide-react-native';
 import { useTranslation } from 'react-i18next';
 import { AccessibilityInfo, Text, View } from 'react-native';
 
@@ -6,6 +7,7 @@ import { TextButton } from '@/components/TextButton';
 import { useDeleteTripPhoto } from '@/hooks/useTripPhotos';
 import { useIsOffline } from '@/providers/BudgetSync';
 import type { ShownTripPhoto } from '@/schemas';
+import { tokens } from '@/theme/tokens';
 import { useTheme } from '@/theme/useTheme';
 
 type Props = { photo: ShownTripPhoto; onClose: () => void; onDeleted: () => void };
@@ -29,14 +31,25 @@ export function DeletePhotoSheet({ photo, onClose, onDeleted }: Props) {
 
   return (
     <BottomSheet visible title={t('deletePhoto.title')} onClose={onClose} dismissible={!pending}>
-      <Text style={[theme.typography.bodyM, { color: theme.colors.text.secondary }]}>{t('deletePhoto.body')}</Text>
+      <Text style={[tokens.typography.styles.bodyMD, { color: theme.text.secondary }]}>{t('deletePhoto.body')}</Text>
       {remove.isError && (
         // Announced by the call in `confirm`; a live region as well would read it twice.
-        <Text style={[theme.typography.bodyS, { color: theme.colors.status.error }]}>{t('deletePhoto.error')}</Text>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: tokens.spacing[1] }}>
+          <CircleAlert
+            testID="delete-photo-error-icon"
+            size={tokens.iconography.size.xs}
+            strokeWidth={tokens.iconography.strokeWidth}
+            color={theme.semantic.error.foreground}
+            aria-hidden
+          />
+          <Text style={[tokens.typography.styles.bodySM, { color: theme.semantic.error.foreground, flexShrink: 1 }]}>
+            {t('deletePhoto.error')}
+          </Text>
+        </View>
       )}
-      {offline && <Text style={[theme.typography.bodyS, { color: theme.colors.text.secondary }]}>{t('tripPhotos.offlineHint')}</Text>}
+      {offline && <Text style={[tokens.typography.styles.bodySM, { color: theme.text.secondary }]}>{t('tripPhotos.offlineHint')}</Text>}
       {/* TextButton has no loading state, so while deleting both buttons are disabled (greyed, not pressable). */}
-      <View testID="delete-photo-actions" style={{ gap: theme.spacing[4] }}>
+      <View testID="delete-photo-actions" style={{ gap: tokens.spacing[4] }}>
         <TextButton variant="destructive" label={t('deletePhoto.confirm')} onPress={confirm} disabled={offline || pending} />
         <TextButton variant="secondary" label={t('deletePhoto.cancel')} onPress={onClose} disabled={pending} />
       </View>

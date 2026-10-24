@@ -2,7 +2,9 @@ import { act, render, screen } from '@testing-library/react-native';
 import { AccessibilityInfo } from 'react-native';
 
 import { CoverImage } from '@/components/CoverImage';
-import { lightTheme } from '@/theme/theme';
+import { darkTheme, lightTheme } from '@/theme/theme';
+import { tokens } from '@/theme/tokens';
+import { DarkThemeScope } from '@/theme/useTheme';
 
 // Jest turns every image into the number 1, so each file is stood in by a distinct object.
 jest.mock('../../../assets/covers/auckland.jpg', () => ({ uri: 'bundled/auckland.jpg' }));
@@ -89,14 +91,19 @@ describe('CoverImage (trip-covers C3)', () => {
 
   it('has a placeholder surface behind the image that the parent can restyle', async () => {
     const { rerender } = await render(<CoverImage testID="cover" cover="preset:bali" variant="full" />);
-    expect(screen.getByTestId('cover', hidden)).toHaveStyle({ backgroundColor: lightTheme.colors.surface.secondary });
-    await rerender(<CoverImage testID="cover" cover="preset:bali" variant="full" style={{ backgroundColor: lightTheme.colors.hero.background }} />);
-    expect(screen.getByTestId('cover', hidden)).toHaveStyle({ backgroundColor: lightTheme.colors.hero.background });
+    expect(screen.getByTestId('cover', hidden)).toHaveStyle({ backgroundColor: lightTheme.skeleton.base });
+    await rerender(<CoverImage testID="cover" cover="preset:bali" variant="full" style={{ backgroundColor: lightTheme.background.sunken }} />);
+    expect(screen.getByTestId('cover', hidden)).toHaveStyle({ backgroundColor: lightTheme.background.sunken });
+  });
+
+  it('has the dark placeholder surface in dark mode', async () => {
+    await render(<CoverImage testID="cover" cover="preset:bali" variant="full" />, { wrapper: DarkThemeScope });
+    expect(screen.getByTestId('cover', hidden)).toHaveStyle({ backgroundColor: darkTheme.skeleton.base });
   });
 
   it('fades in over a short duration token', async () => {
     await render(<CoverImage testID="cover" cover="preset:bali" variant="full" />);
-    expect(screen.getByTestId('cover', hidden).props.transition).toEqual({ duration: lightTheme.duration.small });
+    expect(screen.getByTestId('cover', hidden).props.transition).toEqual({ duration: tokens.motion.duration.standard });
   });
 
   it('shows at once when the system asks to reduce motion', async () => {

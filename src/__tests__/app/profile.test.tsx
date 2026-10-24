@@ -16,11 +16,14 @@ import { travelStats } from '@/lib/travel-stats';
 import type { TripListItem } from '@/schemas';
 import { setAppProfileRepository, withMyProfile } from '@/test/fake-profile-repository';
 import { setNetwork } from '@/test/mock-network';
-import { darkTheme, lightTheme } from '@/theme/theme';
+import { darkTheme, lightTheme } from '@/theme/legacy/theme';
+import { colors } from '@/theme/tokens';
 
 jest.mock('expo-font', () => ({ ...jest.requireActual('expo-font'), useFonts: jest.fn() }));
 jest.mocked(useFonts).mockReturnValue([true, null]);
 jest.mock('expo-status-bar', () => ({ StatusBar: () => null }));
+// Sunline's press scale also calls withTiming; the pulse tests below must count only the skeleton's calls.
+jest.mock('@/components/usePressScale', () => ({ usePressScale: () => ({ style: {}, onPressIn: () => undefined, onPressOut: () => undefined }) }));
 
 let mockScheme: 'light' | 'dark' = 'light';
 let mockFontScale = 1;
@@ -462,7 +465,7 @@ describe('Profile screen — photo and nick (A3)', () => {
       const shown = await findPhoto();
       expect(photoSkeleton()).toBeTruthy();
       expect(style(shown).backgroundColor).toBeUndefined();
-      expect(style(theSkeleton()).backgroundColor).toBe(theme.colors.skeleton);
+      expect(style(theSkeleton()).backgroundColor).toBe(colors[scheme].skeleton.base);
     });
 
     it('a photo that cannot load is the skeleton, not the placeholder', async () => {
@@ -1040,7 +1043,7 @@ describe('Profile screen — theme and layout', () => {
     expect(screen.getByTestId('profile-screen')).toHaveStyle({ backgroundColor: darkTheme.colors.background });
     expect(style(screen.getByRole('header', { name: 'Profil' })).color).toBe(darkTheme.colors.text.primary);
     const [skeleton] = await screen.findAllByTestId('stat-skeleton', { includeHiddenElements: true });
-    expect(style(skeleton).backgroundColor).toBe(darkTheme.colors.skeleton);
+    expect(style(skeleton).backgroundColor).toBe(colors.dark.skeleton.base);
   });
 
   it('standard side padding of 20dp', async () => {

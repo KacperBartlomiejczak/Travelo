@@ -2,7 +2,12 @@ import { fireEvent, render, screen } from '@testing-library/react-native';
 
 import { AmountField } from '@/components/AmountField';
 import '@/i18n';
-import { lightTheme } from '@/theme/theme';
+import { darkTheme, lightTheme } from '@/theme/theme';
+import { tokens } from '@/theme/tokens';
+import { DarkThemeScope } from '@/theme/useTheme';
+
+const { input } = tokens.components;
+const { styles } = tokens.typography;
 
 describe('AmountField', () => {
   it('shows the amount with its currency beside it (§10.5)', async () => {
@@ -16,10 +21,46 @@ describe('AmountField', () => {
     expect(onChangeText).toHaveBeenCalledWith('3500');
   });
 
-  it('is 64dp with the Numeric XL amount font (§10.5)', async () => {
+  // Sunline Editorial §8.5.
+  it('is 72dp with the moneyXL amount font, and the currency code in moneyMD (§8.5)', async () => {
     await render(<AmountField label="Kwota" amountText="" currency="EUR" onChangeText={() => {}} />);
-    expect(screen.getByLabelText('Kwota')).toHaveStyle({ fontFamily: lightTheme.typography.numericXL.fontFamily, fontSize: 32 });
-    expect(screen.getByTestId('amount-field-box')).toHaveStyle({ minHeight: 64 });
+    const amount = screen.getByLabelText('Kwota');
+    expect(amount).toHaveStyle({ ...styles.moneyXL, color: lightTheme.text.primary });
+    expect(amount.props.placeholderTextColor).toBe(lightTheme.text.tertiary);
+    expect(amount.props.cursorColor).toBe(lightTheme.brand.primary);
+    expect(screen.getByText('EUR')).toHaveStyle({ ...styles.moneyMD, color: lightTheme.text.secondary });
+    expect(screen.getByTestId('amount-field-box')).toHaveStyle({
+      minHeight: input.amountHeight,
+      borderRadius: input.radius,
+      backgroundColor: lightTheme.surface.primary,
+      borderWidth: input.borderWidth,
+      borderColor: lightTheme.border.default,
+      paddingHorizontal: input.horizontalPadding,
+    });
+  });
+
+  it('follows the text input border rules: 2dp border.focus when focused, 2dp error color on error', async () => {
+    const { rerender } = await render(<AmountField label="Kwota" amountText="" currency="EUR" onChangeText={() => {}} />);
+    await fireEvent(screen.getByLabelText('Kwota'), 'focus');
+    expect(screen.getByTestId('amount-field-box')).toHaveStyle({
+      borderWidth: input.focusBorderWidth,
+      borderColor: lightTheme.border.focus,
+    });
+    await rerender(<AmountField label="Kwota" amountText="abc" currency="EUR" error="Wpisz kwotę" onChangeText={() => {}} />);
+    expect(screen.getByTestId('amount-field-box')).toHaveStyle({
+      borderWidth: input.focusBorderWidth,
+      borderColor: lightTheme.semantic.error.foreground,
+    });
+    expect(screen.getByTestId('field-error-icon', { includeHiddenElements: true })).toBeTruthy();
+  });
+
+  it('uses the dark colors in dark mode', async () => {
+    await render(<AmountField label="Kwota" amountText="1" currency="EUR" onChangeText={() => {}} />, { wrapper: DarkThemeScope });
+    expect(screen.getByTestId('amount-field-box')).toHaveStyle({
+      backgroundColor: darkTheme.surface.primary,
+      borderColor: darkTheme.border.default,
+    });
+    expect(screen.getByLabelText('Kwota')).toHaveStyle({ color: darkTheme.text.primary });
   });
 
   it('lets the amount shrink so the currency code always stays inside the field (web inputs have an intrinsic width)', async () => {

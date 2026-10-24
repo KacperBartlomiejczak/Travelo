@@ -2,6 +2,9 @@ import { fireEvent, render, screen } from '@testing-library/react-native';
 
 import { Stepper } from '@/components/Stepper';
 import i18n from '@/i18n';
+import { darkTheme, lightTheme } from '@/theme/theme';
+import { tokens } from '@/theme/tokens';
+import { DarkThemeScope } from '@/theme/useTheme';
 
 beforeEach(async () => {
   await i18n.changeLanguage('pl');
@@ -38,8 +41,21 @@ describe('Stepper', () => {
     expect(onChange).toHaveBeenLastCalledWith(1);
   });
 
-  it('has 44dp buttons (§10.2)', async () => {
+  it('has 44dp buttons (§8.2)', async () => {
     await render(<Stepper label="Osoby" value={2} min={0} max={19} onChange={() => {}} />);
     expect(screen.getByRole('button', { name: 'Zwiększ' })).toHaveStyle({ width: 44, height: 44 });
+  });
+
+  // Sunline Editorial: no own section; label like a field label (labelMD), the count as `numeric` (§3.3 rule 4).
+  it('draws the label in labelMD and the value in numeric, both text.primary', async () => {
+    await render(<Stepper label="Osoby" value={2} min={0} max={19} onChange={() => {}} />);
+    expect(screen.getByText('Osoby')).toHaveStyle({ ...tokens.typography.styles.labelMD, color: lightTheme.text.primary });
+    expect(screen.getByText('2')).toHaveStyle({ ...tokens.typography.styles.numeric, color: lightTheme.text.primary, textAlign: 'center' });
+  });
+
+  it('uses the dark colors in dark mode', async () => {
+    await render(<Stepper label="Osoby" value={2} min={0} max={19} onChange={() => {}} />, { wrapper: DarkThemeScope });
+    expect(screen.getByText('Osoby')).toHaveStyle({ color: darkTheme.text.primary });
+    expect(screen.getByText('2')).toHaveStyle({ color: darkTheme.text.primary });
   });
 });

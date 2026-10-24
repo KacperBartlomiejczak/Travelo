@@ -11,6 +11,7 @@ import { OfflineBanner } from '@/components/OfflineBanner';
 import { PrimaryButton } from '@/components/PrimaryButton';
 import { useReduceMotion } from '@/hooks/useReduceMotion';
 import { useIsOffline } from '@/providers/BudgetSync';
+import { tokens } from '@/theme/tokens';
 import { DarkThemeScope, useTheme } from '@/theme/useTheme';
 
 import { SignInSheet } from './SignInSheet';
@@ -18,12 +19,13 @@ import { SignInSheet } from './SignInSheet';
 // The bundled cover behind the welcome screen (auth-onboarding P6): no new asset.
 const WELCOME_COVER = 'preset:bali';
 
-// Entrance (theme-split-and-profile-prefill P3, design-context §9): the title, the sentence and the button each fade in and
-// rise 16dp (spacing[4]) over the 500 ms celebration duration of §9.1, 150 ms apart (longer than first built, D13), on the
-// enter easing (0.2, 0.8, 0.2, 1) of §9.2.
+// Entrance (theme-split-and-profile-prefill P3): the title, the sentence and the button each fade in and rise 16dp
+// (spacing[4]) over the 500 ms `welcomeRevealed` duration, 150 ms apart (longer than first built, D13), on the `enter`
+// easing of design-context §7.2.
 const ENTRANCE_STAGGER_MS = 150;
-const ENTER_EASING = Easing.bezier(0.2, 0.8, 0.2, 1);
+const ENTER_EASING = Easing.bezier(...tokens.motion.easing.enter);
 const ENTRANCE_PARTS = 3;
+const { spacing, typography } = tokens;
 
 /**
  * One progress value (0 → 1) per part of the column. Once, on mount, they run one after another; with reduce motion (§9.4)
@@ -31,7 +33,6 @@ const ENTRANCE_PARTS = 3;
  * that asks for it never shows a part sliding. They only drive opacity and translateY, so the button is pressable at once.
  */
 function useEntrance(): Animated.Value[] {
-  const { duration } = useTheme();
   const [progress] = useState(() => Array.from({ length: ENTRANCE_PARTS }, () => new Animated.Value(0)));
   const reduceMotion = useReduceMotion();
   const played = useRef(false);
@@ -50,7 +51,7 @@ function useEntrance(): Animated.Value[] {
       Animated.timing(value, {
         toValue: 1,
         delay: index * ENTRANCE_STAGGER_MS,
-        duration: duration.celebration,
+        duration: tokens.motion.microinteraction.welcomeRevealed.itemDuration,
         easing: ENTER_EASING,
         // JS driver, like the pill navigation: three short, one-off tweens, and the native driver does not update the rendered style under Jest.
         useNativeDriver: false,
@@ -58,14 +59,14 @@ function useEntrance(): Animated.Value[] {
     );
     entrance.forEach((animation) => animation.start());
     return () => entrance.forEach((animation) => animation.stop());
-  }, [reduceMotion, progress, duration.celebration]);
+  }, [reduceMotion, progress]);
 
   return progress;
 }
 
 /**
- * The first screen of a signed-out user (auth-onboarding D5, D6, P4, P5): a full-screen cover photo fading into ink like the
- * trip hero, with the title, one sentence and "Zaloguj się" in the thumb zone. Always dark. "Zaloguj się" opens the sign-in
+ * The first screen of a signed-out user (auth-onboarding D5, D6, P4, P5): a full-screen cover photo under the `hero.scrim`, fading
+ * into the dark canvas like the trip hero, with the title, one sentence and "Zaloguj się" in the thumb zone. Always dark. "Zaloguj się" opens the sign-in
  * sheet; offline the button is disabled under the offline banner. The screen never navigates after a sign-in: the gate does.
  */
 export function WelcomeScreen() {
@@ -87,32 +88,31 @@ function Welcome() {
   // Pushed screens stay mounted under the next one (the e-mail screens): only the focused screen keeps the bar light.
   const focused = useIsFocused();
   const [titleProgress, bodyProgress, actionProgress] = useEntrance();
-  const { spacing, colors, typography } = theme;
-  const { hero } = colors;
-  const side = width < theme.breakpoints.compact ? spacing[4] : spacing[5];
+  const { hero } = theme;
+  const side = width < tokens.layout.compactBreakpoint ? spacing[4] : spacing[5];
   const enter = (progress: Animated.Value) => ({
     opacity: progress,
     transform: [{ translateY: progress.interpolate({ inputRange: [0, 1], outputRange: [spacing[4], 0] }) }],
   });
 
   return (
-    <View testID="welcome-screen" style={[styles.screen, { backgroundColor: hero.background }]}>
+    <View testID="welcome-screen" style={[styles.screen, { backgroundColor: theme.background.canvas }]}>
       <StatusBar style={focused ? 'light' : 'auto'} />
       <View testID="welcome-photo" aria-hidden style={StyleSheet.absoluteFill}>
-        {/* On ink while it loads, so the light placeholder surface does not flash behind the fade. */}
+        {/* On the dark canvas while it loads, so the light placeholder surface does not flash behind the fade. */}
         <CoverImage
           testID="welcome-image"
           cover={WELCOME_COVER}
           variant="full"
-          style={[StyleSheet.absoluteFill, { backgroundColor: hero.background }]}
+          style={[StyleSheet.absoluteFill, { backgroundColor: theme.background.canvas }]}
         />
         {/* Darkens the whole photo evenly, so the sheet's rounded corners do not show where the photo ends. */}
-        <View testID="welcome-dim" style={[StyleSheet.absoluteFill, { backgroundColor: colors.overlay.scrim }]} />
+        <View testID="welcome-dim" style={[StyleSheet.absoluteFill, { backgroundColor: hero.scrim }]} />
         <Svg testID="welcome-gradient" style={StyleSheet.absoluteFill} width="100%" height="100%">
           <Defs>
             <LinearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
-              <Stop offset={theme.gradient.heroFade.start} stopColor={hero.background} stopOpacity={0} />
-              <Stop offset={1} stopColor={hero.background} stopOpacity={1} />
+              <Stop offset={tokens.screenMetrics.tripOverview.heroFadeStart} stopColor={theme.background.canvas} stopOpacity={0} />
+              <Stop offset={1} stopColor={theme.background.canvas} stopOpacity={1} />
             </LinearGradient>
           </Defs>
           <Rect width="100%" height="100%" fill={`url(#${gradientId})`} />
@@ -128,7 +128,7 @@ function Welcome() {
           testID="welcome-column"
           style={{
             width: '100%',
-            maxWidth: theme.size.maxContentWidth,
+            maxWidth: tokens.layout.maxContentWidth,
             alignSelf: 'center',
             paddingTop: insets.top + spacing[4],
             paddingHorizontal: side,
@@ -138,12 +138,12 @@ function Welcome() {
         >
           <View style={{ gap: spacing[2] }}>
             <Animated.View testID="welcome-title" style={enter(titleProgress)}>
-              <Text accessibilityRole="header" style={[typography.displayXL, { color: hero.text }]}>
+              <Text accessibilityRole="header" style={[typography.styles.displayXL, { color: hero.text }]}>
                 {t('auth.welcome.title')}
               </Text>
             </Animated.View>
             <Animated.View testID="welcome-body" style={enter(bodyProgress)}>
-              <Text style={[typography.bodyL, { color: hero.textSecondary }]}>{t('auth.welcome.body')}</Text>
+              <Text style={[typography.styles.bodyLG, { color: theme.text.secondary }]}>{t('auth.welcome.body')}</Text>
             </Animated.View>
           </View>
           {offline && <OfflineBanner />}

@@ -14,6 +14,7 @@ import { useTripDraft } from '@/features/trip-create/TripDraftContext';
 import { useGoToNextStep, WizardScreen } from '@/features/trip-create/WizardScreen';
 import { layoverMinutes } from '@/lib/layovers';
 import { FlightsStepInputSchema, MAX_COMPANIONS } from '@/schemas';
+import { tokens } from '@/theme/tokens';
 import { useTheme } from '@/theme/useTheme';
 
 type Direction = 'outbound' | 'return';
@@ -39,7 +40,7 @@ export default function FlightsStep() {
 
   function scrollToCard(key: string) {
     const y = sectionY.current + (cardY.current[key] ?? 0);
-    scrollRef.current?.scrollTo({ y: Math.max(0, y - theme.spacing[4]), animated: true });
+    scrollRef.current?.scrollTo({ y: Math.max(0, y - tokens.spacing[4]), animated: true });
   }
 
   function setSegments(direction: Direction, segments: SegmentDraft[]) {
@@ -83,9 +84,9 @@ export default function FlightsStep() {
       <View
         testID={`${title}-section`}
         onLayout={(event) => (sectionY.current = event.nativeEvent.layout.y)}
-        style={{ gap: theme.spacing[3] }}
+        style={{ gap: tokens.spacing[3] }}
       >
-        <Text accessibilityRole="header" style={[theme.typography.heading3, { color: theme.colors.text.primary }]}>
+        <Text accessibilityRole="header" style={[tokens.typography.styles.headingSM, { color: theme.text.primary }]}>
           {title}
         </Text>
         {segments.map((segment, index) => {
@@ -134,7 +135,7 @@ export default function FlightsStep() {
 
   return (
     <WizardScreen step="flights" scrollRef={scrollRef} action={{ label: t('newTrip.next'), onPress: next }}>
-      <Text accessibilityRole="header" style={[theme.typography.heading2, { color: theme.colors.text.primary }]}>
+      <Text accessibilityRole="header" style={[tokens.typography.styles.headingLG, { color: theme.text.primary }]}>
         {t('newTrip.flights.heading')}
       </Text>
       {/* D2: ticket parsing comes later; the button is visible but disabled. */}

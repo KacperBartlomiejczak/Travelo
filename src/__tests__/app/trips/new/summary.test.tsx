@@ -18,7 +18,7 @@ import { emptyFriend, emptySegment, withCompanionCount, withFoundFriend } from '
 import { useTripDraft } from '@/features/trip-create/TripDraftContext';
 import { useCurrentTrip } from '@/hooks/useTrips';
 import i18n from '@/i18n';
-import { lightTheme } from '@/theme/theme';
+import { tokens } from '@/theme/tokens';
 
 jest.mock('expo-font', () => ({ ...jest.requireActual('expo-font'), useFonts: jest.fn() }));
 jest.mocked(useFonts).mockReturnValue([true, null]);
@@ -148,7 +148,7 @@ afterEach(() => {
 describe('Summary step', () => {
   it('aligns the layover label with the flight lines, no left inset (friend-invite D8)', async () => {
     await openSummary();
-    expect(section('trip').getByText('9 godz. przesiadki w DXB').parent).not.toHaveStyle({ paddingLeft: lightTheme.spacing[4] });
+    expect(section('trip').getByText('9 godz. przesiadki w DXB').parent).not.toHaveStyle({ paddingLeft: tokens.spacing[4] });
   });
 
   it('shows the trip: city, dates, days, segments and layovers (D38)', async () => {
@@ -339,12 +339,13 @@ describe('Summary step', () => {
       expect(app.getPathname()).toBe('/');
       await waitFor(() => expect(app.getSearchParams()).toEqual({}));
       // Gone after its time (cleared by the screen, then faded out), and not shown again by a later render.
-      const { snackbarAutoDismiss, small } = lightTheme.duration;
+      const snackbarAutoDismiss = tokens.components.snackbar.durationShort;
+      const fade = tokens.motion.duration.standard;
       await act(async () => {
         await jest.advanceTimersByTimeAsync(snackbarAutoDismiss);
       });
       await act(async () => {
-        await jest.advanceTimersByTimeAsync(small + 50);
+        await jest.advanceTimersByTimeAsync(fade + 50);
       });
       expect(screen.queryByText(MESSAGE)).toBeNull();
       await act(async () => {

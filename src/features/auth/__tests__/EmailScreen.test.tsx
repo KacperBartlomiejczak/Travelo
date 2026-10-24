@@ -1,14 +1,22 @@
 import { router } from 'expo-router';
 import { act, fireEvent, screen, waitFor, within } from 'expo-router/testing-library';
-import { AccessibilityInfo } from 'react-native';
+import { AccessibilityInfo, StyleSheet } from 'react-native';
 import { ZodError } from 'zod';
 
 import { appAuth } from '@/data/app-auth';
 import { ServerUnreachableError } from '@/data/errors';
 import i18n from '@/i18n';
+import { drawsCircleAlert } from '@/test/alert-icon';
 import { setNetwork } from '@/test/mock-network';
 import { headerConfigs, openEmailScreen } from '@/test/auth-email-flow';
 import { lightTheme } from '@/theme/theme';
+import { tokens } from '@/theme/tokens';
+
+let mockWidth = 750;
+jest.mock('react-native/Libraries/Utilities/useWindowDimensions', () => ({
+  __esModule: true,
+  default: () => ({ width: mockWidth, height: 1334, scale: 2, fontScale: 1 }),
+}));
 
 // The real sign-in (Supabase) is mocked for every test by jest.setup.ts.
 const sendEmailCode = jest.mocked(appAuth.sendEmailCode);
@@ -48,6 +56,7 @@ function pressHandler(button: ReturnType<typeof sendButton>): () => void {
 let announce: jest.SpyInstance;
 
 beforeEach(async () => {
+  mockWidth = 750;
   await i18n.changeLanguage('pl');
   sendEmailCode.mockReset();
   sendEmailCode.mockResolvedValue(undefined);
@@ -111,6 +120,16 @@ describe('EmailScreen (auth-onboarding D6, P3, P5, D17)', () => {
       expect(visible[0].props.backTitle).toBe('Back');
     });
 
+    it('draws the header in the canvas colour with a text.primary back button and no shadow line (§9.0)', async () => {
+      const { container } = await openEmailScreen();
+      const [header] = headerConfigs(container).filter((node) => !node.props.hidden);
+      expect(header.props).toMatchObject({
+        backgroundColor: lightTheme.background.canvas,
+        color: lightTheme.text.primary,
+        hideShadow: true,
+      });
+    });
+
     it('leaves the welcome screen without a header', async () => {
       const { container } = await openEmailScreen();
       await act(async () => router.back());
@@ -127,9 +146,9 @@ describe('EmailScreen (auth-onboarding D6, P3, P5, D17)', () => {
       await fireEvent.press(sendButton());
 
       expect(screen.getByText(FORMAT_ERROR)).toBeTruthy();
-      expect(screen.getByText(FORMAT_ERROR)).toHaveStyle({ color: lightTheme.colors.status.error });
+      expect(screen.getByText(FORMAT_ERROR)).toHaveStyle({ color: lightTheme.semantic.error.foreground });
       expect(field().props.accessibilityHint).toBe(FORMAT_ERROR);
-      expect(field()).toHaveStyle({ borderWidth: 2, borderColor: lightTheme.colors.status.error });
+      expect(field()).toHaveStyle({ borderWidth: 2, borderColor: lightTheme.semantic.error.foreground });
       expect(announce).toHaveBeenCalledWith(FORMAT_ERROR);
       expect(sendEmailCode).not.toHaveBeenCalled();
     });
@@ -244,7 +263,11 @@ describe('EmailScreen (auth-onboarding D6, P3, P5, D17)', () => {
 
       await waitFor(() => expect(screen.getByText(SEND_ERROR)).toBeTruthy());
       expect(announce).toHaveBeenCalledWith(SEND_ERROR);
-      expect(screen.getByText(SEND_ERROR)).toHaveStyle({ color: lightTheme.colors.status.error });
+      expect(screen.getByText(SEND_ERROR)).toHaveStyle({ ...tokens.typography.styles.bodySM, color: lightTheme.semantic.error.foreground });
+      // CircleAlert at 16dp in the error foreground, with Body SM text (§8.0 error, D28).
+      const icon = screen.getByTestId('email-send-error-icon', { includeHiddenElements: true });
+      expect(icon.props).toMatchObject({ width: tokens.iconography.size.xs, stroke: lightTheme.semantic.error.foreground, strokeWidth: tokens.iconography.strokeWidth });
+      expect(drawsCircleAlert(icon)).toBe(true);
       expect(JSON.stringify(screen.toJSON())).not.toContain('evil.example');
       expect(JSON.stringify(screen.toJSON())).not.toContain(ATTACKER_TEXT);
       expect(getPathname()).toBe('/email');
@@ -341,7 +364,32 @@ describe('EmailScreen (auth-onboarding D6, P3, P5, D17)', () => {
 
     it('uses the theme background', async () => {
       await openEmailScreen();
-      expect(screen.getByTestId('email-screen')).toHaveStyle({ backgroundColor: lightTheme.colors.background });
+      expect(screen.getByTestId('email-screen')).toHaveStyle({ backgroundColor: lightTheme.background.canvas });
+    });
+
+    it('draws the heading as headingLG in text.primary and the hint as bodyMD in text.secondary (§3.2)', async () => {
+      await openEmailScreen();
+      expect(screen.getByRole('header', { name: 'Twój e-mail' })).toHaveStyle({ ...tokens.typography.styles.headingLG, color: lightTheme.text.primary });
+      expect(screen.getByText('Wyślemy Ci 6-cyfrowy kod.')).toHaveStyle({ ...tokens.typography.styles.bodyMD, color: lightTheme.text.secondary });
+    });
+
+    it('uses the compact 16dp gutter below 390dp (§4.2)', async () => {
+      mockWidth = 375;
+      await openEmailScreen();
+      expect(StyleSheet.flatten(screen.getByTestId('email-screen-scroll').props.contentContainerStyle).paddingHorizontal).toBe(
+        tokens.layout.screenGutterCompact,
+      );
+    });
+
+    it('lays the column out on the grid: 720dp wide at most, 24dp between heading and field, 12dp above the pinned button (§4)', async () => {
+      await openEmailScreen();
+      const scroll = StyleSheet.flatten(screen.getByTestId('email-screen-scroll').props.contentContainerStyle);
+      expect(scroll).toMatchObject({
+        maxWidth: tokens.layout.maxContentWidth,
+        paddingHorizontal: tokens.layout.screenGutter,
+        paddingTop: tokens.spacing[4],
+        gap: tokens.spacing[6],
+      });
     });
   });
 });

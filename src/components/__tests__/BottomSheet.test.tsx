@@ -5,7 +5,9 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import { BottomSheet } from '@/components/BottomSheet';
 import i18n from '@/i18n';
-import { lightTheme } from '@/theme/theme';
+import { darkTheme, lightTheme } from '@/theme/theme';
+import { tokens } from '@/theme/tokens';
+import { DarkThemeScope } from '@/theme/useTheme';
 
 beforeEach(async () => {
   await i18n.changeLanguage('pl');
@@ -37,25 +39,63 @@ describe('BottomSheet (design-context §10.12)', () => {
     expect(screen.queryByText('content')).toBeNull();
   });
 
-  it('has the 36 × 4 handle and 24dp top corners, on the elevated surface', async () => {
+  it('has the 36 × 4 handle 10dp from the top and 28dp top corners, on the overlay surface (§8.13)', async () => {
     await renderSheet();
+    const { bottomSheet } = tokens.components;
     expect(screen.getByTestId('bottom-sheet-handle', { includeHiddenElements: true })).toHaveStyle({
-      width: 36,
-      height: 4,
-      borderRadius: lightTheme.radius.full,
+      width: bottomSheet.handleWidth,
+      height: bottomSheet.handleHeight,
+      borderRadius: tokens.radii.pill,
+      backgroundColor: lightTheme.border.default,
     });
+    expect(StyleSheet.flatten(screen.getByTestId('bottom-sheet-handle', { includeHiddenElements: true }).parent?.props.style).paddingTop).toBe(
+      bottomSheet.handleTopMargin,
+    );
     expect(screen.getByTestId('bottom-sheet')).toHaveStyle({
-      borderTopLeftRadius: lightTheme.radius.xl,
-      borderTopRightRadius: lightTheme.radius.xl,
-      maxHeight: '90%',
-      backgroundColor: lightTheme.colors.surface.elevated,
+      borderTopLeftRadius: bottomSheet.radius,
+      borderTopRightRadius: bottomSheet.radius,
+      maxHeight: '92%',
+      paddingHorizontal: bottomSheet.horizontalPadding,
+      backgroundColor: lightTheme.surface.overlay,
+      ...lightTheme.elevation.level2, // §5.2: level 2 is for bottom sheets
+    });
+    expect(bottomSheet.radius).toBe(28);
+    expect(StyleSheet.flatten(screen.getByTestId('bottom-sheet').props.style).paddingBottom).toBe(34 + bottomSheet.footerPaddingBottom);
+    expect(screen.getByTestId('bottom-sheet-header')).toHaveStyle({ gap: bottomSheet.contentTopPadding });
+  });
+
+  it('draws the title as headingSM in the primary text color', async () => {
+    await renderSheet();
+    expect(screen.getByRole('header', { name: 'Ile chcecie wydać na osobę?' })).toHaveStyle({
+      ...tokens.typography.styles.headingSM,
+      color: lightTheme.text.primary,
     });
   });
 
-  it('closes on a backdrop tap, dimmed with the scrim token', async () => {
+  it('uses the dark theme in dark mode', async () => {
+    await render(
+      <SafeAreaProvider initialMetrics={{ frame: { x: 0, y: 0, width: 390, height: 844 }, insets: { top: 47, left: 0, right: 0, bottom: 34 } }}>
+        <BottomSheet visible title="Tytuł" onClose={jest.fn()}>
+          <Text>content</Text>
+        </BottomSheet>
+      </SafeAreaProvider>,
+      { wrapper: DarkThemeScope },
+    );
+    // Dark mode: a border instead of a shadow (§5.2).
+    expect(screen.getByTestId('bottom-sheet')).toHaveStyle({ backgroundColor: darkTheme.surface.overlay, ...darkTheme.elevation.level2 });
+    expect(StyleSheet.flatten(screen.getByTestId('bottom-sheet').props.style).shadowOpacity).toBe(0);
+    expect(screen.getByTestId('bottom-sheet-handle', { includeHiddenElements: true })).toHaveStyle({ backgroundColor: darkTheme.border.default });
+    expect(screen.getByRole('header', { name: 'Tytuł' })).toHaveStyle({ color: darkTheme.text.primary });
+  });
+
+  it('closes on a backdrop tap; the backdrop is black at the 0.48 token opacity (§8.13, A6)', async () => {
     const onClose = await renderSheet();
     const backdrop = screen.getByRole('button', { name: 'Zamknij' });
-    expect(backdrop).toHaveStyle({ backgroundColor: lightTheme.colors.overlay.scrim });
+    expect(StyleSheet.flatten(backdrop.props.style)).toMatchObject({
+      backgroundColor: tokens.primitives.pure.black,
+      opacity: tokens.components.bottomSheet.backdropOpacity,
+    });
+    expect(tokens.components.bottomSheet.backdropOpacity).toBe(0.48);
     await fireEvent.press(backdrop);
     expect(onClose).toHaveBeenCalledTimes(1);
   });
@@ -71,10 +111,10 @@ describe('BottomSheet (design-context §10.12)', () => {
       return frame.children.indexOf(node as Element);
     };
 
-    it('fills the whole modal, behind the sheet, in the scrim colour (not a flex block above the sheet)', async () => {
+    it('fills the whole modal, behind the sheet, black at the backdrop opacity (not a flex block above the sheet)', async () => {
       await renderSheet();
       const style = StyleSheet.flatten(screen.getByRole('button', { name: 'Zamknij' }).props.style);
-      expect(style).toMatchObject({ ...StyleSheet.flatten(StyleSheet.absoluteFill), backgroundColor: lightTheme.colors.overlay.scrim });
+      expect(style).toMatchObject({ ...StyleSheet.flatten(StyleSheet.absoluteFill), backgroundColor: tokens.primitives.pure.black, opacity: tokens.components.bottomSheet.backdropOpacity });
       expect(style.flex).toBeUndefined();
     });
 
@@ -398,7 +438,7 @@ describe('BottomSheet swipe down (trip-edit-menu D18)', () => {
     expect(timing).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({ toValue: 0, duration: 180 }));
     expect(translateY()).toBe(50); // animating, not jumping
     await act(async () => {
-      jest.advanceTimersByTime(lightTheme.duration.small + 50);
+      jest.advanceTimersByTime(tokens.motion.duration.standard + 50);
     });
     expect(translateY()).toBe(0);
     expect(onClose).not.toHaveBeenCalled();
@@ -422,7 +462,7 @@ describe('BottomSheet swipe down (trip-edit-menu D18)', () => {
       terminate({ nativeEvent: { touches: [] }, touchHistory: { numberActiveTouches: 0, indexOfSingleActiveTouch: 0, mostRecentTimeStamp: 0, touchBank: [] } });
     });
     await act(async () => {
-      jest.advanceTimersByTime(lightTheme.duration.small + 50);
+      jest.advanceTimersByTime(tokens.motion.duration.standard + 50);
     });
     expect(translateY()).toBe(0);
     expect(onClose).not.toHaveBeenCalled();
@@ -454,7 +494,7 @@ describe('BottomSheet swipe down (trip-edit-menu D18)', () => {
       await f.up();
     }
     await act(async () => {
-      jest.advanceTimersByTime(lightTheme.duration.small + 50);
+      jest.advanceTimersByTime(tokens.motion.duration.standard + 50);
     });
     expect(translateY()).toBe(0);
     expect(onClose).not.toHaveBeenCalled();
@@ -520,7 +560,7 @@ describe('BottomSheet swipe down (trip-edit-menu D18)', () => {
       await f.up();
       expect(onClose).not.toHaveBeenCalled();
       await act(async () => {
-        jest.advanceTimersByTime(lightTheme.duration.small + 50);
+        jest.advanceTimersByTime(tokens.motion.duration.standard + 50);
       });
       expect(translateY()).toBe(0);
       expect(onClose).not.toHaveBeenCalled();

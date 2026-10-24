@@ -9,6 +9,7 @@ import { useFriendLookup } from '@/hooks/useFriendLookup';
 import { useMyProfile } from '@/hooks/useProfile';
 import { useIsOffline } from '@/providers/BudgetSync';
 import { FRIEND_CODE_LENGTH } from '@/schemas';
+import { tokens } from '@/theme/tokens';
 import { useTheme } from '@/theme/useTheme';
 
 import { withCodeText, withFoundFriend, type FriendDraft } from './draft';
@@ -72,8 +73,8 @@ export function FriendCard({ title, friend, onChange, nameError, codeError, take
 
   return (
     <Card testID={testID} onLayout={onLayout}>
-      <Text style={[theme.typography.bodyMMedium, { color: theme.colors.text.primary }]}>{title}</Text>
-      <View style={{ gap: theme.spacing[1] }}>
+      <Text style={[tokens.typography.styles.labelLG, { color: theme.text.primary }]}>{title}</Text>
+      <View style={{ gap: tokens.spacing[1] }}>
         <TextField
           label={t('newTrip.friends.code')}
           optional
@@ -94,10 +95,10 @@ export function FriendCard({ title, friend, onChange, nameError, codeError, take
             accessibilityLabel={t('newTrip.friends.codeChecking')}
             accessibilityLiveRegion="polite"
             accessibilityState={{ busy: true }}
-            style={{ flexDirection: 'row', alignItems: 'center', gap: theme.spacing[2] }}
+            style={{ flexDirection: 'row', alignItems: 'center', gap: tokens.spacing[2] }}
           >
-            <ActivityIndicator color={theme.colors.text.secondary} />
-            <Text style={[theme.typography.bodyS, { color: theme.colors.text.secondary }]}>{t('newTrip.friends.codeChecking')}</Text>
+            <ActivityIndicator color={theme.text.secondary} />
+            <Text style={[tokens.typography.styles.bodySM, { color: theme.text.secondary }]}>{t('newTrip.friends.codeChecking')}</Text>
           </View>
         )}
       </View>
@@ -109,7 +110,7 @@ export function FriendCard({ title, friend, onChange, nameError, codeError, take
         autoCapitalize="words"
         onChangeText={(displayName) => onChange({ ...friend, displayName })}
       />
-      <Text style={[theme.typography.bodyMMedium, { color: theme.colors.text.primary }]}>{t('newTrip.friends.interests')}</Text>
+      <Text style={[tokens.typography.styles.labelMD, { color: theme.text.primary }]}>{t('newTrip.friends.interests')}</Text>
       <InterestChips selected={friend.interests} disabled={linked} onChange={(interests) => onChange({ ...friend, interests })} />
     </Card>
   );

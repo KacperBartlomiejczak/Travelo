@@ -29,7 +29,7 @@ export function DateTimeField({ label, value, onChange, suggested, error }: Date
           value={toPickerDate(start)}
           timeZoneName="UTC"
           locale={i18n.language}
-          accentColor={theme.colors.action.primary}
+          accentColor={theme.brand.primary}
           onValueChange={(_, date) => onChange(fromPickerDate(date))}
         />
       )}

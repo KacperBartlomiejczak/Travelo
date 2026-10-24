@@ -18,7 +18,7 @@ import { HomeSkeleton } from '@/features/home/HomeSkeleton';
 import { useCurrentTrip } from '@/hooks/useTrips';
 import { usePillClearance } from '@/features/nav/usePillClearance';
 import { useIsOffline } from '@/providers/BudgetSync';
-import { useTheme } from '@/theme/useTheme';
+import { useTheme } from '@/theme/legacy/useTheme';
 
 // Home screen: loading, error, empty, or the current trip (trip-flight-tabs-name-cover D4, trips-drawer).
 // Every state has the menu button that opens the side panel with all trips (trips-drawer P5).

@@ -10,7 +10,8 @@ import i18n from '@/i18n';
 import type { SyncStatus, TripOverview } from '@/schemas';
 import { LOCAL_PROFILE_ID } from '@/test/fake-profile-repository';
 import { setNetwork } from '@/test/mock-network';
-import { lightTheme } from '@/theme/theme';
+import { lightTheme } from '@/theme/legacy/theme';
+import { tokens } from '@/theme/tokens';
 
 jest.mock('expo-font', () => ({ ...jest.requireActual('expo-font'), useFonts: jest.fn() }));
 jest.mocked(useFonts).mockReturnValue([true, null]);
@@ -51,7 +52,9 @@ jest.mock('@/data/app-trip-repository', () => ({
 
 const TRIP_ID = '0b9e7c4e-6a43-4c4b-9a55-2f6f0f7e1a01';
 const { spacing, size } = lightTheme;
-const CLEARANCE = INSET_BOTTOM + spacing[4] + size.navPill;
+// The pill floats 12dp above the inset (§8.14, sunline-redesign D23; was 16).
+const PILL_GAP = tokens.spacing[3];
+const CLEARANCE = INSET_BOTTOM + PILL_GAP + size.navPill;
 const OFFLINE = { isConnected: false, isInternetReachable: false };
 const CREATE = 'Utwórz podróż';
 
@@ -138,7 +141,9 @@ describe('Home screen above the floating pill (pill-nav-and-dialog step 5)', () 
       await screen.findByTestId('home-screen');
       // The snackbar adds the inset and 16dp itself, so its offset is the pill's height and 16dp.
       expect(mockSnackbarOffset).toBe(size.navPill + spacing[4]);
-      expect(INSET_BOTTOM + spacing[4] + (mockSnackbarOffset ?? 0)).toBe(CLEARANCE + spacing[4]);
+      // The route file still uses the old 16dp pill gap until step 10 moves it to the new theme, so for now the snackbar
+      // sits (16 - 12) = 4dp higher above the pill than intended.
+      expect(INSET_BOTTOM + spacing[4] + (mockSnackbarOffset ?? 0)).toBe(CLEARANCE + spacing[4] + (spacing[4] - PILL_GAP));
     });
 
     it('offline: pins the banner at the clearance, so the pill does not cover it', async () => {

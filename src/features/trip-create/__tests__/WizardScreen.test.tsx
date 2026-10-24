@@ -17,26 +17,29 @@ import {
 import NewTripLayout from '@/app/trips/new/_layout';
 import { WizardScreen } from '@/features/trip-create/WizardScreen';
 import i18n from '@/i18n';
+import { drawsCircleAlert } from '@/test/alert-icon';
+import { lightTheme } from '@/theme/theme';
+import { tokens } from '@/theme/tokens';
 
 // Keyboard events have no native side in Jest: the test captures the listeners and fires them itself.
 let keyboardListeners: Record<string, ((event: KeyboardEvent) => void)[]> = {};
 let headerHeight = 0;
 
-function Step({ withAction = true }: { withAction?: boolean }) {
+function Step({ withAction = true, error }: { withAction?: boolean; error?: string }) {
   const height = useHeaderHeight();
   useEffect(() => {
     headerHeight = height;
   }, [height]);
   return (
-    <WizardScreen step="flights" action={withAction ? { label: 'Dalej', onPress: () => {} } : undefined}>
+    <WizardScreen step="flights" action={withAction ? { label: 'Dalej', onPress: () => {}, error } : undefined}>
       <Text>Treść kroku</Text>
     </WizardScreen>
   );
 }
 
-async function openStep(withAction = true) {
+async function openStep(withAction = true, error?: string) {
   await renderRouter(
-    { 'trips/new/_layout': NewTripLayout, 'trips/new/index': () => <Step withAction={withAction} /> },
+    { 'trips/new/_layout': NewTripLayout, 'trips/new/index': () => <Step withAction={withAction} error={error} /> },
     { initialUrl: '/trips/new' },
   );
   await screen.findByText('Treść kroku');
@@ -212,5 +215,26 @@ describe('WizardScreen scrolls the focused field into view (wizard-keyboard, iOS
       expect(scrollTo()).not.toHaveBeenCalled();
       expect(screen.getByTestId('wizard-scroll').props.onScroll).toBeUndefined();
     });
+  });
+});
+
+// sunline-redesign D28: an error above the action is an icon and text, never colour alone.
+describe('WizardScreen action error (sunline-redesign D28, D31)', () => {
+  const MESSAGE = 'Nie udało się zapisać podróży. Spróbuj ponownie.';
+
+  it('shows nothing when there is no error', async () => {
+    await openStep();
+    expect(screen.queryByTestId('wizard-action-error')).toBeNull();
+  });
+
+  it('shows the message as a polite live region in bodySM error.foreground, with a CircleAlert icon', async () => {
+    await openStep(true, MESSAGE);
+    const text = screen.getByText(MESSAGE);
+    expect(text).toHaveStyle({ ...tokens.typography.styles.bodySM, color: lightTheme.semantic.error.foreground });
+    expect(text.props.accessibilityLiveRegion).toBe('polite');
+    const icon = screen.getByTestId('wizard-action-error-icon', { includeHiddenElements: true });
+    expect(icon.props).toMatchObject({ width: tokens.iconography.size.xs, stroke: lightTheme.semantic.error.foreground, strokeWidth: tokens.iconography.strokeWidth });
+    expect(drawsCircleAlert(icon)).toBe(true);
+    expect(screen.queryByTestId('wizard-action-error-icon')).toBeNull(); // hidden from the accessibility tree
   });
 });

@@ -1,9 +1,10 @@
 import { useState } from 'react';
 import { Text, TextInput, View } from 'react-native';
 
+import { tokens } from '@/theme/tokens';
 import { useTheme } from '@/theme/useTheme';
 
-import { Field, inputBorder } from './Field';
+import { Field, inputBoxStyle, inputCursorProps } from './Field';
 
 type Props = {
   label: string;
@@ -14,9 +15,9 @@ type Props = {
   error?: string;
 };
 
-const AMOUNT_HEIGHT = 64; // §10.5
+const { input } = tokens.components;
 
-// Amount + its currency code side by side (§10.5); money is never shown without a currency.
+// Amount + its currency code side by side (§8.5); money is never shown without a currency.
 export function AmountField({ label, amountText, currency, onChangeText, error }: Props) {
   const theme = useTheme();
   const [focused, setFocused] = useState(false);
@@ -25,14 +26,11 @@ export function AmountField({ label, amountText, currency, onChangeText, error }
       <View
         testID="amount-field-box"
         style={{
+          ...inputBoxStyle(theme, { focused, error: Boolean(error) }),
           flexDirection: 'row',
           alignItems: 'center',
-          gap: theme.spacing[2],
-          minHeight: AMOUNT_HEIGHT,
-          paddingHorizontal: theme.spacing[4],
-          borderRadius: theme.radius.sm,
-          backgroundColor: theme.colors.surface.default,
-          ...inputBorder(theme, { focused, error: Boolean(error) }),
+          gap: tokens.spacing[2],
+          minHeight: input.amountHeight,
         }}
       >
         <TextInput
@@ -44,13 +42,14 @@ export function AmountField({ label, amountText, currency, onChangeText, error }
           onBlur={() => setFocused(false)}
           keyboardType="decimal-pad"
           placeholder="0"
-          placeholderTextColor={theme.colors.text.tertiary}
+          placeholderTextColor={theme.text.tertiary}
+          {...inputCursorProps(theme)}
           style={[
-            theme.typography.numericXL,
-            { flex: 1, minWidth: 0, color: theme.colors.text.primary, outlineStyle: 'solid', outlineWidth: 0 },
+            tokens.typography.styles.moneyXL,
+            { flex: 1, minWidth: 0, color: theme.text.primary, outlineStyle: 'solid', outlineWidth: 0 },
           ]}
         />
-        <Text style={[theme.typography.numericM, { color: theme.colors.text.secondary, flexShrink: 0 }]}>{currency}</Text>
+        <Text style={[tokens.typography.styles.moneyMD, { color: theme.text.secondary, flexShrink: 0 }]}>{currency}</Text>
       </View>
     </Field>
   );

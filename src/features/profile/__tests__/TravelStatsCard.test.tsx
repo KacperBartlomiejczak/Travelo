@@ -3,7 +3,7 @@ import { AccessibilityInfo, StyleSheet } from 'react-native';
 
 import i18n from '@/i18n';
 import type { TravelStats } from '@/lib/travel-stats';
-import { darkTheme, lightTheme } from '@/theme/theme';
+import { darkTheme, lightTheme } from '@/theme/legacy/theme';
 
 import { TravelStatsCard } from '../TravelStatsCard';
 

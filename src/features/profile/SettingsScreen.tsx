@@ -9,7 +9,7 @@ import { TextButton } from '@/components/TextButton';
 import { useSignOut } from '@/hooks/useSignOut';
 import { useTripRepository } from '@/providers/AppProviders';
 import { useIsOffline } from '@/providers/BudgetSync';
-import { useTheme } from '@/theme/useTheme';
+import { useTheme } from '@/theme/legacy/useTheme';
 
 // Settings (profile-screen A4, D5, D8, D16): one button, "Wyloguj się", at the bottom where the thumb is. It asks first (the
 // dialog also warns when budget changes were not sent yet, they are lost on sign-out; a failed check counts as "maybe unsent").

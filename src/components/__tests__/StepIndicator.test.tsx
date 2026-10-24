@@ -2,7 +2,9 @@ import { isHiddenFromAccessibility, render, screen } from '@testing-library/reac
 
 import { StepIndicator } from '@/components/StepIndicator';
 import i18n from '@/i18n';
-import { lightTheme } from '@/theme/theme';
+import { darkTheme, lightTheme } from '@/theme/theme';
+import { tokens } from '@/theme/tokens';
+import { DarkThemeScope } from '@/theme/useTheme';
 
 beforeEach(async () => {
   await i18n.changeLanguage('pl');
@@ -22,12 +24,32 @@ describe('StepIndicator', () => {
     expect(isHiddenFromAccessibility(screen.getByText('Krok 2 z 4', { includeHiddenElements: true }))).toBe(true);
   });
 
-  it('fills the bar in proportion to the step, in brand colour on the border-coloured track (D23)', async () => {
+  it('fills the bar in proportion to the step: 4dp, pill, brand.primary on a border.subtle track (D13)', async () => {
     await render(<StepIndicator current={1} total={3} />);
     const bar = screen.getByRole('progressbar');
     const fill = screen.getByTestId('step-indicator-fill');
-    expect(bar).toHaveStyle({ height: 4, borderRadius: lightTheme.radius.full, backgroundColor: lightTheme.colors.border });
-    expect(fill).toHaveStyle({ width: '33.33333333333333%', backgroundColor: lightTheme.colors.action.primary });
+    expect(bar).toHaveStyle({ height: tokens.spacing[1], borderRadius: tokens.radii.pill, backgroundColor: lightTheme.border.subtle });
+    expect(fill).toHaveStyle({
+      width: '33.33333333333333%',
+      height: tokens.spacing[1],
+      borderRadius: tokens.radii.pill,
+      backgroundColor: lightTheme.brand.primary,
+    });
+  });
+
+  it('draws the label in bodySM text.secondary', async () => {
+    await render(<StepIndicator current={2} total={4} />);
+    expect(screen.getByText('Krok 2 z 4', { includeHiddenElements: true })).toHaveStyle({
+      ...tokens.typography.styles.bodySM,
+      color: lightTheme.text.secondary,
+    });
+  });
+
+  it('uses the dark colors in dark mode', async () => {
+    await render(<StepIndicator current={1} total={3} />, { wrapper: DarkThemeScope });
+    expect(screen.getByRole('progressbar')).toHaveStyle({ backgroundColor: darkTheme.border.subtle });
+    expect(screen.getByTestId('step-indicator-fill')).toHaveStyle({ backgroundColor: darkTheme.brand.primary });
+    expect(screen.getByText('Krok 1 z 3', { includeHiddenElements: true })).toHaveStyle({ color: darkTheme.text.secondary });
   });
 
   it('translates to English', async () => {

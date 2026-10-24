@@ -9,15 +9,17 @@ import { useFonts } from "expo-font";
 import { router, Stack } from "expo-router";
 import { HeaderBackButton } from "expo-router/react-navigation";
 import * as SplashScreen from "expo-splash-screen";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Platform } from "react-native";
 
 import "@/i18n";
+import { AnimatedSplash } from "@/components/AnimatedSplash";
 import { AppLoading } from "@/features/auth/AppLoading";
 import { FullScreenError } from "@/features/auth/FullScreenError";
 import { useGateView } from "@/features/auth/useGateView";
 import { AppProviders } from "@/providers/AppProviders";
+import { tokens } from "@/theme/tokens";
 import { useTheme } from "@/theme/useTheme";
 
 SplashScreen.preventAutoHideAsync();
@@ -52,16 +54,30 @@ export default function RootLayout() {
 // - signed out: the (auth) group only;
 // - signed in without a profile: profile setup only;
 // - signed in with a profile: the app.
-// While the session or the profile is still being read the splash screen stays (afterwards, e.g. right after signing in,
-// the home skeleton: `AppLoading`); a failure to read either is a full-screen error with a retry, never the welcome screen or the setup form.
+// While the session or the profile is still being read the gate shows the home skeleton (`AppLoading`); a failure to
+// read either is a full-screen error with a retry, never the welcome screen or the setup form.
+// The animated splash (splash-animation step 5) covers all of it on a cold start: the native splash is hidden as soon as the gate
+// mounts (the fonts are loaded) and hands over to it; it goes away once it has played and the gate is no longer loading (an error
+// counts as ready), and it is never shown again during the session. After a sign-in the skeleton shows without the splash.
 function Gate() {
-  const { t } = useTranslation();
+  const [splashDone, setSplashDone] = useState(false);
   const { view, retry } = useGateView();
-  const { colors, typography, size } = useTheme();
 
   useEffect(() => {
-    if (view !== "loading") SplashScreen.hideAsync();
-  }, [view]);
+    SplashScreen.hideAsync();
+  }, []);
+
+  return (
+    <>
+      <GateContent view={view} retry={retry} />
+      {splashDone ? null : <AnimatedSplash ready={view !== "loading"} onDone={() => setSplashDone(true)} />}
+    </>
+  );
+}
+
+function GateContent({ view, retry }: ReturnType<typeof useGateView>) {
+  const { t } = useTranslation();
+  const theme = useTheme();
 
   if (view === "loading") {
     return <AppLoading />;
@@ -89,9 +105,9 @@ function Gate() {
           name="settings"
           options={{
             title: t("profile.settings"),
-            headerStyle: { backgroundColor: colors.background },
-            headerTintColor: colors.text.primary,
-            headerTitleStyle: typography.heading3,
+            headerStyle: { backgroundColor: theme.background.canvas },
+            headerTintColor: theme.text.primary,
+            headerTitleStyle: tokens.typography.styles.headingSM,
             headerShadowVisible: false,
             headerLeft: ({ tintColor }) => (
               <HeaderBackButton
@@ -103,8 +119,8 @@ function Gate() {
                 // is set there (D26); a wider control would push the title, which sits next to it.
                 style={
                   Platform.OS === "ios"
-                    ? { minWidth: size.touchTarget, minHeight: size.touchTarget }
-                    : { minHeight: size.touchTarget }
+                    ? { minWidth: tokens.layout.touchTarget, minHeight: tokens.layout.touchTarget }
+                    : { minHeight: tokens.layout.touchTarget }
                 }
                 onPress={() => router.back()}
               />

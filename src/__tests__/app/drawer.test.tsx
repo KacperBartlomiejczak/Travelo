@@ -10,6 +10,7 @@ import i18n from '@/i18n';
 import type { CurrentTrip, TripListItem } from '@/schemas';
 import { drawerStatus } from '@/test/drawer-status';
 import { darkTheme, lightTheme } from '@/theme/theme';
+import { tokens } from '@/theme/tokens';
 
 jest.mock('expo-font', () => ({ ...jest.requireActual('expo-font'), useFonts: jest.fn() }));
 jest.mocked(useFonts).mockReturnValue([true, null]);
@@ -131,10 +132,13 @@ describe('Side panel on the home screen (trips-drawer D2, D4)', () => {
     await waitFor(() => expect(drawerStatus(rendered)).toBe('closed'));
   });
 
-  it('closes from the scrim, labelled "Zamknij", ink at 50 % like behind a bottom sheet', async () => {
+  it('closes from the scrim, labelled "Zamknij", black at 48 % like behind a bottom sheet (A6)', async () => {
     const { rendered } = await openPanel();
     const scrim = screen.getByRole('button', { name: 'Zamknij' });
-    expect(coloured(scrim)).toHaveStyle({ backgroundColor: lightTheme.colors.overlay.scrim });
+    // The drawer library animates the overlay's opacity itself, so the 0.48 sits in the colour's alpha channel (#RRGGBBAA).
+    const scrimColor = StyleSheet.flatten(coloured(scrim)?.props.style).backgroundColor as string;
+    expect(scrimColor.slice(0, 7)).toBe(tokens.primitives.pure.black);
+    expect(parseInt(scrimColor.slice(7), 16) / 255).toBeCloseTo(tokens.components.bottomSheet.backdropOpacity, 2);
     await fireEvent.press(scrim);
     expect(drawerStatus(rendered)).toBe('closed');
   });
@@ -154,28 +158,28 @@ describe('Side panel on the home screen (trips-drawer D2, D4)', () => {
 });
 
 describe('Side panel look (trips-drawer P1, A7)', () => {
-  it('is 85 % of a narrow screen, on the elevated surface, with 24dp right corners', async () => {
+  it('is 85 % of a narrow screen, on the elevated surface, with 24dp right corners (radii.xl)', async () => {
     mockWindowWidth = 320;
     await openPanel();
     expect(panel()).toHaveStyle({
       width: 272,
-      backgroundColor: lightTheme.colors.surface.elevated,
-      borderTopRightRadius: lightTheme.radius.xl,
-      borderBottomRightRadius: lightTheme.radius.xl,
+      backgroundColor: lightTheme.surface.elevated,
+      borderTopRightRadius: tokens.radii.xl,
+      borderBottomRightRadius: tokens.radii.xl,
     });
   });
 
   it('is at most 360dp wide on a wide screen', async () => {
     mockWindowWidth = 768;
     await openPanel();
-    expect(panel()).toHaveStyle({ width: lightTheme.size.drawerMaxWidth });
+    expect(panel()).toHaveStyle({ width: tokens.components.drawer.maxWidth });
   });
 
   it('follows the system theme, while the trip view behind it stays dark', async () => {
     mockScheme = 'dark';
     await openPanel();
-    expect(panel()).toHaveStyle({ backgroundColor: darkTheme.colors.surface.elevated });
-    expect(within(screen.getByTestId('trips-drawer')).getByRole('header', { name: 'Twoje podróże' })).toHaveStyle({ color: darkTheme.colors.text.primary });
+    expect(panel()).toHaveStyle({ backgroundColor: darkTheme.surface.elevated });
+    expect(within(screen.getByTestId('trips-drawer')).getByRole('header', { name: 'Twoje podróże' })).toHaveStyle({ color: darkTheme.text.primary });
   });
 
   it('hands the status bar back to the system theme while the panel is open over the photo', async () => {

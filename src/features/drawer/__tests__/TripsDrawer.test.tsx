@@ -1,6 +1,7 @@
 import { QueryClient } from '@tanstack/react-query';
 import { act, fireEvent, isHiddenFromAccessibility, render, screen, waitFor, within } from '@testing-library/react-native';
 import type { ReactNode } from 'react';
+import { AccessibilityInfo, StyleSheet } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import type { TripRepository } from '@/data/trip-repository';
@@ -10,6 +11,11 @@ import { AppProviders } from '@/providers/AppProviders';
 import { DEFAULT_COVER, type CurrentTrip, type TripListItem } from '@/schemas';
 import { setNetwork } from '@/test/mock-network';
 import { darkTheme, lightTheme } from '@/theme/theme';
+import { tokens } from '@/theme/tokens';
+
+const { drawer, listRow, skeleton } = tokens.components;
+const { styles } = tokens.typography;
+const { duration, minOpacity } = tokens.motion.microinteraction.skeletonPulse;
 
 let mockScheme: 'light' | 'dark' = 'light';
 // useColorScheme reads Appearance through an internal import, so it is mocked at its module path.
@@ -149,9 +155,10 @@ describe('TripsDrawer (trips-drawer D4)', () => {
     expect(within(rome).getByText('5 paź – 12 paź 2026')).toBeTruthy();
     const cover = within(rome).getByTestId('trip-row-cover', { includeHiddenElements: true });
     expect(cover.props.source).toEqual([{ uri: 'bundled/bali_thumb.jpg' }]); // expo-image normalises to a list
-    expect(cover).toHaveStyle({ width: lightTheme.size.thumbnail, height: lightTheme.size.thumbnail, borderRadius: lightTheme.radius.sm });
+    expect(cover).toHaveStyle({ width: drawer.thumbnailSize, height: drawer.thumbnailSize, borderRadius: tokens.radii.sm });
+    expect([drawer.thumbnailSize, tokens.radii.sm]).toEqual([48, 12]);
     // The placeholder surface sits behind the cover while it loads.
-    expect(cover).toHaveStyle({ backgroundColor: lightTheme.colors.surface.secondary });
+    expect(cover).toHaveStyle({ backgroundColor: lightTheme.background.sunken });
     // Every trip has a cover (trip-covers D1): no row is drawn without one.
     expect(screen.getAllByTestId('trip-row-cover', { includeHiddenElements: true })).toHaveLength(4);
     expect(screen.queryByTestId('trip-row-placeholder', { includeHiddenElements: true })).toBeNull();
@@ -174,21 +181,69 @@ describe('TripsDrawer (trips-drawer D4)', () => {
     expect(isHiddenFromAccessibility(cover)).toBe(true);
   });
 
-  it('rows are list rows: at least 64dp high with 16dp side padding, secondary surface while pressed (§10.8)', async () => {
+  it('rows are list rows (§8.8): 56dp minimum, 16/12 padding, no fill by default, background.sunken while pressed', async () => {
     await setup().rendered;
-    expect(await screen.findByRole('button', { name: 'Rzym, 5 paź – 12 paź 2026' })).toHaveStyle({ minHeight: 64, paddingHorizontal: lightTheme.spacing[4] });
+    expect(await screen.findByRole('button', { name: 'Rzym, 5 paź – 12 paź 2026' })).toHaveStyle({
+      minHeight: listRow.minHeight,
+      paddingHorizontal: listRow.horizontalPadding,
+      paddingVertical: listRow.verticalPadding,
+    });
+    expect([listRow.minHeight, listRow.horizontalPadding, listRow.verticalPadding]).toEqual([56, 16, 12]);
     const oslo = screen.getByRole('button', { name: 'Oslo, 10 sie – 14 sie 2026' });
-    expect(oslo).not.toHaveStyle({ backgroundColor: lightTheme.colors.surface.secondary });
+    expect(StyleSheet.flatten(oslo.props.style).backgroundColor).toBeUndefined();
     await fireEvent(oslo, 'responderGrant', { nativeEvent: { timestamp: Date.now() }, persist: jest.fn() });
-    expect(oslo).toHaveStyle({ backgroundColor: lightTheme.colors.surface.secondary });
+    expect(oslo).toHaveStyle({ backgroundColor: lightTheme.background.sunken });
+  });
+
+  it('shows a focused row with a 2dp inset border.focus that does not move the text (§8.8)', async () => {
+    await setup().rendered;
+    const oslo = await screen.findByRole('button', { name: 'Oslo, 10 sie – 14 sie 2026' });
+    await fireEvent(oslo, 'focus');
+    expect(oslo).toHaveStyle({
+      borderWidth: tokens.components.focusRing.width,
+      borderColor: lightTheme.border.focus,
+      paddingHorizontal: listRow.horizontalPadding - tokens.components.focusRing.width,
+      paddingVertical: listRow.verticalPadding - tokens.components.focusRing.width,
+    });
+    await fireEvent(oslo, 'blur');
+    expect(oslo).not.toHaveStyle({ borderColor: lightTheme.border.focus });
+  });
+
+  it('draws the row text as labelLG over bodySM, and dividers from the text column, between rows of a section only', async () => {
+    await setup().rendered;
+    const rome = await screen.findByRole('button', { name: 'Rzym, 5 paź – 12 paź 2026' });
+    expect(within(rome).getByText('Rzym')).toHaveStyle({ ...styles.labelLG, color: lightTheme.text.primary });
+    expect(within(rome).getByText('5 paź – 12 paź 2026')).toHaveStyle({ ...styles.bodySM, color: lightTheme.text.secondary });
+    // Rome is the first upcoming row: no divider above it. Bangkok, the second, has one.
+    expect(within(rome).queryByTestId('drawer-trip-divider')).toBeNull();
+    const bangkok = screen.getByRole('button', { name: 'Warsaw → Bangkok, 3 lis – 15 lis 2026' });
+    expect(within(bangkok).getByTestId('drawer-trip-divider')).toHaveStyle({
+      position: 'absolute',
+      top: 0,
+      left: listRow.horizontalPadding + drawer.thumbnailSize + tokens.spacing[3],
+      right: 0,
+      height: 1,
+      backgroundColor: lightTheme.border.subtle,
+    });
+    expect(bangkok).not.toHaveStyle({ borderTopWidth: 1 });
+    expect(screen.getAllByTestId('drawer-trip-divider')).toHaveLength(2); // one per section: Bangkok and Lizbona
+  });
+
+  it('draws the title as a headingLG header and the section headers as secondary captions', async () => {
+    await setup().rendered;
+    expect(await screen.findByRole('header', { name: 'Twoje podróże' })).toHaveStyle({ ...styles.headingLG, color: lightTheme.text.primary });
+    expect(await screen.findByRole('header', { name: 'Nadchodzące' })).toHaveStyle({ ...styles.caption, color: lightTheme.text.secondary });
   });
 
   it('marks the open trip with a background and a check, never colour alone, and no other row (§15)', async () => {
     await setup().rendered;
     await waitFor(() => expect(screen.getByRole('button', { name: 'Rzym, 5 paź – 12 paź 2026' })).toBeSelected());
     const rome = screen.getByRole('button', { name: 'Rzym, 5 paź – 12 paź 2026' });
-    expect(rome).toHaveStyle({ backgroundColor: lightTheme.colors.surface.secondary });
-    expect(within(rome).getByTestId('trip-row-check', { includeHiddenElements: true }).props.stroke).toBe(lightTheme.colors.action.primary);
+    expect(rome).toHaveStyle({ backgroundColor: lightTheme.brand.tint });
+    const check = within(rome).getByTestId('trip-row-check', { includeHiddenElements: true });
+    expect(check.props.stroke).toBe(lightTheme.text.brand);
+    expect(check.props.width).toBe(tokens.iconography.size.sm);
+    expect(check.props.strokeWidth).toBe(tokens.iconography.strokeWidth);
     for (const name of ['Warsaw → Bangkok, 3 lis – 15 lis 2026', 'Oslo, 10 sie – 14 sie 2026', 'Lizbona, 1 maj – 8 maj 2026']) {
       const row = screen.getByRole('button', { name });
       expect(row).not.toBeSelected();
@@ -230,10 +285,88 @@ describe('TripsDrawer (trips-drawer D4)', () => {
     expect(screen.getByRole('button', { name: 'Nowa podróż' })).toBeTruthy();
   });
 
+  it("draws skeleton rows with a list row's geometry in skeleton.base (§8.19)", async () => {
+    await setup({ list: () => new Promise(() => {}) }).rendered;
+    const rows = screen.getAllByTestId('drawer-skeleton-row');
+    expect(rows).toHaveLength(3);
+    expect(rows[0]).toHaveStyle({
+      minHeight: listRow.minHeight,
+      paddingHorizontal: listRow.horizontalPadding,
+      paddingVertical: listRow.verticalPadding,
+    });
+    expect(within(rows[0]).getByTestId('drawer-skeleton-thumbnail')).toHaveStyle({
+      width: drawer.thumbnailSize,
+      height: drawer.thumbnailSize,
+      borderRadius: tokens.radii.sm,
+      backgroundColor: lightTheme.skeleton.base,
+    });
+    expect(within(rows[0]).getByTestId('drawer-skeleton-title')).toHaveStyle({
+      height: skeleton.titleHeight,
+      borderRadius: skeleton.radius,
+      backgroundColor: lightTheme.skeleton.base,
+    });
+    expect(within(rows[0]).getByTestId('drawer-skeleton-line')).toHaveStyle({
+      height: skeleton.lineHeight,
+      borderRadius: skeleton.radius,
+      backgroundColor: lightTheme.skeleton.base,
+    });
+    expect([skeleton.titleHeight, skeleton.lineHeight, skeleton.radius]).toEqual([22, 14, 12]);
+  });
+
+  it('uses the dark skeleton color in dark mode', async () => {
+    mockScheme = 'dark';
+    await setup({ list: () => new Promise(() => {}) }).rendered;
+    expect(within(screen.getAllByTestId('drawer-skeleton-row')[0]).getByTestId('drawer-skeleton-thumbnail')).toHaveStyle({
+      backgroundColor: darkTheme.skeleton.base,
+    });
+  });
+
+  describe('skeleton pulse (sunline-redesign D5, D19)', () => {
+    const opacity = () => StyleSheet.flatten(screen.getByTestId('drawer-loading').props.style).opacity as number;
+    const pass = (ms: number) =>
+      act(async () => {
+        jest.advanceTimersByTime(ms);
+      });
+
+    afterEach(() => jest.restoreAllMocks());
+
+    it('pulses 1 → 0.5 → 1 over 1200 ms once the system has said motion is fine', async () => {
+      jest.spyOn(AccessibilityInfo, 'isReduceMotionEnabled').mockResolvedValue(false);
+      await setup({ list: () => new Promise(() => {}) }).rendered;
+      await act(async () => {}); // the reduce-motion answer arrives
+      expect([duration, minOpacity]).toEqual([1200, 0.5]);
+      expect(opacity()).toBeCloseTo(1, 1);
+      await pass(duration / 2);
+      expect(opacity()).toBeCloseTo(minOpacity, 1);
+      await pass(duration / 2);
+      expect(opacity()).toBeCloseTo(1, 1);
+    });
+
+    it('stays static when the system asks to reduce motion', async () => {
+      jest.spyOn(AccessibilityInfo, 'isReduceMotionEnabled').mockResolvedValue(true);
+      await setup({ list: () => new Promise(() => {}) }).rendered;
+      await act(async () => {});
+      await pass(duration);
+      expect(opacity()).toBe(1);
+    });
+
+    it('stays static while the system has not answered yet', async () => {
+      jest.spyOn(AccessibilityInfo, 'isReduceMotionEnabled').mockReturnValue(new Promise(() => {}));
+      await setup({ list: () => new Promise(() => {}) }).rendered;
+      await pass(duration / 2);
+      expect(opacity()).toBe(1);
+    });
+  });
+
   it('shows an error with a retry that loads again', async () => {
     let fail = true;
     await setup({ list: async () => (fail ? Promise.reject(new Error('offline')) : [BANGKOK]) }).rendered;
     expect(await screen.findByText('Nie udało się wczytać podróży.')).toBeTruthy();
+    // Error colour + icon + text, never colour alone (§10.3).
+    const errorIcon = screen.getByTestId('drawer-error-icon', { includeHiddenElements: true });
+    expect(errorIcon.props.stroke).toBe(lightTheme.semantic.error.foreground);
+    expect(errorIcon.props.width).toBe(tokens.iconography.size.sm);
+    expect(screen.getByText('Nie udało się wczytać podróży.')).toHaveStyle({ ...styles.bodyMD, color: lightTheme.text.primary });
     fail = false;
     await fireEvent.press(screen.getByRole('button', { name: 'Spróbuj ponownie' }));
     expect(await screen.findByRole('button', { name: 'Warsaw → Bangkok, 3 lis – 15 lis 2026' })).toBeTruthy();
@@ -273,32 +406,40 @@ describe('TripsDrawer (trips-drawer D4)', () => {
   });
 });
 
-describe('TripsDrawer — thumbnail on the open trip\'s row (trips-drawer D8)', () => {
+describe("TripsDrawer — thumbnail on the open trip's row (trips-drawer D8)", () => {
   it.each([
     ['light', lightTheme],
     ['dark', darkTheme],
-  ] as const)('puts the open trip\'s thumbnail on the panel surface, the others on the secondary surface (%s)', async (scheme, theme) => {
+  ] as const)("puts the open trip's thumbnail on the panel surface, the others on the sunken surface, so it stays visible on the tint (%s)", async (scheme, theme) => {
     mockScheme = scheme;
     await setup({ currentId: BANGKOK.id }).rendered;
     const bangkok = await screen.findByRole('button', { name: 'Warsaw → Bangkok, 3 lis – 15 lis 2026' });
     await waitFor(() => expect(bangkok).toBeSelected());
-    expect(bangkok).toHaveStyle({ backgroundColor: theme.colors.surface.secondary });
+    expect(bangkok).toHaveStyle({ backgroundColor: theme.brand.tint });
     expect(within(bangkok).getByTestId('trip-row-cover', { includeHiddenElements: true })).toHaveStyle({
-      backgroundColor: theme.colors.surface.elevated,
+      backgroundColor: theme.surface.elevated,
     });
     const oslo = screen.getByRole('button', { name: 'Oslo, 10 sie – 14 sie 2026' });
     expect(within(oslo).getByTestId('trip-row-cover', { includeHiddenElements: true })).toHaveStyle({
-      backgroundColor: theme.colors.surface.secondary,
+      backgroundColor: theme.background.sunken,
     });
   });
 
-  it('puts a cover on the open trip\'s row on the panel surface too', async () => {
+  it("puts a cover on the open trip's row on the panel surface too", async () => {
     await setup({ currentId: ROME.id }).rendered;
     const rome = await screen.findByRole('button', { name: 'Rzym, 5 paź – 12 paź 2026' });
     await waitFor(() => expect(rome).toBeSelected());
     expect(within(rome).getByTestId('trip-row-cover', { includeHiddenElements: true })).toHaveStyle({
-      backgroundColor: lightTheme.colors.surface.elevated,
+      backgroundColor: lightTheme.surface.elevated,
     });
+  });
+
+  it('shows a pressed open row as background.sunken', async () => {
+    await setup().rendered;
+    const rome = await screen.findByRole('button', { name: 'Rzym, 5 paź – 12 paź 2026' });
+    await waitFor(() => expect(rome).toBeSelected());
+    await fireEvent(rome, 'responderGrant', { nativeEvent: { timestamp: Date.now() }, persist: jest.fn() });
+    expect(rome).toHaveStyle({ backgroundColor: lightTheme.background.sunken });
   });
 });
 
@@ -310,6 +451,8 @@ describe('TripsDrawer — no trips (trips-drawer D5)', () => {
     expect(screen.queryByText('Minione')).toBeNull();
     expect(screen.getByRole('button', { name: 'Nowa podróż' })).toBeTruthy();
     expect(textsInOrder()).toEqual(['Twoje podróże', 'Nie masz jeszcze żadnej podróży.', 'Zaplanuj pierwszą i zaproś znajomych.', 'Nowa podróż']);
+    expect(screen.getByText('Nie masz jeszcze żadnej podróży.')).toHaveStyle({ ...styles.labelLG, color: lightTheme.text.primary });
+    expect(screen.getByText('Zaplanuj pierwszą i zaproś znajomych.')).toHaveStyle({ ...styles.bodySM, color: lightTheme.text.secondary });
   });
 
   it('says the same offline with an empty copy of the list, with the banner', async () => {

@@ -15,7 +15,8 @@ import { photoPaths } from '@/lib/trip-photos';
 import type { TripPhoto } from '@/schemas';
 import { createTripInputFixture } from '@/test/fixtures';
 import { setNetwork } from '@/test/mock-network';
-import { darkTheme } from '@/theme/theme';
+import { darkTheme as sunlineDarkTheme } from '@/theme/theme';
+import { tokens } from '@/theme/tokens';
 
 jest.mock('expo-font', () => ({ ...jest.requireActual('expo-font'), useFonts: jest.fn() }));
 jest.mocked(useFonts).mockReturnValue([true, null]);
@@ -160,10 +161,10 @@ describe('Photo viewer — opening (trip-photos D6, P4)', () => {
     expect(await screen.findByTestId('home-screen')).toBeTruthy();
   });
 
-  it('is always ink with a light status bar, on a light device too', async () => {
+  it('is always dark (the dark canvas) with a light status bar, on a light device too', async () => {
     await setup();
     await openViewer();
-    expect(screen.getByTestId('photo-viewer')).toHaveStyle({ flex: 1, backgroundColor: darkTheme.colors.hero.background });
+    expect(screen.getByTestId('photo-viewer')).toHaveStyle({ flex: 1, backgroundColor: sunlineDarkTheme.background.canvas });
     expect(viewer().getByTestId('status-bar-light')).toBeTruthy();
   });
 });
@@ -199,10 +200,10 @@ describe('Photo viewer — swiping and the counter', () => {
     expect(viewer().getByText('1 z 12').props.accessibilityLabel).toBe('Zdjęcie 1 z 12');
   });
 
-  it('draws the counter in Caption, in the hero secondary text colour', async () => {
+  it('draws the counter in Caption, in the hero text colour', async () => {
     await setup();
     await openViewer();
-    expect(viewer().getByText('3 z 12')).toHaveStyle({ ...darkTheme.typography.caption, color: darkTheme.colors.hero.textSecondary });
+    expect(viewer().getByText('3 z 12')).toHaveStyle({ ...tokens.typography.styles.caption, color: sunlineDarkTheme.hero.text });
   });
 });
 
@@ -235,7 +236,7 @@ describe('Photo viewer — closing', () => {
     await openViewer();
     for (const name of ['Zamknij', 'Usuń zdjęcie']) {
       const button = viewer().getByRole('button', { name });
-      expect(button).toHaveStyle({ width: darkTheme.size.touchTarget, height: darkTheme.size.touchTarget, backgroundColor: darkTheme.colors.hero.control });
+      expect(button).toHaveStyle({ width: tokens.layout.touchTarget, height: tokens.layout.touchTarget, backgroundColor: sunlineDarkTheme.hero.controlBackground });
     }
   });
 });
@@ -346,7 +347,8 @@ describe('Photo viewer — deleting a photo (P5)', () => {
     await openViewer();
     const button = viewer().getByRole('button', { name: 'Usuń zdjęcie' });
     expect(button).toBeDisabled();
-    expect(button).toHaveStyle({ opacity: darkTheme.opacity.disabled });
+    expect(button).toHaveStyle({ backgroundColor: sunlineDarkTheme.disabled.background });
+    expect(StyleSheet.flatten(button.props.style).opacity).toBeUndefined();
     await fireEvent.press(button);
     expect(screen.queryByTestId('bottom-sheet')).toBeNull();
     expect(viewer().getByRole('button', { name: 'Zamknij' })).toBeEnabled();
@@ -445,7 +447,7 @@ describe('Photo viewer — states', () => {
     await act(async () => {
       fireEvent(imageOf(3)!, 'error', { nativeEvent: { error: 'expired' } });
     });
-    expect(viewer().getByText('Nie udało się wczytać zdjęcia.')).toBeTruthy();
+    expect(viewer().getByText('Nie udało się wczytać zdjęcia.')).toHaveStyle({ ...tokens.typography.styles.bodyMD, color: sunlineDarkTheme.text.primary });
     expect(imageOf(3)).toBeUndefined();
     await swipeTo(3);
     expect(viewer().getByText('4 z 12')).toBeTruthy();
@@ -460,7 +462,7 @@ describe('Photo viewer — states', () => {
     const loading = await screen.findByTestId('photo-viewer-loading');
     expect(loading).toBeBusy();
     expect(loading.props.accessibilityLabel).toBe('Zdjęcia z podróży');
-    expect(screen.getByTestId('photo-viewer')).toHaveStyle({ backgroundColor: darkTheme.colors.hero.background });
+    expect(screen.getByTestId('photo-viewer')).toHaveStyle({ backgroundColor: sunlineDarkTheme.background.canvas });
     expect(viewer().getByRole('button', { name: 'Zamknij' })).toBeEnabled();
     expect(viewer().queryByRole('button', { name: 'Usuń zdjęcie' })).toBeNull();
     expect(screen.queryByTestId('photo-viewer-pager')).toBeNull();
@@ -477,7 +479,7 @@ describe('Photo viewer — states', () => {
       await act(async () => {
         await jest.runAllTimersAsync();
       });
-      expect(await viewer().findByText('Nie udało się wczytać zdjęć.')).toBeTruthy();
+      expect(await viewer().findByText('Nie udało się wczytać zdjęć.')).toHaveStyle({ ...tokens.typography.styles.bodyMD, color: sunlineDarkTheme.text.primary });
       expect(viewer().getByRole('button', { name: 'Zamknij' })).toBeEnabled();
       fail = false;
       await fireEvent.press(viewer().getByRole('button', { name: 'Spróbuj ponownie' }));
@@ -504,15 +506,15 @@ describe('Photo viewer — states', () => {
 });
 
 describe('Photo viewer — counter pill (trip-photos D32)', () => {
-  it('backs the counter with a rounded pill in the hero control colour, like the round buttons', async () => {
+  it('backs the counter with a fully rounded pill in the hero control background, like the round buttons', async () => {
     await setup();
     await openViewer();
     const pill = viewer().getByTestId('photo-viewer-counter');
     expect(pill).toHaveStyle({
-      backgroundColor: darkTheme.colors.hero.control,
-      borderRadius: darkTheme.radius.full,
-      paddingHorizontal: darkTheme.spacing[3],
-      paddingVertical: darkTheme.spacing[1],
+      backgroundColor: sunlineDarkTheme.hero.controlBackground,
+      borderRadius: tokens.radii.pill,
+      paddingHorizontal: tokens.spacing[3],
+      paddingVertical: tokens.spacing[1],
     });
     expect(within(pill).getByText('3 z 12')).toBeTruthy();
   });
@@ -534,16 +536,16 @@ describe('Photo viewer — offline hint (trip-photos D33, D8)', () => {
     expect(viewer().queryByText(HINT)).toBeNull();
   });
 
-  it('sits in the same pill as the counter: hero control backing, fully rounded, wrapping its text (D35)', async () => {
+  it('sits in the same pill as the counter: hero control background, fully rounded, wrapping its text (D35)', async () => {
     await setup();
     setNetwork(OFFLINE);
     await openViewer();
     const pill = viewer().getByTestId('photo-viewer-offline-hint');
     expect(pill).toHaveStyle({
-      backgroundColor: darkTheme.colors.hero.control,
-      borderRadius: darkTheme.radius.full,
-      paddingHorizontal: darkTheme.spacing[3],
-      paddingVertical: darkTheme.spacing[1],
+      backgroundColor: sunlineDarkTheme.hero.controlBackground,
+      borderRadius: tokens.radii.pill,
+      paddingHorizontal: tokens.spacing[3],
+      paddingVertical: tokens.spacing[1],
     });
     expect(within(pill).getByText(HINT)).toHaveStyle({ textAlign: 'center' });
     // Centred, not a bar across the screen: the slot centres it and the pill is not stretched.
@@ -553,15 +555,15 @@ describe('Photo viewer — offline hint (trip-photos D33, D8)', () => {
     expect(StyleSheet.flatten(pill.props.style).alignSelf).toBeUndefined();
   });
 
-  it('shows offline at the bottom, in Body S and the hero text colour, above the bottom safe area', async () => {
+  it('shows offline at the bottom, in Body SM and the hero text colour, above the bottom safe area', async () => {
     await setup();
     setNetwork(OFFLINE);
     await openViewer();
     const hint = viewer().getByText(HINT);
-    expect(hint).toHaveStyle({ ...darkTheme.typography.bodyS, color: darkTheme.colors.hero.text });
+    expect(hint).toHaveStyle({ ...tokens.typography.styles.bodySM, color: sunlineDarkTheme.hero.text });
     const place = StyleSheet.flatten(hint.parent!.parent!.props.style); // text, pill (D35), then the positioned slot
     expect(place.position).toBe('absolute');
-    expect(place.bottom).toBeGreaterThanOrEqual(darkTheme.spacing[4]);
+    expect(place.bottom).toBeGreaterThanOrEqual(tokens.spacing[4]);
   });
 
   it('goes away when the connection is back, and comes back when it is lost', async () => {

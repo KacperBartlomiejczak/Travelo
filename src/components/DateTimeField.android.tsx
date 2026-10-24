@@ -21,7 +21,7 @@ export function DateTimeField({ label, value, onChange, suggested, error }: Date
           mode="date"
           presentation="dialog"
           value={androidDateValue(start)}
-          accentColor={theme.colors.action.primary}
+          accentColor={theme.brand.primary}
           onDismiss={() => setStage(null)}
           onValueChange={(_, date) => {
             setPickedDate(date);
@@ -36,7 +36,7 @@ export function DateTimeField({ label, value, onChange, suggested, error }: Date
           value={androidTimeValue(start)}
           // D30: the device's 12/24h setting, not the app language.
           is24Hour={getCalendars()[0]?.uses24hourClock ?? undefined}
-          accentColor={theme.colors.action.primary}
+          accentColor={theme.brand.primary}
           onDismiss={() => setStage(null)}
           onValueChange={(_, time) => {
             onChange(androidResultToLocal(pickedDate, time));

@@ -18,7 +18,7 @@ import { useTripList } from '@/hooks/useTrips';
 import { travelStats } from '@/lib/travel-stats';
 import { deviceToday } from '@/lib/trip-sections';
 import { useIsOffline } from '@/providers/BudgetSync';
-import { useTheme } from '@/theme/useTheme';
+import { useTheme } from '@/theme/legacy/useTheme';
 
 import { TravelStatsCard } from './TravelStatsCard';
 

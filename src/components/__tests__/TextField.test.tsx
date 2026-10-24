@@ -1,10 +1,15 @@
 import { fireEvent, render, screen } from '@testing-library/react-native';
 import { createRef } from 'react';
-import { TextInput } from 'react-native';
+import { StyleSheet, TextInput } from 'react-native';
 
 import { TextField } from '@/components/TextField';
 import i18n from '@/i18n';
-import { lightTheme } from '@/theme/theme';
+import { darkTheme, lightTheme } from '@/theme/theme';
+import { tokens } from '@/theme/tokens';
+import { DarkThemeScope } from '@/theme/useTheme';
+
+const { input } = tokens.components;
+const { styles } = tokens.typography;
 
 beforeEach(async () => {
   await i18n.changeLanguage('pl');
@@ -24,27 +29,56 @@ describe('TextField', () => {
     expect(screen.getByText('(opcjonalnie)')).toBeTruthy();
   });
 
-  it('is 52dp with the input border by default (§10.4, D26)', async () => {
+  // Sunline Editorial §8.4.
+  it('is 52dp, 16dp radius, surface.primary with a 1dp border.default by default, value in bodyLG', async () => {
     await render(<TextField label="Imię" value="" onChangeText={() => {}} />);
+    const field = screen.getByLabelText('Imię');
+    expect(field).toHaveStyle({
+      minHeight: input.height,
+      borderWidth: input.borderWidth,
+      borderColor: lightTheme.border.default,
+      borderRadius: input.radius,
+      backgroundColor: lightTheme.surface.primary,
+      paddingHorizontal: input.horizontalPadding,
+      ...styles.bodyLG,
+      color: lightTheme.text.primary,
+    });
+    expect(field.props.placeholderTextColor).toBe(lightTheme.text.tertiary);
+    expect(field.props.cursorColor).toBe(lightTheme.brand.primary);
+  });
+
+  it('shows an error under the field with a 2dp error border, an icon, and reads it to screen readers', async () => {
+    await render(<TextField label="Imię" value="" error="Wpisz imię" onChangeText={() => {}} />);
+    expect(screen.getByLabelText('Imię').props.accessibilityHint).toBe('Wpisz imię');
+    expect(screen.getByText('Wpisz imię')).toHaveStyle({ color: lightTheme.semantic.error.foreground });
+    expect(screen.getByTestId('field-error-icon', { includeHiddenElements: true })).toBeTruthy();
     expect(screen.getByLabelText('Imię')).toHaveStyle({
-      minHeight: 52,
-      borderWidth: 1,
-      borderColor: lightTheme.colors.input.border,
-      borderRadius: lightTheme.radius.sm,
+      borderWidth: input.focusBorderWidth,
+      borderColor: lightTheme.semantic.error.foreground,
     });
   });
 
-  it('shows an error under the field with a 2dp error border, and reads it to screen readers', async () => {
-    await render(<TextField label="Imię" value="" error="Wpisz imię" onChangeText={() => {}} />);
-    expect(screen.getByLabelText('Imię').props.accessibilityHint).toBe('Wpisz imię');
-    expect(screen.getByText('Wpisz imię')).toHaveStyle({ color: lightTheme.colors.status.error });
-    expect(screen.getByLabelText('Imię')).toHaveStyle({ borderWidth: 2, borderColor: lightTheme.colors.status.error });
-  });
-
-  it('shows a 2dp brand border while focused', async () => {
+  it('shows a 2dp border.focus border while focused, without changing the text position', async () => {
     await render(<TextField label="Imię" value="" onChangeText={() => {}} />);
     await fireEvent(screen.getByLabelText('Imię'), 'focus');
-    expect(screen.getByLabelText('Imię')).toHaveStyle({ borderWidth: 2, borderColor: lightTheme.colors.action.primary });
+    expect(screen.getByLabelText('Imię')).toHaveStyle({
+      borderWidth: input.focusBorderWidth,
+      borderColor: lightTheme.border.focus,
+      paddingHorizontal: input.horizontalPadding - (input.focusBorderWidth - input.borderWidth),
+    });
+    await fireEvent(screen.getByLabelText('Imię'), 'blur');
+    expect(screen.getByLabelText('Imię')).toHaveStyle({ borderWidth: input.borderWidth, borderColor: lightTheme.border.default });
+  });
+
+  it('uses the dark colors in dark mode', async () => {
+    await render(<TextField label="Imię" value="" onChangeText={() => {}} />, { wrapper: DarkThemeScope });
+    await fireEvent(screen.getByLabelText('Imię'), 'focus');
+    expect(screen.getByLabelText('Imię')).toHaveStyle({
+      backgroundColor: darkTheme.surface.primary,
+      borderColor: darkTheme.border.focus,
+      color: darkTheme.text.primary,
+    });
+    expect(screen.getByLabelText('Imię').props.cursorColor).toBe(darkTheme.brand.primary);
   });
 
   it('draws no browser outline on top of its own focus border (web)', async () => {
@@ -57,7 +91,7 @@ describe('TextField hint (auth-onboarding step 8)', () => {
   it('shows a hint under the field and reads it to screen readers', async () => {
     await render(<TextField label="Nick" hint="3–20 znaków" value="" onChangeText={() => {}} />);
     expect(screen.getByText('3–20 znaków')).toBeTruthy();
-    expect(screen.getByText('3–20 znaków')).toHaveStyle({ color: lightTheme.colors.text.secondary });
+    expect(screen.getByText('3–20 znaków')).toHaveStyle({ ...styles.caption, color: lightTheme.text.secondary });
     expect(screen.getByLabelText('Nick').props.accessibilityHint).toBe('3–20 znaków');
   });
 
@@ -111,13 +145,19 @@ describe('TextField input behaviour (auth-onboarding step 7)', () => {
     expect(ref.current?.focus).toEqual(expect.any(Function));
   });
 
-  it('is editable by default, and not editable (surface.secondary, §10.4 disabled) when disabled', async () => {
+  it('is editable by default, and not editable with the disabled tokens (no opacity) when disabled (§8.4)', async () => {
     const { rerender } = await render(<TextField label="Kod" value="" onChangeText={() => {}} />);
     expect(screen.getByLabelText('Kod').props.editable).not.toBe(false);
-    expect(screen.getByLabelText('Kod')).toHaveStyle({ backgroundColor: lightTheme.colors.surface.default });
+    expect(screen.getByLabelText('Kod')).toHaveStyle({ backgroundColor: lightTheme.surface.primary, color: lightTheme.text.primary });
 
     await rerender(<TextField label="Kod" value="" onChangeText={() => {}} editable={false} />);
-    expect(screen.getByLabelText('Kod').props.editable).toBe(false);
-    expect(screen.getByLabelText('Kod')).toHaveStyle({ backgroundColor: lightTheme.colors.surface.secondary });
+    const disabled = screen.getByLabelText('Kod');
+    expect(disabled.props.editable).toBe(false);
+    expect(disabled).toHaveStyle({
+      backgroundColor: lightTheme.disabled.background,
+      color: lightTheme.disabled.foreground,
+      borderColor: lightTheme.border.default,
+    });
+    expect(StyleSheet.flatten(disabled.props.style).opacity).toBeUndefined();
   });
 });

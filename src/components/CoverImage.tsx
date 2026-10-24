@@ -5,6 +5,7 @@ import type { ImageStyle, StyleProp } from 'react-native';
 import { useReduceMotion } from '@/hooks/useReduceMotion';
 import { resolveCoverSource, type CoverVariant } from '@/lib/cover-presets';
 import type { CoverUrls } from '@/schemas';
+import { tokens } from '@/theme/tokens';
 import { useTheme } from '@/theme/useTheme';
 
 type Props = {
@@ -38,13 +39,13 @@ export function CoverImage({ cover, urls, variant, style, testID, accessibilityL
       testID={testID}
       source={shown.source}
       contentFit="cover"
-      transition={reduceMotion ? 0 : theme.duration.small}
+      transition={reduceMotion ? 0 : tokens.motion.duration.standard}
       // A failing default has nothing left to fall back to, so it is not retried.
       onError={() => {
         if (!requested.isDefault) setFailed(identity);
       }}
       {...(accessibilityLabel ? { accessible: true, accessibilityLabel } : { 'aria-hidden': true })}
-      style={[{ backgroundColor: theme.colors.surface.secondary }, style]}
+      style={[{ backgroundColor: theme.skeleton.base }, style]}
     />
   );
 }

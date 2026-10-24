@@ -1,6 +1,7 @@
+import { CircleAlert } from 'lucide-react-native';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { AccessibilityInfo, Text } from 'react-native';
+import { AccessibilityInfo, Text, View } from 'react-native';
 
 import { AmountField } from '@/components/AmountField';
 import { BottomSheet } from '@/components/BottomSheet';
@@ -8,6 +9,7 @@ import { PrimaryButton } from '@/components/PrimaryButton';
 import { useSetTripBudget } from '@/hooks/useTrips';
 import { currencyMinorDigits, formatAmountInput, parseAmountToMinor } from '@/lib/money';
 import { TripBudgetFormSchema, type TripSummary } from '@/schemas';
+import { tokens } from '@/theme/tokens';
 import { useTheme } from '@/theme/useTheme';
 
 type Props = { trip: TripSummary; onClose: () => void };
@@ -50,7 +52,7 @@ export function BudgetSheet({ trip, onClose }: Props) {
 
   return (
     <BottomSheet visible title={t(solo ? 'newTrip.budget.headingSolo' : 'newTrip.budget.heading')} onClose={onClose}>
-      <Text style={[theme.typography.bodyM, { color: theme.colors.text.secondary }]}>{t('newTrip.budget.hint')}</Text>
+      <Text style={[tokens.typography.styles.bodyMD, { color: theme.text.secondary }]}>{t('newTrip.budget.hint')}</Text>
       <AmountField
         label={t(solo ? 'newTrip.budget.amountSolo' : 'newTrip.budget.amount')}
         amountText={amountText}
@@ -59,9 +61,18 @@ export function BudgetSheet({ trip, onClose }: Props) {
         error={errorKey ? t(errorKey) : undefined}
       />
       {setBudget.isError && (
-        <Text accessibilityLiveRegion="polite" style={[theme.typography.bodyS, { color: theme.colors.status.error }]}>
-          {t('home.saveBudgetError')}
-        </Text>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: tokens.spacing[1] }}>
+          <CircleAlert
+            testID="budget-error-icon"
+            size={tokens.iconography.size.xs}
+            strokeWidth={tokens.iconography.strokeWidth}
+            color={theme.semantic.error.foreground}
+            aria-hidden
+          />
+          <Text accessibilityLiveRegion="polite" style={[tokens.typography.styles.bodySM, { color: theme.semantic.error.foreground, flexShrink: 1 }]}>
+            {t('home.saveBudgetError')}
+          </Text>
+        </View>
       )}
       <PrimaryButton label={t('home.saveBudget')} onPress={save} loading={setBudget.isPending} />
     </BottomSheet>

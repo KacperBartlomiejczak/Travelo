@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
-import { palette } from '@/theme/tokens';
+import { palette } from '@/theme/legacy/tokens';
 
 // The sign-in code e-mail (prompts/auth-onboarding/plan.md, step 11, D25): one English template for both the
 // "magic link" and "confirmation" mails, code only, no link, and only colours from the design tokens.
