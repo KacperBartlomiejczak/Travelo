@@ -7,7 +7,7 @@ You are the lead engineer and **orchestrator** on a group trip planner app, work
 - **Zod schemas are the single source of truth** for every data shape in this project.
 - **Tests come first.** No production code is written before a failing test for it exists, and **no work is finished while any test fails**.
 - **When you don't know or don't understand something, ask Kacper how he wants it to look and work.** Do not guess, do not fill gaps with your own assumptions, and do not silently expand scope. See "Ask when unsure" in How we work.
-- Talk to Kacper in **Polish**. Write code, comments, commit messages, and plans in **English**.
+- Talk to Kacper in **Polish**. Write **plans (`prompts/<feature-name>/plan.md`) only in Polish** (Kacper, 2026-10-25; code identifiers, file paths and quoted English copy stay as they are). Write code, comments and commit messages in **English**.
 
 # What you're building
 
@@ -96,9 +96,9 @@ These principles are working if: diffs contain fewer unnecessary changes, there 
 ### Offline expenses (SQLite)
 - **Local first.** Adding, editing or deleting an expense writes to SQLite immediately and the UI updates from SQLite. Saving never waits for the network.
 - **Client-generated IDs.** Every expense gets a UUID on the device, so the same row can be retried safely.
-- **Outbox.** Every local change is also written to an outbox table in the same SQLite transaction. A sync worker sends the outbox to Supabase when online (on reconnect, on app foreground, after each save).
+- **Outbox.** Every local change is also written to the outbox in the same SQLite transaction (for expenses the local row carries its own sync state and is its own outbox entry, like `LocalTripBudgetChange`; `prompts/expenses/plan.md`). A sync worker sends the outbox to Supabase when online (on reconnect, on app foreground, after each save).
 - **Idempotent sync.** The server upserts by `id`, so a retried request never creates duplicates. Deletes are soft (`deletedAt`) so they can sync too.
-- **Conflicts:** last write wins by `updatedAt`. Only the owner can write expenses, so conflicts are rare. Any other conflict strategy is Kacper's decision.
+- **Conflicts:** last write wins by `updatedAt`. The owner writes any expense of the trip; a linked member writes only expenses assigned to their own member row (`prompts/expenses/plan.md` D15), so conflicts are rare. Any other conflict strategy is Kacper's decision.
 - **Sync status is visible:** each expense is `synced | pending | failed` (see `context/design-context.md` for how it looks). A failed item retries with backoff and never disappears silently.
 - **Zod still rules.** SQLite tables mirror the Zod schemas. Every row read from SQLite and every server response is parsed with Zod. Local migrations are versioned and never edited after release.
 - **Money in SQLite** is stored as INTEGER minor units + currency code, same as the server.
@@ -116,7 +116,7 @@ These principles are working if: diffs contain fewer unnecessary changes, there 
 ### Data & security
 - Money is stored as **integer minor units + ISO 4217 currency code**. No floats for money, ever.
 - Timestamps are ISO 8601 with offset; flights also store the airport's IANA timezone.
-- **RLS on every table.** A trip is visible only to its owner and to members with a linked `userId`. Linked members are read-only.
+- **RLS on every table.** A trip is visible only to its owner and to members with a linked `userId`. Linked members are read-only, except their own expenses (`prompts/expenses/plan.md` D15).
 - Store only `placeId` long-term from Google Places (respect their terms); fetch details live.
 
 ### Code
@@ -171,20 +171,23 @@ Activity       { id, dayId, startTime, endTime,
                  estimatedCost?: CostEstimate,
                  source: 'ai' | 'user', locked: boolean } // locked survives regeneration
 
-Expense        { id, tripId, dayId?, activityId?,         // activityId links plan ↔ reality
-                 amount: Money, category: ExpenseCategory,
-                 paidByMemberId, forMemberIds: string[], note?, spentAt,
-                 updatedAt, deletedAt? }                  // id is a client-generated UUID
+Expense        { id, tripId,                              // id is a client-generated UUID
+                 memberId: string | null,                  // who spent it; null = the organizer (not a TripMember)
+                 name, amount: Money,                      // always the trip's baseCurrency (for now)
+                 category: 'food' | 'transport' | 'stay' | 'activities' | 'other',
+                 spentOn: date,                            // local calendar date
+                 createdAt, updatedAt, deletedAt: string | null }
+               // later: dayId / activityId (plan ↔ reality), split between several people
 
-LocalExpense   // device only (SQLite), never sent as-is
-               Expense & { syncStatus: 'synced' | 'pending' | 'failed', syncError?: string }
+LocalExpense   // device only (SQLite), the row is its own outbox entry
+               Expense & { syncStatus: 'synced' | 'pending' | 'failed', syncError?, attempts: int, lastAttemptAt? }
 
 TripBudgetChange // a budget change made on the device, possibly offline
                { tripId, budgetPerPerson: Money, updatedAt }
 LocalTripBudgetChange // device only (SQLite), the change is its own outbox row
                TripBudgetChange & { syncStatus, syncError?, attempts: int, lastAttemptAt? }
 
-OutboxEntry    // device only (SQLite)
+OutboxEntry    // device only (SQLite) — not used: expenses and budget changes keep sync state on their own row
                { id, entity: 'expense', entityId, op: 'upsert' | 'delete',
                  payload: Expense, attempts: int, createdAt, lastAttemptAt? }
 
@@ -230,7 +233,7 @@ The plan must contain:
 - This applies to plans drafted by subagents too — they go through the orchestrator and Kacper first.
 
 ### 3. Execute step by step — red, green, refactor
-Do **one step at a time**, in order. Do not jump ahead. Schema changes are always the first step of any task that touches data.
+Do **one step at a time**, in order. Do not jump ahead. The one exception is parallel backend steps (see Rules for delegation). Schema changes are always the first step of any task that touches data.
 
 For every step:
 1. **Red** — write the tests for this step. Run them. They must fail, and fail for the expected reason (missing behavior, not a typo or a broken import).
@@ -303,21 +306,21 @@ Last updated: <date> · after task: <task name>
 
 ### Plan template (`prompts/<feature-name>/plan.md`)
 ```md
-# Task: <name>
-Status: drafting | awaiting approval | in progress | blocked | done
+# Zadanie: <nazwa>
+Status: szkic | czeka na akceptację | w trakcie | zablokowane | zrobione
 
-## Understanding & assumptions
-## Approach
-## Data structures (Zod)
-## Tests
-## Files
-## Skills
-- <skill> — step N — why
-## Steps
-- [ ] 1. [backend|frontend] ...  — skill: <name or none> — tests first: ... — verify: ...
-## Progress log
-- Step 1: tests written (red ✓) · <what changed> · green ✓ · <verification> · skill used: <name or none> · <deviations>
-## Risks & open questions
+## Zrozumienie i założenia
+## Podejście
+## Struktury danych (Zod)
+## Testy
+## Pliki
+## Skille
+- <skill> — krok N — dlaczego
+## Kroki
+- [ ] 1. [backend|frontend] ...  — skill: <nazwa lub brak> — najpierw testy: ... — weryfikacja: ...
+## Dziennik postępu
+- Krok 1: testy napisane (red ✓) · <co się zmieniło> · green ✓ · <weryfikacja> · użyty skill: <nazwa lub brak> · <odstępstwa>
+## Ryzyka i otwarte pytania
 ```
 
 # Verification loop
@@ -344,7 +347,8 @@ If a check fails: fix the code → rerun. Never "fix" it by weakening a test. Af
 ### Orchestrator (main session)
 - Owns the plans in `prompts/` and `Architecture.md` — **the only one allowed to edit them**.
 - Writes or collects the plan, waits for approval, delegates steps, integrates results, runs the verification loop, updates the plan after every step.
-- Does small tasks inline. Spawns subagents only when it clearly pays off.
+- **Is a manager only (Kacper, 2026-10-25).** It edits **documents only**: `CLAUDE.md`, `Architecture.md`, `context/*.md`, `prompts/**/plan.md` and `.claude/agents/*.md`. It never writes or edits code, tests, schemas, migrations, config or i18n files, not even a one-line fix: every such change goes to **backend** or **frontend** as a step brief. It may run read-only commands and the checks (`pnpm test`, `pnpm typecheck`, `pnpm lint`) and git commands.
+- **Commits every step on its own branch after the verifier's PASS** (and the tester's, when it ran). See Step flow, point 4.
 
 ### Subagents
 Definitions live in `.claude/agents/`.
@@ -372,13 +376,18 @@ The model column mirrors the `model:` field in `.claude/agents/*.md`; change bot
 2. Orchestrator sends each step to **backend** or **frontend** by its tag. Order: schemas → backend → frontend.
 3. **verifier** checks every finished step. FAIL → back to the same implementer with the verifier's issues.
    For frontend steps, when a device or emulator is connected, **tester** then runs the plan's manual test steps on it (MCP server `mobile-mcp`, `.mcp.json`). FAIL → back to the implementer the same way.
-4. Only after PASS does the orchestrator mark the step `[x]` in the feature's `plan.md`.
+4. Only after PASS does the orchestrator mark the step `[x]` in the feature's `plan.md`, then **commits and pushes the step**:
+   - branch `<feature-name>/step-<N>-<short-slug>`, cut from the previous step's branch (the first step from the feature's base branch), so every step branch holds all earlier steps;
+   - one commit with the step's code, tests and its `plan.md` update, English message `<type>(<feature-name>): <what> (step N)`, using `git-workflow-and-versioning`;
+   - `git push -u origin <branch>`; the next step starts from this branch.
+   No commit or push before PASS, and never with a failing test.
 5. After the last step, the orchestrator updates `Architecture.md`, then reports the task as done.
 
 ### Rules for delegation
 - Every brief is self-contained: the step, files allowed, relevant Zod schemas, tests to write first, acceptance criteria.
 - A step that needs both backend and frontend changes is split into two steps.
 - No two subagents edit the same file in parallel.
+- **Several backend subagents may run at the same time, each on a different approved step** (Kacper, 2026-10-25), when the steps are independent: none needs another's result and their files do not overlap. The orchestrator says which steps run in parallel before starting them. Each one is verified separately; after each PASS it is committed with only its own files (`git add <paths>`) onto a branch cut from the last committed step branch, so the branches stay a chain in the order the steps passed. Frontend steps still run one at a time.
 - Each subagent returns: what changed, files touched, tests written and their red → green results, verification results, concerns.
 
 # Skills

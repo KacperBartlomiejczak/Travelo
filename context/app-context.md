@@ -17,7 +17,7 @@ If this file and the code disagree, the code wins and this file gets updated. If
 Travelo is a mobile app for **the one person who organizes a trip for a group of friends** (the *organizer*). Only the organizer needs the app.
 
 - **Friends** are added to a trip by name and interests. They have no account.
-- A friend who does have an account can optionally be added by their **friend code** as a **linked member**, to follow the trip read-only.
+- A friend who does have an account can optionally be added by their **friend code** as a **linked member**, to follow the trip read-only (except their own expenses, which they add and edit — `prompts/expenses/plan.md` D15).
 - The app helps the organizer set up the trip, plan the days from real places, and keep the money under control during the trip.
 
 Platforms: iOS and Android (Expo / React Native). Languages: Polish (`pl`) and English (`en`), picked from the device language (English as fallback). Light and dark mode.
@@ -49,12 +49,12 @@ Platforms: iOS and Android (Expo / React Native). Languages: Polish (`pl`) and E
 16. **Profile screen and sign-out** (`prompts/profile-screen/`) — "Profil" shows the photo, the nick and five numbers of the past trips (trips, countries, days travelled, flights, km flown), also offline; the gear opens Settings with "Wyloguj się" (a confirmation, disabled offline). The device run is done except the stats of a past trip (scenario 7).
 
 ### In progress (plans in `prompts/`)
-- **Expenses** (`prompts/expenses/`) — drafting; the "Wydatki" screen is an empty placeholder until then.
+- **Expenses** (`prompts/expenses/`) — approved 2026-10-25, being built; the "Wydatki" screen is an empty placeholder until it is done. Scope: trip bar (opens the side panel), budget left for the group or "Ja" with today's amount and carryover from earlier days, a bar per person split by category, a timeline by day, a quick-add button on this screen. One person per expense, the trip's base currency only, offline. The organizer edits anyone's expenses; a linked friend adds and edits only their own.
 
 ### Not started (MVP)
 - **AI day plans** — per-day schedule from real places, cost ranges, group splits (the "Plan" and "Miejsca" screens).
-- **Expenses during the trip** — fast to add, multi-currency, offline, with a visible sync status.
-- **Plan vs reality** — live daily budget ("120 PLN left today"), end-of-trip summary shareable as an image.
+- **Expenses, later parts** — other currencies with FX rates, split a bill equally between people, receipt photo, quick-add from every screen.
+- **Plan vs reality** — the daily budget comes with Expenses; still to do: plan ↔ expense link and the end-of-trip summary shareable as an image.
 
 ### Ideas recorded, not planned yet
 - Showing the friend code (with a QR code) somewhere in the app, so a friend can share it; a rate limit for code lookups before real users (friend-invite R1).
@@ -101,7 +101,7 @@ The trip view, top to bottom:
 - **Photo strip** — a "+" tile, then the trip's photos ordered by date taken.
 - **"Loty"** — outbound and return flights in airport-local time, with layover labels.
 - **"Podróżni · N"** — "Ty" plus the friends' names. A linked friend sees "<organizer's nick> (organizator)" (or "Organizator" without a nick), "Ty", then the others.
-- **A linked friend's view** is read-only: no ⋮, no "Zmień" on the budget, no "+" photo tile, no delete in the photo viewer, and no photo strip on a trip without photos.
+- **A linked friend's view** is read-only (their own expenses excepted, D15 in `prompts/expenses/plan.md`): no ⋮, no "Zmień" on the budget, no "+" photo tile, no delete in the photo viewer, and no photo strip on a trip without photos.
 - **"Budżet"** — budget per person, group total and the derived ~per person per day; "Zmień" opens the budget sheet; a sync indicator shows while a change has not been sent.
 
 ### 3.3 Side panel
@@ -189,7 +189,7 @@ Profile        { id (= auth user id), username (unique, 3–20, a–z 0–9 _ .)
                  createdAt, updatedAt }
 ```
 
-Planned (in `CLAUDE.md`, not in code yet): `Day`, `Activity`, `Expense` / `LocalExpense`, `OutboxEntry`, `DayPlanDraft`.
+Planned (in `CLAUDE.md`, not in code yet): `Day`, `Activity`, `Expense` / `LocalExpense` (being built, `prompts/expenses/`), `DayPlanDraft`. `OutboxEntry` is not used: local rows carry their own sync state.
 
 Key facts:
 - The **organizer is not a `TripMember` row**; traveller count = members + 1.
@@ -215,7 +215,7 @@ Key facts:
 | Sign-in | Supabase Auth | **No** — a signed-in user stays signed in offline |
 | Sign-out | Supabase Auth, then the phone's data is erased | **No** — the button is disabled offline |
 | Profile stats | Computed on the phone from the trip list copy | **Yes** |
-| **Expenses** (planned) | SQLite + outbox, synced to Supabase | **Yes** (decided; see below) |
+| **Expenses** (in progress) | SQLite, the local row is its own outbox entry, synced to Supabase | **Yes** (decided; see below) |
 
 **Offline scope (MVP decision):** expenses and changes to a trip's budget per person work offline. Everything else is server-first. Read-only copies cover the trip list (with each trip's destination and flight routes, for the profile stats — profile-screen D11), every trip opened on the phone, and the user's own profile (auth-onboarding D9). Extending offline to other entities is a new decision for Kacper.
 
