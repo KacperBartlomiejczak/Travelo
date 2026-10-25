@@ -2,6 +2,7 @@ export * from './airport';
 export * from './auth';
 export * from './common';
 export * from './cover';
+export * from './expense';
 export * from './create-trip-form';
 export * from './flight';
 export * from './interests';

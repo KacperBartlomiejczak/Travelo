@@ -470,4 +470,5 @@ If instructions conflict, this order wins: **Kacper's current message → `CLAUD
 <!-- claude-reflect: learned rules (saved from the band; edit freely) -->
 ## Learned rules
 - Delegate frontend work, including its tests, to frontend sub-agents and backend work to backend sub-agents, rather than implementing it directly.
+- Write plans only in Polish; the backend subagent may run several instances concurrently, each with a different task.
 <!-- end claude-reflect -->
