@@ -318,6 +318,11 @@ export function createLocalStore(db: LocalDb) {
       return rows.map(budgetChangeFromRow);
     },
 
+    /** True while any expense (soft-deleted ones too) is pending or failed: signing out would destroy it. */
+    async hasUnsyncedExpenses(): Promise<boolean> {
+      return (await db.getFirstAsync('select 1 from expenses where sync_status != ? limit 1', ['synced'])) != null;
+    },
+
     /**
      * The change reached the server: the device copy of the trip gets it (so offline it is not the old amount),
      * then the change is forgotten. A newer change saved meanwhile stays.
