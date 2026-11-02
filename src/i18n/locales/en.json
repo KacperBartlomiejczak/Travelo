@@ -326,6 +326,21 @@
       "km": "Km flown"
     }
   },
+  "avatar": {
+    "add": "Add profile photo",
+    "addOffline": "Add profile photo, unavailable offline",
+    "open": "Open profile photo",
+    "close": "Close profile photo preview",
+    "options": "Profile photo options",
+    "sheetTitle": "Profile photo",
+    "change": "Change photo",
+    "remove": "Remove photo",
+    "working": "Saving the photo",
+    "offlineHint": "You need internet to change or remove the photo.",
+    "galleryError": "Couldn't open your photos. Try again.",
+    "uploadError": "Couldn't change the photo. Try again.",
+    "removeError": "Couldn't remove the photo. Try again."
+  },
   "settings": {
     "account": "Account",
     "editProfile": "Edit profile",

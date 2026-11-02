@@ -3,7 +3,7 @@ import { useRouter } from 'expo-router';
 import { Settings, User } from 'lucide-react-native';
 import { type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { ScrollView, Text, useWindowDimensions, View } from 'react-native';
+import { AccessibilityInfo, Pressable, ScrollView, Text, useWindowDimensions, View } from 'react-native';
 import Animated, { useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -12,13 +12,15 @@ import { OfflineBanner } from '@/components/OfflineBanner';
 import { SkeletonBlock } from '@/components/SkeletonBlock';
 import { AIRPORTS } from '@/data/airports';
 import { usePillClearance } from '@/features/nav/usePillClearance';
-import { useMyProfile } from '@/hooks/useProfile';
+import { usePickAvatar } from '@/hooks/usePickAvatar';
+import { useChangeAvatar, useMyProfile } from '@/hooks/useProfile';
 import { useReduceMotion } from '@/hooks/useReduceMotion';
 import { useTripList } from '@/hooks/useTrips';
 import { travelStats } from '@/lib/travel-stats';
 import { deviceToday } from '@/lib/trip-sections';
 import { useIsOffline } from '@/providers/BudgetSync';
 import { useTheme } from '@/theme/legacy/useTheme';
+import { useTheme as useSunlineTheme } from '@/theme/useTheme';
 
 import { TravelStatsCard } from './TravelStatsCard';
 
@@ -40,6 +42,24 @@ export function ProfileScreen() {
   const { refetch: refetchProfile } = myProfile;
   const trips = useTripList();
   const openSettings = () => router.push('/settings');
+
+  // Without a photo a tap opens the gallery and uploads the pick; with one it opens the preview (profile-settings D13).
+  const changeAvatar = useChangeAvatar();
+  const [addError, setAddError] = useState<'galleryError' | 'uploadError' | null>(null);
+  const failAdd = (kind: 'galleryError' | 'uploadError') => {
+    setAddError(kind);
+    AccessibilityInfo.announceForAccessibility(t(`avatar.${kind}`));
+  };
+  const pickPhoto = usePickAvatar({
+    onPick: (uri) => changeAvatar.mutateAsync(uri).catch(() => failAdd('uploadError')),
+    onError: () => failAdd('galleryError'),
+  });
+  const addPhoto = () => {
+    setAddError(null);
+    return pickPhoto();
+  };
+  // The address is temporary and signed: it goes to the preview as a param and is never logged.
+  const openPhoto = (uri: string) => profile && router.push({ pathname: '/avatar', params: { uri, avatarId: profile.avatarId ?? '' } });
 
   // After an offline start the profile is the copy on the phone, which has no signed photo url. When the phone comes back
   // online the profile is read again to get one (D18). A failed read keeps the data that is there: the gate looks at the
@@ -76,9 +96,21 @@ export function ProfileScreen() {
         >
           {profile && (
             <View testID="profile-row" style={{ flexDirection: 'row', alignItems: 'center', gap: spacing[4] }}>
-              <ProfilePhoto uri={profile.avatarUrl} avatarId={profile.avatarId} offline={offline} />
+              <ProfilePhoto
+                uri={profile.avatarUrl}
+                avatarId={profile.avatarId}
+                offline={offline}
+                adding={changeAvatar.isPending}
+                onAdd={addPhoto}
+                onOpen={openPhoto}
+              />
               <Text style={[typography.heading2, { color: colors.text.primary, flexShrink: 1 }]}>{profile.username}</Text>
             </View>
+          )}
+          {addError && (
+            <Text accessibilityRole="alert" style={[typography.bodyS, { color: colors.status.error }]}>
+              {t(`avatar.${addError}`)}
+            </Text>
           )}
           <TravelStatsCard stats={stats} loading={trips.isPending} />
         </ScrollView>
@@ -93,8 +125,8 @@ export function ProfileScreen() {
   );
 }
 
-// The profile photo (A3, D20, D21, D22): round, 96dp, not tappable. A user without a photo gets the placeholder circle
-// from profile setup, with a person instead of the camera because nothing here opens the gallery. A user with a photo
+// The profile photo (A3, D20, D21, D22): round, 96dp. A user without a photo gets the placeholder circle
+// from profile setup, with a person icon, and tapping it opens the gallery (profile-settings D13). A user with a photo
 // sees a pulsing skeleton in the same circle whenever the photo is not shown yet: no signed url (an offline start),
 // loading until the Image's `load`, or failed. It keeps pulsing until the photo arrives, offline too, and then fades out
 // over the photo (D22). A photo that failed is tried again once, when the phone goes from offline to online (D18); one
@@ -102,9 +134,22 @@ export function ProfileScreen() {
 // Every profile read signs a new url for the same file, so "has loaded" belongs to the photo (`avatarId`), not to the
 // url: a photo that is shown stays shown while the new url loads, when that url fails (D21), and when a later read has no
 // url at all (D23): then the last url that loaded is kept as the source.
-function ProfilePhoto({ uri, avatarId, offline }: { uri: string | undefined; avatarId: string | null; offline: boolean }) {
+type PhotoProps = {
+  uri: string | undefined;
+  avatarId: string | null;
+  offline: boolean;
+  /** A photo is being uploaded. */
+  adding: boolean;
+  onAdd: () => void;
+  /** Gets the address that is shown. */
+  onOpen: (uri: string) => void;
+};
+
+function ProfilePhoto({ uri, avatarId, offline, adding, onAdd, onOpen }: PhotoProps) {
+  const { t } = useTranslation();
   const theme = useTheme();
   const { colors, size, radius } = theme;
+  const sunline = useSunlineTheme();
   // What failed (a url), whether this photo has loaded and with which url, and whether its skeleton has faded away. A
   // different photo, or none and then one again, starts over: nothing is shown yet.
   const [failed, setFailed] = useState<string | null>(null);
@@ -128,8 +173,32 @@ function ProfilePhoto({ uri, avatarId, offline }: { uri: string | undefined; ava
   const circle = { width: size.avatarSetup, height: size.avatarSetup, borderRadius: radius.full };
   const skeleton = <SkeletonBlock testID="profile-photo-skeleton" width={size.avatarSetup} height={size.avatarSetup} radius={radius.full} />;
 
+  // D13: without a photo the circle opens the gallery (online only, the reason is in the label); with one it opens the preview,
+  // which is on the phone's cache and so also works offline, but not while the skeleton is shown. Pressed shows the sunken
+  // background in a ring round the circle (§8.7).
+  const adds = avatarId === null;
+  const disabled = adds ? offline || adding : !(loaded && source);
+  const tap = (child: ReactNode) => (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={t(adds ? (offline ? 'avatar.addOffline' : 'avatar.add') : 'avatar.open')}
+      accessibilityState={{ disabled, busy: adding }}
+      disabled={disabled}
+      onPress={() => (adds ? onAdd() : source && onOpen(source))}
+      style={({ pressed }) => ({
+        minWidth: size.touchTarget,
+        minHeight: size.touchTarget,
+        padding: theme.spacing[1],
+        borderRadius: radius.full,
+        backgroundColor: pressed ? sunline.background.sunken : undefined,
+      })}
+    >
+      {child}
+    </Pressable>
+  );
+
   if (avatarId === null) {
-    return (
+    return tap(
       <View
         testID="profile-photo-placeholder"
         aria-hidden
@@ -139,16 +208,16 @@ function ProfilePhoto({ uri, avatarId, offline }: { uri: string | undefined; ava
         ]}
       >
         <User size={size.iconFeature} strokeWidth={size.iconStroke} color={colors.text.secondary} aria-hidden />
-      </View>
+      </View>,
     );
   }
-  if (!source || failed === source) return skeleton;
+  if (!source || failed === source) return tap(skeleton);
   // The Image loads under the skeleton in the same box, so the circle does not change size when the photo arrives. It has
   // no `recyclingKey`, so when the url changes expo-image keeps showing the image it has until the new one has loaded
   // (`recyclingKey` is what would blank it: "Changing this prop resets the image view content to blank or a placeholder"),
   // and when the new one fails it keeps it still: on Android Glide's `onLoadFailed` does nothing to the view, on iOS the
   // failure only fires `onError`. So an error after the photo has loaded is ignored (D21).
-  return (
+  return tap(
     <View style={{ width: size.avatarSetup, height: size.avatarSetup }}>
       <Image
         testID="profile-photo"
@@ -169,7 +238,7 @@ function ProfilePhoto({ uri, avatarId, offline }: { uri: string | undefined; ava
           {skeleton}
         </SkeletonCover>
       )}
-    </View>
+    </View>,
   );
 }
 

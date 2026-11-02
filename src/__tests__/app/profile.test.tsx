@@ -915,22 +915,6 @@ describe('Profile screen — photo and nick (A3)', () => {
     await renderProfile();
     expect(await screen.findByText('kacper')).toBeTruthy();
   });
-
-  it('is not tappable: the photo is no button', async () => {
-    setAppProfileRepository(await profileWithPhoto());
-    await renderProfile();
-    await screen.findByTestId('profile-photo', { includeHiddenElements: true });
-    const row = screen.getByTestId('profile-row');
-    expect(within(row).queryAllByRole('button', { includeHiddenElements: true })).toHaveLength(0);
-    // Nothing from the photo up to the screen can take a touch: a Pressable renders a view with responder handlers.
-    const touchHandlers = ['onPress', 'onClick', 'onResponderGrant', 'onStartShouldSetResponder'];
-    let node: ReturnType<typeof screen.getByTestId> | null = screen.getByTestId('profile-photo', { includeHiddenElements: true });
-    while (node && node.props.testID !== 'profile-screen') {
-      touchHandlers.forEach((handler) => expect(node?.props[handler]).toBeUndefined());
-      node = node.parent;
-    }
-    expect(node).not.toBeNull();
-  });
 });
 
 describe('Profile screen — stats (D2, D7, A6)', () => {

@@ -326,6 +326,21 @@
       "km": "Przelecone km"
     }
   },
+  "avatar": {
+    "add": "Dodaj zdjęcie profilowe",
+    "addOffline": "Dodaj zdjęcie profilowe, niedostępne bez internetu",
+    "open": "Otwórz zdjęcie profilowe",
+    "close": "Zamknij podgląd zdjęcia profilowego",
+    "options": "Opcje zdjęcia profilowego",
+    "sheetTitle": "Zdjęcie profilowe",
+    "change": "Zmień zdjęcie",
+    "remove": "Usuń zdjęcie",
+    "working": "Trwa zapisywanie zdjęcia",
+    "offlineHint": "Bez internetu nie zmienisz ani nie usuniesz zdjęcia.",
+    "galleryError": "Nie udało się otworzyć galerii. Spróbuj ponownie.",
+    "uploadError": "Nie udało się zmienić zdjęcia. Spróbuj ponownie.",
+    "removeError": "Nie udało się usunąć zdjęcia. Spróbuj ponownie."
+  },
   "settings": {
     "account": "Konto",
     "editProfile": "Edytuj profil",
