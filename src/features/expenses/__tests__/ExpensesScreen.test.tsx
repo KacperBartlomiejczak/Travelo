@@ -1,7 +1,7 @@
 import { fireEvent, render, screen, within } from '@testing-library/react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
-import { useCanEditExpense, useExpenses } from '@/hooks/useExpenses';
+import { useCanEditExpense, useDeleteExpense, useExpenses, useExpenseWriter, useSaveExpense } from '@/hooks/useExpenses';
 import { useIsTripOwner, useMyProfileId } from '@/hooks/useProfile';
 import { useCurrentTrip } from '@/hooks/useTrips';
 import i18n from '@/i18n';
@@ -9,6 +9,7 @@ import { formatMoney } from '@/lib/money';
 import { todayIn } from '@/lib/time';
 import { useIsOffline } from '@/providers/BudgetSync';
 import type { LocalExpense, TripOverview } from '@/schemas';
+import { tokens } from '@/theme/tokens';
 
 import { ExpensesScreen } from '../ExpensesScreen';
 
@@ -78,19 +79,22 @@ const expense = (memberId: string | null, amountMinor: number): LocalExpense => 
 const refetchTrip = jest.fn();
 const refetchExpenses = jest.fn();
 type Query = { data?: unknown; isPending?: boolean; isError?: boolean };
-type Options = { trip?: Query; expenses?: Query; me?: string; today?: string; offline?: boolean; onAddExpense?: () => void };
+type Options = { trip?: Query; expenses?: Query; me?: string; today?: string; offline?: boolean };
 
-function setup({ trip = { data: { overview, budgetSyncStatus: 'synced' } }, expenses = { data: [] }, me = OWNER, today = '2026-11-01', offline = false, onAddExpense }: Options = {}) {
+function setup({ trip = { data: { overview, budgetSyncStatus: 'synced' } }, expenses = { data: [] }, me = OWNER, today = '2026-11-01', offline = false }: Options = {}) {
   jest.mocked(useCurrentTrip).mockReturnValue({ isPending: false, isError: false, refetch: refetchTrip, ...trip } as never);
   jest.mocked(useExpenses).mockReturnValue({ isPending: false, isError: false, refetch: refetchExpenses, ...expenses } as never);
   jest.mocked(useCanEditExpense).mockReturnValue(() => true);
+  jest.mocked(useExpenseWriter).mockReturnValue({ isOwner: me === OWNER, ownMemberId: me === OWNER ? null : MEMBER });
+  jest.mocked(useSaveExpense).mockReturnValue({ mutate: jest.fn(), isPending: false } as never);
+  jest.mocked(useDeleteExpense).mockReturnValue({ mutate: jest.fn(), isPending: false } as never);
   jest.mocked(useMyProfileId).mockReturnValue(me);
   jest.mocked(useIsTripOwner).mockImplementation((ownerId) => ownerId === me);
   jest.mocked(useIsOffline).mockReturnValue(offline);
   jest.mocked(todayIn).mockReturnValue(today);
   return render(
     <SafeAreaProvider initialMetrics={metrics}>
-      <ExpensesScreen onAddExpense={onAddExpense} />
+      <ExpensesScreen />
     </SafeAreaProvider>,
   );
 }
@@ -164,17 +168,13 @@ describe('ExpensesScreen (expenses step 7)', () => {
     expect(refetchExpenses).toHaveBeenCalled();
   });
 
-  it('no expenses: the budget stays, with the empty copy; the action only when wired', async () => {
+  it('no expenses: the budget stays, with the empty copy and an action that opens the add sheet', async () => {
     await setup();
     expect(screen.getByText(`Zostało ${money(300000)}`)).toBeOnTheScreen();
     expect(screen.getByText('Brak wydatków')).toBeOnTheScreen();
     expect(screen.getByText('Dodaj pierwszy wydatek. Zapis zajmuje tylko kilka sekund.')).toBeOnTheScreen();
-    expect(screen.queryByRole('button', { name: 'Dodaj wydatek' })).toBeNull();
-    await screen.unmount();
-    const onAddExpense = jest.fn();
-    await setup({ onAddExpense });
-    await fireEvent.press(screen.getByRole('button', { name: 'Dodaj wydatek' }));
-    expect(onAddExpense).toHaveBeenCalledTimes(1);
+    await fireEvent.press(within(screen.getByTestId('expenses-empty')).getByRole('button', { name: 'Dodaj wydatek' }));
+    expect(screen.getByRole('header', { name: 'Dodaj wydatek' })).toBeOnTheScreen();
   });
 
   it.each([
@@ -217,5 +217,65 @@ describe('ExpensesScreen who-spent-what chart (expenses step 8)', () => {
   it('leaves the chart out when there are no expenses', async () => {
     await setup();
     expect(screen.queryByText('Ile kto wydał')).toBeNull();
+  });
+});
+
+describe('ExpensesScreen floating add button (expenses step 10, D14)', () => {
+  it('shows the FAB with a trip, and it opens the add sheet', async () => {
+    await setup({ expenses: { data: [expense(null, 10000)] } });
+    expect(screen.getByRole('button', { name: 'Dodaj wydatek' })).toBe(screen.getByTestId('fab-add-expense'));
+    await fireEvent.press(screen.getByTestId('fab-add-expense'));
+    expect(screen.getByRole('header', { name: 'Dodaj wydatek' })).toBeOnTheScreen();
+  });
+
+  it('is not shown while there are no expenses: the empty state has the only add button (D24)', async () => {
+    await setup();
+    expect(screen.queryByTestId('fab-add-expense')).toBeNull();
+  });
+
+  it('sits at the right, above the floating pill', async () => {
+    await setup({ expenses: { data: [expense(null, 10000)] } });
+    expect(screen.getByTestId('fab-slot')).toHaveStyle({
+      position: 'absolute',
+      right: tokens.spacing[5],
+      bottom: metrics.insets.bottom + tokens.components.fab.bottomClearance,
+    });
+  });
+
+  it.each([
+    ['loading', { trip: { data: undefined, isPending: true } }],
+    ['no trip', { trip: { data: null } }],
+    ['trip error', { trip: { data: undefined, isError: true } }],
+  ] as [string, Options][])('%s: no FAB', async (_state, options) => {
+    await setup(options);
+    expect(screen.queryByTestId('fab-add-expense')).toBeNull();
+  });
+
+  it('offline: sits a gap above the banner, measured (a wrapped banner is taller)', async () => {
+    await setup({ offline: true, expenses: { data: [expense(null, 10000)] } });
+    const slot = screen.getByTestId('offline-banner-slot');
+    await fireEvent(slot, 'layout', { nativeEvent: { layout: { x: 0, y: 0, width: 390, height: 190 } } });
+    expect(screen.getByTestId('fab-slot')).toHaveStyle({ bottom: 190 });
+    await fireEvent(slot, 'layout', { nativeEvent: { layout: { x: 0, y: 0, width: 390, height: 230 } } });
+    expect(screen.getByTestId('fab-slot')).toHaveStyle({ bottom: 230 });
+  });
+
+  it('ignores presses beneath the closing sheet for its closing animation, then works again', async () => {
+    const now = jest.spyOn(Date, 'now').mockReturnValue(1_000_000);
+    await setup({ expenses: { data: [expense(null, 10000)] } });
+    await fireEvent.press(screen.getByTestId('fab-add-expense'));
+    await fireEvent.press(screen.getAllByRole('button', { name: 'Zamknij' })[0]);
+    await fireEvent.press(screen.getByRole('button', { name: 'Kolacja' }));
+    expect(screen.queryByRole('header', { name: 'Edytuj wydatek' })).toBeNull();
+    now.mockReturnValue(1_000_000 + tokens.motion.duration.slow + 1);
+    await fireEvent.press(screen.getByRole('button', { name: 'Kolacja' }));
+    expect(screen.getByRole('header', { name: 'Edytuj wydatek' })).toBeOnTheScreen();
+    now.mockRestore();
+  });
+
+  it('a row opens the edit sheet', async () => {
+    await setup({ expenses: { data: [expense(null, 10000)] } });
+    await fireEvent.press(screen.getByRole('button', { name: 'Kolacja' }));
+    expect(screen.getByRole('header', { name: 'Edytuj wydatek' })).toBeOnTheScreen();
   });
 });
