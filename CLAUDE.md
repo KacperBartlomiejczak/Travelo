@@ -348,7 +348,7 @@ If a check fails: fix the code → rerun. Never "fix" it by weakening a test. Af
 - Owns the plans in `prompts/` and `Architecture.md` — **the only one allowed to edit them**.
 - Writes or collects the plan, waits for approval, delegates steps, integrates results, runs the verification loop, updates the plan after every step.
 - **Is a manager only (Kacper, 2026-10-25).** It edits **documents only**: `CLAUDE.md`, `Architecture.md`, `context/*.md`, `prompts/**/plan.md` and `.claude/agents/*.md`. It never writes or edits code, tests, schemas, migrations, config or i18n files, not even a one-line fix: every such change goes to **backend** or **frontend** as a step brief. It may run read-only commands and the checks (`pnpm test`, `pnpm typecheck`, `pnpm lint`) and git commands.
-- **Commits every step on its own branch after the verifier's PASS** (and the tester's, when it ran). See Step flow, point 4.
+- **Commits every step on the task's one branch after the verifier's PASS** (and the tester's, when it ran). See Step flow, point 4.
 
 ### Subagents
 Definitions live in `.claude/agents/`.
@@ -377,9 +377,9 @@ The model column mirrors the `model:` field in `.claude/agents/*.md`; change bot
 3. **verifier** checks every finished step. FAIL → back to the same implementer with the verifier's issues.
    For frontend steps, when a device or emulator is connected, **tester** then runs the plan's manual test steps on it (MCP server `mobile-mcp`, `.mcp.json`). FAIL → back to the implementer the same way.
 4. Only after PASS does the orchestrator mark the step `[x]` in the feature's `plan.md`, then **commits and pushes the step**:
-   - branch `<feature-name>/step-<N>-<short-slug>`, cut from the previous step's branch (the first step from the feature's base branch), so every step branch holds all earlier steps;
+   - **one branch per task** (Kacper, 2026-11-02): `feature/<feature-name>`, cut from the feature's base branch at the start; no per-step branches;
    - one commit with the step's code, tests and its `plan.md` update, English message `<type>(<feature-name>): <what> (step N)`, using `git-workflow-and-versioning`;
-   - `git push -u origin <branch>`; the next step starts from this branch.
+   - `git push` to that branch; the next step continues on it.
    No commit or push before PASS, and never with a failing test.
 5. After the last step, the orchestrator updates `Architecture.md`, then reports the task as done.
 
@@ -387,7 +387,7 @@ The model column mirrors the `model:` field in `.claude/agents/*.md`; change bot
 - Every brief is self-contained: the step, files allowed, relevant Zod schemas, tests to write first, acceptance criteria.
 - A step that needs both backend and frontend changes is split into two steps.
 - No two subagents edit the same file in parallel.
-- **Several backend subagents may run at the same time, each on a different approved step** (Kacper, 2026-10-25), when the steps are independent: none needs another's result and their files do not overlap. The orchestrator says which steps run in parallel before starting them. Each one is verified separately; after each PASS it is committed with only its own files (`git add <paths>`) onto a branch cut from the last committed step branch, so the branches stay a chain in the order the steps passed. Frontend steps still run one at a time.
+- **Several backend subagents may run at the same time, each on a different approved step** (Kacper, 2026-10-25), when the steps are independent: none needs another's result and their files do not overlap. The orchestrator says which steps run in parallel before starting them. Each one is verified separately; after each PASS it is committed with only its own files (`git add <paths>`) onto the task's branch, in the order the steps passed. Frontend steps still run one at a time.
 - Each subagent returns: what changed, files touched, tests written and their red → green results, verification results, concerns.
 
 # Skills

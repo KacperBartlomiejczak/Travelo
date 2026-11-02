@@ -627,10 +627,15 @@ describe('clearUserData (auth-onboarding D2)', () => {
     await local.selectTrip(TRIP_ID);
     await local.saveBudgetChange(change);
     await local.cacheProfile(profile, '2026-10-18T09:00:00.000Z');
+    await ctx.db.runAsync(
+      `insert into expenses (id, trip_id, member_id, name, amount_minor, currency, category, spent_on, created_at, updated_at, deleted_at, sync_status, attempts)
+       values (?, ?, null, 'Taxi', 1500, 'EUR', 'transport', '2026-11-03', '2026-11-03T10:00:00.000Z', '2026-11-03T10:00:00.000Z', null, 'pending', 0)`,
+      [PHOTO_A, TRIP_ID],
+    );
     return ctx;
   }
 
-  const TABLES = ['trip_overview_cache', 'trip_list_cache', 'selected_trip', 'trip_budget_changes', 'trip_photos_cache', 'my_profile_cache'];
+  const TABLES = ['trip_overview_cache', 'trip_list_cache', 'selected_trip', 'trip_budget_changes', 'trip_photos_cache', 'my_profile_cache', 'expenses'];
   const count = async (db: Awaited<ReturnType<typeof store>>['db'], table: string) =>
     (await db.getFirstAsync<{ n: number }>(`select count(*) as n from ${table}`, []))?.n;
 
@@ -833,5 +838,23 @@ describe('writes of an operation that started before a clear (auth-onboarding D2
     await Promise.all([early, clearing, late]);
 
     expect(await rows(db)).toEqual([0, 0, 0, 0, 0, 0]);
+  });
+});
+
+describe('forgetTrip and expenses (expenses step 5)', () => {
+  it("removes the expenses kept for the trip, pending ones included, and leaves other trips' expenses", async () => {
+    const { db, local } = await store();
+    const insert = (id: string, tripId: string) =>
+      db.runAsync(
+        `insert into expenses (id, trip_id, name, amount_minor, currency, category, spent_on, created_at, updated_at, sync_status, attempts)
+         values (?, ?, 'Taxi', 100, 'EUR', 'food', '2026-11-03', '2026-11-03T10:00:00.000Z', '2026-11-03T10:00:00.000Z', 'pending', 0)`,
+        [id, tripId],
+      );
+    await insert('a', TRIP_ID);
+    await insert('b', OTHER_TRIP_ID);
+
+    await local.forgetTrip(TRIP_ID);
+
+    expect((await db.getAllAsync<{ id: string }>('select id from expenses', [])).map((row) => row.id)).toEqual(['b']);
   });
 });

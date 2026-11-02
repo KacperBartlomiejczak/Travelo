@@ -144,6 +144,8 @@
     "nameTooLong": "Imię może mieć do {{max}} znaków",
     "tripNameRequired": "Podaj nazwę podróży",
     "tripNameTooLong": "Nazwa może mieć do {{max}} znaków",
+    "expenseNameRequired": "Podaj nazwę wydatku",
+    "expenseNameTooLong": "Nazwa może mieć do {{max}} znaków",
     "amountRequired": "Wpisz kwotę",
     "amountInvalid": "Wpisz kwotę liczbą, np. 2500 lub 2500,50",
     "amountPositive": "Kwota musi być większa od zera",
@@ -341,5 +343,36 @@
   },
   "splash": {
     "loading": "Ładowanie aplikacji"
+  },
+  "budget": {
+    "group": "Grupa",
+    "me": "Ja",
+    "left": "Zostało {{amount}}",
+    "over": "{{amount}} ponad budżet",
+    "carryover": "+{{amount}} z poprzednich dni",
+    "today": {
+      "left": "Zostało dziś {{amount}}",
+      "atLimit": "Dzisiejszy plan budżetu jest wykorzystany",
+      "over": "Dziś {{amount}} ponad plan"
+    }
+  },
+  "empty": {
+    "expenses": {
+      "title": "Brak wydatków",
+      "body": "Dodaj pierwszy wydatek. Zapis zajmuje tylko kilka sekund.",
+      "action": "Dodaj wydatek"
+    }
+  },
+  "expenses": {
+    "loadError": "Nie udało się wczytać wydatków.",
+    "who": "Ile kto wydał",
+    "spent": "Wydane {{amount}}",
+    "category": {
+      "food": "Jedzenie",
+      "transport": "Transport",
+      "stay": "Nocleg",
+      "activities": "Atrakcje",
+      "other": "Inne"
+    }
   }
 }

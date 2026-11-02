@@ -3,6 +3,7 @@ import { useNetworkState } from 'expo-network';
 import { createContext, useCallback, useContext, useEffect, useRef, type ReactNode } from 'react';
 import { AppState } from 'react-native';
 
+import type { ExpenseSync } from '@/data/expense-sync';
 import type { TripRepository } from '@/data/trip-repository';
 
 const RequestSyncContext = createContext<() => void>(() => {});
@@ -13,18 +14,18 @@ export function useIsOffline(): boolean {
   return network.isConnected === false || network.isInternetReachable === false;
 }
 
-/** Starts sending budget changes now (e.g. right after one was saved). */
+/** Starts sending budget changes and expenses now (e.g. right after one was saved). */
 export function useRequestBudgetSync(): () => void {
   return useContext(RequestSyncContext);
 }
 
-type Props = { repository: TripRepository; children: ReactNode };
+type Props = { repository: TripRepository; expenseSync?: Pick<ExpenseSync, 'sync'>; children: ReactNode };
 
 /**
  * Sends budget changes waiting on the device: on start and whenever the connection comes back, when the app
  * returns to the foreground, after a save, and again when a failed change's backoff delay is over.
  */
-export function BudgetSyncProvider({ repository, children }: Props) {
+export function BudgetSyncProvider({ repository, expenseSync, children }: Props) {
   const queryClient = useQueryClient();
   const offline = useIsOffline();
   const retryTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
@@ -33,18 +34,18 @@ export function BudgetSyncProvider({ repository, children }: Props) {
 
   const sync = useCallback(async () => {
     clearTimeout(retryTimer.current);
-    try {
-      const { nextAttemptAt } = await repository.syncBudgets();
-      if (nextAttemptAt) {
-        retryTimer.current = setTimeout(() => void latestSync.current(), Math.max(0, nextAttemptAt.getTime() - Date.now()));
-      }
-    } catch {
-      // The change stays on the device; the next trigger sends it.
+    // Each sync fails on its own: a change stays on the device and the next trigger sends it.
+    const results = await Promise.allSettled([repository.syncBudgets(), expenseSync?.sync()]);
+    const retries = results.flatMap((result) => (result.status === 'fulfilled' && result.value?.nextAttemptAt ? [result.value.nextAttemptAt.getTime()] : []));
+    if (retries.length > 0) {
+      retryTimer.current = setTimeout(() => void latestSync.current(), Math.max(0, Math.min(...retries) - Date.now()));
     }
     // A read still in flight may have seen the change before it was synced: drop it and read again.
     await queryClient.cancelQueries({ queryKey: ['trips'] });
     await queryClient.invalidateQueries({ queryKey: ['trips'] });
-  }, [repository, queryClient]);
+    // Expenses were pulled or marked synced: the lists read SQLite again (step 6 queries use ['expenses', tripId]).
+    await queryClient.invalidateQueries({ queryKey: ['expenses'] });
+  }, [repository, expenseSync, queryClient]);
 
   useEffect(() => {
     if (!offline) void sync();

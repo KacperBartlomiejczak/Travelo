@@ -41,7 +41,8 @@ export type LocalExpense = z.infer<typeof LocalExpenseSchema>;
 /** The expense bottom sheet. The category has no default (design §9.3). */
 export const ExpenseFormSchema = z.object({
   name: ExpenseSchema.shape.name,
-  amount: PositiveMoneySchema,
+  /** Raw text; the screen parses it with parseAmountToMinor (needs trip currency and locale), then validates ExpenseSchema.shape.amount. */
+  amountText: z.string().trim().min(1, { error: 'validation.amountRequired' }),
   category: ExpenseCategorySchema,
   memberId: ExpenseSchema.shape.memberId,
   spentOn: IsoDateSchema,
