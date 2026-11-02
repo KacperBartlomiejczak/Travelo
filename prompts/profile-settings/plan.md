@@ -1,5 +1,5 @@
 # Zadanie: Awatar i ustawienia
-Status: zaakceptowany, czeka na Wydatki (Kacper, 2026-11-02; tekst ostrzeżenia A10 także)
+Status: zaakceptowany, czeka na Wydatki (Kacper, 2026-11-02; tekst ostrzeżenia A10 i zmiana awatara D13 także)
 
 ## Zrozumienie i założenia
 Trzy rzeczy na istniejących ekranach „Profil” i „Ustawienia”:
@@ -21,9 +21,14 @@ Trzy rzeczy na istniejących ekranach „Profil” i „Ustawienia”:
 - **D7 (P3) — Ekran ustawień to jedna przewijana lista z sekcjami:** Konto (Edytuj profil), Wygląd (Motyw i Język jako trzyopcyjne `SegmentedControl` na miejscu), O aplikacji (wersja), a na dole Wyloguj się i Usuń konto.
 - **D8 (P4) — Motyw i język zostają na telefonie** po wylogowaniu i po usunięciu konta.
 - **D9 (P5) — Nick bez limitu zmian.**
-- **D10 (P6) — Kliknięcie zdjęcia:** bez zdjęcia od razu galeria; ze zdjęciem bottom sheet „Zmień zdjęcie” / „Usuń zdjęcie”; usunięcie bez dodatkowego potwierdzenia.
+- ~~**D10 (P6) — Kliknięcie zdjęcia:** bez zdjęcia od razu galeria; ze zdjęciem bottom sheet „Zmień zdjęcie” / „Usuń zdjęcie”; usunięcie bez dodatkowego potwierdzenia.~~ Zastąpione przez D13.
 - **D11 (P7a) — Połączony znajomy usuwa swoje konto:** w podróży organizatora zostaje jego wiersz z nickiem jako znajomy bez konta oraz jego wydatki; ostrzeżenie mówi o tym wprost (R7). Dotyczy tylko tego przypadku: wydatki w podróżach organizatora znikają razem z tymi podróżami (D1).
 - **D12 (P7b) — Po usunięciu:** ekran powitalny z komunikatem „Konto usunięte.”.
+- **D13 (2026-11-02, zastępuje D10) — Kliknięcie zdjęcia otwiera duży podgląd.** Ze zdjęciem: pełny ekran z całym zdjęciem, u góry krzyżyk po lewej i trzy kropki po prawej; kropki otwierają bottom sheet „Zmień zdjęcie” / „Usuń zdjęcie”.
+  - **Bez zdjęcia:** kliknięcie od razu otwiera galerię, bez podglądu.
+  - **Po zmianie:** podgląd zostaje otwarty; podczas wysyłania widać zajętość, potem nowe zdjęcie. Anulowanie galerii nic nie zmienia.
+  - **Po usunięciu:** bez dodatkowego potwierdzenia (bez zmian względem D10); podgląd się zamyka, bo nie ma czego pokazać, a profil pokazuje puste kółko.
+  - **Offline:** podgląd zdjęcia widocznego na telefonie działa, kropki są nieaktywne, a na dole podgląd podaje powód. Gdy zdjęcia nie ma na telefonie (szkielet na profilu) kółko nie reaguje. Bez zdjęcia kółko jest nieaktywne, powód podaje `OfflineBanner` profilu i opis dla czytnika ekranu.
 
 ### Ustalenia z kodu (sprawdzone 2026-11-02 na `origin/expenses/step-1-schemas-wip`)
 - `supabase/functions/` nie istnieje; `config.toml` ma włączone `edge_runtime` (Deno 2). Usunięcie z `auth.users` wymaga klucza service role, więc to pierwsza Edge Function.
@@ -39,6 +44,8 @@ Trzy rzeczy na istniejących ekranach „Profil” i „Ustawienia”:
 - `ProfileRepository` nie ma metody update; granty bazy już pozwalają na update `username`, `interests`, `avatar_id` (`20261018150000_profiles.sql:139`), a polityki Storage na upload i delete własnego pliku.
 - `AvatarPicker` jest w `features/auth`, importuje `FormError` z auth. Na profilu nie używamy tego komponentu, wspólne jest tylko otwarcie galerii.
 - `ConfirmDialog` nie ma pola tekstowego ani nieaktywnego przycisku potwierdzenia.
+- **`PhotoViewer` nie nadaje się do ponownego użycia dla awatara:** jest związany z `useTripPhotos(tripId)` i `ShownTripPhoto`, ma pager, licznik i usuwanie zdjęcia podróży, a jego `Chrome` jest prywatny. Wzorzec jest ten sam (trasa w `DarkThemeScope`, `HeroIconButton`, sheet jako Modal ekranu); ikonę trzech kropek ma już `TripMenuButton` (`EllipsisVertical`).
+- `ProfilePhoto` przy odczycie bez adresu pokazuje ostatni wczytany adres (profile-screen D23), który istnieje tylko w jego stanie.
 - Nick połączonego znajomego w cudzej podróży to migawka, bez aktualizacji na żywo (friend-invite A1). Zmiana nicku tego nie rusza.
 
 ### Założenia
@@ -59,6 +66,8 @@ Trzy rzeczy na istniejących ekranach „Profil” i „Ustawienia”:
 **Motyw.** `Appearance.setColorScheme` na starcie i przy zmianie. Odrzucone: nowy kontekst motywu w obu hookach (więcej kodu, a natywne pickery i klawiatura zostałyby przy motywie systemu).
 
 **Język.** `i18n.changeLanguage` plus odczyt zapisanej wartości w `src/i18n/index.ts`.
+
+**Podgląd awatara.** Nowa trasa `/avatar` w `DarkThemeScope` z małym `AvatarViewer`: jedno zdjęcie, dwa przyciski `HeroIconButton`, `AvatarSheet` jako Modal tego ekranu, więc Modal nie otwiera się na innym Modalu. Adres bierze z `useMyProfile`, a gdy odczyt go nie ma, z parametru trasy, czyli adresu pokazywanego właśnie przez `ProfilePhoto` (D23). Odrzucone: rozbudowa `PhotoViewer` albo wydzielenie jego `Chrome` (rozszerzałoby działający ekran podróży dla dwóch przycisków). Bez przybliżania gestem, bo nikt o to nie prosił.
 
 **Edycja profilu.** Osobny ekran na `AuthFormScreen`, z tymi samymi polami co profile setup. Nie wydzielamy wspólnego formularza: `ProfileSetupScreen` ma logikę podpowiedzi z konta, której edycja nie potrzebuje.
 
@@ -101,11 +110,17 @@ deleteAccount(confirmUsername: string): Promise<void>; // ServerUnreachableError
 - **Krok 7:** język zapisany wygrywa z urządzeniem, `system` wraca do języka urządzenia; `Appearance.setColorScheme` dostaje właściwą wartość na starcie i przy zmianie, `system` → `unspecified`; oba `useTheme` dają wybrany motyw; `DarkThemeScope` dalej wymusza ciemny.
 - **Krok 8:** ekran pokazuje sekcje; przełączniki odzwierciedlają zapisany wybór i zmieniają go; wersja z `expo-constants`; brak linków do dokumentów (D5); wylogowanie działa jak dotąd (istniejące testy zostają).
 - **Krok 9:** formularz wypełniony obecnymi danymi; zapis nieaktywny bez zmian, offline i przy błędnym nicku; zajęty nick → błąd na polu; sukces wraca do ustawień, a profil pokazuje nowy nick; inny błąd → stały tekst, dane zostają.
-- **Krok 10:** bez zdjęcia kliknięcie otwiera galerię, ze zdjęciem sheet z dwiema akcjami, usunięcie bez potwierdzenia (D10); anulowanie galerii nic nie zmienia; błąd galerii i błąd wysyłania widoczne i ogłaszane; podczas pracy przycisk zajęty i brak drugiego wywołania; offline nieaktywne z powodem; `AvatarPicker` działa jak przed wydzieleniem.
+- **Krok 10 (D13):**
+  - Profil: bez zdjęcia kliknięcie otwiera galerię, nie podgląd; ze zdjęciem otwiera `/avatar`, nie galerię; podczas szkieletu kółko nie reaguje; offline bez zdjęcia nieaktywne z opisem powodu; offline z widocznym zdjęciem podgląd się otwiera.
+  - Podgląd: pokazuje całe zdjęcie (`contain`) z krzyżykiem i trzema kropkami, oba z etykietami; krzyżyk zamyka; kropki otwierają sheet z dwiema akcjami; przy odczycie bez adresu używa adresu z parametru (D23); nieudane wczytanie pokazuje błąd, a krzyżyk i kropki działają.
+  - Zmiana: po sukcesie podgląd zostaje i pokazuje nowe zdjęcie; anulowanie galerii nic nie zmienia; podczas pracy widać zajętość i nie ma drugiego wywołania; błąd galerii i błąd wysyłania są widoczne i ogłaszane, a stare zdjęcie zostaje.
+  - Usunięcie: bez potwierdzenia, po sukcesie podgląd się zamyka; błąd jest widoczny i podgląd zostaje.
+  - Offline w podglądzie: kropki nieaktywne, widoczny powód.
+  - `AvatarPicker` działa jak przed wydzieleniem.
 - **Krok 11:** przycisk nieaktywny bez nicku i z błędnym nickiem, aktywny po poprawnym (także wielkie litery i spacje na końcu); anulowanie nic nie wywołuje; podczas usuwania dialog nie daje się zamknąć; sukces → `signOut` i komunikat „Konto usunięte.” na ekranie powitalnym (D12), a zwykłe wylogowanie go nie pokazuje; błąd → tekst A5, dialog zostaje, ponowienie możliwe; offline nieaktywne z powodem; podwójne kliknięcie = jedno wywołanie.
 
 ## Pliki
-- **Nowe:** `src/schemas/account.ts`, `src/schemas/preferences.ts`, `supabase/tests/account_delete.sql`, `supabase/functions/delete-account/{index.ts,handler.ts,deno.json}`, `supabase/functions/delete-account/__tests__/handler.test.ts`, `src/data/preferences.ts`, `src/hooks/usePreferences.ts`, `src/hooks/usePickAvatar.ts`, `src/hooks/useDeleteAccount.ts`, `src/features/profile/EditProfileScreen.tsx`, `src/features/profile/AvatarSheet.tsx`, `src/features/profile/DeleteAccountDialog.tsx`, `src/app/edit-profile.tsx`.
+- **Nowe:** `src/schemas/account.ts`, `src/schemas/preferences.ts`, `supabase/tests/account_delete.sql`, `supabase/functions/delete-account/{index.ts,handler.ts,deno.json}`, `supabase/functions/delete-account/__tests__/handler.test.ts`, `src/data/preferences.ts`, `src/hooks/usePreferences.ts`, `src/hooks/usePickAvatar.ts`, `src/hooks/useDeleteAccount.ts`, `src/features/profile/EditProfileScreen.tsx`, `src/features/profile/AvatarViewer.tsx`, `src/features/profile/AvatarSheet.tsx`, `src/features/profile/DeleteAccountDialog.tsx`, `src/app/edit-profile.tsx`, `src/app/avatar.tsx`.
 - **Zmieniane:** `src/schemas/profile.ts`, `src/schemas/index.ts`, `src/data/profile-repository.ts`, `src/data/supabase-profile-repository.ts`, `src/test/fake-profile-repository.ts`, `src/data/session-source.ts`, `src/data/app-session-source.ts`, `src/i18n/index.ts`, `src/i18n/locales/{pl,en}.json`, `src/app/_layout.tsx`, `src/providers/Session.tsx` (znacznik „konto usunięte” dla komunikatu), `src/features/auth/WelcomeScreen.tsx`, `src/components/ConfirmDialog.tsx` (opcjonalne `children`, `confirmDisabled`, `busy`), `src/features/auth/AvatarPicker.tsx`, `src/features/profile/ProfileScreen.tsx`, `src/features/profile/SettingsScreen.tsx`, `tsconfig.json` (bez `supabase/functions/**/index.ts`), `jest.setup.ts` jeśli trzeba.
 - **Dokumenty:** `context/design-context.md` (linia 7 i nowy opis ekranu), `context/app-context.md`, `CLAUDE.md` (bez zmian, chyba że decyzje tego wymagają), `Architecture.md`.
 
@@ -117,6 +132,7 @@ deleteAccount(confirmUsername: string): Promise<void>; // ServerUnreachableError
 - `security-and-hardening`, `test-driven-development` — krok 5 — dane prywatne na telefonie.
 - `source-driven-development`, `test-driven-development` — kroki 6, 7 — `kv-store`, `Appearance`.
 - `frontend-design`, `frontend-ui-engineering`, `test-driven-development`, `ui-taste` — kroki 8–11.
+  Krok 10 używa `frontend-design`, bo dochodzi nowy ekran podglądu.
 - `doubt-driven-development` — krok 11 — nieodwracalna akcja w UI.
 - `documentation-and-adrs` — kroki 0, 13.
 
@@ -133,7 +149,7 @@ Kroki 2–6 mogą iść równolegle po kroku 1 (rozłączne pliki, żaden nie po
 - [ ] 7. [frontend] Zastosowanie ustawień: `src/i18n/index.ts`, start w `_layout.tsx`, `usePreferences` — skill: source-driven-development, test-driven-development — najpierw testy: lista kroku 7 — weryfikacja: pełny zestaw, kroki ręczne M1–M2.
 - [ ] 8. [frontend] Nowy `SettingsScreen`: motyw, język, wejście do edycji profilu, „O aplikacji” (tylko wersja, D5), wylogowanie, miejsce na „Usuń konto” — skill: frontend-design, frontend-ui-engineering, test-driven-development, ui-taste — najpierw testy: lista kroku 8 — weryfikacja: pełny zestaw, ui-taste, M3.
 - [ ] 9. [frontend] `EditProfileScreen` i trasa `/edit-profile` — skill: frontend-ui-engineering, test-driven-development — najpierw testy: lista kroku 9 — weryfikacja: pełny zestaw, M4.
-- [ ] 10. [frontend] Awatar na profilu: `usePickAvatar` (wydzielone z `AvatarPicker`), `AvatarSheet`, kliknięcie w `ProfilePhoto` — skill: frontend-ui-engineering, test-driven-development, ui-taste — najpierw testy: lista kroku 10 — weryfikacja: pełny zestaw, M5.
+- [ ] 10. [frontend] Awatar na profilu (D13): `usePickAvatar` (wydzielone z `AvatarPicker`), kliknięcie w `ProfilePhoto`, trasa `/avatar` z `AvatarViewer`, `AvatarSheet` — skill: frontend-design, frontend-ui-engineering, test-driven-development, ui-taste — najpierw testy: lista kroku 10 — weryfikacja: pełny zestaw, M5.
 - [ ] 11. [frontend] `DeleteAccountDialog`, rozszerzenie `ConfirmDialog`, `useDeleteAccount`, komunikat na ekranie powitalnym — skill: frontend-ui-engineering, doubt-driven-development, test-driven-development — najpierw testy: lista kroku 11 — weryfikacja: pełny zestaw, verifier ze skillem doubt-driven-development.
 - [ ] 12. [Kacper + tester] Kacper wdraża funkcję (`supabase functions deploy delete-account`) i potwierdza sekret klucza service role; tester przechodzi M1–M7 na koncie testowym — skill: brak — najpierw testy: brak (wdrożenie i próba na urządzeniu; automaty są w krokach 3 i 11) — weryfikacja: raport PASS / FAIL.
 - [ ] 13. [docs, orkiestrator] `Architecture.md`, `context/app-context.md` (m.in. §1 „język z urządzenia”, §3.9, §6 „Edge Functions: none yet”), status planu — skill: documentation-and-adrs — najpierw testy: brak (tylko dokumenty) — weryfikacja: verifier porównuje dokumenty z kodem, pełny zestaw zielony.
@@ -143,7 +159,7 @@ Kroki 2–6 mogą iść równolegle po kroku 1 (rozłączne pliki, żaden nie po
 - **M2 język:** każda z trzech opcji, zakładki, tytuły, daty i kwoty się zmieniają; po restarcie zostaje.
 - **M3 ustawienia:** układ w jasnym, ciemnym i przy dużej czcionce (czy `SegmentedControl` mieści trzy opcje na wąskim ekranie); wersja; offline.
 - **M4 edycja:** zmiana nicku, zajęty nick, zainteresowania; offline; nick widoczny na profilu i po restarcie offline.
-- **M5 awatar:** zmiana, usunięcie, anulowanie; stary plik znika z bucketa (sprawdza Kacper w panelu); offline.
+- **M5 awatar:** bez zdjęcia kliknięcie otwiera galerię; ze zdjęciem otwiera duży podgląd na ciemnym tle, w jasnym i ciemnym motywie aplikacji; pionowe i poziome zdjęcie widać w całości; krzyżyk i przycisk wstecz na Androidzie wracają na profil; kropki otwierają sheet. Zmiana: podgląd zostaje z nowym zdjęciem, a po powrocie jest ono też na profilu. Anulowanie galerii nic nie zmienia. Usunięcie: powrót na profil z pustym kółkiem. Stary plik znika z bucketa (sprawdza Kacper w panelu). Offline: podgląd działa, kropki nieaktywne z powodem; offline bez zdjęcia kółko nieaktywne.
 - **M6 usuwanie, organizator:** konto testowe z podróżą, zdjęciami, okładką z galerii, awatarem i wydatkami; przejście do ekranu powitalnego z komunikatem „Konto usunięte.”; w panelu puste foldery i brak wierszy; ponowne logowanie tym samym mailem = nowe konto z pustym stanem i wolnym nickiem.
 - **M7 usuwanie, znajomy i awaria:** połączony znajomy usuwa konto → podróż organizatora zostaje z jego wierszem i wydatkami; organizator usuwa konto → podróż znika znajomemu; samolotowy w trakcie usuwania → komunikat, ponowienie kończy pracę.
 
