@@ -1,7 +1,7 @@
 import { fireEvent, render, screen, within } from '@testing-library/react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
-import { useExpenses } from '@/hooks/useExpenses';
+import { useCanEditExpense, useExpenses } from '@/hooks/useExpenses';
 import { useIsTripOwner, useMyProfileId } from '@/hooks/useProfile';
 import { useCurrentTrip } from '@/hooks/useTrips';
 import i18n from '@/i18n';
@@ -83,6 +83,7 @@ type Options = { trip?: Query; expenses?: Query; me?: string; today?: string; of
 function setup({ trip = { data: { overview, budgetSyncStatus: 'synced' } }, expenses = { data: [] }, me = OWNER, today = '2026-11-01', offline = false, onAddExpense }: Options = {}) {
   jest.mocked(useCurrentTrip).mockReturnValue({ isPending: false, isError: false, refetch: refetchTrip, ...trip } as never);
   jest.mocked(useExpenses).mockReturnValue({ isPending: false, isError: false, refetch: refetchExpenses, ...expenses } as never);
+  jest.mocked(useCanEditExpense).mockReturnValue(() => true);
   jest.mocked(useMyProfileId).mockReturnValue(me);
   jest.mocked(useIsTripOwner).mockImplementation((ownerId) => ownerId === me);
   jest.mocked(useIsOffline).mockReturnValue(offline);
@@ -106,6 +107,11 @@ describe('ExpensesScreen (expenses step 7)', () => {
     expect(mockOpenDrawer).toHaveBeenCalledTimes(1);
     expect(screen.getByText('Warszawa → Bangkok')).toBeOnTheScreen();
     expect(screen.getByText(`Zostało ${money(300000)}`)).toBeOnTheScreen();
+  });
+
+  it('lists the expenses by day under the budget (step 9)', async () => {
+    await setup({ expenses: { data: [expense(null, 10000)] } });
+    expect(within(screen.getByTestId('expense-day-2026-11-03')).getByText('Kolacja')).toBeOnTheScreen();
   });
 
   it('owner: "Ja" is the organizer (memberId null), the group is everyone', async () => {
