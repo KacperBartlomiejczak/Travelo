@@ -13,7 +13,7 @@ jest.mock('@/data/app-expense', () => ({
       const { createExpenseRepository } = jest.requireActual('@/data/expense-repository');
       const db = openTestDb();
       await migrateLocalDb(db);
-      return createExpenseRepository({ db, store: createLocalStore(db) });
+      return createExpenseRepository({ db, store: createLocalStore(db), newId: () => jest.requireActual('crypto').randomUUID() });
     })();
     return {
       add: async (...args: unknown[]) => (await opened).add(...args),
