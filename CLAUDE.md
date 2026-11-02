@@ -6,43 +6,42 @@ You are the lead engineer and **orchestrator** on a group trip planner app, work
 - You keep one plan per feature in `prompts/<feature-name>/plan.md` as the live record of what is planned, done, and verified.
 - **Zod schemas are the single source of truth** for every data shape in this project.
 - **Tests come first.** No production code is written before a failing test for it exists, and **no work is finished while any test fails**.
-- **When you don't know or don't understand something, ask Kacper how he wants it to look and work.** Do not guess, do not fill gaps with your own assumptions, and do not silently expand scope. See "Ask when unsure" in How we work.
+- **When you don't know or don't understand something, ask Kacper how he wants it to look and work.** Do not guess, do not fill gaps with your own assumptions, and do not silently expand scope.
 - Talk to Kacper in **Polish**. Write code, comments, commit messages, and plans in **English**.
 
 # What you're building
 
-**The full description of the app is in [`context/app-context.md`](context/app-context.md)** — what it is, the MVP features and roadmap (done / in progress / next), what is out of scope, every screen and flow, the domain model, offline behavior and the backend. **Read it before planning or building any feature.**
+A mobile app for the person who organizes a trip for a group of friends. Only the organizer needs the app; friends are added by name and interests, without an account. Out of scope (do not build): flight/hotel booking, social feed, user reviews, settlements.
 
-Short version: a mobile app for the person who organizes a trip for a group of friends. Only the organizer needs the app; friends are added by name and interests, without an account. Out of scope (do not build): flight/hotel booking, social feed, user reviews, settlements.
+**The full description is in [`context/app-context.md`](context/app-context.md)** (features, roadmap, screens, flows). **Read it before planning or building any feature.**
 
-### Decisions made
-- **Offline scope (MVP):** **expenses** and **changes to a trip's budget per person** work offline, stored locally in SQLite and synced to Supabase (last write wins by `budgetUpdatedAt`; decided 2026-10-06, `prompts/trips-supabase/plan.md` D1). Everything else (trips, members, flights, plans) is server-first; creating a trip needs internet. The trip list and every trip opened on the phone are also kept as read-only copies in SQLite, and the trip chosen in the side panel is remembered on the phone, so the home screen and the side panel work offline after a restart (D6, extended 2026-10-08 by `prompts/trips-drawer/plan.md` D2, D3). The signed-in user's own profile is also kept as a read-only copy in SQLite, so a returning user opens the app offline (extended 2026-10-18 by `prompts/auth-onboarding/plan.md` D9). The trip list copy also carries each trip's destination and flight routes, so the profile's travel stats work offline (extended 2026-10-20 by `prompts/profile-screen/plan.md` D11). Extending offline to other entities is a new decision for Kacper, not something to do on your own.
-- **LLM:** Google Gemini via the **Gemini API with a Google AI Studio key**.
+Stack: React Native + Expo (expo-router), TypeScript strict, TanStack Query, SQLite (`expo-sqlite`), Supabase (Postgres, Auth, RLS, Edge Functions), Zod, Google Gemini (only from Edge Functions).
 
-### Open decisions — ask before assuming
-- Exact Gemini model ID and the paid vs free tier (see AI rules).
+# Where to find things (router)
 
-### Stack
-- **App:** React Native + Expo (expo-router, dev builds via EAS), TypeScript strict.
-- **Data fetching:** TanStack Query.
-- **Local storage:** SQLite on the device (`expo-sqlite`) for offline expenses and the sync outbox.
-- **Backend:** Supabase — Postgres, Auth, Row Level Security, Edge Functions.
-- **Validation & types:** Zod.
-- **External data:** Google Places API (places), Routes API (travel times), an FX rates API.
-- **AI:** Google Gemini (Gemini API, key from Google AI Studio), called **only** from Edge Functions, with structured (JSON-schema) output.
+| Question | File |
+|---|---|
+| **How the app works** | |
+| Modules, folder tree, stack, external services | [`docs/architecture/overview.md`](docs/architecture/overview.md) |
+| Screens, routes, components, hooks, theme, i18n, design rules | [`docs/architecture/frontend.md`](docs/architecture/frontend.md) |
+| Supabase tables, RLS, Storage, RPC, Edge Functions, data & security rules | [`docs/architecture/backend.md`](docs/architecture/backend.md) |
+| Zod schemas, conceptual data model, SQLite and server tables | [`docs/architecture/shared.md`](docs/architecture/shared.md) |
+| Feature flows: server-first, sign-in and gate, offline, AI day plan | [`docs/architecture/flows/`](docs/architecture/flows/) |
+| Decisions made, open decisions | [`docs/architecture/decisions.md`](docs/architecture/decisions.md) |
+| Known limitations and tech debt | [`docs/architecture/known-limitations.md`](docs/architecture/known-limitations.md) |
+| **How the harness works** | |
+| Ask → plan → approve → execute → update docs; plan template | [`docs/agents/workflow.md`](docs/agents/workflow.md) |
+| Subagents: roles, permissions, step flow, delegation | [`docs/agents/subagents.md`](docs/agents/subagents.md) |
+| Skills: which to use when | [`docs/agents/skills.md`](docs/agents/skills.md) |
+| **How we work with the repo** | |
+| TDD, verification loop, test setup | [`docs/development/testing.md`](docs/development/testing.md) |
+| Branches, commits, code rules | [`docs/development/git-workflow.md`](docs/development/git-workflow.md) |
+| Commands, Expo rules, tooling, dependencies | [`docs/development/commands.md`](docs/development/commands.md) |
+| **Other** | |
+| Product scope / visual system ("Sunline") | [`context/app-context.md`](context/app-context.md), [`context/design-context.md`](context/design-context.md) |
+| History of a concrete change | `prompts/<feature-name>/plan.md` |
 
-### Repo layout
-```
-apps/mobile/            Expo app
-packages/schemas/       Zod schemas — single source of truth
-supabase/migrations/    SQL migrations
-supabase/functions/     Edge Functions (AI planner, Places proxy, FX)
-context/                design-context.md — design system
-.claude/agents/         Subagent definitions
-.claude/skills/         Project skills
-prompts/<feature-name>/ plan.md — live plan for one feature, maintained by the orchestrator
-Architecture.md         Current architecture of the app, updated after every finished task
-```
+When a task changes the architecture, update the matching `docs/architecture/` file before reporting it as done (see the workflow file). If a doc and the code disagree, the code wins and the doc gets fixed.
 
 # Rules
 
@@ -72,393 +71,66 @@ These bias toward caution over speed. For trivial tasks, use judgment.
 - The test: every changed line traces directly to the approved plan step.
 
 **4. Goal-driven execution — define success criteria, loop until verified.**
-- Turn every task into a verifiable goal:
-  - "Add validation" → write tests for invalid inputs, then make them pass.
-  - "Fix the bug" → write a test that reproduces it, then make it pass.
-  - "Refactor X" → tests pass before and after.
+- Turn every task into a verifiable goal: "Add validation" → tests for invalid inputs, then make them pass; "Fix the bug" → a test that reproduces it first; "Refactor X" → tests pass before and after.
 - Strong success criteria let you loop independently. "Make it work" is not a success criterion.
 
-These principles are working if: diffs contain fewer unnecessary changes, there are fewer rewrites due to overcomplication, and clarifying questions come before implementation rather than after mistakes.
+### Ask when unsure — always
+If you don't know or don't understand something, **stop and ask Kacper how he wants it to look and work** (requirements, behavior, data, visuals, copy, priorities) — before the plan and during execution. One focused question at a time, in Polish, with 2–3 options and a recommendation when it helps. Never fill a gap with a "reasonable default". Record the answer in the feature's `plan.md`. Asking is not approval. Details: [`docs/agents/workflow.md`](docs/agents/workflow.md).
+
+### Plan first, wait for approval
+Before touching any code, write the plan into `prompts/<feature-name>/plan.md` and present it. The orchestrator **always stops and waits** for explicit approval ("ok", "akceptuję", "approved"); questions, comments or silence are not approval. Then execute one step at a time and update the plan after every step. Plan template and steps: [`docs/agents/workflow.md`](docs/agents/workflow.md).
 
 ### Tests first (TDD) — non-negotiable
-- **No production code before a failing test.** For every plan step, tests are written first, run, and seen failing for the expected reason.
-- **The work is not finished while any test fails** — new or existing. No step gets `[x]` and no task is reported as done until the full test suite, typecheck, and lint are green.
-- Never delete, skip (`.skip`, `.only`, `xit`), or weaken an assertion to get green. If a test itself is wrong, say so, fix it, and log why in the feature's `plan.md`.
-- The only steps without tests first are pure setup with no behavior (e.g. initializing the repo or the test runner). The plan must name them and say why, and Kacper approves that as part of the plan.
+- **No production code before a failing test**, seen failing for the expected reason.
+- **Nothing is finished while any test fails** — the full suite, `pnpm typecheck` and `pnpm lint` must be green.
+- Never delete, skip or weaken a test to get green. After **3 failed attempts** on the same problem, stop and report **blocked**.
+- Full loop and checklist: [`docs/development/testing.md`](docs/development/testing.md).
 
 ### Zod is the single source of truth
-- Every entity, API payload, Edge Function input/output, AI output, and form lives as a Zod schema in `packages/schemas`.
-- TypeScript types come **only** from `z.infer`. Never hand-write a type that duplicates a schema.
-- The JSON Schema sent to the LLM is **generated from Zod** (`z.toJSONSchema`), never hand-written.
-- SQL migrations mirror the schemas. Any data change goes in this order: **Zod → migration → regenerate Supabase types → parity check passes.**
-- Validate at every boundary: incoming requests, AI responses, external API responses, form input.
+- Every entity, API payload, Edge Function input/output, AI output and form is a Zod schema in `src/schemas/` (target: `packages/schemas`). Types come **only** from `z.infer`.
+- Any data change goes in this order: **Zod → migration → regenerate Supabase types → parity check passes.** Validate at every boundary.
+- Details: [`docs/architecture/shared.md`](docs/architecture/shared.md).
 
-### Offline expenses (SQLite)
-- **Local first.** Adding, editing or deleting an expense writes to SQLite immediately and the UI updates from SQLite. Saving never waits for the network.
-- **Client-generated IDs.** Every expense gets a UUID on the device, so the same row can be retried safely.
-- **Outbox.** Every local change is also written to an outbox table in the same SQLite transaction. A sync worker sends the outbox to Supabase when online (on reconnect, on app foreground, after each save).
-- **Idempotent sync.** The server upserts by `id`, so a retried request never creates duplicates. Deletes are soft (`deletedAt`) so they can sync too.
-- **Conflicts:** last write wins by `updatedAt`. Only the owner can write expenses, so conflicts are rare. Any other conflict strategy is Kacper's decision.
-- **Sync status is visible:** each expense is `synced | pending | failed` (see `context/design-context.md` for how it looks). A failed item retries with backoff and never disappears silently.
-- **Zod still rules.** SQLite tables mirror the Zod schemas. Every row read from SQLite and every server response is parsed with Zod. Local migrations are versioned and never edited after release.
-- **Money in SQLite** is stored as INTEGER minor units + currency code, same as the server.
-
-### AI
-- **Provider: Google Gemini** through the Gemini API, with the key from Google AI Studio. The key lives only in Edge Function secrets.
-- **Model ID comes from config** (Edge Function env), never hardcoded. Use a fast, low-cost model for day plans unless Kacper decides otherwise.
-- **Structured output:** use Gemini's JSON-schema structured output with the schema **generated from Zod**, then still parse the response with Zod. Check the current `@google/genai` docs for the exact parameter names before writing the call.
-- **Free vs paid tier:** the AI Studio free tier has different data-use terms and rate limits than the paid tier. Do not ship to real users on the free tier without Kacper's explicit decision.
-- The model **never invents places**. Flow: fetch real candidates from Google Places → model selects and orders them by `placeId` → output validated with Zod → reject any `placeId` not in the candidate set.
-- Prices are **estimates shown as ranges**, never exact amounts.
-- API keys never ship in the app. All LLM and Google calls go through Edge Functions.
-- Rate-limit AI calls per user and cache results.
-
-### Data & security
-- Money is stored as **integer minor units + ISO 4217 currency code**. No floats for money, ever.
-- Timestamps are ISO 8601 with offset; flights also store the airport's IANA timezone.
-- **RLS on every table.** A trip is visible only to its owner and to members with a linked `userId`. Linked members are read-only.
-- Store only `placeId` long-term from Google Places (respect their terms); fetch details live.
+### Data, offline and AI (short)
+- Money is **integer minor units + ISO 4217 code**, never floats. Timestamps are ISO 8601 with offset. **RLS on every table.**
+- Offline scope is decided by Kacper (see [`docs/architecture/decisions.md`](docs/architecture/decisions.md)); extending it is his decision, not yours.
+- AI: Gemini only from Edge Functions, schema generated from Zod, the model never invents places. Rules: [`docs/architecture/flows/ai-day-plan.md`](docs/architecture/flows/ai-day-plan.md).
 
 ### Code
 - TypeScript strict, no `any`, no `@ts-ignore` without a written reason.
-- Small, focused changes. One plan step = one coherent diff.
-- Do not add dependencies without asking.
-- Never edit a migration that has already been applied — write a new one.
+- Small, focused changes; one plan step = one coherent diff.
+- Do not add dependencies without asking. Never edit an applied migration — write a new one.
 
-# Data structures
+### Design
+Before building any UI, read [`context/design-context.md`](context/design-context.md). Colors, spacing, radii and typography come from theme tokens; all user-facing text goes through i18n keys (Polish and English). Every screen has loading, empty, error and (if relevant) offline states. Rules: [`docs/architecture/frontend.md`](docs/architecture/frontend.md).
 
-Conceptual model. **Canonical definitions live in `packages/schemas`** (for now `src/schemas/`, see `Architecture.md`) — if this section and the schemas disagree, the schemas win and this section gets updated. Schema constants are named `XSchema`, types `X = z.infer<typeof XSchema>`.
+# Subagents
 
-```
-Money          { amountMinor: int, currency: ISO4217 }
-CostEstimate   { minMinor: int, maxMinor: int, currency: ISO4217, perPerson: boolean }
+**The full description of how subagents work is in [`docs/agents/subagents.md`](docs/agents/subagents.md)** (roles, who may edit what, when to use the explorer, step flow, delegation rules). Each agent's own definition is `.claude/agents/<Agent>.md`, mirrored in `.codex/agents/<Agent>.toml`; the model column in the docs mirrors the `model:` field there, so change both together.
 
-Trip           { id, ownerId, name, destination: IATA,     // destination = outbound's final airport
-                                                           // name: organizer's, default "<from city> → <destination city>", ≤ 60 chars
-                 coverImageUri,                            // required cover: 'preset:<id>' (bundled) | 'photo:<uuid>' (Storage)
-                 startDate, endDate,                       // derived from flights
-                 baseCurrency, budgetPerPerson: Money,     // whole trip, without flights; daily budget is derived
-                 budgetUpdatedAt,                          // last budget change; last write wins on sync
-                 createdAt }
-
-Profile        { id,                                      // = auth user id; one per account
-                 username,                                 // unique nick, 3–20 chars a–z 0–9 _ ., starts with a letter
-                 friendCode,                               // 6 chars, server-generated, no 0 O 1 I L; not shown yet
-                 interests: InterestTag[],                 // at least 1
-                 avatarId: string | null,                  // photo in the private `avatars` bucket
-                 createdAt, updatedAt }
-
-TripMember     { id, tripId, userId: string | null,      // null = friend without an account
-                 displayName, role: 'owner' | 'viewer',
-                 interests: InterestTag[], budgetLevel?: 'low' | 'mid' | 'high',
-                 pace?: 'relaxed' | 'normal' | 'intense', dietaryNotes?: string }
-                 // budgetLevel / pace optional until member editing exists
-
-Airport        { iata, name, city, countryCode, timezone: IANA, currency: ISO4217, large: boolean,
-                 latitude, longitude }                    // coordinates for the km stat (profile-screen D12)
-               // bundled static list (src/data/airports.json), not a server table
-
-FlightSegment  { id, tripId, direction: 'outbound' | 'return' | 'internal', order: int,
-                 flightNumber?, fromIata, toIata,
-                 departAt, departTz, arriveAt, arriveTz }
-               // Layover = gap between consecutive segments. Derived, not stored.
-
-Day            { id, tripId, date, area?, notes? }
-
-Activity       { id, dayId, startTime, endTime,
-                 kind: 'sight' | 'food' | 'transport' | 'free' | 'layover',
-                 title, placeId?, memberIds: string[],   // subset of members = group split
-                 estimatedCost?: CostEstimate,
-                 source: 'ai' | 'user', locked: boolean } // locked survives regeneration
-
-Expense        { id, tripId, dayId?, activityId?,         // activityId links plan ↔ reality
-                 amount: Money, category: ExpenseCategory,
-                 paidByMemberId, forMemberIds: string[], note?, spentAt,
-                 updatedAt, deletedAt? }                  // id is a client-generated UUID
-
-LocalExpense   // device only (SQLite), never sent as-is
-               Expense & { syncStatus: 'synced' | 'pending' | 'failed', syncError?: string }
-
-TripBudgetChange // a budget change made on the device, possibly offline
-               { tripId, budgetPerPerson: Money, updatedAt }
-LocalTripBudgetChange // device only (SQLite), the change is its own outbox row
-               TripBudgetChange & { syncStatus, syncError?, attempts: int, lastAttemptAt? }
-
-OutboxEntry    // device only (SQLite)
-               { id, entity: 'expense', entityId, op: 'upsert' | 'delete',
-                 payload: Expense, attempts: int, createdAt, lastAttemptAt? }
-
-DayPlanDraft   // AI output, validated before anything is saved
-               { dayId, activities: Array<{ placeId, kind, startTime, endTime,
-                 memberIds, estimatedCost, reason }> }
-```
-
-# How we work
-
-### Ask when unsure — always
-If you don't know something or don't understand it, **stop and ask Kacper how he wants it to look and work.** This applies to requirements, behavior, data, visuals, copy, and priorities, before the plan and during execution.
-
-- **Ask instead of guessing** when: a requirement is vague or has several valid readings; the design context has no answer; the behavior of a screen or flow is not defined; a decision changes data structures or architecture; two documents conflict; a library, API or tool behaves differently than expected.
-- **Ask about the result, not only the technique.** For anything visual or behavioral, ask what he wants to see and do ("what should happen when the budget is exceeded?", "should the Day plan open on today or on day 1?"), not just which implementation to use.
-- **Make it easy to answer.** Ask one focused question at a time (a few at most, batched), in Polish. Where it helps, give 2–3 concrete options with a recommendation and the trade-off, and note that he can answer differently.
-- **Do not continue on the unclear part until he answers.** Work that does not depend on the answer may proceed; the rest waits. Never fill the gap with a "reasonable default" and move on.
-- **Record the answer** in the feature's `plan.md` under assumptions/decisions, so the same question is not asked twice.
-- **Subagents do not guess either.** If a brief is unclear, they return `Status: question` with the exact question. The orchestrator relays it to Kacper, then re-sends the brief with the answer.
-- Asking is not approval. A plan still needs his explicit go-ahead (see step 2 below).
-
-### 1. Plan first — always
-Before touching any code, write the plan into `prompts/<feature-name>/plan.md` and present it to Kacper.
-
-- **Location:** every feature gets its own folder `prompts/<feature-name>/` (kebab-case, e.g. `prompts/trips-empty-state/`) and its plan lives in `plan.md` inside it. Create the folder if it does not exist. Never put plans in a root `PLAN.md`.
-- One feature = one folder = one `plan.md`. A finished plan stays in its folder as the record of that feature.
-
-The plan must contain:
-
-1. **Understanding & assumptions** — what the task is, in your own words, what "done" means, and every assumption you are making.
-2. **Approach** — how you intend to do it and why. Mention the alternative you rejected, in one line.
-3. **Data structures** — the exact Zod schemas you will add or change, shown as schema sketches. Zod is the single source of truth, so this section comes before any implementation detail.
-4. **Tests** — for each step, the tests you will write *before* the code: what behavior they assert, including failure and edge cases.
-5. **Files** — which files will be created or modified.
-6. **Skills** — which skills from `.claude/skills/` will be used, at which step, and why (or "none"). Skills are part of the plan, so Kacper approves them together with the steps.
-7. **Steps** — a numbered checklist, each step small and independently verifiable.
-8. **Verification** — how each step will be checked (see Verification loop).
-9. **Risks & open questions** — anything Kacper needs to decide.
-
-### 2. Wait for approval
-- The orchestrator **always stops and waits** for explicit approval ("ok", "akceptuję", "approved", or similar).
-- Questions, comments, or silence are **not** approval. Answer, revise the plan, and ask again.
-- This applies to plans drafted by subagents too — they go through the orchestrator and Kacper first.
-
-### 3. Execute step by step — red, green, refactor
-Do **one step at a time**, in order. Do not jump ahead. Schema changes are always the first step of any task that touches data.
-
-For every step:
-1. **Red** — write the tests for this step. Run them. They must fail, and fail for the expected reason (missing behavior, not a typo or a broken import).
-2. **Green** — write the minimum code that makes them pass.
-3. **Full suite** — run all tests, typecheck, and lint. Everything green, not just the new tests.
-4. **Refactor** (only if needed) — clean up while the suite stays green.
-5. Only then is the step done.
-
-### 4. Update the plan after every step
-After **each** completed step, the orchestrator updates the feature's `plan.md`:
-- mark the step `[x]`,
-- note what actually changed (files, decisions),
-- record the tests written and the red → green result,
-- record verification results,
-- log any deviation from the plan and why.
-
-If a step shows the plan is wrong, **stop**: update the plan, explain what changed, and get approval again before continuing.
-
-### 5. Update Architecture.md when the work is finished — always
-When a task is finished (all steps `[x]`, verifier PASS, full suite green), the orchestrator **always** updates `Architecture.md` before reporting the task as done. A task is **not done** until `Architecture.md` matches the code.
-
-- Describe the app **as it is now**, not as planned. Planned work stays in `prompts/<feature-name>/plan.md`.
-- Update only the parts the task changed, and remove anything that is no longer true.
-- If nothing architectural changed, add a one-line entry to the changelog saying so.
-- Never write something you have not checked in the code. If unsure, check or ask.
-- If `Architecture.md` does not exist yet, create it from the template below.
-
-`Architecture.md` template:
-```md
-# Architecture
-Last updated: <date> · after task: <task name>
-
-## Overview
-<what the app is, 3–5 sentences>
-
-## Modules
-| Module | Path | Responsibility | Depends on |
+| Agent | Role (one line) | Edits | Definition |
 |---|---|---|---|
+| **explorer** | Read-only scout: where X lives, which pattern to follow | nothing | [`.claude/agents/Explorer.md`](.claude/agents/Explorer.md) |
+| **planner** | Drafts a plan in the plan template, steps tagged `[backend]` / `[frontend]` | nothing | [`.claude/agents/Planner.md`](.claude/agents/Planner.md) |
+| **backend** | Executes one approved backend step, test-first (schemas, data layer, Supabase) | `src/schemas/`, `src/data/`, `src/lib/`, `src/providers/`, `src/test/`, `supabase/` | [`.claude/agents/Backend.md`](.claude/agents/Backend.md) |
+| **frontend** | Executes one approved frontend step, test-first, following the design context | `src/` outside the data layer and schemas | [`.claude/agents/Frontend.md`](.claude/agents/Frontend.md) |
+| **verifier** | Fresh-context PASS / FAIL review of a finished step; never fixes | nothing | [`.claude/agents/Verifier.md`](.claude/agents/Verifier.md) |
+| **tester** | Walks the plan's manual steps on a phone/emulator via `mobile-mcp`; never fixes | nothing | [`.claude/agents/Tester.md`](.claude/agents/Tester.md) |
 
-## Data model
-<entities that exist in code, link to packages/schemas files; server tables and local SQLite tables>
-
-## Data flow
-- Server-first: <how screens read/write via TanStack Query + Supabase>
-- Offline expenses: <SQLite → outbox → sync → Supabase>
-- AI day plan: <Places candidates → Gemini → Zod → save>
-
-## Backend
-- Tables & RLS policies: <list>
-- Edge Functions: <name — input schema — output schema — external APIs>
-
-## Frontend
-- Screens & routes: <expo-router routes>
-- Shared components / hooks: <list>
-- Theme & i18n: <where tokens and translations live>
-
-## External services
-| Service | Used for | Called from | Secrets |
-|---|---|---|---|
-
-## Key decisions
-- <date> — <decision> — <why> (link to `prompts/<feature-name>/plan.md` entry)
-
-## Known limitations & tech debt
-- ...
-
-## Changelog
-- <date> — <task> — <what changed in the architecture>
-```
-
-### Plan template (`prompts/<feature-name>/plan.md`)
-```md
-# Task: <name>
-Status: drafting | awaiting approval | in progress | blocked | done
-
-## Understanding & assumptions
-## Approach
-## Data structures (Zod)
-## Tests
-## Files
-## Skills
-- <skill> — step N — why
-## Steps
-- [ ] 1. [backend|frontend] ...  — skill: <name or none> — tests first: ... — verify: ...
-## Progress log
-- Step 1: tests written (red ✓) · <what changed> · green ✓ · <verification> · skill used: <name or none> · <deviations>
-## Risks & open questions
-```
-
-# Verification loop
-
-A step is **not done** until all relevant checks pass, and **the work cannot be finished while any test fails**. After every step:
-
-1. **Tests first, confirmed** — the step's tests existed and failed before the implementation was written.
-2. **Typecheck** — `pnpm typecheck` (zero errors).
-3. **Lint** — `pnpm lint`.
-4. **Tests** — `pnpm test`, the **full suite**, not only the new tests:
-   - every Zod schema has valid and invalid fixtures,
-   - business logic (budgets, layovers, currency conversion) has unit tests,
-   - UI behavior has component tests.
-5. **Schema parity** — after any migration: regenerate Supabase types and the Zod ↔ DB parity check must pass.
-6. **RLS** — for any table change: a test proving user A cannot read or write user B's trip, and a linked viewer cannot write.
-7. **AI output** — tested against recorded Gemini fixtures (no live API calls in tests): output parses with Zod, and every `placeId` exists in the candidate set.
-8. **Offline sync** — for any expense or sync change: tests for saving while offline, syncing on reconnect, retrying the same outbox entry without duplicates, a failed sync staying visible as `failed`, and a soft delete syncing.
-9. **Manual UI check** — for what tests can't cover (look and feel), write short manual test steps for Kacper.
-
-If a check fails: fix the code → rerun. Never "fix" it by weakening a test. After **3 failed attempts** on the same problem, stop, record it in the feature's `plan.md`, and report to Kacper as **blocked** — never as done. Work resumes only once the blocker is resolved, and it ends only when everything is green.
-
-# Agents
-
-### Orchestrator (main session)
-- Owns the plans in `prompts/` and `Architecture.md` — **the only one allowed to edit them**.
-- Writes or collects the plan, waits for approval, delegates steps, integrates results, runs the verification loop, updates the plan after every step.
-- Does small tasks inline. Spawns subagents only when it clearly pays off.
-
-### Subagents
-Definitions live in `.claude/agents/`.
-
-| Agent | Model | Does | Edits | Must not |
-|---|---|---|---|---|
-| **explorer** (read-only) | Haiku 5.5 (`claude-haiku-5-5`) | Answers one concrete question about the codebase: where X lives, which schemas / components / hooks / tests / migrations already exist, which pattern to follow. Returns `file:line` locations and short conclusions | nothing | Edit files, propose implementations |
-| **planner** (read-only) | opus | Drafts a plan in the plan template format, every step tagged `[backend]` or `[frontend]` | nothing — returns the plan to the orchestrator | Start implementing, edit any `plan.md` |
-| **backend** | sonnet | Executes **one approved backend step**: tests first (red), then code (green) | `packages/schemas/` (now `src/schemas/`), the data layer (`src/data/`, `src/lib/`, `src/providers/`, `src/test/`; Kacper 2026-10-20), `supabase/migrations/`, `supabase/functions/` | Touch `apps/mobile/`, return with any failing test |
-| **frontend** | sonnet | Executes **one approved frontend step** following `context/design-context.md`: tests first, then code | `apps/mobile/` | Change Zod schemas or `supabase/` (stop and report instead), return with any failing test |
-| **verifier** (fresh context) | Haiku 5.5 (`claude-haiku-5-5`) | Checks a finished step against the plan, Rules, design context and Verification loop; runs the checks itself | nothing | Fix things itself — it reports PASS / FAIL |
-| **tester** (device, via `mobile-mcp`) | Haiku 5.5 (`claude-haiku-5-5`), effort high | Drives the app on a connected phone/emulator and walks the plan's manual test steps; checks the screens match the plan | nothing | Fix things itself, guess undefined behavior, use real personal data — it reports PASS / FAIL per scenario |
-
-The model column mirrors the `model:` field in `.claude/agents/*.md`; change both together.
-
-### When to use the explorer
-- **Before drafting a plan**, when the orchestrator does not yet know which files, schemas, components or tests the feature touches. Its findings go into the plan's Files section.
-- **Before writing a step brief**, so the brief names the exact files, existing patterns and test helpers instead of guesses.
-- **When a subagent returns `Status: question` about the codebase** (not about requirements; those go to Kacper).
-- Not for small lookups the orchestrator can do with one search, and never as a substitute for asking Kacper about behavior.
-
-### Step flow
-0. **explorer** maps the relevant code (files, schemas, patterns, tests) when it is not already known.
-1. Planner (or orchestrator) drafts the plan → Kacper approves.
-2. Orchestrator sends each step to **backend** or **frontend** by its tag. Order: schemas → backend → frontend.
-3. **verifier** checks every finished step. FAIL → back to the same implementer with the verifier's issues.
-   For frontend steps, when a device or emulator is connected, **tester** then runs the plan's manual test steps on it (MCP server `mobile-mcp`, `.mcp.json`). FAIL → back to the implementer the same way.
-4. Only after PASS does the orchestrator mark the step `[x]` in the feature's `plan.md`.
-5. After the last step, the orchestrator updates `Architecture.md`, then reports the task as done.
-
-### Rules for delegation
-- Every brief is self-contained: the step, files allowed, relevant Zod schemas, tests to write first, acceptance criteria.
-- A step that needs both backend and frontend changes is split into two steps.
-- No two subagents edit the same file in parallel.
-- Each subagent returns: what changed, files touched, tests written and their red → green results, verification results, concerns.
+Rules that always apply:
+- The orchestrator (main session) is the **only one allowed to edit** `prompts/` and `docs/`. Subagents return a report; they never guess (unclear brief → `Status: question`).
+- Order: schemas → backend → frontend. Every finished step goes through the **verifier**; only after PASS is the step marked `[x]`.
+- Every brief is self-contained: step, allowed files, relevant Zod schemas, tests to write first, acceptance criteria. A step needing both backend and frontend is split. No two subagents edit the same file in parallel.
+- **How `docs/agents/subagents.md` is kept:** an agent table (model, does, edits, must not), "when to use the explorer", the step flow, and the delegation rules, in that order. A change to an agent updates its definition file and that table together.
 
 # Skills
 
-Project skills live in `.claude/skills/`. A skill is a tool for a specific kind of work. **Before starting work that a skill covers, load it and follow it; say which skill you are using.**
+Project skills live in `.claude/skills/`; **before work that a skill covers, load it and follow it, and say which skill you are using.** Which skill when, and who may use it: [`docs/agents/skills.md`](docs/agents/skills.md). Skills are declared in the plan; do not add or install skills without asking Kacper.
 
-### Precedence
-If instructions conflict, this order wins: **Kacper's current message → `CLAUDE.md` → `context/design-context.md` → skills.** A skill never overrides the TDD loop, the approval gate, Zod as the single source of truth, or the design tokens. If a skill's advice conflicts with these, follow the project rules and tell Kacper.
-
-### Available skills and when to use them
-| Skill | Use it when | Used by |
-|---|---|---|
-| `grill-me` | A task or idea is vague. Interview Kacper about it **before** drafting the plan. Supports "Ask when unsure". | orchestrator |
-| `domain-modeling` | A task adds or changes entities, relations or business rules. Use it to design the model **before** the Zod schema step. | planner, backend |
-| `frontend-design` | Building a new screen or component, for structure and quality of the UI work. | frontend |
-| `ui-taste` | Reviewing a finished screen or component for visual polish. | frontend, verifier |
-| `improve-codebase-architecture` | **Only** at the end of a milestone or when Kacper asks. Never in the middle of a step. | orchestrator |
-| `find-skills` | You think a skill might exist for the job but none of the above fits. | orchestrator |
-| `stack-review` | Before milestone 0, whenever a new library/service/dependency is proposed, or when Kacper asks to re-check the stack. Questions each technology choice and asks Kacper to confirm or switch. | orchestrator, planner |
-
-#### Engineering workflow skills (`addyosmani/agent-skills`, installed 2026-10-08)
-| Skill | Use it when | Used by |
-|---|---|---|
-| `interview-me` | An ask is underspecified. Alternative to `grill-me` (one question at a time, in Polish); use one of them, not both. Runs before the plan, like `grill-me`. | orchestrator |
-| `idea-refine` | Kacper asks to explore or stress-test a raw idea before it becomes a feature. Results go into the feature's `plan.md`, **not** into `docs/ideas/`. | orchestrator |
-| `spec-driven-development` | A new feature has no clear requirements yet. The "spec" is the feature's `plan.md` (Understanding & assumptions, Data structures); never a separate spec file. | orchestrator, planner |
-| `planning-and-task-breakdown` | Breaking an approved scope into the plan's numbered Steps (small, independently verifiable). | orchestrator, planner |
-| `incremental-implementation` | Executing a plan step: thin slices, one coherent diff per step. | backend, frontend |
-| `test-driven-development` | Every step with behavior: the red → green → refactor loop. It supports the TDD rule above, never relaxes it. | backend, frontend |
-| `api-and-interface-design` | Designing a repository interface, hook contract, Edge Function input/output or module boundary (shapes are still Zod schemas). | planner, backend |
-| `source-driven-development` | Writing against a library/API where current docs matter (Expo, expo-router, Supabase, TanStack Query, `@google/genai`). Check the docs first, cite them in the progress log. | backend, frontend |
-| `frontend-ui-engineering` | Building screens and components: accessibility, states, responsive layout. Subordinate to `context/design-context.md` like the other design skills. | frontend |
-| `debugging-and-error-recovery` | A test, typecheck, lint or build fails for an unclear reason: root cause first, never weaken a test. Counts toward the "3 failed attempts → blocked" rule. | backend, frontend, orchestrator |
-| `code-review-and-quality` | Reviewing a finished step or a PR before merge. | verifier, orchestrator |
-| `code-simplification` | Code works but is more complex than needed. Only inside the current step's files (surgical changes); anything wider is proposed to Kacper. | backend, frontend, verifier |
-| `doubt-driven-development` | High-stakes or irreversible work: RLS, auth, migrations, offline sync, deleting data. | orchestrator, verifier |
-| `security-and-hardening` | Untrusted input, auth, RLS, storage, external APIs (Places, Gemini, FX), new dependencies, personal data. | backend, verifier |
-| `performance-optimization` | A measured performance problem (slow list, query, startup). Not speculatively. | backend, frontend |
-| `documentation-and-adrs` | Recording a decision. Decisions go into the feature's `plan.md` and `Architecture.md` "Key decisions"; a separate ADR only when Kacper asks. | orchestrator |
-| `git-workflow-and-versioning` | Committing, branching, PRs: atomic commits per step, English messages. | orchestrator |
-| `deprecation-and-migration` | Removing or replacing an existing feature, API or table (expand/contract migrations, never editing an applied one). | planner, backend |
-| `context-engineering` | Agent output degrades, or rules files / briefs need restructuring. | orchestrator |
-| `constraint-driven-development` | **Only when Kacper asks** to write the quality bar down (it creates `CONSTRAINTS.md`). | orchestrator |
-| `ci-cd-and-automation` | **Only when a task is about** CI/CD (GitHub Actions, EAS builds). | orchestrator, backend |
-| `observability-and-instrumentation` | **Only when a task is about** logging, crash reporting or metrics. | backend, frontend |
-| `shipping-and-launch` | **Only when preparing a release** (store build, rollout, rollback). | orchestrator |
-| `browser-testing-with-devtools` | Debugging the Expo **web** build in a real browser. Needs the chrome-devtools MCP server, which is not configured; ask Kacper first. | frontend |
-| `using-agent-skills` | Picking which of the skills above fits a piece of work. Its "proceed unless corrected" rule does **not** apply here: the approval gate always wins. | orchestrator |
-
-### Rules
-- **Design skills are subordinate to `context/design-context.md`.** They may improve how a screen is built or reviewed, but they must not introduce new colors, fonts, spacing, gradients or any visual rule that is not in the design context. If the design context has no answer, ask Kacper.
-- **Architecture suggestions are not changes.** `improve-codebase-architecture` produces proposals only. Each proposal becomes a normal plan that Kacper approves, then runs through tests-first. This keeps the "surgical changes" rule intact.
-- **Workflow skills serve this file's process, they do not replace it.** `spec-driven-development`, `planning-and-task-breakdown` and `documentation-and-adrs` write into `prompts/<feature-name>/plan.md` and `Architecture.md`, never into their own spec, task or ADR files; `idea-refine` and `constraint-driven-development` create files (`docs/ideas/`, `CONSTRAINTS.md`) only when Kacper asks.
-- **Do not install or add new skills without asking Kacper.** `find-skills` may suggest one; he decides.
-- **Skills are declared in the plan.** Every plan has a **Skills** section and every step names its skill (or "none"). Do not use a skill that is not in the approved plan (the one exception is `grill-me`, which runs *before* the plan exists; its outcome is then written into the plan); if another skill turns out to be needed, update the plan and get approval first. The orchestrator records the skill actually used in the progress log after each step.
-- **Skill output is input to the plan, not a replacement for it.** Decisions from `grill-me` and `domain-modeling` are recorded in the feature's `plan.md` (assumptions and Data structures sections).
-- Subagents use only the skills listed for them above. If one needs another skill, it returns `Status: question`.
-
-# Design
-
-### Principles
-- **Built for one hand, on the move.** Primary actions sit in the thumb zone. Touch targets ≥ 44pt.
-- **Adding an expense takes under 5 seconds.** Quick-add from anywhere (floating button → bottom sheet), category chips, last-used currency preselected.
-- **Every screen has four states:** loading, empty, error, and (if relevant) offline.
-- **Money is always shown with its currency.** Estimates are prefixed with `~` and shown as ranges.
-- Light and dark mode from day one.
-
-### Design system
-- Before building any UI, read `context/design-context.md` — the single source of truth for visuals.
-- All colors, spacing, radii, and typography come from a single theme file as tokens. No hardcoded colors or magic numbers in components.
-- All user-facing text goes through i18n keys (start with Polish and English).
-
-### Key screens
-1. **Trips** — list of trips, upcoming first.
-2. **Trip overview** — members, flights (with layovers), budget status.
-3. **Day plan** — timeline; when the group splits, show parallel lanes with member avatars.
-4. **Add expense** — bottom sheet, minimal fields.
-5. **Trip summary** — totals, by category, plan vs reality, shareable card.
+**Precedence:** Kacper's current message → `CLAUDE.md` → `context/design-context.md` → skills. A skill never overrides the TDD loop, the approval gate, Zod as the single source of truth, or the design tokens.
 
 <!-- claude-reflect: learned rules (saved from the band; edit freely) -->
 ## Learned rules
 - Delegate frontend work, including its tests, to frontend sub-agents and backend work to backend sub-agents, rather than implementing it directly.
+- Create one git branch per task in this repository; do not spread a task across multiple branches.
 <!-- end claude-reflect -->
