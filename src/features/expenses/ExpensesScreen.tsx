@@ -26,6 +26,7 @@ import { useTheme } from '@/theme/useTheme';
 
 import { BudgetHero } from './BudgetHero';
 import { ExpensesHeader } from './ExpensesHeader';
+import { SpendByPersonChart } from './SpendByPersonChart';
 
 type Props = { onAddExpense?: () => void };
 
@@ -148,7 +149,7 @@ function TripExpenses({ overview, onOpenMenu, onAddExpense, offline }: TripProps
         ) : (
           <>
             <BudgetHero testID="budget-hero" group={budget.group} me={me} currency={trip.baseCurrency} />
-            {/* Slot: who spent what (step 8). */}
+            {list && list.length > 0 && <SpendByPersonChart people={budget.people} currency={trip.baseCurrency} />}
             {list && list.length === 0 ? (
               <View testID="expenses-empty" style={{ alignItems: 'center', gap: spacing[2], paddingVertical: spacing[6] }}>
                 <Text accessibilityRole="header" style={[typography.styles.headingMD, { color: theme.text.primary, textAlign: 'center' }]}>

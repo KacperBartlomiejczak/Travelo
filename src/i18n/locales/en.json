@@ -364,6 +364,15 @@
     }
   },
   "expenses": {
-    "loadError": "Couldn't load expenses."
+    "loadError": "Couldn't load expenses.",
+    "who": "Who spent what",
+    "spent": "{{amount}} spent",
+    "category": {
+      "food": "Food",
+      "transport": "Transport",
+      "stay": "Stay",
+      "activities": "Activities",
+      "other": "Other"
+    }
   }
 }

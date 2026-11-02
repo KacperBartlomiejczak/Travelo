@@ -364,6 +364,15 @@
     }
   },
   "expenses": {
-    "loadError": "Nie udało się wczytać wydatków."
+    "loadError": "Nie udało się wczytać wydatków.",
+    "who": "Ile kto wydał",
+    "spent": "Wydane {{amount}}",
+    "category": {
+      "food": "Jedzenie",
+      "transport": "Transport",
+      "stay": "Nocleg",
+      "activities": "Atrakcje",
+      "other": "Inne"
+    }
   }
 }

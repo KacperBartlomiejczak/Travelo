@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from '@testing-library/react-native';
+import { fireEvent, render, screen, within } from '@testing-library/react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import { useExpenses } from '@/hooks/useExpenses';
@@ -112,13 +112,13 @@ describe('ExpensesScreen (expenses step 7)', () => {
     await setup({ expenses: { data: [expense(null, 10000), expense(MEMBER, 20000)] } });
     expect(screen.getByText(`Zostało ${money(270000)}`)).toBeOnTheScreen();
     await fireEvent.press(screen.getByRole('radio', { name: 'Ja' }));
-    expect(screen.getByText(`Zostało ${money(90000)}`)).toBeOnTheScreen();
+    expect(within(screen.getByTestId('budget-hero')).getByText(`Zostało ${money(90000)}`)).toBeOnTheScreen();
   });
 
   it('linked friend: "Ja" is their own member row', async () => {
     await setup({ me: FRIEND_USER, expenses: { data: [expense(null, 10000), expense(MEMBER, 20000)] } });
     await fireEvent.press(screen.getByRole('radio', { name: 'Ja' }));
-    expect(screen.getByText(`Zostało ${money(80000)}`)).toBeOnTheScreen();
+    expect(within(screen.getByTestId('budget-hero')).getByText(`Zostało ${money(80000)}`)).toBeOnTheScreen();
   });
 
   it('shows "Zostało dziś" during the trip and not before or after it', async () => {
@@ -198,5 +198,18 @@ describe('ExpensesScreen (expenses step 7)', () => {
     expect(screen.getByTestId('offline-banner')).toBeOnTheScreen();
     expect(screen.getByText(`Zostało ${money(290000)}`)).toBeOnTheScreen();
     expect(screen.queryByText('Brak wydatków')).toBeNull();
+  });
+});
+
+describe('ExpensesScreen who-spent-what chart (expenses step 8)', () => {
+  it('shows the chart under the budget once there are expenses', async () => {
+    await setup({ expenses: { data: [expense(null, 10000)] } });
+    expect(screen.getByText('Ile kto wydał')).toBeOnTheScreen();
+    expect(screen.getByTestId('spend-row-organizer')).toBeOnTheScreen();
+  });
+
+  it('leaves the chart out when there are no expenses', async () => {
+    await setup();
+    expect(screen.queryByText('Ile kto wydał')).toBeNull();
   });
 });
