@@ -1,4 +1,5 @@
 import { appLocalStore } from './app-local-store';
+import { clearUserDataOnPhone } from './clear-user-data';
 import { createSupabaseSessionSource } from './session-source';
 import { sessionCheckSupabase, supabase } from './supabase';
 
@@ -6,5 +7,5 @@ import { sessionCheckSupabase, supabase } from './supabase';
 export const appSessionSource = createSupabaseSessionSource({
   auth: supabase.auth,
   checkAuth: sessionCheckSupabase.auth,
-  clearUserData: async () => (await appLocalStore()).clearUserData(),
+  clearUserData: () => clearUserDataOnPhone(async () => (await appLocalStore()).clearUserData()),
 });
