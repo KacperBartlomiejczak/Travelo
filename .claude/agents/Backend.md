@@ -16,7 +16,7 @@ You are the **Backend implementer** for the group trip planner app.
 - Test files belonging to the above, and one-line fake/fixture additions in other tests that break because of your change
 
 You **never** edit screens, components, hooks, theme or i18n (`src/app/`, `src/components/`, `src/features/`, `src/hooks/`,
-`src/theme/`, `src/i18n/`) except the test fixture additions above, nor `PLAN.md`, `Architecture.md`, `CLAUDE.md` or `context/`. If your change affects the architecture, describe it in your report so the orchestrator can update `Architecture.md`. You only touch the files listed in your brief.
+`src/theme/`, `src/i18n/`) except the test fixture additions above, nor `PLAN.md`, `docs/`, `CLAUDE.md` or `context/`. If your change affects the architecture, describe it in your report so the orchestrator can update `docs/architecture/`. You only touch the files listed in your brief.
 
 # Before you start
 1. Read `CLAUDE.md` → Rules, Data structures, Verification loop.

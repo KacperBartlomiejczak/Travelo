@@ -4,11 +4,11 @@ What the app is, what it does and what it contains. Read this before planning or
 
 - **Product rules, process and engineering rules:** `CLAUDE.md`.
 - **Visual system (Sunline):** `context/design-context.md`.
-- **How the code is built right now:** `Architecture.md` (modules, data flow, backend, routes, decisions, tech debt).
+- **How the code is built right now:** `docs/architecture/` (overview, frontend, backend, shared, flows, decisions, known limitations).
 - **Domain terms:** `GLOSSARY.md`.
 - **Plans and progress of each feature:** `prompts/<feature-name>/plan.md`.
 
-If this file and the code disagree, the code wins and this file gets updated. If this file and `Architecture.md` disagree about the current state, check the code and fix whichever is wrong.
+If this file and the code disagree, the code wins and this file gets updated. If this file and `docs/architecture/` disagree about the current state, check the code and fix whichever is wrong.
 
 ---
 
@@ -282,7 +282,7 @@ Open decision: the exact Gemini model ID (it comes from config, never hardcoded)
 
 ## 9. Known gaps (short list)
 
-The full list is in `Architecture.md` → "Known limitations & tech debt". The ones that matter for product decisions:
+The full list is in `docs/architecture/known-limitations.md`. The ones that matter for product decisions:
 - Three of five pill screens are placeholders.
 - Photos not yet sent are lost if the app closes.
 - Sign-in:

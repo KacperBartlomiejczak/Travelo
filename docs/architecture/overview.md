@@ -114,8 +114,8 @@ Travelo/
 └── tsconfig.json               TypeScript strict, `@/*` → `src/*`, `types: ["jest"]`
 ```
 
-## Folders named in `CLAUDE.md` that do not exist yet
-`CLAUDE.md` describes a monorepo layout. The Expo app still sits at the repository root.
+## Planned monorepo layout (not adopted yet)
+The original plan was a monorepo (`apps/mobile/`, `packages/schemas/`, `supabase/`). The Expo app still sits at the repository root.
 
 | Planned path | Planned purpose | Current equivalent |
 |---|---|---|

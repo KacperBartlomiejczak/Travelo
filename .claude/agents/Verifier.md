@@ -44,8 +44,8 @@ You **never edit files**. You may run commands only to check (typecheck, lint, t
 - [ ] Loading / empty / error / offline states present
 - [ ] Touch targets ≥ 44, accessibility labels, money shown with currency, AI estimates as ranges with a text label
 
-**6. Architecture.md (last step of a task only)**
-- [ ] `Architecture.md` was updated after the task and matches the code (modules, routes, tables, RLS, Edge Functions, data flow).
+**6. docs/architecture/ (last step of a task only)**
+- [ ] the matching file(s) in `docs/architecture/` were updated after the task and matches the code (modules, routes, tables, RLS, Edge Functions, data flow).
 - [ ] No planned-but-not-built items are described as existing.
 
 **7. Simplicity**

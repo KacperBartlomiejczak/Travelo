@@ -61,7 +61,7 @@ Planning a group trip means juggling flights, who likes what, a shared budget an
 
 ## Engineering highlights
 
-The project follows production-grade rules rather than prototype shortcuts. The details are in [`Architecture.md`](Architecture.md).
+The project follows production-grade rules rather than prototype shortcuts. The details are in [`docs/architecture/`](docs/architecture/overview.md).
 
 1. **Zod is the single source of truth.** Every boundary is parsed with Zod: wizard forms, Supabase responses, rows read from the on-device SQLite cache (a corrupt row reads as "no copy"), gallery picker results and the startup environment variables. The Supabase key must start with `sb_publishable_`, so a secret key cannot ship in the app.
 2. **Wall-clock time and clock-change gaps.** Flight times are stored as the airport's local wall clock plus its IANA time zone. They are never converted through the phone's time zone. A round-trip check catches local times that do not exist during a daylight-saving jump (`src/lib/time.ts`). The suite can be run under a shifted device time zone to prove it.
@@ -279,7 +279,7 @@ scripts/         Dev-only scripts (airport list generator, database test runner)
 
 The repo is also an example of spec-driven work with [Claude Code](https://claude.com/claude-code).
 
-- **Context files stay in sync with the code:** product scope (`context/app-context.md`), the design system (`context/design-context.md`), the current architecture (`Architecture.md`) and domain terms (`GLOSSARY.md`).
+- **Context files stay in sync with the code:** product scope (`context/app-context.md`), the design system (`context/design-context.md`), the current architecture (`docs/architecture/`) and domain terms (`GLOSSARY.md`).
 - **A written plan before any code.** Each feature has a `prompts/<feature>/plan.md` with numbered decisions, risks, a progress log and manual device test steps. The plan is approved first.
 - **Scoped subagents** in `.claude/agents/`: `explorer` (read-only scout), `planner` (drafts plans), `backend` and `frontend` (each runs one approved step test-first), `verifier` (independent PASS/FAIL review) and `tester` (drives an emulator or phone through `mobile-mcp`; it took the screenshots in this README).
 
@@ -290,7 +290,7 @@ The rules for this process are in [`CLAUDE.md`](CLAUDE.md).
 | File | What is in it |
 |---|---|
 | [`context/app-context.md`](context/app-context.md) | What the app is and does: features, screens, domain model, offline behavior, backend |
-| [`Architecture.md`](Architecture.md) | How the code is built right now: modules, data flow, decisions, known limitations |
+| [`docs/architecture/`](docs/architecture/overview.md) | How the code is built right now: modules, data flow, decisions, known limitations |
 | [`context/design-context.md`](context/design-context.md) | The Sunline design system |
 | [`GLOSSARY.md`](GLOSSARY.md) | Domain terms |
 | [`CONTRIBUTING.md`](CONTRIBUTING.md) | How to contribute |
