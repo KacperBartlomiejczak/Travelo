@@ -144,6 +144,8 @@
     "nameTooLong": "Imię może mieć do {{max}} znaków",
     "tripNameRequired": "Podaj nazwę podróży",
     "tripNameTooLong": "Nazwa może mieć do {{max}} znaków",
+    "expenseNameRequired": "Podaj nazwę wydatku",
+    "expenseNameTooLong": "Nazwa może mieć do {{max}} znaków",
     "amountRequired": "Wpisz kwotę",
     "amountInvalid": "Wpisz kwotę liczbą, np. 2500 lub 2500,50",
     "amountPositive": "Kwota musi być większa od zera",

@@ -65,6 +65,18 @@ describe('Expense', () => {
     expect(ExpenseSchema.safeParse({ ...expense, ...patch }).success).toBe(false);
   });
 
+  it('carries the amount error key of the budget form for a zero amount', () => {
+    const result = ExpenseSchema.safeParse({ ...expense, amount: { amountMinor: 0, currency: 'EUR' } });
+    expect(result.error?.issues[0].message).toBe('validation.amountPositive');
+  });
+
+  it('carries the name error keys', () => {
+    expect(ExpenseSchema.safeParse({ ...expense, name: '' }).error?.issues[0].message).toBe('validation.expenseNameRequired');
+    expect(ExpenseSchema.safeParse({ ...expense, name: 'x'.repeat(EXPENSE_NAME_MAX_LENGTH + 1) }).error?.issues[0].message).toBe(
+      'validation.expenseNameTooLong',
+    );
+  });
+
   it('accepts a name of exactly the maximum length', () => {
     expect(ExpenseSchema.safeParse({ ...expense, name: 'x'.repeat(EXPENSE_NAME_MAX_LENGTH) }).success).toBe(true);
   });
@@ -92,21 +104,27 @@ describe('LocalExpense', () => {
 });
 
 describe('ExpenseForm', () => {
-  const form = { name: 'Tapas', amount: { amountMinor: 1850, currency: 'EUR' }, category: 'food', memberId: null, spentOn: '2026-11-02' };
+  const form = { name: 'Tapas', amountText: '18,50', category: 'food', memberId: null, spentOn: '2026-11-02' };
   it('accepts a valid form', () => {
     expect(ExpenseFormSchema.safeParse(form).success).toBe(true);
   });
   it.each([
     ['no category', { category: undefined }],
-    ['zero amount', { amount: { amountMinor: 0, currency: 'EUR' } }],
+    ['missing amountText', { amountText: undefined }],
+    ['empty amountText', { amountText: '' }],
+    ['whitespace amountText', { amountText: '   ' }],
     ['empty name', { name: '' }],
     ['bad date', { spentOn: 'tomorrow' }],
   ])('rejects %s', (_, patch) => {
     expect(ExpenseFormSchema.safeParse({ ...form, ...patch }).success).toBe(false);
   });
-  it('carries the amount error key of the budget form', () => {
-    const result = ExpenseFormSchema.safeParse({ ...form, amount: { amountMinor: 0, currency: 'EUR' } });
-    expect(result.error?.issues[0].message).toBe('validation.amountPositive');
+  it.each([{ amountText: '' }, { amountText: '   ' }])('carries validation.amountRequired for %j', (patch) => {
+    const result = ExpenseFormSchema.safeParse({ ...form, ...patch });
+    expect(result.error?.issues[0].message).toBe('validation.amountRequired');
+  });
+  it('carries the name error keys', () => {
+    expect(ExpenseFormSchema.safeParse({ ...form, name: ' ' }).error?.issues[0].message).toBe('validation.expenseNameRequired');
+    expect(ExpenseFormSchema.safeParse({ ...form, name: 'x'.repeat(61) }).error?.issues[0].message).toBe('validation.expenseNameTooLong');
   });
 });
 

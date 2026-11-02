@@ -38,6 +38,11 @@ Założenia (zaakceptowane z planem):
 - **D15 — Połączeni znajomi zapisują swoje wydatki.** Organizator dodaje, edytuje i usuwa wydatki każdego (także znajomych bez konta). Połączony znajomy widzi wszystkie wydatki podróży i dodaje / edytuje / usuwa **tylko wydatki ze swoim `memberId`**; w jego formularzu pole osoby jest ustawione na „Ty”. Zmienia to dwie zasady w `CLAUDE.md` („Linked members are read-only”, „Only the owner can write expenses”) — krok 0. Konflikty nadal last write wins po `updatedAt`.
 - **D16 — Plany tylko po polsku; kilka backendowych subagentów równolegle** (zasady w `CLAUDE.md`). Kroki 2, 3 i 4 tego planu idą równolegle po kroku 1 (niezależne, rozłączne pliki).
 
+2026-11-02:
+- **D17 — `expenses.trip_id` → `trips` ma ON DELETE CASCADE.** Usunięcie konta kasuje podróże organizatora ze wszystkimi danymi.
+- **D18 — `expenses.member_id` ma RESTRICT.** Nie można usunąć członka, który ma wydatki, dopóki ich nie przepisze lub nie usunie. Test w `expenses_rls.sql` obejmuje też usunięcie podróży i konta organizatora, gdy członkowie mają wydatki. Jeśli RESTRICT je wywraca, użyć NO ACTION (sprawdzane na końcu instrukcji) i zapisać powód w dzienniku.
+- **Uzupełnienie kroku 4 (manager):** `clearUserData` (`src/data/local-store.ts`) czyści też lokalną tabelę `expenses`, z testem; inaczej dane wydatków przeżyją wylogowanie.
+
 ## Podejście
 Wzorzec synchronizacji budżetu (`src/data/budget-sync.ts`, `src/providers/BudgetSync.tsx`): najpierw SQLite, stan synchronizacji w tym samym wierszu (ta sama transakcja), worker robi upsert po `id` z `where updated_at < excluded.updated_at`, backoff 1 s × 2ⁿ do 5 min, `failed` zostaje widoczne. Wszystkie liczby budżetu to czyste funkcje w `src/lib/expense-budget.ts`, ekran tylko renderuje. Wykres to zwykłe `View` z szerokościami flex (bez nowej zależności).
 Odrzucone: agregacja po stronie serwera (RPC) — psuje offline, a danych jest mało.
@@ -109,7 +114,7 @@ Serwer: tabela `expenses` odzwierciedla `ExpenseSchema` (`amount_minor bigint ch
 ## Kroki
 Każdy krok po PASS: commit, branch `expenses/step-<N>-<slug>` odcięty od brancha ostatniego scommitowanego kroku (krok 0 od `feature/sunline-redesign`), push. Kroki 2, 3, 4 równolegle (D16).
 - [x] 0. [docs, orkiestrator] `CLAUDE.md` (zasady D15, kształt Expense, wiersz lokalny jako outbox; reguły D16) i `context/app-context.md` (Wydatki w trakcie) — skill: brak — najpierw testy: brak (tylko dokumenty, bez zachowania) — weryfikacja: verifier sprawdza spójność dokumentów z planem.
-- [ ] 1. [backend] Schematy Zod `expense.ts` — skill: domain-modeling, TDD — najpierw testy: fixture'y kroku 1 — weryfikacja: testy, typecheck, lint.
+- [x] 1. [backend] Schematy Zod `expense.ts` — skill: domain-modeling, TDD — najpierw testy: fixture'y kroku 1 — weryfikacja: testy, typecheck, lint.
 - [ ] 2. [backend, równolegle] Migracja `expenses` + RLS + regenerowane typy + parity — skill: supabase-postgres-best-practices, security-and-hardening, doubt-driven-development — najpierw testy: `expenses_rls.sql` — weryfikacja: `pnpm test:db`, parity, pełny zestaw.
 - [ ] 3. [backend, równolegle] `src/lib/expense-budget.ts` (sumy grupy/osoby, dzienny limit D7 + nadwyżka, kategorie, grupowanie timeline'u) — skill: TDD — najpierw testy: lista kroku 3 — weryfikacja: pełny zestaw.
 - [ ] 4. [backend, równolegle] Migracja SQLite + lokalne repozytorium wydatków (zapis / edycja / miękkie usunięcie, sprawdzenie waluty bazowej i własnego członka) — skill: TDD, source-driven-development — najpierw testy: lista kroku 4 — weryfikacja: pełny zestaw.
@@ -123,6 +128,7 @@ Każdy krok po PASS: commit, branch `expenses/step-<N>-<slug>` odcięty od branc
 
 ## Dziennik postępu
 - Krok 0 (2026-10-25): tylko dokumenty, bez testów (zatwierdzone w planie) · `CLAUDE.md`: orkiestrator tylko manager, commit + push na branch po PASS, plany po polsku (szablon też), równoległe backendy, zasady D15, kształt `Expense`/`LocalExpense`, `OutboxEntry` nieużywany · `context/app-context.md`: Wydatki w trakcie, wyjątki D15 · `.claude/agents/Backend.md`: wyjątek D15 w RLS · verifier: FAIL (angielski szablon planu, brak notatek przy krokach 0/8–11, niespójności app-context) → poprawione → PASS · użyty skill: brak.
+- Krok 1 (2026-11-02): testy napisane (red ✓: 3 testy formularza padły, bo brakowało `amountText`) · `ExpenseFormSchema.amountText` zamiast `amount`: parsowanie `parseAmountToMinor` zostaje na ekranie jak w `budget.tsx`, bo wymaga waluty podróży i języka · klucze `validation.expenseName*` w `pl`/`en` · green ✓: 46/46 w pliku, pełny zestaw 147 zestawów, 3199 testów (`--maxWorkers=4`; przy domyślnej równoległości niezwiązane testy UI padały z przeciążenia), typecheck i lint zielone · verifier: PASS · użyty skill: TDD; `domain-modeling` nie był użyty, encja była już rozstrzygnięta w planie · odstępstwo: commit 7e6ae24 zawiera testy i schemat razem, więc red dotyczy tylko zmiany `amountText`.
 
 ## Ryzyka i otwarte pytania
 - **R1 — Zmiana RLS dla połączonych członków (D15)** to zmiana bezpieczeństwa: pokryta testami kroku 2; verifier używa `doubt-driven-development`.
