@@ -96,3 +96,49 @@ describe('in-memory findByFriendCode (tests only, friend-invite)', () => {
     await expect(setup().findByFriendCode('5ZM')).rejects.toMatchObject({ name: 'ZodError' });
   });
 });
+
+describe('in-memory profile repository: account settings', () => {
+  const withProfile = async (avatarUri: string | null = null) => {
+    const repository = setup({ takenUsernames: ['ola'] });
+    await repository.createProfile({ ...SETUP, avatarUri });
+    return repository;
+  };
+
+  it('updateProfile changes nick and interests, normalised, and updates myProfile', async () => {
+    const repository = await withProfile();
+    const updated = await repository.updateProfile({ username: ' Kacper.B ', interests: ['beaches'] });
+    expect(updated).toEqual(expect.objectContaining({ username: 'kacper.b', interests: ['beaches'] }));
+    await expect(repository.myProfile()).resolves.toEqual({ profile: updated, fromCache: false });
+  });
+
+  it('updateProfile rejects a taken nick (not the own one) and invalid input', async () => {
+    const repository = await withProfile();
+    await expect(repository.updateProfile({ username: 'Ola', interests: ['museums'] })).rejects.toBeInstanceOf(UsernameTakenError);
+    await expect(repository.updateProfile({ username: 'kacper', interests: ['museums'] })).resolves.toBeDefined();
+    await expect(repository.updateProfile({ username: 'kacper', interests: [] })).rejects.toMatchObject({ name: 'ZodError' });
+  });
+
+  it('changeAvatar gives a new avatar id and url, removeAvatar clears both', async () => {
+    const repository = await withProfile('file:///picked/a.jpg');
+    const before = (await repository.myProfile())!.profile;
+    const changed = await repository.changeAvatar('file:///picked/b.jpg');
+    expect(changed.avatarId).not.toBeNull();
+    expect(changed.avatarId).not.toBe(before.avatarId);
+    expect(changed.avatarUrl).toMatch(/^https:\/\//);
+    expect(ShownProfileSchema.safeParse(changed).success).toBe(true);
+
+    const removed = await repository.removeAvatar();
+    expect(removed.avatarId).toBeNull();
+    expect(removed.avatarUrl).toBeUndefined();
+    await expect(repository.myProfile()).resolves.toEqual({ profile: removed, fromCache: false });
+  });
+
+  it('deleteAccount forgets the profile when the nick matches, and rejects otherwise', async () => {
+    const repository = await withProfile();
+    await expect(repository.deleteAccount('')).rejects.toMatchObject({ name: 'ZodError' });
+    await expect(repository.deleteAccount('other')).rejects.toThrow();
+    await expect(repository.myProfile()).resolves.not.toBeNull();
+    await expect(repository.deleteAccount('kacper')).resolves.toBeUndefined();
+    await expect(repository.myProfile()).resolves.toBeNull();
+  });
+});

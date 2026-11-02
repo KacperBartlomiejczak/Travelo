@@ -667,3 +667,337 @@ describe('findByFriendCode (friend-invite D12)', () => {
     await expect(rejection).rejects.not.toBeInstanceOf(ServerUnreachableError);
   });
 });
+
+describe('updateProfile', () => {
+  const EDIT = { username: '  Ola ', interests: ['museums' as const] };
+  const TAKEN = {
+    error: { code: '23505', message: 'duplicate key value violates unique constraint "profiles_username_key"', details: 'Key (username)=(ola) already exists.' },
+    status: 409,
+  };
+
+  it('updates exactly the nick (trimmed, lowercase) and interests of the own row and returns it with the signed avatar url', async () => {
+    const { supabase, repository } = await setup();
+    supabase.respond('profiles', { data: row({ username: 'ola', interests: ['museums'] }) });
+
+    const updated = await repository.updateProfile(EDIT);
+
+    expect(supabase.queries).toEqual([
+      {
+        table: 'profiles',
+        ops: [
+          ['update', [{ username: 'ola', interests: ['museums'] }]],
+          ['eq', ['id', SIGNED_IN_USER_ID]],
+          ['select', ['*']],
+          ['single', []],
+        ],
+      },
+    ]);
+    expect(updated).toEqual({ ...profileOf({ username: 'ola', interests: ['museums'] }), avatarUrl: fakeSignedUrl(BUCKET, pathOf(AVATAR_ID)) });
+  });
+
+  it('writes the answer to the copy on the device, without the signed url', async () => {
+    const { supabase, local, repository } = await setup();
+    await local.cacheProfile(profileOf(), '2026-10-17T10:00:00.000Z');
+    supabase.respond('profiles', { data: row({ username: 'ola' }) });
+
+    await repository.updateProfile(EDIT);
+
+    await expect(local.cachedProfile()).resolves.toEqual(profileOf({ username: 'ola' }));
+  });
+
+  it.each([
+    ['an invalid nick', { ...EDIT, username: 'Bad Nick' }],
+    ['no interest', { ...EDIT, interests: [] }],
+  ])('rejects %s with a ZodError before any request', async (_name, input) => {
+    const { supabase, repository } = await setup();
+    await expect(repository.updateProfile(input as never)).rejects.toMatchObject({ name: 'ZodError' });
+    expect(supabase.auth.getSession).not.toHaveBeenCalled();
+    expect(supabase.queries).toEqual([]);
+  });
+
+  it('rejects with UsernameTakenError on a taken nick and keeps the copy', async () => {
+    const { supabase, local, repository } = await setup();
+    await local.cacheProfile(profileOf(), '2026-10-17T10:00:00.000Z');
+    supabase.respond('profiles', TAKEN);
+    await expect(repository.updateProfile(EDIT)).rejects.toBeInstanceOf(UsernameTakenError);
+    await expect(local.cachedProfile()).resolves.toEqual(profileOf());
+  });
+
+  it('does not take another unique violation for a taken nick', async () => {
+    const { supabase, repository } = await setup();
+    supabase.respond('profiles', { error: { code: '23505', message: 'violates "profiles_friend_code_key"' }, status: 409 });
+    const rejected = repository.updateProfile(EDIT);
+    await expect(rejected).rejects.toThrow('profiles_friend_code_key');
+    await expect(rejected).rejects.not.toBeInstanceOf(UsernameTakenError);
+  });
+
+  it('rejects as unreachable when there is no answer, with the server message on other errors', async () => {
+    const { supabase, repository } = await setup();
+    supabase.respond('profiles', NETWORK_FAILURE, { error: { message: 'boom' }, status: 500 });
+    await expect(repository.updateProfile(EDIT)).rejects.toBeInstanceOf(ServerUnreachableError);
+    const rejected = repository.updateProfile(EDIT);
+    await expect(rejected).rejects.toThrow('boom');
+    await expect(rejected).rejects.not.toBeInstanceOf(ServerUnreachableError);
+  });
+
+  it('rejects as unreachable and sends nothing when the session cannot be read for lack of connection', async () => {
+    const { supabase, repository } = await setup();
+    offlineSession(supabase);
+    await expect(repository.updateProfile(EDIT)).rejects.toBeInstanceOf(ServerUnreachableError);
+    expect(supabase.queries).toEqual([]);
+  });
+});
+
+describe('changeAvatar (A6)', () => {
+  const readOld = { data: { avatar_id: OLD_AVATAR_ID } };
+  const readQuery = {
+    table: 'profiles',
+    ops: [
+      ['select', ['avatar_id']],
+      ['eq', ['id', SIGNED_IN_USER_ID]],
+      ['single', []],
+    ],
+  };
+  const updateQuery = {
+    table: 'profiles',
+    ops: [
+      ['update', [{ avatar_id: AVATAR_ID }]],
+      ['eq', ['id', SIGNED_IN_USER_ID]],
+      ['select', ['*']],
+      ['single', []],
+    ],
+  };
+
+  it('reads the avatar id, uploads under a new id, updates the row, then removes the old file, in that order', async () => {
+    const { supabase, repository, prepare } = await setup();
+    supabase.respond('profiles', readOld, { data: row() });
+
+    await repository.changeAvatar(PICKED);
+
+    expect(prepare).toHaveBeenCalledWith(PICKED);
+    expect(supabase.queries).toEqual([readQuery, updateQuery]);
+    expect(supabase.sequence.filter((step) => step !== 'storage.createSignedUrl')).toEqual([
+      'from:profiles',
+      'storage.upload',
+      'from:profiles',
+      'storage.remove',
+    ]);
+    expect(calls(supabase, 'upload')).toEqual([
+      { bucket: BUCKET, method: 'upload', args: [pathOf(AVATAR_ID), PREPARED.file, { contentType: 'image/jpeg', upsert: false }] },
+    ]);
+    expect(calls(supabase, 'remove')).toEqual([{ bucket: BUCKET, method: 'remove', args: [[pathOf(OLD_AVATAR_ID)]] }]);
+  });
+
+  it('gives the profile with the new signed url, keeps the copy and seeds the image cache', async () => {
+    const { supabase, local, repository, seed } = await setup();
+    supabase.respond('profiles', readOld, { data: row() });
+
+    const changed = await repository.changeAvatar(PICKED);
+
+    expect(changed).toEqual({ ...profileOf(), avatarUrl: fakeSignedUrl(BUCKET, pathOf(AVATAR_ID)) });
+    await expect(local.cachedProfile()).resolves.toEqual(profileOf());
+    expect(seed).toHaveBeenCalledWith(PREPARED.uri, `avatar:${AVATAR_ID}`);
+  });
+
+  it('removes nothing when there was no avatar before', async () => {
+    const { supabase, repository } = await setup();
+    supabase.respond('profiles', { data: { avatar_id: null } }, { data: row() });
+    await repository.changeAvatar(PICKED);
+    expect(calls(supabase, 'remove')).toEqual([]);
+  });
+
+  it('still resolves when removing the old file fails', async () => {
+    const { supabase, repository } = await setup();
+    supabase.respond('profiles', readOld, { data: row() });
+    supabase.respondStorage('remove', { error: { message: 'boom', status: 500 } });
+    await expect(repository.changeAvatar(PICKED)).resolves.toEqual(expect.objectContaining({ avatarId: AVATAR_ID }));
+  });
+
+  it('still resolves when removing the old file throws', async () => {
+    const { supabase, repository } = await setup();
+    supabase.respond('profiles', readOld, { data: row() });
+    const realFrom = jest.mocked(supabase.client.storage.from).getMockImplementation()!;
+    jest.mocked(supabase.client.storage.from).mockImplementation((bucket: string) => ({
+      ...realFrom(bucket),
+      remove: () => Promise.reject(new Error('boom')),
+    }) as never);
+    await expect(repository.changeAvatar(PICKED)).resolves.toEqual(expect.objectContaining({ avatarId: AVATAR_ID }));
+  });
+
+  it('rejects with a ZodError for a picked uri that is not a file, before any request', async () => {
+    const { supabase, repository } = await setup();
+    await expect(repository.changeAvatar('https://example.com/me.jpg')).rejects.toMatchObject({ name: 'ZodError' });
+    expect(supabase.queries).toEqual([]);
+    expect(supabase.storageCalls).toEqual([]);
+  });
+
+  it('rejects an avatar id that is not a lowercase UUID before uploading', async () => {
+    const { supabase, repository, prepare } = await setup({ newId: () => '00000000-0000-4000-8000-0000000000AA' });
+    supabase.respond('profiles', readOld);
+    await expect(repository.changeAvatar(PICKED)).rejects.toThrow();
+    expect(prepare).not.toHaveBeenCalled();
+    expect(supabase.storageCalls).toEqual([]);
+  });
+
+  it('rejects, uploads nothing, when the avatar id cannot be read', async () => {
+    const { supabase, repository, prepare } = await setup();
+    supabase.respond('profiles', NETWORK_FAILURE);
+    await expect(repository.changeAvatar(PICKED)).rejects.toBeInstanceOf(ServerUnreachableError);
+    expect(prepare).not.toHaveBeenCalled();
+    expect(supabase.storageCalls).toEqual([]);
+  });
+
+  it('upload refused or unreachable: rejects, updates nothing, removes nothing', async () => {
+    const { supabase, repository } = await setup();
+    supabase.respond('profiles', readOld, readOld);
+    supabase.respondStorage('upload', { error: { message: 'too big', status: 413 } }, STORAGE_NETWORK_FAILURE);
+    await expect(repository.changeAvatar(PICKED)).rejects.toThrow('too big');
+    await expect(repository.changeAvatar(PICKED)).rejects.toBeInstanceOf(ServerUnreachableError);
+    expect(supabase.queries).toHaveLength(2);
+    expect(calls(supabase, 'remove')).toEqual([]);
+  });
+
+  it('update refused with a 4xx: removes the new file, keeps the old one, copy untouched', async () => {
+    const { supabase, local, repository } = await setup();
+    await local.cacheProfile(profileOf({ avatarId: OLD_AVATAR_ID }), '2026-10-17T10:00:00.000Z');
+    supabase.respond('profiles', readOld, { error: { message: 'bad request' }, status: 400 });
+
+    await expect(repository.changeAvatar(PICKED)).rejects.toThrow('bad request');
+
+    expect(calls(supabase, 'remove')).toEqual([{ bucket: BUCKET, method: 'remove', args: [[pathOf(AVATAR_ID)]] }]);
+    await expect(local.cachedProfile()).resolves.toEqual(profileOf({ avatarId: OLD_AVATAR_ID }));
+  });
+
+  it('update with no answer: rejects as unreachable and keeps both files (the row may have changed)', async () => {
+    const { supabase, repository } = await setup();
+    supabase.respond('profiles', readOld, NETWORK_FAILURE);
+    await expect(repository.changeAvatar(PICKED)).rejects.toBeInstanceOf(ServerUnreachableError);
+    expect(calls(supabase, 'remove')).toEqual([]);
+  });
+
+  it.each([500, 504])('update answered with %i: rejects and keeps both files', async (status) => {
+    const { supabase, repository } = await setup();
+    supabase.respond('profiles', readOld, { error: { message: 'upstream error' }, status });
+    const rejected = repository.changeAvatar(PICKED);
+    await expect(rejected).rejects.toThrow('upstream error');
+    await expect(rejected).rejects.not.toBeInstanceOf(ServerUnreachableError);
+    expect(calls(supabase, 'remove')).toEqual([]);
+  });
+});
+
+describe('removeAvatar (A6)', () => {
+  const clearQuery = {
+    table: 'profiles',
+    ops: [
+      ['update', [{ avatar_id: null }]],
+      ['eq', ['id', SIGNED_IN_USER_ID]],
+      ['select', ['*']],
+      ['single', []],
+    ],
+  };
+
+  it('reads the avatar id, updates the row to null, then removes the file', async () => {
+    const { supabase, local, repository } = await setup();
+    supabase.respond('profiles', { data: { avatar_id: AVATAR_ID } }, { data: row({ avatar_id: null }) });
+
+    const removed = await repository.removeAvatar();
+
+    expect(supabase.queries[1]).toEqual(clearQuery);
+    expect(supabase.sequence).toEqual(['from:profiles', 'from:profiles', 'storage.remove']);
+    expect(calls(supabase, 'remove')).toEqual([{ bucket: BUCKET, method: 'remove', args: [[pathOf(AVATAR_ID)]] }]);
+    expect(removed).toEqual(profileOf({ avatarId: null }));
+    expect(removed.avatarUrl).toBeUndefined();
+    await expect(local.cachedProfile()).resolves.toEqual(profileOf({ avatarId: null }));
+  });
+
+  it('removes no file when there was none', async () => {
+    const { supabase, repository } = await setup();
+    supabase.respond('profiles', { data: { avatar_id: null } }, { data: row({ avatar_id: null }) });
+    await repository.removeAvatar();
+    expect(supabase.storageCalls).toEqual([]);
+  });
+
+  it('still resolves when removing the file fails', async () => {
+    const { supabase, repository } = await setup();
+    supabase.respond('profiles', { data: { avatar_id: AVATAR_ID } }, { data: row({ avatar_id: null }) });
+    supabase.respondStorage('remove', { error: { message: 'boom', status: 500 } });
+    await expect(repository.removeAvatar()).resolves.toEqual(profileOf({ avatarId: null }));
+  });
+
+  it('a failed update removes no file and leaves the copy', async () => {
+    const { supabase, local, repository } = await setup();
+    await local.cacheProfile(profileOf(), '2026-10-17T10:00:00.000Z');
+    supabase.respond('profiles', { data: { avatar_id: AVATAR_ID } }, NETWORK_FAILURE);
+    await expect(repository.removeAvatar()).rejects.toBeInstanceOf(ServerUnreachableError);
+    expect(supabase.storageCalls).toEqual([]);
+    await expect(local.cachedProfile()).resolves.toEqual(profileOf());
+  });
+
+  it('rejects as unreachable and updates nothing when the avatar id cannot be read', async () => {
+    const { supabase, repository } = await setup();
+    supabase.respond('profiles', NETWORK_FAILURE);
+    await expect(repository.removeAvatar()).rejects.toBeInstanceOf(ServerUnreachableError);
+    expect(supabase.queries).toHaveLength(1);
+  });
+});
+
+describe('deleteAccount', () => {
+  const { FunctionsFetchError, FunctionsHttpError, FunctionsRelayError } = jest.requireActual('@supabase/supabase-js');
+
+  it('invokes delete-account with the nick as typed and nothing else, after checking the session', async () => {
+    const { supabase, repository } = await setup();
+    supabase.invoke.mockResolvedValueOnce({ data: { deleted: true }, error: null });
+
+    await expect(repository.deleteAccount('kacper')).resolves.toBeUndefined();
+
+    expect(supabase.auth.getSession).toHaveBeenCalled();
+    expect(supabase.invoke.mock.calls).toEqual([['delete-account', { body: { confirmUsername: 'kacper' } }]]);
+  });
+
+  it('rejects an empty nick with a ZodError before any request', async () => {
+    const { supabase, repository } = await setup();
+    await expect(repository.deleteAccount('')).rejects.toMatchObject({ name: 'ZodError' });
+    expect(supabase.invoke).not.toHaveBeenCalled();
+  });
+
+  it('rejects as unreachable when the request gets no answer (network failure or timeout)', async () => {
+    const { supabase, repository } = await setup();
+    supabase.invoke.mockResolvedValueOnce({ data: null, error: new FunctionsFetchError(new Error('Network request failed')) });
+    await expect(repository.deleteAccount('kacper')).rejects.toBeInstanceOf(ServerUnreachableError);
+  });
+
+  it('rejects as unreachable when the session cannot be read for lack of connection, and sends nothing', async () => {
+    const { supabase, repository } = await setup();
+    offlineSession(supabase);
+    await expect(repository.deleteAccount('kacper')).rejects.toBeInstanceOf(ServerUnreachableError);
+    expect(supabase.invoke).not.toHaveBeenCalled();
+  });
+
+  it('rejects with NotSignedInError and sends nothing when nobody is signed in', async () => {
+    const { supabase, repository } = await setup();
+    supabase.storedSession('none');
+    await expect(repository.deleteAccount('kacper')).rejects.toBeInstanceOf(NotSignedInError);
+    expect(supabase.invoke).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ['an HTTP error', () => new FunctionsHttpError({ status: 500 })],
+    ['a relay error (the function did not run)', () => new FunctionsRelayError({ status: 502 })],
+  ])('rejects with a plain error on %s', async (_name, make) => {
+    const { supabase, repository } = await setup();
+    supabase.invoke.mockResolvedValueOnce({ data: null, error: make() });
+    const rejected = repository.deleteAccount('kacper');
+    await expect(rejected).rejects.toThrow();
+    await expect(rejected).rejects.not.toBeInstanceOf(ServerUnreachableError);
+  });
+
+  it.each([
+    ['no body', null],
+    ['a wrong body', { deleted: false }],
+    ['text', 'ok'],
+  ])('rejects an answer that does not match the schema (%s)', async (_name, data) => {
+    const { supabase, repository } = await setup();
+    supabase.invoke.mockResolvedValueOnce({ data, error: null });
+    await expect(repository.deleteAccount('kacper')).rejects.toMatchObject({ name: 'ZodError' });
+  });
+});
