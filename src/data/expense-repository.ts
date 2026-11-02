@@ -1,8 +1,9 @@
 import { randomUUID } from 'expo-crypto';
 
-import { ExpenseSchema, LocalExpenseSchema, type Expense, type LocalExpense } from '@/schemas';
+import { ExpenseSchema, type Expense, type LocalExpense } from '@/schemas';
 
 import type { LocalDb } from './local-db';
+import { fromLocalRow as fromRow, type LocalRow as Row } from './expense-rows';
 import { currentUserEpoch, type LocalStore } from './local-store';
 
 export class CurrencyMismatchError extends Error {}
@@ -17,43 +18,6 @@ export type ExpenseWriter = { isOwner: boolean; ownMemberId: string | null };
 export type ExpenseScope = { tripId: string; baseCurrency: string; writer: ExpenseWriter };
 /** What the form gives the repository: the fields the user chooses. */
 export type ExpenseInput = Pick<Expense, 'name' | 'amount' | 'category' | 'memberId' | 'spentOn'>;
-
-type Row = {
-  id: string;
-  trip_id: string;
-  member_id: string | null;
-  name: string;
-  amount_minor: number;
-  currency: string;
-  category: string;
-  spent_on: string;
-  created_at: string;
-  updated_at: string;
-  deleted_at: string | null;
-  sync_status: string;
-  sync_error: string | null;
-  attempts: number;
-  last_attempt_at: string | null;
-};
-
-function fromRow(row: Row): LocalExpense {
-  return LocalExpenseSchema.parse({
-    id: row.id,
-    tripId: row.trip_id,
-    memberId: row.member_id,
-    name: row.name,
-    amount: { amountMinor: row.amount_minor, currency: row.currency },
-    category: row.category,
-    spentOn: row.spent_on,
-    createdAt: row.created_at,
-    updatedAt: row.updated_at,
-    deletedAt: row.deleted_at,
-    syncStatus: row.sync_status,
-    ...(row.sync_error !== null ? { syncError: row.sync_error } : {}),
-    attempts: row.attempts,
-    ...(row.last_attempt_at !== null ? { lastAttemptAt: row.last_attempt_at } : {}),
-  });
-}
 
 type Deps = {
   db: LocalDb;

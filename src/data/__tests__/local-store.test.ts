@@ -840,3 +840,21 @@ describe('writes of an operation that started before a clear (auth-onboarding D2
     expect(await rows(db)).toEqual([0, 0, 0, 0, 0, 0]);
   });
 });
+
+describe('forgetTrip and expenses (expenses step 5)', () => {
+  it("removes the expenses kept for the trip, pending ones included, and leaves other trips' expenses", async () => {
+    const { db, local } = await store();
+    const insert = (id: string, tripId: string) =>
+      db.runAsync(
+        `insert into expenses (id, trip_id, name, amount_minor, currency, category, spent_on, created_at, updated_at, sync_status, attempts)
+         values (?, ?, 'Taxi', 100, 'EUR', 'food', '2026-11-03', '2026-11-03T10:00:00.000Z', '2026-11-03T10:00:00.000Z', 'pending', 0)`,
+        [id, tripId],
+      );
+    await insert('a', TRIP_ID);
+    await insert('b', OTHER_TRIP_ID);
+
+    await local.forgetTrip(TRIP_ID);
+
+    expect((await db.getAllAsync<{ id: string }>('select id from expenses', [])).map((row) => row.id)).toEqual(['b']);
+  });
+});

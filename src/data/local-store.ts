@@ -207,7 +207,7 @@ export function createLocalStore(db: LocalDb) {
 
     /**
      * The trip is gone from the server: forgets everything kept for it, in one transaction (trip-edit-menu A5) —
-     * its copy, its photo list copy (trip-photos D8), the choice of it, its entry in the list copy and a budget change
+     * its copy, its photo list copy (trip-photos D8), the choice of it, its entry in the list copy, its expenses and a budget change
      * still waiting (dropped on purpose: syncing it would only fail). Other trips are untouched; an unknown id changes nothing.
      */
     async forgetTrip(tripId: string): Promise<void> {
@@ -217,6 +217,8 @@ export function createLocalStore(db: LocalDb) {
         await db.runAsync('delete from trip_photos_cache where trip_id = ?', [tripId]);
         await db.runAsync('delete from selected_trip where trip_id = ?', [tripId]);
         await db.runAsync('delete from trip_budget_changes where trip_id = ?', [tripId]);
+        // Expenses too, pending ones included: the trip is gone, so they could only fail to sync for ever.
+        await db.runAsync('delete from expenses where trip_id = ?', [tripId]);
         const list = await cachedList();
         if (list) {
           const rest = list.filter((item) => item.id !== tripId);

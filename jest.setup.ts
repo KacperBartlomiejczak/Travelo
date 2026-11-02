@@ -3,6 +3,27 @@
 jest.mock('@/data/app-trip-repository', () => ({
   createAppTripRepository: () => jest.requireActual('@/data/trip-repository').createInMemoryTripRepository(),
 }));
+// Expenses (expenses step 5): the repository is the real one on an in-memory SQLite, the sync sends nothing.
+jest.mock('@/data/app-expense', () => ({
+  createAppExpenseRepository: () => {
+    const opened = (async () => {
+      const { openTestDb } = jest.requireActual('@/test/node-sqlite');
+      const { migrateLocalDb } = jest.requireActual('@/data/local-db');
+      const { createLocalStore } = jest.requireActual('@/data/local-store');
+      const { createExpenseRepository } = jest.requireActual('@/data/expense-repository');
+      const db = openTestDb();
+      await migrateLocalDb(db);
+      return createExpenseRepository({ db, store: createLocalStore(db) });
+    })();
+    return {
+      add: async (...args: unknown[]) => (await opened).add(...args),
+      update: async (...args: unknown[]) => (await opened).update(...args),
+      remove: async (...args: unknown[]) => (await opened).remove(...args),
+      list: async (...args: unknown[]) => (await opened).list(...args),
+    };
+  },
+  createAppExpenseSync: () => ({ sync: async () => ({ nextAttemptAt: null }) }),
+}));
 // Sign-in (auth-onboarding step 5): the app is signed in with a profile unless a test says otherwise, so route tests land on / as before.
 // A test picks another state with useFakeAppSession() / setAppProfileRepository() before it renders (src/test/fake-session-source.ts, fake-profile-repository.ts).
 jest.mock('@/data/app-session-source', () => ({
