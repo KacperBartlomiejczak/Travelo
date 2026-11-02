@@ -14,6 +14,8 @@ import { useTranslation } from "react-i18next";
 import { Platform } from "react-native";
 
 import "@/i18n";
+import { readThemePreference } from "@/data/preferences";
+import { applyThemePreference } from "@/hooks/usePreferences";
 import { AnimatedSplash } from "@/components/AnimatedSplash";
 import { AppLoading } from "@/features/auth/AppLoading";
 import { FullScreenError } from "@/features/auth/FullScreenError";
@@ -23,6 +25,8 @@ import { tokens } from "@/theme/tokens";
 import { useTheme } from "@/theme/useTheme";
 
 SplashScreen.preventAutoHideAsync();
+// Before the first render, so the first frame already has the chosen theme (profile-settings D8).
+applyThemePreference(readThemePreference());
 
 export default function RootLayout() {
   const [fontsLoaded, fontError] = useFonts({
