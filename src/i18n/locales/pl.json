@@ -343,5 +343,27 @@
   },
   "splash": {
     "loading": "Ładowanie aplikacji"
+  },
+  "budget": {
+    "group": "Grupa",
+    "me": "Ja",
+    "left": "Zostało {{amount}}",
+    "over": "{{amount}} ponad budżet",
+    "carryover": "+{{amount}} z poprzednich dni",
+    "today": {
+      "left": "Zostało dziś {{amount}}",
+      "atLimit": "Dzisiejszy plan budżetu jest wykorzystany",
+      "over": "Dziś {{amount}} ponad plan"
+    }
+  },
+  "empty": {
+    "expenses": {
+      "title": "Brak wydatków",
+      "body": "Dodaj pierwszy wydatek. Zapis zajmuje tylko kilka sekund.",
+      "action": "Dodaj wydatek"
+    }
+  },
+  "expenses": {
+    "loadError": "Nie udało się wczytać wydatków."
   }
 }

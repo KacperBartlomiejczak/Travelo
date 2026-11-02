@@ -343,5 +343,27 @@
   },
   "splash": {
     "loading": "Loading app"
+  },
+  "budget": {
+    "group": "Group",
+    "me": "Me",
+    "left": "{{amount}} left",
+    "over": "{{amount}} over budget",
+    "carryover": "+{{amount}} from previous days",
+    "today": {
+      "left": "{{amount}} left today",
+      "atLimit": "Today’s planned budget is used",
+      "over": "{{amount}} over today’s plan"
+    }
+  },
+  "empty": {
+    "expenses": {
+      "title": "No expenses yet",
+      "body": "Add the first expense. It only takes a few seconds.",
+      "action": "Add expense"
+    }
+  },
+  "expenses": {
+    "loadError": "Couldn't load expenses."
   }
 }
