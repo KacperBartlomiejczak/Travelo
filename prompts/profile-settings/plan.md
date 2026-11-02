@@ -1,5 +1,5 @@
 # Zadanie: Awatar i ustawienia
-Status: zaakceptowany, czeka na Wydatki (Kacper, 2026-11-02; tekst ostrzeżenia A10 i zmiana awatara D13 także)
+Status: w trakcie (zaakceptowany przez Kacpra 2026-11-02; tekst ostrzeżenia A10 i zmiana awatara D13 także)
 
 ## Zrozumienie i założenia
 Trzy rzeczy na istniejących ekranach „Profil” i „Ustawienia”:
@@ -9,7 +9,7 @@ Trzy rzeczy na istniejących ekranach „Profil” i „Ustawienia”:
 
 „Gotowe” = wszystkie kroki `[x]`, PASS verifiera, pełny zestaw testów + typecheck + lint + `pnpm test:db` na zielono, funkcja wdrożona przez Kacpra, scenariusze ręczne przejdą na urządzeniu, `Architecture.md` i `context/app-context.md` zaktualizowane.
 
-**Warunek startu:** feature Wydatki jest skończony i scalony, bo oba dotykają plików i18n, a test usuwania konta musi objąć tabelę `expenses`. Gałąź implementacji odchodzi od stanu po Wydatkach.
+**Warunek startu:** ~~feature Wydatki jest skończony i scalony~~ uchylony przez D14: praca idzie na `feature/profile-settings`, do której scalono `origin/feature/expenses` (kroki 0–8, z migracją `expenses`).
 
 ### Decyzje Kacpra (2026-11-02)
 - **D1 — Usunięcie konta kasuje wszystko:** podróże organizatora, plany, wydatki i zdjęcia, także dla połączonych znajomych. Ostrzeżenie mówi o tym wprost.
@@ -29,6 +29,7 @@ Trzy rzeczy na istniejących ekranach „Profil” i „Ustawienia”:
   - **Po zmianie:** podgląd zostaje otwarty; podczas wysyłania widać zajętość, potem nowe zdjęcie. Anulowanie galerii nic nie zmienia.
   - **Po usunięciu:** bez dodatkowego potwierdzenia (bez zmian względem D10); podgląd się zamyka, bo nie ma czego pokazać, a profil pokazuje puste kółko.
   - **Offline:** podgląd zdjęcia widocznego na telefonie działa, kropki są nieaktywne, a na dole podgląd podaje powód. Gdy zdjęcia nie ma na telefonie (szkielet na profilu) kółko nie reaguje. Bez zdjęcia kółko jest nieaktywne, powód podaje `OfflineBanner` profilu i opis dla czytnika ekranu.
+- **D14 (2026-11-02) — Start bez czekania na koniec Wydatków.** Kacper polecił ruszyć ustawienia teraz. Baza to niescalona gałąź `origin/feature/expenses`, którą co jakiś czas i przed końcem scalamy do `feature/profile-settings`. Jedna gałąź na całe zadanie, bez gałęzi na krok.
 
 ### Ustalenia z kodu (sprawdzone 2026-11-02 na `origin/expenses/step-1-schemas-wip`)
 - `supabase/functions/` nie istnieje; `config.toml` ma włączone `edge_runtime` (Deno 2). Usunięcie z `auth.users` wymaga klucza service role, więc to pierwsza Edge Function.
@@ -139,8 +140,8 @@ deleteAccount(confirmUsername: string): Promise<void>; // ServerUnreachableError
 ## Kroki
 Kroki 2–6 mogą iść równolegle po kroku 1 (rozłączne pliki, żaden nie potrzebuje wyniku innego). Frontend po kolei.
 
-- [ ] 0. [docs, orkiestrator] `context/design-context.md`: motyw idzie za wyborem użytkownika, domyślnie za telefonem; opis ekranu ustawień według D7 — skill: documentation-and-adrs — najpierw testy: brak (tylko dokumenty, bez zachowania) — weryfikacja: verifier sprawdza spójność z planem.
-- [ ] 1. [backend] Schematy `account.ts`, `preferences.ts`, `ProfileEditInputSchema` — skill: domain-modeling, test-driven-development — najpierw testy: fixture'y kroku 1 — weryfikacja: testy, typecheck, lint.
+- [x] 0. [docs, orkiestrator] `context/design-context.md`: motyw idzie za wyborem użytkownika, domyślnie za telefonem; opis ekranu ustawień według D7 — skill: documentation-and-adrs — najpierw testy: brak (tylko dokumenty, bez zachowania) — weryfikacja: verifier sprawdza spójność z planem.
+- [x] 1. [backend] Schematy `account.ts`, `preferences.ts`, `ProfileEditInputSchema` — skill: domain-modeling, test-driven-development — najpierw testy: fixture'y kroku 1 — weryfikacja: testy, typecheck, lint.
 - [ ] 2. [backend, równolegle] Test kaskad `account_delete.sql`, zależny od testu kroku 2 Wydatków (R8) — skill: supabase-postgres-best-practices, doubt-driven-development — najpierw testy: sam krok jest testem; bez kodu produkcyjnego, chyba że test wykaże brak (wtedy stop) — weryfikacja: `pnpm test:db`.
 - [ ] 3. [backend, równolegle] Edge Function `delete-account`: `handler.ts`, `index.ts`, `deno.json`, wyłączenie `index.ts` z `tsc` — skill: supabase, source-driven-development, security-and-hardening, doubt-driven-development, test-driven-development — najpierw testy: lista kroku 3 — weryfikacja: pełny zestaw; `supabase functions serve` lokalnie na koncie testowym z plikami (R1). Bez wdrożenia na zdalny projekt.
 - [ ] 4. [backend, równolegle] `ProfileRepository`: `updateProfile`, `changeAvatar`, `removeAvatar`, `deleteAccount` — skill: api-and-interface-design, test-driven-development — najpierw testy: lista kroku 4 — weryfikacja: pełny zestaw.
@@ -164,7 +165,8 @@ Kroki 2–6 mogą iść równolegle po kroku 1 (rozłączne pliki, żaden nie po
 - **M7 usuwanie, znajomy i awaria:** połączony znajomy usuwa konto → podróż organizatora zostaje z jego wierszem i wydatkami; organizator usuwa konto → podróż znika znajomemu; samolotowy w trakcie usuwania → komunikat, ponowienie kończy pracę.
 
 ## Dziennik postępu
-(pusto, implementacja jeszcze nie ruszyła)
+- Krok 0 (2026-11-02): tylko dokumenty, bez testów (zatwierdzone w planie) · `context/design-context.md`: linia 7 (motyw za wyborem użytkownika), opis ekranu ustawień i podglądu awatara w notatkach projektu · start według D14 · użyty skill: documentation-and-adrs.
+- Krok 1 (2026-11-02): testy napisane (red ✓: 21 testów, schematy niezdefiniowane) · `src/schemas/account.ts` (tylko `zod`), `src/schemas/preferences.ts`, `ProfileEditInputSchema` + `ProfileEditInputValues`, eksporty w `index.ts` · green ✓: 157 zestawów, 3319 testów, typecheck, lint · verifier: PASS (2 pełne przebiegi; red znany tylko z raportu implementatora, bo krok nie był jeszcze w gicie) · użyty skill: domain-modeling, test-driven-development · uwaga: implementator raz zobaczył jeden padający test w niepowiązanym zestawie, bez nazwy; 4 kolejne przebiegi zielone, obserwujemy.
 
 ## Ryzyka i otwarte pytania
 ### Ryzyka
@@ -176,7 +178,7 @@ Kroki 2–6 mogą iść równolegle po kroku 1 (rozłączne pliki, żaden nie po
 
 - **R6 — Polityka prywatności i regulamin** są potrzebne przed publikacją w sklepach. Kacper poda adresy; linki to wtedy osobna, mała zmiana.
 - **R7 — Nick zostaje jako dana osobowa po usunięciu konta** (D11). Trzeba to ująć w przyszłej polityce prywatności.
-- **R8 — Zależność od Wydatków: `expenses.member_id` ma RESTRICT.** Usunięcie konta organizatora kasuje kaskadowo `trip_members` i `expenses`, a RESTRICT nie może tego zablokować, bo wtedy usunięcie konta i zwykłe usunięcie podróży kończą się błędem. Wynik zależy od działania kaskad w Postgresie, a migracji `expenses` nie ma jeszcze na zdalnych gałęziach, więc nie mogłem tego sprawdzić. Lead Wydatków testuje to w swoim kroku 2. Ten plan rusza dopiero po tym teście; krok 2 tego planu powtarza go przez usunięcie z `auth.users`. Jeśli test nie przejdzie, poprawka należy do migracji `expenses` i wraca do Kacpra.
+- **R8 — wynik z kroku 2 Wydatków (2026-11-02): zostaje RESTRICT, usunięcie podróży i konta organizatora przechodzi także z wydatkami członków; krok 2 tego planu powtarza test przez `auth.users`.** Pierwotny opis: **`expenses.member_id` ma RESTRICT.** Usunięcie konta organizatora kasuje kaskadowo `trip_members` i `expenses`, a RESTRICT nie może tego zablokować, bo wtedy usunięcie konta i zwykłe usunięcie podróży kończą się błędem. Wynik zależy od działania kaskad w Postgresie, a migracji `expenses` nie ma jeszcze na zdalnych gałęziach, więc nie mogłem tego sprawdzić. Lead Wydatków testuje to w swoim kroku 2. Ten plan rusza dopiero po tym teście; krok 2 tego planu powtarza go przez usunięcie z `auth.users`. Jeśli test nie przejdzie, poprawka należy do migracji `expenses` i wraca do Kacpra.
 
 ### Otwarte pytania
 Brak. P1–P7 rozstrzygnął Kacper 2026-11-02 (D5–D12).
