@@ -270,6 +270,7 @@ export function createLocalStore(db: LocalDb) {
         await db.runAsync('delete from trip_budget_changes', []);
         await db.runAsync('delete from trip_photos_cache', []);
         await db.runAsync('delete from my_profile_cache', []);
+        await db.runAsync('delete from expenses', []);
         await db.runAsync('commit', []);
       } catch (error) {
         // Failed: the epoch stays closed, so nothing of the previous user can be written until a retry succeeds.
@@ -280,6 +281,16 @@ export function createLocalStore(db: LocalDb) {
       // Done, in the same task as the commit: the next task already sees the open epoch.
       pendingClears--;
       if (pendingClears === 0) closed = false;
+    },
+
+    /**
+     * Runs `run` (a read-then-write on the database) as one task of the queue, so a `clearUserData` cannot fall in the middle,
+     * unless `epoch` (captured when the operation started) is no longer current: then nothing runs and this returns undefined.
+     * The expense repository writes through it.
+     */
+    async writeGuarded<T>(epoch: number, run: (db: LocalDb) => Promise<T>): Promise<T | undefined> {
+      if (!current(epoch)) return undefined;
+      return run(db);
     },
 
     /** Saves the change as pending; a newer change for the same trip replaces the older one (A7). */

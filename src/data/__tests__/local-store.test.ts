@@ -627,10 +627,15 @@ describe('clearUserData (auth-onboarding D2)', () => {
     await local.selectTrip(TRIP_ID);
     await local.saveBudgetChange(change);
     await local.cacheProfile(profile, '2026-10-18T09:00:00.000Z');
+    await ctx.db.runAsync(
+      `insert into expenses (id, trip_id, member_id, name, amount_minor, currency, category, spent_on, created_at, updated_at, deleted_at, sync_status, attempts)
+       values (?, ?, null, 'Taxi', 1500, 'EUR', 'transport', '2026-11-03', '2026-11-03T10:00:00.000Z', '2026-11-03T10:00:00.000Z', null, 'pending', 0)`,
+      [PHOTO_A, TRIP_ID],
+    );
     return ctx;
   }
 
-  const TABLES = ['trip_overview_cache', 'trip_list_cache', 'selected_trip', 'trip_budget_changes', 'trip_photos_cache', 'my_profile_cache'];
+  const TABLES = ['trip_overview_cache', 'trip_list_cache', 'selected_trip', 'trip_budget_changes', 'trip_photos_cache', 'my_profile_cache', 'expenses'];
   const count = async (db: Awaited<ReturnType<typeof store>>['db'], table: string) =>
     (await db.getFirstAsync<{ n: number }>(`select count(*) as n from ${table}`, []))?.n;
 

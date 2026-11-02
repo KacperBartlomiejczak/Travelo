@@ -47,6 +47,25 @@ const MIGRATIONS = [
      profile_json text not null,
      cached_at text not null
    );`,
+  // expenses: a row is its own outbox entry (it carries its sync state), like trip_budget_changes. Money: integer minor + currency.
+  `create table expenses (
+     id text primary key not null,
+     trip_id text not null,
+     member_id text,
+     name text not null,
+     amount_minor integer not null,
+     currency text not null,
+     category text not null,
+     spent_on text not null,
+     created_at text not null,
+     updated_at text not null,
+     deleted_at text,
+     sync_status text not null,
+     sync_error text,
+     attempts integer not null default 0,
+     last_attempt_at text
+   );
+   create index expenses_trip_id on expenses (trip_id);`,
 ];
 
 export async function migrateLocalDb(db: LocalDb): Promise<void> {
