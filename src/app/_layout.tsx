@@ -131,6 +131,29 @@ function GateContent({ view, retry }: ReturnType<typeof useGateView>) {
             ),
           }}
         />
+        {/* Edit profile above settings; its back button returns there (profile-settings D9). */}
+        <Stack.Screen
+          name="edit-profile"
+          options={{
+            title: "",
+            headerStyle: { backgroundColor: theme.background.canvas },
+            headerTintColor: theme.text.primary,
+            headerShadowVisible: false,
+            headerLeft: ({ tintColor }) => (
+              <HeaderBackButton
+                label={t("profile.settings")}
+                accessibilityLabel={t("settings.backFromEdit")}
+                tintColor={tintColor}
+                style={
+                  Platform.OS === "ios"
+                    ? { minWidth: tokens.layout.touchTarget, minHeight: tokens.layout.touchTarget }
+                    : { minHeight: tokens.layout.touchTarget }
+                }
+                onPress={() => router.back()}
+              />
+            ),
+          }}
+        />
         {/* The trip's photos full screen over the home screen (trip-photos D6, P4). */}
         <Stack.Screen name="trips/[tripId]/photos" options={{ headerShown: false, presentation: 'fullScreenModal' }} />
       </Stack.Protected>

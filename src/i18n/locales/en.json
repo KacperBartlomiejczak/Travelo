@@ -329,6 +329,8 @@
   "settings": {
     "account": "Account",
     "editProfile": "Edit profile",
+    "saveProfile": "Save",
+    "backFromEdit": "Back, Settings",
     "appearance": "Appearance",
     "theme": "Theme",
     "language": "Language",

@@ -4,7 +4,7 @@ import { currentUserEpoch, isEpochCurrent } from '@/data/local-store';
 import type { MyProfile } from '@/data/profile-repository';
 import { useProfileRepository } from '@/providers/AppProviders';
 import { useSession } from '@/providers/Session';
-import type { ProfileSetupInputValues } from '@/schemas';
+import type { ProfileEditInputValues, ProfileSetupInputValues } from '@/schemas';
 
 const PROFILE_KEY = ['profile', 'me'] as const;
 
@@ -55,6 +55,21 @@ export function useCreateProfile() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (input: ProfileSetupInputValues) => repository.createProfile(input),
+    onMutate: () => ({ epoch: currentUserEpoch() }),
+    onSuccess: (profile, _input, context) => {
+      if (!isEpochCurrent(context.epoch)) return;
+      const mine: MyProfile = { profile, fromCache: false };
+      queryClient.setQueryData(PROFILE_KEY, mine);
+    },
+  });
+}
+
+/** Saves the edited nick and interests; like `useCreateProfile`, the result goes into the profile query only if the same user is still signed in. */
+export function useUpdateProfile() {
+  const repository = useProfileRepository();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (input: ProfileEditInputValues) => repository.updateProfile(input),
     onMutate: () => ({ epoch: currentUserEpoch() }),
     onSuccess: (profile, _input, context) => {
       if (!isEpochCurrent(context.epoch)) return;

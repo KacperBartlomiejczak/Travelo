@@ -329,6 +329,8 @@
   "settings": {
     "account": "Konto",
     "editProfile": "Edytuj profil",
+    "saveProfile": "Zapisz",
+    "backFromEdit": "Wróć, Ustawienia",
     "appearance": "Wygląd",
     "theme": "Motyw",
     "language": "Język",
