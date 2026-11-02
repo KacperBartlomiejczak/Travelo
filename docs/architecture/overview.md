@@ -102,9 +102,9 @@ Travelo/
 │   └── __tests__/app/          Route tests, mirroring `src/app/` (kept outside `app/`)
 ├── .mcp.json                   MCP server `mobile-mcp` (drives a phone / emulator for the `tester` agent)
 ├── .npmrc                      pnpm: `node-linker=hoisted`
-├── AGENTS.md                   Expo-specific rules for coding agents
-├── Architecture.md             This file
-├── CLAUDE.md                   Project rules
+├── AGENTS.md                   Thin pointer to CLAUDE.md (Codex entry)
+├── CLAUDE.md                   Main project rules + router to docs/
+├── docs/                       architecture/ (how the app works), agents/ (harness), development/ (how we work)
 ├── GLOSSARY.md                 Domain terms (organizer, friend, traveller, member, layover, …)
 ├── app.json                    Expo config (plugins: expo-router, expo-splash-screen — paper `#F8F4EC` / dark `#171716` with the logo symbol, `imageWidth` 58 —, expo-sqlite, expo-localization)
 ├── eslint.config.js            ESLint flat config (eslint-config-expo)

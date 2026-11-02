@@ -11,7 +11,7 @@ Zod schemas in `src/schemas/` are the single source of truth for every data shap
 
 ## Conceptual model
 
-Conceptual model. **Canonical definitions live in `packages/schemas`** (for now `src/schemas/`, see `Architecture.md`) — if this section and the schemas disagree, the schemas win and this section gets updated. Schema constants are named `XSchema`, types `X = z.infer<typeof XSchema>`.
+Conceptual model. **Canonical definitions live in `packages/schemas`** (for now `src/schemas/`, see [overview](overview.md)) — if this section and the schemas disagree, the schemas win and this section gets updated. Schema constants are named `XSchema`, types `X = z.infer<typeof XSchema>`.
 
 ```
 Money          { amountMinor: int, currency: ISO4217 }
