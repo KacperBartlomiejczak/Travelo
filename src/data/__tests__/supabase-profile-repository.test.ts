@@ -2,7 +2,7 @@ import { NotSignedInError } from '@/data/auth';
 import { ServerUnreachableError } from '@/data/errors';
 import { migrateLocalDb } from '@/data/local-db';
 import { createLocalStore } from '@/data/local-store';
-import { UsernameTakenError } from '@/data/profile-repository';
+import { UsernameMismatchError, UsernameTakenError } from '@/data/profile-repository';
 import type { ProfileRow } from '@/data/profile-rows';
 import { createSupabaseProfileRepository } from '@/data/supabase-profile-repository';
 import { ShownProfileSchema, type Profile } from '@/schemas';
@@ -999,5 +999,25 @@ describe('deleteAccount', () => {
     const { supabase, repository } = await setup();
     supabase.invoke.mockResolvedValueOnce({ data, error: null });
     await expect(repository.deleteAccount('kacper')).rejects.toMatchObject({ name: 'ZodError' });
+  });
+
+  it('rejects with UsernameMismatchError on a 403 username_mismatch answer', async () => {
+    const { supabase, repository } = await setup();
+    const context = { status: 403, json: async () => ({ error: 'username_mismatch' }) };
+    supabase.invoke.mockResolvedValueOnce({ data: null, error: new FunctionsHttpError(context) });
+    await expect(repository.deleteAccount('kacper')).rejects.toBeInstanceOf(UsernameMismatchError);
+  });
+
+  it.each([
+    ['403 with another code', 403, async () => ({ error: 'unauthorized' })],
+    ['403 with a wrong body', 403, async () => ({ nope: true })],
+    ['403 with an unreadable body', 403, async () => Promise.reject(new Error('not json'))],
+    ['500 with the mismatch code', 500, async () => ({ error: 'username_mismatch' })],
+  ])('keeps a plain error on %s', async (_name, status, json) => {
+    const { supabase, repository } = await setup();
+    supabase.invoke.mockResolvedValueOnce({ data: null, error: new FunctionsHttpError({ status, json }) });
+    const rejected = repository.deleteAccount('kacper');
+    await expect(rejected).rejects.toThrow();
+    await expect(rejected).rejects.not.toBeInstanceOf(UsernameMismatchError);
   });
 });

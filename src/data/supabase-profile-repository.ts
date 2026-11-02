@@ -1,10 +1,11 @@
-import { FunctionsFetchError, isAuthRetryableFetchError, type SupabaseClient } from '@supabase/supabase-js';
+import { FunctionsFetchError, FunctionsHttpError, isAuthRetryableFetchError, type SupabaseClient } from '@supabase/supabase-js';
 import { randomUUID } from 'expo-crypto';
 import { Image } from 'expo-image';
 import { z } from 'zod';
 
 import { AvatarUriSchema, avatarPath } from '@/lib/avatar';
 import {
+  DeleteAccountErrorSchema,
   DeleteAccountInputSchema,
   DeleteAccountResultSchema,
   FoundFriendSchema,
@@ -22,7 +23,7 @@ import type { Database } from './database.types';
 import { ServerUnreachableError } from './errors';
 import { currentUserEpoch, type LocalStore } from './local-store';
 import { prepareAvatar } from './photo-files';
-import { UsernameTakenError, type MyProfile, type ProfileRepository } from './profile-repository';
+import { UsernameMismatchError, UsernameTakenError, type MyProfile, type ProfileRepository } from './profile-repository';
 import { profileFromRow } from './profile-rows';
 
 /** The private Storage bucket of profile photos (auth-onboarding P2). */
@@ -35,6 +36,17 @@ const SERVER_ERROR = 500;
 const UNIQUE_VIOLATION = '23505';
 /** Storage paths are case-sensitive and the server accepts only lowercase ids in them (trip-photos step 5). */
 const PathIdSchema = z.uuid().regex(/^[0-9a-f-]+$/);
+
+/** True when the Edge Function answered 403 `username_mismatch` (profile-settings D16). */
+async function isUsernameMismatch(response: Response): Promise<boolean> {
+  if (response.status !== 403) return false;
+  try {
+    const body = DeleteAccountErrorSchema.safeParse(await response.json());
+    return body.success && body.data.error === 'username_mismatch';
+  } catch {
+    return false;
+  }
+}
 
 /** Puts a local image into expo-image's disk cache under `cacheKey`, so showing it later needs no download. */
 const writeToImageCache = (uri: string, cacheKey: string) => Image.writeToCacheAsync(uri, cacheKey);
@@ -294,7 +306,11 @@ export function createSupabaseProfileRepository({
       const { data, error } = await supabase.functions.invoke('delete-account', { body });
       // `FunctionsFetchError`: no answer at all (no connection, or the 20 s limit of `withTimeout`). A relay error means the
       // gateway answered but the function did not run: the server is reachable, so it is a plain failure.
-      if (error) throw error instanceof FunctionsFetchError ? new ServerUnreachableError(error.message) : new Error(error.message);
+      if (error) {
+        if (error instanceof FunctionsFetchError) throw new ServerUnreachableError(error.message);
+        if (error instanceof FunctionsHttpError && (await isUsernameMismatch(error.context))) throw new UsernameMismatchError(error.message);
+        throw new Error(error.message);
+      }
       DeleteAccountResultSchema.parse(data);
     },
   };

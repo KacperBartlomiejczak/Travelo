@@ -1,4 +1,4 @@
-import { createInMemoryProfileRepository, UsernameTakenError } from '@/data/profile-repository';
+import { createInMemoryProfileRepository, UsernameMismatchError, UsernameTakenError } from '@/data/profile-repository';
 import { FriendCodeSchema, ShownProfileSchema } from '@/schemas';
 
 const NOW = new Date('2026-10-18T10:00:00.000Z');
@@ -136,7 +136,7 @@ describe('in-memory profile repository: account settings', () => {
   it('deleteAccount forgets the profile when the nick matches, and rejects otherwise', async () => {
     const repository = await withProfile();
     await expect(repository.deleteAccount('')).rejects.toMatchObject({ name: 'ZodError' });
-    await expect(repository.deleteAccount('other')).rejects.toThrow();
+    await expect(repository.deleteAccount('other')).rejects.toBeInstanceOf(UsernameMismatchError);
     await expect(repository.myProfile()).resolves.not.toBeNull();
     await expect(repository.deleteAccount('kacper')).resolves.toBeUndefined();
     await expect(repository.myProfile()).resolves.toBeNull();

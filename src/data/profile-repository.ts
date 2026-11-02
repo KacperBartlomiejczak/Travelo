@@ -18,6 +18,9 @@ import {
 /** The nick is already used by another account (auth-onboarding D3). */
 export class UsernameTakenError extends Error {}
 
+/** The nick typed to confirm account deletion is not the account's nick (profile-settings D16). */
+export class UsernameMismatchError extends Error {}
+
 /** The signed-in user's profile; `fromCache` is true when the server could not be reached and the copy on the phone is shown (D9). */
 export type MyProfile = { profile: ShownProfile; fromCache: boolean };
 
@@ -136,7 +139,7 @@ export function createInMemoryProfileRepository({
     },
     async deleteAccount(confirmUsername) {
       DeleteAccountInputSchema.parse({ confirmUsername });
-      if (stored?.username !== confirmUsername.trim().toLowerCase()) throw new Error('username-mismatch');
+      if (stored?.username !== confirmUsername.trim().toLowerCase()) throw new UsernameMismatchError('username-mismatch');
       stored = null;
     },
   };
