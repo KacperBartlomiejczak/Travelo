@@ -327,6 +327,18 @@
     }
   },
   "settings": {
+    "account": "Account",
+    "editProfile": "Edit profile",
+    "appearance": "Appearance",
+    "theme": "Theme",
+    "language": "Language",
+    "system": "System",
+    "light": "Light",
+    "dark": "Dark",
+    "polish": "Polish",
+    "english": "English",
+    "about": "About",
+    "version": "Version",
     "signOut": "Sign out",
     "signOutOffline": "Connect to the internet to sign out.",
     "back": "Back, Profile",

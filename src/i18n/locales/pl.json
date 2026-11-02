@@ -327,6 +327,18 @@
     }
   },
   "settings": {
+    "account": "Konto",
+    "editProfile": "Edytuj profil",
+    "appearance": "Wygląd",
+    "theme": "Motyw",
+    "language": "Język",
+    "system": "Systemowy",
+    "light": "Jasny",
+    "dark": "Ciemny",
+    "polish": "Polski",
+    "english": "Angielski",
+    "about": "O aplikacji",
+    "version": "Wersja",
     "signOut": "Wyloguj się",
     "signOutOffline": "Połącz się z internetem, żeby się wylogować.",
     "back": "Wróć, Profil",
