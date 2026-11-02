@@ -344,7 +344,7 @@ The airport list is a static bundled file, validated row by row in its test (not
 - the photo ones by Kacper on 2026-10-17 (trip-photos D37);
 - the covers one on 2026-10-18 (trip-covers step 6);
 - the profiles one on 2026-10-18 through the Supabase MCP, its version set to `20261018150000` in `schema_migrations` (auth-onboarding step 0, D12).
-- `20261020120000_friend_invite.sql` and `20261020130000_friend_invite_code_only.sql` (friend-invite) are applied to the hosted project (2026-10-21, via Supabase MCP); its migration history records them as `20261021125912` / `20261021125935` until repaired. The hosted project keeps `private` out of the API's exposed schemas (checked: only `public`, `graphql_public`).
+- `20261020120000_friend_invite.sql` and `20261020130000_friend_invite_code_only.sql` (friend-invite) are applied to the hosted project (2026-10-21, via Supabase MCP); the history was repaired to the file versions on 2026-11-02 by Kacper. The hosted project keeps `private` out of the API's exposed schemas (checked: only `public`, `graphql_public`).
 - Trip storage: `TripRepository` (`src/data/trip-repository.ts`) — Supabase implementation in the app, in-memory implementation (`LOCAL_OWNER_ID` = `LOCAL_PROFILE_ID` as owner, so the in-memory user owns its trips; options `friendAccounts`, `ownFriendCode` link by code like the server) for tests.
 - Profile storage: `ProfileRepository` (`src/data/profile-repository.ts`: `myProfile`, `createProfile`, `findByFriendCode`, `UsernameTakenError`) — Supabase implementation in the app (`createAppProfileRepository`, sharing the one SQLite store `appLocalStore()` with the trip repository), in-memory implementation (`LOCAL_PROFILE_ID`) for tests.
 
@@ -608,7 +608,7 @@ The airport list is a static bundled file, validated row by row in its test (not
   - If the own profile has not loaded yet, typing the own code asks the server; the save then fails with FI001 and the summary says „To Twój kod.”.
   - A retry of `create_trip` after the friend's profile was deleted fails with FI002 although the link exists (rare).
   - An owner may briefly see the read-only view on first render, before the own profile is read.
-  - The hosted migration history records the two migrations as `20261021125912` / `20261021125935`, not the file versions; run `supabase migration repair` before the next `db push`. Photo-viewer delete was not checked on a device (no photos on the test trip; covered by `photos.test.tsx`).
+  - Photo-viewer delete was not checked on a device (no photos on the test trip; covered by `photos.test.tsx`).
 - Theme split and profile pre-fill (`prompts/theme-split-and-profile-prefill/plan.md`):
   - The downloaded account photo is not aborted on unmount; an unused `avatar-<uuid>` file may stay in the cache directory. The file has no extension (`ImageManipulator` decodes by content).
   - A Google photo URL with a size suffix other than `=sNN` / `=sNN-c` gets `=s512-c` appended and may fail to download (then the circle stays empty).

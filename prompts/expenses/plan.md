@@ -151,5 +151,5 @@ Każdy krok po PASS: commit i push na jeden branch zadania `feature/expenses` (K
 - **R1 — Zmiana RLS dla połączonych członków (D15)** to zmiana bezpieczeństwa: pokryta testami kroku 2; verifier używa `doubt-driven-development`.
 - **R2 — Pobieranie dla połączonych znajomych:** każdy telefon pobiera też wydatki innych osób; przy LWW nieaktualny telefon nadpisze nowszą edycję tylko jeśli jego `updatedAt` jest nowszy — zaakceptowane z D15.
 - **R3 — Teksty:** polskie / angielskie napisy ekranu (np. „Zostało dziś {{amount}}” jest w design-context §11; „+{{amount}} z poprzednich dni”, „Grupa”, „Ja”, „Ile kto wydał”) — frontend proponuje z design-context; czego tam nie ma, wraca do Kacpra jako pytanie.
-- **R4 — Historia migracji na hostowanym Supabase** wciąż wymaga `supabase migration repair` (friend-invite); krok 2 pisze i testuje migrację lokalnie, na hostowany projekt trafia dopiero po naprawie historii albo decyzji Kacpra.
+- **R4 — Historia migracji na hostowanym Supabase** naprawiona przez Kacpra 2026-11-02 (`friend_invite`, `friend_invite_code_only` mają już wersje z plików, sprawdzone przez `list_migrations`). Migracja `expenses` wciąż nie jest wdrożona; to osobna decyzja Kacpra.
 - Na przyszłość (zapisane, nie planowane): dzielenie rachunku po równo (D6), FAB na każdym ekranie (D14), zdjęcie paragonu (D13), wiele walut + FX (D5).
