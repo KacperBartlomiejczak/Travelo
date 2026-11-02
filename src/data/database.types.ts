@@ -5,7 +5,32 @@ export type Database = {
   
   "public": {
           Tables: {
-            "flight_segments": {
+            "expenses": {
+                  Row: {
+                    "amount_minor": number,"category": string,"created_at": string,"currency": string,"deleted_at": string | null,"id": string,"member_id": string | null,"name": string,"spent_on": string,"trip_id": string,"updated_at": string
+                  }
+                  Insert: {
+                    "amount_minor": number,"category": string,"created_at": string,"currency": string,"deleted_at"?: string | null,"id": string,"member_id"?: string | null,"name": string,"spent_on": string,"trip_id": string,"updated_at": string
+                  }
+                  Update: {
+                    "amount_minor"?: number,"category"?: string,"created_at"?: string,"currency"?: string,"deleted_at"?: string | null,"id"?: string,"member_id"?: string | null,"name"?: string,"spent_on"?: string,"trip_id"?: string,"updated_at"?: string
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "expenses_member_fkey"
+      columns: ["trip_id","member_id"]
+isOneToOne: false
+      referencedRelation: "trip_members"
+      referencedColumns: ["trip_id","id"]
+    },{
+      foreignKeyName: "expenses_trip_id_fkey"
+      columns: ["trip_id"]
+isOneToOne: false
+      referencedRelation: "trips"
+      referencedColumns: ["id"]
+    }
+                  ]
+                },"flight_segments": {
                   Row: {
                     "arrive_at": string,"arrive_tz": string,"depart_at": string,"depart_tz": string,"direction": string,"flight_number": string | null,"from_iata": string,"id": string,"position": number,"to_iata": string,"trip_id": string
                   }
@@ -104,6 +129,9 @@ isOneToOne: false
                            },
 "trip_organizer_username":
 { Args: { "trip_id": string }; Returns: string
+                           },
+"upsert_expense":
+{ Args: { "expense": Json }; Returns: undefined
                            }
           }
           Enums: {
