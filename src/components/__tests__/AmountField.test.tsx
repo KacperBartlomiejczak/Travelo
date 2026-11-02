@@ -10,6 +10,11 @@ const { input } = tokens.components;
 const { styles } = tokens.typography;
 
 describe('AmountField', () => {
+  it('can take the focus when it appears (quick-add expense)', async () => {
+    await render(<AmountField label="Kwota" amountText="" currency="PLN" onChangeText={() => {}} autoFocus />);
+    expect(screen.getByLabelText('Kwota').props.autoFocus).toBe(true);
+  });
+
   it('shows the amount with its currency beside it (§10.5)', async () => {
     const onChangeText = jest.fn();
     await render(<AmountField label="Kwota na osobę" amountText="3000" currency="EUR" onChangeText={onChangeText} />);

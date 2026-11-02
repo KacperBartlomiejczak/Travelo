@@ -13,12 +13,14 @@ type Props = {
   currency: string;
   onChangeText: (text: string) => void;
   error?: string;
+  /** Takes the focus (and the numeric keyboard) when it appears, e.g. quick-add expense. */
+  autoFocus?: boolean;
 };
 
 const { input } = tokens.components;
 
 // Amount + its currency code side by side (§8.5); money is never shown without a currency.
-export function AmountField({ label, amountText, currency, onChangeText, error }: Props) {
+export function AmountField({ label, amountText, currency, onChangeText, error, autoFocus }: Props) {
   const theme = useTheme();
   const [focused, setFocused] = useState(false);
   return (
@@ -41,6 +43,7 @@ export function AmountField({ label, amountText, currency, onChangeText, error }
           onFocus={() => setFocused(true)}
           onBlur={() => setFocused(false)}
           keyboardType="decimal-pad"
+          autoFocus={autoFocus}
           placeholder="0"
           placeholderTextColor={theme.text.tertiary}
           {...inputCursorProps(theme)}

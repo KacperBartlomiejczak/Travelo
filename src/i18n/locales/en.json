@@ -154,7 +154,8 @@
     "amountRequired": "Enter an amount",
     "amountInvalid": "Enter the amount as a number, e.g. 2500 or 2500.50",
     "amountPositive": "The amount must be more than zero",
-    "amountInvalidWhole": "Enter the amount as a whole number, e.g. 2500"
+    "amountInvalidWhole": "Enter the amount as a whole number, e.g. 2500",
+    "categoryRequired": "Choose a category"
   },
   "interests": {
     "nightlife": "Nightlife",
@@ -402,6 +403,31 @@
       "stay": "Stay",
       "activities": "Activities",
       "other": "Other"
+    },
+    "sheet": {
+      "addTitle": "Add expense",
+      "editTitle": "Edit expense",
+      "amount": "Amount",
+      "category": "Category",
+      "name": "Name",
+      "namePlaceholder": "e.g. Dinner",
+      "who": "Who spent",
+      "date": "Date",
+      "save": "Save expense",
+      "delete": "Delete expense",
+      "saveError": "Couldn't save the expense.",
+      "deleteError": "Couldn't delete the expense.",
+      "deleteTitle": "Delete this expense?",
+      "deleteBody": "It will disappear from the list and the budget.",
+      "deleteConfirm": "Delete",
+      "deleteCancel": "Cancel"
     }
+  },
+  "confirm": {
+    "expenseSaved": "Expense saved",
+    "expenseSavedPending": "Expense saved. Waiting to sync."
+  },
+  "a11y": {
+    "addExpense": "Add expense"
   }
 }

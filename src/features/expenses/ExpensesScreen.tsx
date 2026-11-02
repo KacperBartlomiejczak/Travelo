@@ -1,16 +1,18 @@
 import { useNavigation, useRouter } from 'expo-router';
 import type { DrawerNavigationProp } from 'expo-router/drawer';
 import { CircleX, Menu, Plus } from 'lucide-react-native';
-import { useEffect, useMemo, type ReactNode } from 'react';
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { AccessibilityInfo, ScrollView, Text, useWindowDimensions, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Card } from '@/components/Card';
+import { Fab } from '@/components/Fab';
 import { IconButton } from '@/components/IconButton';
 import { OfflineBanner } from '@/components/OfflineBanner';
 import { PrimaryButton } from '@/components/PrimaryButton';
 import { SkeletonBlock } from '@/components/SkeletonBlock';
+import { Snackbar } from '@/components/Snackbar';
 import { TextButton } from '@/components/TextButton';
 import { usePillClearance } from '@/features/nav/usePillClearance';
 import { useCanEditExpense, useExpenses } from '@/hooks/useExpenses';
@@ -20,23 +22,23 @@ import { findAirport } from '@/lib/airport-search';
 import { computeExpenseBudget } from '@/lib/expense-budget';
 import { todayIn } from '@/lib/time';
 import { useIsOffline } from '@/providers/BudgetSync';
-import type { TripOverview } from '@/schemas';
+import type { LocalExpense, TripOverview } from '@/schemas';
 import { tokens } from '@/theme/tokens';
 import { useTheme } from '@/theme/useTheme';
 
 import { BudgetHero } from './BudgetHero';
+import { ExpenseSheet } from './ExpenseSheet';
 import { ExpenseTimeline } from './ExpenseTimeline';
 import { ExpensesHeader } from './ExpensesHeader';
 import { SpendByPersonChart } from './SpendByPersonChart';
 
-type Props = { onAddExpense?: () => void };
-
 const { spacing, layout, typography } = tokens;
+const { fab, offlineBanner } = tokens.components;
 
 // Expenses tab (expenses D7, D9, D10, D11): the trip bar, then the budget. Loading, no trip, error and empty have their own
 // views; offline the local data renders as usual and the banner sits above the floating pill.
-// `onAddExpense` is wired with the quick-add sheet (step 10); until then the empty state has no action.
-export function ExpensesScreen({ onAddExpense }: Props) {
+// The floating add button, the empty-state action and the rows open the add / edit sheet (step 10, D14).
+export function ExpensesScreen() {
   const { t } = useTranslation();
   const theme = useTheme();
   const router = useRouter();
@@ -54,7 +56,7 @@ export function ExpensesScreen({ onAddExpense }: Props) {
 
   let body: ReactNode;
   if (trips.data) {
-    body = <TripExpenses overview={trips.data.overview} onOpenMenu={openMenu} onAddExpense={onAddExpense} offline={offline} />;
+    body = <TripExpenses overview={trips.data.overview} onOpenMenu={openMenu} offline={offline} />;
   } else if (trips.isPending) {
     body = (
       <View testID="expenses-loading" accessible accessibilityLabel={t('trips.loading')} accessibilityState={{ busy: true }} style={{ gap: spacing[4] }}>
@@ -98,12 +100,26 @@ export function ExpensesScreen({ onAddExpense }: Props) {
   );
 }
 
-type TripProps = { overview: TripOverview; onOpenMenu: () => void; onAddExpense?: () => void; offline: boolean };
+type TripProps = { overview: TripOverview; onOpenMenu: () => void; offline: boolean };
 
-function TripExpenses({ overview, onOpenMenu, onAddExpense, offline }: TripProps) {
+function TripExpenses({ overview, onOpenMenu, offline }: TripProps) {
   const { t } = useTranslation();
   const theme = useTheme();
   const clearance = usePillClearance();
+  const insets = useSafeAreaInsets();
+  // The add / edit sheet: `null` = closed, `{ expense: null }` = adding.
+  const [sheet, setSheet] = useState<{ expense: LocalExpense | null } | null>(null);
+  const [snackbar, setSnackbar] = useState<string | null>(null);
+  // The sheet's closing animation outlives its unmount; a late second tap on Save would land on the FAB or a row beneath it.
+  const closedAt = useRef(0);
+  const openSheet = (expense: LocalExpense | null) => {
+    if (Date.now() - closedAt.current >= tokens.motion.duration.slow) setSheet({ expense });
+  };
+  const closeSheet = () => {
+    closedAt.current = Date.now();
+    setSheet(null);
+  };
+  const [bannerHeight, setBannerHeight] = useState<number | null>(null);
   const { trip, members } = overview;
   const expenses = useExpenses(trip.id);
   const owner = useIsTripOwner(trip.ownerId);
@@ -112,6 +128,8 @@ function TripExpenses({ overview, onOpenMenu, onAddExpense, offline }: TripProps
   const today = todayIn(findAirport(trip.destination)?.timezone ?? 'UTC');
   const ownMemberId = owner ? null : (members.find((member) => member.userId === myId)?.id ?? undefined);
   const list = expenses.data;
+  // Above the pill; offline, above the banner slot (measured, so a wrapped banner is cleared too; its top padding is the gap).
+  const fabLift = offline && bannerHeight !== null ? bannerHeight : insets.bottom + fab.bottomClearance + (offline ? offlineBanner.minHeight + spacing[3] : 0);
 
   const budget = useMemo(
     () =>
@@ -140,7 +158,7 @@ function TripExpenses({ overview, onOpenMenu, onAddExpense, offline }: TripProps
       <ScrollView
         testID="expenses-scroll"
         style={{ flex: 1 }}
-        contentContainerStyle={{ gap: spacing[4], paddingTop: spacing[3], paddingBottom: offline ? spacing[6] : clearance + spacing[4] }}
+        contentContainerStyle={{ gap: spacing[4], paddingTop: spacing[3], paddingBottom: (offline ? 0 : fabLift) + fab.size + spacing[4] }}
       >
         {expenses.isError ? (
           <ErrorView message={t('expenses.loadError')} onRetry={() => expenses.refetch()} />
@@ -158,24 +176,30 @@ function TripExpenses({ overview, onOpenMenu, onAddExpense, offline }: TripProps
                   {t('empty.expenses.title')}
                 </Text>
                 <Text style={[typography.styles.bodyMD, { color: theme.text.secondary, textAlign: 'center' }]}>{t('empty.expenses.body')}</Text>
-                {onAddExpense && (
-                  <View style={{ marginTop: spacing[3], alignSelf: 'stretch' }}>
-                    <PrimaryButton label={t('empty.expenses.action')} icon={Plus} onPress={onAddExpense} />
-                  </View>
-                )}
+                <View style={{ marginTop: spacing[3], alignSelf: 'stretch' }}>
+                  <PrimaryButton label={t('empty.expenses.action')} icon={Plus} onPress={() => openSheet(null)} />
+                </View>
               </View>
             ) : null}
-            {/* Rows open the edit sheet once step 10 passes `onEditExpense`. */}
-            {list && list.length > 0 && <ExpenseTimeline expenses={list} people={budget.people} currency={trip.baseCurrency} canEdit={canEdit} />}
+            {list && list.length > 0 && (
+              <ExpenseTimeline expenses={list} people={budget.people} currency={trip.baseCurrency} canEdit={canEdit} onEditExpense={openSheet} />
+            )}
           </>
         )}
       </ScrollView>
-      {/* Slot: floating add button (step 10). */}
+      {/* D24: while the list is empty, the empty state's action is the only add button. */}
+      {list && list.length > 0 && (
+        <View testID="fab-slot" style={{ position: 'absolute', right: spacing[5], bottom: fabLift }}>
+          <Fab testID="fab-add-expense" label={t('a11y.addExpense')} onPress={() => openSheet(null)} />
+        </View>
+      )}
       {offline && (
-        <View style={{ paddingTop: spacing[3], paddingBottom: clearance + spacing[3] }}>
+        <View testID="offline-banner-slot" onLayout={(event) => setBannerHeight(event.nativeEvent.layout.height)} style={{ paddingTop: spacing[3], paddingBottom: clearance + spacing[3] }}>
           <OfflineBanner />
         </View>
       )}
+      {sheet && <ExpenseSheet overview={overview} expense={sheet.expense} today={today} onClose={closeSheet} onSaved={setSnackbar} />}
+      <Snackbar message={snackbar} onHide={() => setSnackbar(null)} bottomOffset={fab.bottomClearance + fab.size + spacing[2] - spacing[4]} />
     </>
   );
 }

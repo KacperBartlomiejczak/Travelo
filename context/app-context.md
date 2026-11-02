@@ -40,16 +40,17 @@ Platforms: iOS and Android (Expo / React Native). Languages: Polish (`pl`) and E
 7. **Trip photos** — photo strip under the hero, full-screen viewer, upload to private Supabase Storage.
 8. **Offline budget** — the budget per person can be changed without internet and syncs later.
 9. **Offline reading** — the trip list and every trip opened on the phone are kept in SQLite.
-10. **Pill navigation** — a floating bottom pill with five screens (four of them are placeholders).
+10. **Pill navigation** — a floating bottom pill with five screens (two of them are placeholders).
 11. **Confirm dialog** — in-app dialog used when leaving the wizard with entered data.
 12. **Trip covers** (`prompts/trip-covers/`) — every trip has a cover: one of five bundled photos (Auckland by default) or a photo from the gallery, uploaded to Storage.
 13. **Profile tab** (`prompts/profile-tab/`) — the fifth pill item is "Profil" (route `/profile`, title "Profil użytkownika", `CircleUser` icon); since profile-screen it is the profile screen (title "Profil").
 14. **Sign-in and profile** (`prompts/auth-onboarding/`) — a required account: Google, Discord or e-mail with a 6-digit code; on first sign-in a profile with a unique nick, interests and an optional photo; a server-generated friend code, not shown yet. The device run (step 9) is partly done.
 15. **Friend invite** (`prompts/friend-invite/`) — in the wizard's friends step a friend can be added by their 6-character friend code: the card fills with their nick and interests and the account is linked to the trip at once, read-only. The linked friend sees the trip without edit controls. Layover labels line up with the flight lines on the home screen and the summary. On the hosted Supabase; device check passed.
 16. **Profile screen and sign-out** (`prompts/profile-screen/`) — "Profil" shows the photo, the nick and five numbers of the past trips (trips, countries, days travelled, flights, km flown), also offline; the gear opens Settings with "Wyloguj się" (a confirmation, disabled offline). The device run is done except the stats of a past trip (scenario 7).
+17. **Expenses** (`prompts/expenses/`, done 2026-11-02, migration not yet on the hosted database). The "Wydatki" screen has a trip bar (opens the side panel), budget left for the group or "Ja" with today's amount and carryover from earlier days, a bar per person split by category, a timeline by day, and adding by the button in the empty state, then a floating button. One person per expense, the trip's base currency only, offline. The organizer edits anyone's expenses; a linked friend adds and edits only their own.
 
 ### In progress (plans in `prompts/`)
-- **Expenses** (`prompts/expenses/`) — approved 2026-10-25, being built; the "Wydatki" screen is an empty placeholder until it is done. Scope: trip bar (opens the side panel), budget left for the group or "Ja" with today's amount and carryover from earlier days, a bar per person split by category, a timeline by day, a quick-add button on this screen. One person per expense, the trip's base currency only, offline. The organizer edits anyone's expenses; a linked friend adds and edits only their own.
+- None.
 
 ### Not started (MVP)
 - **AI day plans** — per-day schedule from real places, cost ranges, group splits (the "Plan" and "Miejsca" screens).
@@ -82,14 +83,14 @@ Root Stack (a gate decides which group exists)
 ├── (drawer)               Signed in with a profile. Side panel with all trips (swipe from the left edge only on "Podróż")
 │   └── (tabs)             Floating pill with five screens
 │       ├── /              Podróż    — the current trip (home screen)
-│       ├── /expenses      Wydatki   — placeholder
+│       ├── /expenses      Wydatki   — budget, who spent what, timeline, add expense
 │       ├── /places        Miejsca   — placeholder
 │       ├── /plan          Plan      — placeholder
 │       └── /profile       Profil    — photo, nick, travel stats; gear → /settings
 ├── /trips/new/*           Create-trip wizard (nested Stack, 4 steps)
 └── /trips/[tripId]/photos Full-screen photo viewer
 ```
-The pill is not shown in the wizard or in the photo viewer. The three placeholder screens ("Wydatki", "Miejsca", "Plan") show only a title and "Ten ekran pojawi się wkrótce." (a deliberate exception to design-context §10.13, §10.19 and §12 until their features exist).
+The pill is not shown in the wizard or in the photo viewer. The two placeholder screens ("Miejsca", "Plan") show only a title and "Ten ekran pojawi się wkrótce." (a deliberate exception to design-context §10.13, §10.19 and §12 until their features exist).
 
 ### 3.2 Home screen — "Podróż" (`/`)
 Shows the **current trip**: the one chosen in the side panel (remembered on the phone), else the **default trip** (the soonest upcoming or ongoing one, else the most recently ended). Always dark.
@@ -189,7 +190,7 @@ Profile        { id (= auth user id), username (unique, 3–20, a–z 0–9 _ .)
                  createdAt, updatedAt }
 ```
 
-Planned (in `CLAUDE.md`, not in code yet): `Day`, `Activity`, `Expense` / `LocalExpense` (being built, `prompts/expenses/`), `DayPlanDraft`. `OutboxEntry` is not used: local rows carry their own sync state.
+`Expense` / `LocalExpense` are in code (`src/schemas/expense.ts`). Planned (in `CLAUDE.md`, not in code yet): `Day`, `Activity`, `DayPlanDraft`. `OutboxEntry` is not used: local rows carry their own sync state.
 
 Key facts:
 - The **organizer is not a `TripMember` row**; traveller count = members + 1.
@@ -215,7 +216,7 @@ Key facts:
 | Sign-in | Supabase Auth | **No** — a signed-in user stays signed in offline |
 | Sign-out | Supabase Auth, then the phone's data is erased | **No** — the button is disabled offline |
 | Profile stats | Computed on the phone from the trip list copy | **Yes** |
-| **Expenses** (in progress) | SQLite, the local row is its own outbox entry, synced to Supabase | **Yes** (decided; see below) |
+| **Expenses** | SQLite, the local row is its own outbox entry, synced to Supabase | **Yes** (decided; see below) |
 
 **Offline scope (MVP decision):** expenses and changes to a trip's budget per person work offline. Everything else is server-first. Read-only copies cover the trip list (with each trip's destination and flight routes, for the profile stats — profile-screen D11), every trip opened on the phone, and the user's own profile (auth-onboarding D9). Extending offline to other entities is a new decision for Kacper.
 
@@ -263,17 +264,17 @@ Open decision: the exact Gemini model ID (it comes from config, never hardcoded)
 
 - **Stack:** Expo SDK 57, React Native 0.86, React 19.2 (New Architecture, React Compiler, typed routes), expo-router, TypeScript strict, TanStack Query, Zod, `expo-sqlite`, `@supabase/supabase-js`, i18next, lucide icons.
 - **Fonts:** DM Sans (body) and Fraunces (display).
-- **Folders** (`src/`): `app/` (routes only), `components/` (shared UI), `features/` (`auth`, `drawer`, `home`, `nav`, `profile`, `trip-create`, `trip-photos`), `hooks/` (TanStack Query hooks), `data/` (repositories, Supabase client, SQLite store, sync), `lib/` (pure logic: time zones, layovers, money, airport search, travel stats), `schemas/`, `providers/`, `i18n/` (pl / en dictionaries), `theme/` (tokens and light/dark themes), `test/` (helpers), `__tests__/app/` (route tests).
+- **Folders** (`src/`): `app/` (routes only), `components/` (shared UI), `features/` (`auth`, `drawer`, `home`, `nav`, `profile`, `trip-create`, `trip-photos`, `expenses`), `hooks/` (TanStack Query hooks), `data/` (repositories, Supabase client, SQLite store, sync), `lib/` (pure logic: time zones, layovers, money, airport search, travel stats), `schemas/`, `providers/`, `i18n/` (pl / en dictionaries), `theme/` (tokens and light/dark themes), `test/` (helpers), `__tests__/app/` (route tests).
 - **Data access:** screens use hooks → a `TripRepository` or a `ProfileRepository` interface, and the session comes from a `SessionProvider`. The app's implementations are Supabase + SQLite; tests use in-memory ones.
 - **Design rules:** all colors, spacing, radii and type come from theme tokens (no hardcoded values); all text goes through i18n keys; touch targets ≥ 44 pt; money is always shown with its currency; every screen has loading, empty, error and (where relevant) offline states. See `context/design-context.md`.
-- **Reusable pieces:** `PillNav`, `ConfirmDialog`, `BottomSheet` (swipe down to close), `Snackbar`, `OfflineBanner`, `SyncIndicator`, `PrimaryButton`, `TextButton`, `IconButton`, `HeroIconButton`, form fields (`TextField`, `AirportField`, `DateTimeField`, `AmountField`), `Chip`, `InterestChips`, `Stepper`, `SegmentedControl`, `Card`, `CoverPicker`, `TripHero`, `SkeletonBlock` (pulsing placeholder); for forms without a wizard, `AuthFormScreen` (`src/features/auth/`).
+- **Reusable pieces:** `PillNav`, `ConfirmDialog`, `BottomSheet` (swipe down to close), `Snackbar`, `OfflineBanner`, `SyncIndicator`, `PrimaryButton`, `TextButton`, `IconButton`, `HeroIconButton`, form fields (`TextField`, `AirportField`, `DateTimeField`, `AmountField`), `Chip`, `InterestChips`, `Stepper`, `SegmentedControl`, `Card`, `CoverPicker`, `TripHero`, `SkeletonBlock` (pulsing placeholder); for forms without a wizard, `AuthFormScreen` (`src/features/auth/`), `Fab`.
 
 ---
 
 ## 8. Principles that shape every feature
 
 - **Built for one hand, on the move.** Primary actions sit in the thumb zone.
-- **Adding an expense takes under 5 seconds** (quick-add, category chips, last-used currency preselected) — when expenses are built.
+- **Adding an expense takes under 5 seconds** (quick-add, category chips, last-used currency preselected).
 - **Local first for the offline scope.** Saving never waits for the network; the UI reads from SQLite.
 - **Zod is the single source of truth.** Validate at every boundary: forms, server responses, SQLite rows, external APIs, AI output.
 - **Privacy:** GPS is never read or stored from photos; no secret keys in the repo.
@@ -283,7 +284,7 @@ Open decision: the exact Gemini model ID (it comes from config, never hardcoded)
 ## 9. Known gaps (short list)
 
 The full list is in `Architecture.md` → "Known limitations & tech debt". The ones that matter for product decisions:
-- Three of five pill screens are placeholders.
+- Two of five pill screens are placeholders.
 - Photos not yet sent are lost if the app closes.
 - Sign-in:
   - Sign in with Apple is needed before an iOS release;
