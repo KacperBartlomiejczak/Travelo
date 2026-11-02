@@ -13,7 +13,7 @@ import { PrimaryButton } from '@/components/PrimaryButton';
 import { SkeletonBlock } from '@/components/SkeletonBlock';
 import { TextButton } from '@/components/TextButton';
 import { usePillClearance } from '@/features/nav/usePillClearance';
-import { useExpenses } from '@/hooks/useExpenses';
+import { useCanEditExpense, useExpenses } from '@/hooks/useExpenses';
 import { useIsTripOwner, useMyProfileId } from '@/hooks/useProfile';
 import { useCurrentTrip } from '@/hooks/useTrips';
 import { findAirport } from '@/lib/airport-search';
@@ -25,6 +25,7 @@ import { tokens } from '@/theme/tokens';
 import { useTheme } from '@/theme/useTheme';
 
 import { BudgetHero } from './BudgetHero';
+import { ExpenseTimeline } from './ExpenseTimeline';
 import { ExpensesHeader } from './ExpensesHeader';
 import { SpendByPersonChart } from './SpendByPersonChart';
 
@@ -107,6 +108,7 @@ function TripExpenses({ overview, onOpenMenu, onAddExpense, offline }: TripProps
   const expenses = useExpenses(trip.id);
   const owner = useIsTripOwner(trip.ownerId);
   const myId = useMyProfileId();
+  const canEdit = useCanEditExpense(overview);
   const today = todayIn(findAirport(trip.destination)?.timezone ?? 'UTC');
   const ownMemberId = owner ? null : (members.find((member) => member.userId === myId)?.id ?? undefined);
   const list = expenses.data;
@@ -163,7 +165,8 @@ function TripExpenses({ overview, onOpenMenu, onAddExpense, offline }: TripProps
                 )}
               </View>
             ) : null}
-            {/* Slot: timeline of expenses by day (step 9). */}
+            {/* Rows open the edit sheet once step 10 passes `onEditExpense`. */}
+            {list && list.length > 0 && <ExpenseTimeline expenses={list} people={budget.people} currency={trip.baseCurrency} canEdit={canEdit} />}
           </>
         )}
       </ScrollView>
