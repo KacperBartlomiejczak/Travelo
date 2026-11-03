@@ -34,7 +34,7 @@ You **never** edit screens, components, hooks, theme or i18n (`src/app/`, `src/c
 - **Order for data changes:** Zod → migration → regenerate Supabase types → parity check passes.
 - **Money:** integer minor units + ISO 4217 code. No floats.
 - **Time:** ISO 8601 with offset; flights also store IANA timezone.
-- **RLS on every table.** Owner has full access; linked viewers (`trip_members.user_id`) read-only; guests (`user_id = null`) have no access of their own. Every table change ships with RLS tests: user A cannot read/write user B's trip, viewer cannot write.
+- **RLS on every table.** Owner has full access; linked viewers (`trip_members.user_id`) read-only, except expenses assigned to their own member row (`prompts/expenses/plan.md` D15); guests (`user_id = null`) have no access of their own. Every table change ships with RLS tests: user A cannot read/write user B's trip, viewer cannot write.
 - **Never edit an applied migration** — write a new one.
 - **Expense sync endpoint:** idempotent upsert by client-generated `id`, soft delete via `deletedAt`, last write wins by `updatedAt`. Tests prove a retried request creates no duplicates.
 - **AI (Edge Functions only), provider Google Gemini** (Gemini API, key from Google AI Studio in Edge Function secrets, model ID from env, never hardcoded). Use Gemini structured output with the JSON Schema generated from Zod; check current `@google/genai` docs for parameter names before writing the call.

@@ -56,7 +56,7 @@ async function setup(extra: Partial<Parameters<typeof createSupabaseTripReposito
     newId: sequentialIds(),
     ...extra,
   });
-  return { supabase, local, repository, setNow: (next: Date) => (now = next) };
+  return { supabase, db, local, repository, setNow: (next: Date) => (now = next) };
 }
 
 describe('create', () => {
@@ -1814,6 +1814,38 @@ describe('hasUnsentChanges (profile-screen D5)', () => {
     await expect(repository.hasUnsentChanges()).resolves.toBe(true);
   });
 
+  describe('offline expenses', () => {
+    async function withExpense(syncStatus: string, deletedAt: string | null = null) {
+      const ctx = await setup();
+      await ctx.db.runAsync(
+        `insert into expenses (id, trip_id, member_id, name, amount_minor, currency, category, spent_on, created_at, updated_at, deleted_at, sync_status, attempts)
+         values ('e1', 't1', null, 'Lunch', 1200, 'EUR', 'food', '2026-01-01', '2026-01-01T10:00:00Z', '2026-01-01T10:00:00Z', ?, ?, 0)`,
+        [deletedAt, syncStatus],
+      );
+      return ctx;
+    }
+
+    it('true for a pending expense', async () => {
+      const { repository } = await withExpense('pending');
+      await expect(repository.hasUnsentChanges()).resolves.toBe(true);
+    });
+
+    it('true for a failed expense', async () => {
+      const { repository } = await withExpense('failed');
+      await expect(repository.hasUnsentChanges()).resolves.toBe(true);
+    });
+
+    it('true for a soft-deleted expense whose delete is not synced yet', async () => {
+      const { repository } = await withExpense('pending', '2026-01-02T10:00:00Z');
+      await expect(repository.hasUnsentChanges()).resolves.toBe(true);
+    });
+
+    it('false when every expense is synced', async () => {
+      const { repository } = await withExpense('synced');
+      await expect(repository.hasUnsentChanges()).resolves.toBe(false);
+    });
+  });
+
   it('rejects when the device store cannot be read: "none" is never guessed (guard test, green at once)', async () => {
     const { local } = await setup();
     const error = new Error('disk error');
@@ -1890,7 +1922,7 @@ describe('a request that never answers (real Supabase client with the 20 s timeo
 
   const json = (body: unknown) => () => new Response(JSON.stringify(body), { status: 200, headers: { 'Content-Type': 'application/json' } });
 
-  beforeEach(() => jest.useFakeTimers({ doNotFake: ['nextTick', 'setImmediate'] }));
+  beforeEach(() => jest.useFakeTimers({ now: Date.now(), doNotFake: ['nextTick', 'setImmediate'] }));
   afterEach(() => jest.useRealTimers());
 
   it('the home screen gets the copy on the device after 20 s instead of loading forever', async () => {

@@ -8,7 +8,7 @@
   - If the own profile has not loaded yet, typing the own code asks the server; the save then fails with FI001 and the summary says „To Twój kod.”.
   - A retry of `create_trip` after the friend's profile was deleted fails with FI002 although the link exists (rare).
   - An owner may briefly see the read-only view on first render, before the own profile is read.
-  - The hosted migration history records the two migrations as `20261021125912` / `20261021125935`, not the file versions; run `supabase migration repair` before the next `db push`. Photo-viewer delete was not checked on a device (no photos on the test trip; covered by `photos.test.tsx`).
+  - Photo-viewer delete was not checked on a device (no photos on the test trip; covered by `photos.test.tsx`).
 - Theme split and profile pre-fill (`prompts/theme-split-and-profile-prefill/plan.md`):
   - The downloaded account photo is not aborted on unmount; an unused `avatar-<uuid>` file may stay in the cache directory. The file has no extension (`ImageManipulator` decodes by content).
   - A Google photo URL with a size suffix other than `=sNN` / `=sNN-c` gets `=s512-c` appended and may fail to download (then the circle stays empty).
@@ -57,6 +57,7 @@
   - The emulator could not prove GPS stripping or EXIF orientation, because its camera files have neither; Kacper checked them on his phone.
 - Airport list (3,153 airports, ~470 KB): city names come from merged sources with hand overrides for large airports; some small airports keep odd names, 91 airports are dropped (no time zone / city). City names are in English ("Warsaw").
 - Pickers are mocked in tests; device checks are pending (see the manual steps in `prompts/trip-create-wizard/plan.md`). On web, browser back/forward may bypass the leave confirmation.
+- Expenses (`prompts/expenses/plan.md`): the pull has no pagination (PostgREST's 1000 rows per trip); `updated_at` comes from the client, so a far-future clock wins every later write (LWW); the `DateField` is private to `ExpenseSheet` and has no web variant; corrupt rows are only logged with `console.warn`.
 - A trip whose return local date is before the outbound arrival date (open-jaw across the date line) breaks the per-day figure and is rejected on save.
 - Covers (`prompts/trip-covers/plan.md`): the Jakarta preset is only 640 px (soft on the hero) until a larger original arrives; preset licences (Q3) are Kacper's to confirm; `updateDetails` reads, then writes (not atomic, R7); old builds that send a null cover to `create_trip` fail with 23502 (R5); after `cover-not-current` the sheet keeps its stale value until reopened; a failed-cover message is dropped if another snackbar is showing. On iOS the picker crops square (Expo ignores `aspect` there); the preview and hero show it with `cover` fit.
 - City names in default trip names come from the airport list (mostly English, e.g. "Warsaw → Barcelona"). A default name can exceed 60 characters (PKY → NLI is 61); the summary then shows it and asks to shorten it ("Nazwa może mieć do 60 znaków") — the redirect guard ignores the name.
@@ -69,7 +70,7 @@
 - `pnpm install` skipped the `unrs-resolver` build script (pnpm build-script approval); lint works without it.
 - `package.json` has a `reset-project` script pointing at `scripts/reset-project.js`, which does not exist.
 - Profile screen (`prompts/profile-screen/plan.md`):
-  - **Unsent changes** means budget changes only; when offline expenses land, `hasUnsentChanges` must include them.
+  - **Unsent changes** means budget changes and expenses that are not `synced`.
   - **Stats states:** a list that fails with no copy shows „–” without a retry on the profile (A2, an approved exception to design-context §12), after ~7 s of skeleton (the default query retries).
   - **Old list copy:** a copy saved before the list carried routes reads as no copy, so an offline start before the first online list read shows the side panel's offline error once (R1).
   - **Airport script:** `scripts/build-airports.mjs` reads `/usr/share/zoneinfo/zone.tab`, which Windows does not have; it needs WSL / Linux.

@@ -16,7 +16,8 @@ Feature flows live in [`features/`](features/), one file per feature that exists
 | Trip photos | [trip-photos.md](features/trip-photos.md) | add/delete: yes |
 | Pill navigation, confirm dialog | [pill-navigation.md](features/pill-navigation.md) | no |
 | Startup, splash, loading screen | [startup-and-splash.md](features/startup-and-splash.md) | no |
-| Offline expenses (rules, not built) | [offline.md](offline.md) | — |
+| Expenses | [expenses.md](features/expenses.md) | no (offline write) |
+| Offline rules | [offline.md](offline.md) | — |
 | AI day plan (rules, not built) | [ai-day-plan.md](ai-day-plan.md) | — |
 
-Placeholder tabs „Wydatki”, „Miejsca”, „Plan” have no flow yet.
+Placeholder tabs „Miejsca”, „Plan” have no flow yet.

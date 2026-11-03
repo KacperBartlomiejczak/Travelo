@@ -55,20 +55,23 @@ Activity       { id, dayId, startTime, endTime,
                  estimatedCost?: CostEstimate,
                  source: 'ai' | 'user', locked: boolean } // locked survives regeneration
 
-Expense        { id, tripId, dayId?, activityId?,         // activityId links plan ↔ reality
-                 amount: Money, category: ExpenseCategory,
-                 paidByMemberId, forMemberIds: string[], note?, spentAt,
-                 updatedAt, deletedAt? }                  // id is a client-generated UUID
+Expense        { id, tripId,                              // id is a client-generated UUID
+                 memberId: string | null,                  // who spent it; null = the organizer (not a TripMember)
+                 name, amount: Money,                      // always the trip's baseCurrency (for now)
+                 category: 'food' | 'transport' | 'stay' | 'activities' | 'other',
+                 spentOn: date,                            // local calendar date
+                 createdAt, updatedAt, deletedAt: string | null }
+               // later: dayId / activityId (plan ↔ reality), split between several people
 
-LocalExpense   // device only (SQLite), never sent as-is
-               Expense & { syncStatus: 'synced' | 'pending' | 'failed', syncError?: string }
+LocalExpense   // device only (SQLite), the row is its own outbox entry
+               Expense & { syncStatus: 'synced' | 'pending' | 'failed', syncError?, attempts: int, lastAttemptAt? }
 
 TripBudgetChange // a budget change made on the device, possibly offline
                { tripId, budgetPerPerson: Money, updatedAt }
 LocalTripBudgetChange // device only (SQLite), the change is its own outbox row
                TripBudgetChange & { syncStatus, syncError?, attempts: int, lastAttemptAt? }
 
-OutboxEntry    // device only (SQLite)
+OutboxEntry    // device only (SQLite) — not used: expenses and budget changes keep sync state on their own row
                { id, entity: 'expense', entityId, op: 'upsert' | 'delete',
                  payload: Expense, attempts: int, createdAt, lastAttemptAt? }
 
@@ -112,7 +115,7 @@ Zod schemas in `src/schemas/` (constants `XSchema`, types `X = z.infer<typeof XS
   - `EmailSignInInputSchema`, `EmailCodeInputSchema`.
 - `create-trip-form.ts` — wizard input: `SegmentInputSchema` (each time must exist in its airport's zone — a time skipped when clocks go forward gives `validation.timeDoesNotExist`; arrival vs departure compared only when both exist), `FlightsStepInputSchema` (segment chain, return after outbound, first departure not before today at the departure airport, 0–19 companions), `FriendInputSchema` (`displayName`, `interests`, `friendCode` — null for a friend without an account, set once the code was found; friend-invite D12), `FriendsStepInputSchema` (no two friends with the same code → `validation.friendDuplicate`), `BudgetStepInputSchema`, `TripDetailsInputSchema` (name trimmed, required, ≤ 60; required cover, `CoverChoiceSchema`), `CreateTripInputSchema` (flights, friends, budget, details). Messages are i18n keys (`validation.*`).
 
-**Server tables** (`supabase/migrations/20261006090351_trips.sql`, `20261015182337_trip_photos.sql`, `20261015184306_trip_photos_storage.sql`, `20261018120000_trip_covers.sql`, `20261018150000_profiles.sql`, `20261020120000_friend_invite.sql` and `20261020130000_friend_invite_code_only.sql`, mirroring the schemas; row types generated into `src/data/database.types.ts`):
+**Server tables** (`supabase/migrations/20261006090351_trips.sql`, `20261102120000_expenses.sql`, `20261015182337_trip_photos.sql`, `20261015184306_trip_photos_storage.sql`, `20261018120000_trip_covers.sql`, `20261018150000_profiles.sql`, `20261020120000_friend_invite.sql` and `20261020130000_friend_invite_code_only.sql`, mirroring the schemas; row types generated into `src/data/database.types.ts`):
 - `profiles` — one row per auth user.
   - Columns:
     - `id` (pk, references `auth.users`, on delete cascade);
@@ -127,6 +130,7 @@ Zod schemas in `src/schemas/` (constants `XSchema`, types `X = z.infer<typeof XS
 - `trip_members` — `id`, `trip_id`, `user_id` (null = friend without an account; set only by `private.link_trip_member` from a friend code, friend-invite D12), `display_name` (trimmed, 1–40), `role`, `interests text[]` (⊆ the 17 tags), `budget_level`, `pace`, `dietary_notes` (≤ 200); unique `(trip_id, user_id) where user_id is not null` (`trip_members_trip_user_key`).
 - `flight_segments` — `id`, `trip_id`, `direction`, `position` (= `order`), `flight_number` (2–8), `from_iata`, `to_iata`, `depart_at`, `depart_tz`, `arrive_at` (> depart), `arrive_tz`; unique `(trip_id, direction, position)`.
 - `trip_photos` — `id`, `trip_id` (deleted with its trip by cascade), `taken_at` (`timestamp without time zone`, nullable), `created_at`; an index on `trip_id`; no updates.
+- `expenses` (`20261102120000_expenses.sql`, schema `src/schemas/expense.ts`) — mirrors `ExpenseSchema`; `trip_id` cascades with the trip (D17); composite FK `(trip_id, member_id)` → `trip_members (trip_id, id)` with RESTRICT (D18): a member with expenses, also soft-deleted ones, can't be deleted (23503), while deleting a trip or the organizer's account works (`expenses_rls.sql`). RLS: owner reads and writes any row of the trip; a linked member reads all, writes only rows with their own `member_id` (D15); no delete for anyone; column-level update without `id`, `trip_id`, `created_at`. `public.upsert_expense(expense jsonb)` (security invoker): upsert by `id`, a stale or repeated `updated_at` is a silent no-op.
 
 **Storage** (`20261015184306_trip_photos_storage.sql`):
 - A private bucket `trip-photos`, JPEG only, 10 MiB per file.
@@ -137,7 +141,8 @@ Zod schemas in `src/schemas/` (constants `XSchema`, types `X = z.infer<typeof XS
   - each user may insert / select / update / delete only in their own folder;
   - shown through a signed URL (1 h).
 
-**SQLite tables** (`src/data/local-db.ts`, migrations v1–v4, `pragma user_version`):
+**SQLite tables** (`src/data/local-db.ts`, migrations v1–v5, `pragma user_version`):
+- `expenses` (v5) — mirrors `LocalExpenseSchema`: `id`, `trip_id`, `member_id` (null = organizer), `name`, `amount_minor INTEGER`, `currency`, `category`, `spent_on`, `created_at`, `updated_at`, `deleted_at`, `sync_status`, `sync_error`, `attempts`, `last_attempt_at`; index on `trip_id`. Cleared by `clearUserData`, a trip's rows dropped by `forgetTrip`; a trip that only vanished from the server list keeps its rows (D22).
 - `trip_overview_cache (trip_id, overview_json, cached_at)` — a copy of every trip read from Supabase on this phone; parsed with `TripOverviewSchema` (a corrupt copy counts as none). Copies of trips no longer on the server's list are deleted when the list is read.
 - `trip_list_cache (id = 1, list_json, cached_at)` (v2) — the last list read from Supabase; parsed with `TripListSchema`.
 - `selected_trip (id = 1, trip_id)` (v2) — the trip chosen in the side panel; parsed with `SelectedTripSchema`; forgotten when a new server list no longer has it.

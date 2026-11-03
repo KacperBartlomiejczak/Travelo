@@ -33,9 +33,9 @@ const ROUTES = {
 const PL = { index: 'Podróż', expenses: 'Wydatki', places: 'Miejsca', plan: 'Plan', profile: 'Profil' };
 const EN = { index: 'Trip', expenses: 'Expenses', places: 'Places', plan: 'Plan', profile: 'Profile' };
 const PATHS = { index: '/', expenses: '/expenses', places: '/places', plan: '/plan', profile: '/profile' };
-// Screens that are still placeholders; the profile screen has its own tests (src/__tests__/app/profile.test.tsx).
-const EMPTY = ['expenses', 'places', 'plan'] as const;
-const SCREENS = [...EMPTY, 'profile'] as const;
+// Screens that are still placeholders; the profile and expenses screens have their own tests.
+const EMPTY = ['places', 'plan'] as const;
+const SCREENS = ['expenses', ...EMPTY, 'profile'] as const;
 const SOON_PL = 'Ten ekran pojawi się wkrótce.';
 
 const pill = () => screen.queryByTestId('pill-nav');
@@ -109,7 +109,9 @@ describe('Pill navigation routes (pill-nav-and-dialog step 4)', () => {
     for (const key of SCREENS) {
       await fireEvent.press(tab(PL[key]));
       await waitFor(() => expect(app.getPathname()).toBe(PATHS[key]));
-      expect(screen.getByRole('header', { name: PL[key] })).toBeTruthy();
+      // The expenses screen's header is the trip name, not the tab name: it is recognised by its own root.
+      if (key === 'expenses') expect(screen.getByTestId('expenses-screen')).toBeTruthy();
+      else expect(screen.getByRole('header', { name: PL[key] })).toBeTruthy();
       expect(tab(PL[key])).toBeSelected();
       (Object.keys(PL) as (keyof typeof PL)[])
         .filter((other) => other !== key)

@@ -28,11 +28,11 @@
   - `private.link_trip_member(member_id uuid, code text)` (not API-exposed): the caller must own the member's trip (`42501`), resolves the code (`FI002` unknown, `FI001` own), sets `user_id` only where it is null.
   - `trip_members`: the insert policy also requires `user_id is null`; `authenticated` may update only `display_name, role, interests, budget_level, pace, dietary_notes` (not `user_id`, `id`, `trip_id`). Only the helper writes `user_id` (D12).
 - Edge Functions: none.
-- Tooling: Supabase CLI (`pnpm supabase …`); `pnpm test:db` runs `supabase/tests/*.sql` (plain SQL with `ok` / `throws` helpers, rolled back) against `$DB_URL`; `pnpm db:types` regenerates `src/data/database.types.ts` from local Supabase. SQL test files: `trips_rls`, `trip_photos_rls`, `trip_photos_storage`, `trip_covers`, `profiles`, `friend_invite`. The Storage tests need a local Supabase (`pnpm supabase start`, Docker). All seven migrations are on the hosted project (checked 2026-10-21 with Supabase MCP `list_migrations`):
+- Tooling: Supabase CLI (`pnpm supabase …`); `pnpm test:db` runs `supabase/tests/*.sql` (plain SQL with `ok` / `throws` helpers, rolled back) against `$DB_URL`; `pnpm db:types` regenerates `src/data/database.types.ts` from local Supabase. SQL test files: `trips_rls`, `trip_photos_rls`, `trip_photos_storage`, `trip_covers`, `profiles`, `friend_invite`, `expenses_rls`. The Storage tests need a local Supabase (`pnpm supabase start`, Docker). All seven migrations are on the hosted project (checked 2026-10-21 with Supabase MCP `list_migrations`):
 - the photo ones by Kacper on 2026-10-17 (trip-photos D37);
 - the covers one on 2026-10-18 (trip-covers step 6);
 - the profiles one on 2026-10-18 through the Supabase MCP, its version set to `20261018150000` in `schema_migrations` (auth-onboarding step 0, D12).
-- `20261020120000_friend_invite.sql` and `20261020130000_friend_invite_code_only.sql` (friend-invite) are applied to the hosted project (2026-10-21, via Supabase MCP); its migration history records them as `20261021125912` / `20261021125935` until repaired. The hosted project keeps `private` out of the API's exposed schemas (checked: only `public`, `graphql_public`).
+- `20261020120000_friend_invite.sql` and `20261020130000_friend_invite_code_only.sql` (friend-invite) are applied to the hosted project (2026-10-21, via Supabase MCP); the history was repaired to the file versions on 2026-11-02 by Kacper. The hosted project keeps `private` out of the API's exposed schemas (checked: only `public`, `graphql_public`).
 - Trip storage: `TripRepository` (`src/data/trip-repository.ts`) — Supabase implementation in the app, in-memory implementation (`LOCAL_OWNER_ID` = `LOCAL_PROFILE_ID` as owner, so the in-memory user owns its trips; options `friendAccounts`, `ownFriendCode` link by code like the server) for tests.
 - Profile storage: `ProfileRepository` (`src/data/profile-repository.ts`: `myProfile`, `createProfile`, `findByFriendCode`, `UsernameTakenError`) — Supabase implementation in the app (`createAppProfileRepository`, sharing the one SQLite store `appLocalStore()` with the trip repository), in-memory implementation (`LOCAL_PROFILE_ID`) for tests.
 
@@ -40,5 +40,5 @@
 ## Data and security rules
 - Money is stored as **integer minor units + ISO 4217 currency code**. No floats for money, ever.
 - Timestamps are ISO 8601 with offset; flights also store the airport's IANA timezone.
-- **RLS on every table.** A trip is visible only to its owner and to members with a linked `userId`. Linked members are read-only.
+- **RLS on every table.** A trip is visible only to its owner and to members with a linked `userId`. Linked members are read-only, except their own expenses (`prompts/expenses/plan.md` D15).
 - Store only `placeId` long-term from Google Places (respect their terms); fetch details live.

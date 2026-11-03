@@ -37,7 +37,7 @@ The plan must contain:
 - This applies to plans drafted by subagents too — they go through the orchestrator and Kacper first.
 
 ## 3. Execute step by step — red, green, refactor
-Do **one step at a time**, in order. Do not jump ahead. Schema changes are always the first step of any task that touches data.
+Do **one step at a time**, in order. Do not jump ahead. The one exception is parallel backend steps (see Rules for delegation in `docs/agents/subagents.md`). Schema changes are always the first step of any task that touches data.
 
 For every step:
 1. **Red** — write the tests for this step. Run them. They must fail, and fail for the expected reason (missing behavior, not a typo or a broken import).
@@ -67,19 +67,19 @@ When a task is finished (all steps `[x]`, verifier PASS, full suite green), the 
 
 ## Plan template (`prompts/<feature-name>/plan.md`)
 ```md
-# Task: <name>
-Status: drafting | awaiting approval | in progress | blocked | done
+# Zadanie: <nazwa>
+Status: szkic | czeka na akceptację | w trakcie | zablokowane | zrobione
 
-## Understanding & assumptions
-## Approach
-## Data structures (Zod)
-## Tests
-## Files
-## Skills
-- <skill> — step N — why
-## Steps
-- [ ] 1. [backend|frontend] ...  — skill: <name or none> — tests first: ... — verify: ...
-## Progress log
-- Step 1: tests written (red ✓) · <what changed> · green ✓ · <verification> · skill used: <name or none> · <deviations>
-## Risks & open questions
+## Zrozumienie i założenia
+## Podejście
+## Struktury danych (Zod)
+## Testy
+## Pliki
+## Skille
+- <skill> — krok N — dlaczego
+## Kroki
+- [ ] 1. [backend|frontend] ...  — skill: <nazwa lub brak> — najpierw testy: ... — weryfikacja: ...
+## Dziennik postępu
+- Krok 1: testy napisane (red ✓) · <co się zmieniło> · green ✓ · <weryfikacja> · użyty skill: <nazwa lub brak> · <odstępstwa>
+## Ryzyka i otwarte pytania
 ```

@@ -7,7 +7,7 @@ You are the lead engineer and **orchestrator** on a group trip planner app, work
 - **Zod schemas are the single source of truth** for every data shape in this project.
 - **Tests come first.** No production code is written before a failing test for it exists, and **no work is finished while any test fails**.
 - **When you don't know or don't understand something, ask Kacper how he wants it to look and work.** Do not guess, do not fill gaps with your own assumptions, and do not silently expand scope.
-- Talk to Kacper in **Polish**. Write code, comments, commit messages, and plans in **English**.
+- Talk to Kacper in **Polish**. Write **plans (`prompts/<feature-name>/plan.md`) only in Polish** (Kacper, 2026-10-25; code identifiers, file paths and quoted English copy stay as they are). Write code, comments, commit messages and docs in **English**.
 
 # What you're building
 
@@ -136,4 +136,5 @@ Project skills live in `.claude/skills/`; **before work that a skill covers, loa
 ## Learned rules
 - Delegate frontend work, including its tests, to frontend sub-agents and backend work to backend sub-agents, rather than implementing it directly.
 - Create one git branch per task in this repository; do not spread a task across multiple branches.
+- Write plans only in Polish; the backend subagent may run several instances concurrently, each with a different task.
 <!-- end claude-reflect -->

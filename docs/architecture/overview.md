@@ -32,7 +32,7 @@ Traveling is a mobile app for the person who organizes a trip for a group of fri
 - Adding and deleting photos needs internet. The photo list is copied to SQLite, so photos already seen still show offline.
 - Deleting a trip deletes its photos from Storage too.
 
-**Pill navigation:** the home screen is the first of five screens in a `(tabs)` group inside the drawer, switched by a floating dark **pill** at the bottom with icon + label: „Podróż” (the current trip), „Wydatki”, „Miejsca”, „Plan”, „Profil” (`CircleUser` icon). „Wydatki”, „Miejsca” and „Plan” are empty placeholders (a title and „Ten ekran pojawi się wkrótce.”). „Profil” is the user's profile: the title „Profil” with a gear to Settings, the round photo (a pulsing skeleton until it is shown; a person placeholder without a photo) and the nick, then a „Twoje podróże” card with five numbers of the past trips — trips, countries, days travelled, flights, km flown — counted on the phone from the trip list, so they show offline too. The pill overlays the screens, so the home screen leaves room for it (`usePillClearance`). The side panel opens only on „Podróż”. The pill is not shown in the wizard or the photo viewer.
+**Pill navigation:** the home screen is the first of five screens in a `(tabs)` group inside the drawer, switched by a floating dark **pill** at the bottom with icon + label: „Podróż” (the current trip), „Wydatki”, „Miejsca”, „Plan”, „Profil” (`CircleUser` icon). „Miejsca” and „Plan” are empty placeholders (a title and „Ten ekran pojawi się wkrótce.”). „Profil” is the user's profile: the title „Profil” with a gear to Settings, the round photo (a pulsing skeleton until it is shown; a person placeholder without a photo) and the nick, then a „Twoje podróże” card with five numbers of the past trips — trips, countries, days travelled, flights, km flown — counted on the phone from the trip list, so they show offline too. The pill overlays the screens, so the home screen leaves room for it (`usePillClearance`). The side panel opens only on „Podróż”. The pill is not shown in the wizard or the photo viewer.
 
 **Confirm dialog:** leaving the create-trip wizard with entered data asks through the in-app `ConfirmDialog` („Odrzucić wpisane dane?”), not a system alert.
 
@@ -67,7 +67,7 @@ Travelo/
 │   ├── trip-covers/plan.md         Required trip cover (presets + gallery in Storage): D1–D14, P1, Q1–Q3, R1–R7, progress log, manual test steps
 │   ├── auth-onboarding/plan.md     Sign-in (Google, Discord, e-mail code), profile setup, gate: D1–D24, P1–P6, R1–R16, progress log, device runs
 │   ├── theme-split-and-profile-prefill/plan.md  Light / dark split, welcome polish, sheet scrim, chips, profile button, Google / Discord pre-fill: D1–D14, P1–P8, progress log, device runs
-│   └── expenses/plan.md            Expenses screen (drafting; the pill nav decisions moved to pill-nav-and-dialog)
+│   └── expenses/plan.md            Expenses screen (done 2026-11-02; the pill nav decisions moved to pill-nav-and-dialog)
 ├── scripts/build-airports.mjs  Dev-only generator of src/data/airports.json (downloads 3 public sources)
 ├── scripts/build-covers.ps1    One-off Windows tool (System.Drawing): `assets/template-images/` → `assets/covers/` (largest source per id, never upscales, no EXIF)
 ├── scripts/test-db.sh          `pnpm test:db`: runs supabase/tests/*.sql with psql against $DB_URL
@@ -80,7 +80,7 @@ Travelo/
 │   │   ├── settings.tsx        Settings (signed in, above the drawer): sign-out
 │   │   ├── auth/callback.tsx   Landing point of the OAuth redirect; only redirects by state
 │   │   ├── (drawer)/           Route group (no URL segment): `_layout` = expo-router Drawer with the side panel
-│   │   │   └── (tabs)/         Route group: `_layout` = `Tabs` with the floating pill; `index` = `/` home screen (loading / error / empty / current trip); `expenses`, `places`, `plan` = empty placeholder screens; `profile` = the profile screen
+│   │   │   └── (tabs)/         Route group: `_layout` = `Tabs` with the floating pill; `index` = `/` home screen (loading / error / empty / current trip); `expenses` = expenses screen (`src/features/expenses/`); `places`, `plan` = empty placeholder screens; `profile` = the profile screen
 │   │   ├── trips/new/          Create-trip wizard: nested Stack (`_layout`) + steps index (flights), friends, budget, summary
 │   │   └── trips/[tripId]/photos.tsx  Full-screen photo viewer (`fullScreenModal`)
 │   ├── components/             Shared UI components (+ `__tests__/`)
@@ -130,7 +130,7 @@ The original plan was a monorepo (`apps/mobile/`, `packages/schemas/`, `supabase
 |---|---|---|---|
 | Routes | `src/app/` | Root Stack layout with the sign-in gate (`Stack.Protected`), the `(auth)` group (welcome, e-mail, code), `onboarding` (profile setup), `auth/callback`, the `(drawer)` group (Drawer layout) with its `(tabs)` group (Tabs layout with the pill + home screen + three empty screens + the profile screen), `settings`, create-trip wizard screens, the photo viewer (`trips/[tripId]/photos`) | `expo-router` (incl. `expo-router/drawer`), features, components, hooks, theme, i18n |
 | Schemas | `src/schemas/` | Zod schemas and inferred types: common (money, codes, dates), interests, airport (with coordinates), flight segment / flight route, member, trip / trip summary / trip overview / trip list item / trip list / selected trip, wizard inputs, Supabase client config, sync status, trip budget change / current trip, trip photo / shown photo / photo list / picked photo, cover / cover choice / cover urls, profile (username, friend code, profile, shown profile, setup input), auth (e-mail, OTP code, sign-in inputs), provider profile (`ProviderMetadataSchema` — lenient parse of Supabase's `user_metadata`; `ProviderProfileSchema` — nick suggestion + photo URL, https on `lh3.googleusercontent.com` / `cdn.discordapp.com` only; pure `suggestUsername` and `providerProfile(provider, metadata)`, which never throws) | `zod`, `lib/time` |
-| Data | `src/data/` | `AIRPORTS` (bundled list); `TripRepository` interface (incl. `hasUnsentChanges`: a budget change still on the device) + `buildTrip` + in-memory repository (tests); `createSupabaseTripRepository`; `createAppTripRepository` (the app's: Supabase + SQLite); `trip-rows` (rows ↔ entities, Zod-parsed); generated `database.types.ts`; `auth`:
+| Data | `src/data/` | `AIRPORTS` (bundled list); `TripRepository` interface (incl. `hasUnsentChanges`: a budget change or an expense that is not `synced`) + `buildTrip` + in-memory repository (tests); `createSupabaseTripRepository`; `createAppTripRepository` (the app's: Supabase + SQLite); `trip-rows` (rows ↔ entities, Zod-parsed); generated `database.types.ts`; `auth`:
   - `ensureSession` (never signs in) and `dropAnonymousSession`;
   - `signInWithProvider` (Google / Discord, PKCE), `sendEmailCode` / `verifyEmailCode`;
   - `keepSessionFresh`;
@@ -144,7 +144,7 @@ The original plan was a monorepo (`apps/mobile/`, `packages/schemas/`, `supabase
 
 `provider-profile-source` (`readProviderProfile(auth)`: the stored session's `app_metadata.provider` + `user_metadata` through `providerProfile`; never rejects — `getSession()` may refresh an expiring token, and without it there is no suggestion), `avatar-download` (`downloadAvatar(url)`: re-checks the URL with `ProviderProfileSchema`, then `File.downloadFileAsync` into `Paths.cache` as `avatar-<uuid>` with a 20 s abort timeout; returns a `file://` URI), `app-provider-profile` (the app's wiring of both; mocked globally in `jest.setup.ts`).
 
-`local-db` (expo-sqlite + versioned migrations, v1–v4); `app-local-store` (one shared store); `local-store`:
+`local-db` (expo-sqlite + versioned migrations, v1–v5); `app-local-store` (one shared store); `local-store`:
   - list copy, a copy per opened trip, the chosen trip, budget changes, a photo-list copy per trip, the own-profile copy;
   - `forgetTrip`, `clearUserData`;
   - a serial queue and the user epoch.
@@ -159,10 +159,13 @@ The original plan was a monorepo (`apps/mobile/`, `packages/schemas/`, `supabase
 | Trip photos feature | `src/features/trip-photos/` | `PhotoStrip`: under the hero; the „+” tile, then photos and uploads merged by date taken (`mergeStripItems`), with loading, empty, error, sending, failed and offline lines. `PhotoTile`: a thumbnail, a scrim with a spinner while sending, a failed icon, disabled offline. `pickTripPhotos`: the gallery, ≤ 20 photos, reads only the EXIF date. `PhotoViewer`: a full-screen pager with a counter pill, delete and an offline hint pill; it keeps the photo in view by id. `DeletePhotoSheet` | components, hooks, providers, lib, schemas, theme, `expo-image`, `expo-image-picker`, `expo-status-bar` |
 | Drawer feature | `src/features/drawer/` | `TripsDrawer`: "Twoje podróże", "Nadchodzące" / "Minione" rows (thumbnail, name, dates, the open trip marked), "Nowa podróż"; loading / error / empty / offline | components, hooks, providers, lib, theme, `expo-image` |
 | Nav feature | `src/features/nav/` | `NAV_TABS` (route key, i18n label key, lucide icon for the five tabs), `usePillClearance` (space the floating pill occupies: inset + 16 + 64) and `usePillBottomOffset`, `EmptyScreen` (title + one sentence, bottom padding above the pill) | components, theme, i18n, `react-native-safe-area-context` |
+| Expenses feature | `src/features/expenses/`, `src/hooks/useExpenses.ts` | Expenses screen, budget card, per-person chart, timeline, add / edit sheet; read and write hooks, edit rule | schemas, lib, data, components |
+| Expense data | `src/schemas/expense.ts`, `src/data/expense-repository.ts`, `expense-rows.ts`, `expense-sync.ts`, `app-expense.ts` | Expense schemas; local writes and reads in SQLite; row mapping; push and pull with Supabase; app instances | Zod, `expo-sqlite`, Supabase |
+| Expense budget | `src/lib/expense-budget.ts` | Pure totals, daily limit with carryover (D7), category sums, timeline days | schemas, `trip-days` |
 | Create-trip feature | `src/features/trip-create/` | Draft type and helpers, step routing, draft context (dirty/complete), wizard frame, segment/friend cards, field errors | schemas, lib, components |
 | Theme | `src/theme/` | Primitive tokens (`tokens.ts`, incl. the `gradient` and `duration` groups), type scale (`typography.styles` in `tokens.ts`), semantic `lightTheme` / `darkTheme` and `Theme` type (`theme.ts`), `useTheme()` hook and `DarkThemeScope` | `react-native` (`useColorScheme`) |
 | i18n | `src/i18n/` | One i18next instance with `pl` / `en` resources; language picked from the device | `i18next`, `react-i18next`, `expo-localization` |
-| Components | `src/components/` | Buttons (incl. the round `HeroIconButton`), fields, chips, interest chips (`InterestChips`), cards, step indicator, stepper, segmented control, cover picker, cover image, trip hero, bottom sheet, confirm dialog, pill nav, snackbar, sync indicator, offline banner (see Frontend) | theme, i18n, lib, `lucide-react-native`, `react-native-svg`, `@expo/ui`, `expo-image`, `expo-image-picker`, `react-native-safe-area-context` |
+| Components | `src/components/` | Buttons (incl. the round `HeroIconButton`), `Fab`, fields, chips, interest chips (`InterestChips`), cards, step indicator, stepper, segmented control, cover picker, cover image, trip hero, bottom sheet, confirm dialog, pill nav, snackbar, sync indicator, offline banner (see Frontend) | theme, i18n, lib, `lucide-react-native`, `react-native-svg`, `@expo/ui`, `expo-image`, `expo-image-picker`, `react-native-safe-area-context` |
 
 
 ## External services

@@ -469,7 +469,7 @@ describe('Photo viewer — states', () => {
   });
 
   it('when the photos cannot be read: the message and "Spróbuj ponownie", which reads them again', async () => {
-    jest.useFakeTimers({ advanceTimers: true });
+    jest.useFakeTimers({ now: Date.now(), advanceTimers: true });
     try {
       const base = await setup();
       let fail = true;

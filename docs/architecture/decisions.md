@@ -8,6 +8,7 @@
 - Exact Gemini model ID and the paid vs free tier (see AI rules).
 
 ## Key decisions
+- 2026-10-25…11-02 — Expenses (`prompts/expenses/plan.md` D5–D25): base currency only, one person per expense; organizer = `memberId null`; the local row is its own outbox entry; a linked friend writes only their own expenses (D15, changes the read-only rule); surplus accumulates with the D7 formula; RESTRICT on `member_id` stays, because the check runs after the trip's expenses cascade (D18).
 - 2026-10-22 — Splash animation (`prompts/splash-animation/plan.md` D1–D4, A3, A8): the logo animation is a Lottie made in LottieFiles Creator and played with `lottie-react-native` (D1); it follows the phone's theme through `colorFilters` on the layers `t`, `sun`, `wordmark` (D2); a spinner under the logo while the app still loads (D3); the native splash matches its frame 0 (same symbol size, `imageWidth` derived from `animationWidth`, guarded by `app-config.test.ts`) instead of waiting for the gate.
 - 2026-10-20…22 — Profile screen and sign-out (`prompts/profile-screen/plan.md` D1–D28, A1–A7):
   - **Profile = nick, photo and the stats of past trips** (D1, D2, D7, D10, D13): a trip counts once its `endDate` is before the phone's today (the side panel's rule); days inclusive; every segment is one flight. Followers, editing and sharing the profile are left out (D4).
@@ -50,7 +51,7 @@
   - It uses `Tabs` from `expo-router/js-tabs`, because the `expo-router` export is deprecated; no new dependency.
   - Home content leaves room for the floating pill through `usePillClearance`.
   - The side panel is limited to „Podróż” (R3).
-  - Labels of inactive items hide above font scale 1.3 (R1), and the empty screens („Wydatki”, „Miejsca”, „Plan”) have no illustration or loading / error / offline states (D3, A8). Both are Kacper's deliberate exceptions to design-context §10.13, §10.19 and §12.
+  - Labels of inactive items hide above font scale 1.3 (R1), and the empty screens („Miejsca”, „Plan”) have no illustration or loading / error / offline states (D3, A8). Both are Kacper's deliberate exceptions to design-context §10.13, §10.19 and §12.
   - Leaving the wizard asks through the in-app `ConfirmDialog` instead of a system alert; the web `confirm()` branch is gone.
   - Added token `duration.dialog` (§9.1).
   - Items are `button`s with a selected state; `tab` / `tablist` roles were the alternative, not chosen.

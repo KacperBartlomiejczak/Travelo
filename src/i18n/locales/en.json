@@ -149,10 +149,13 @@
     "nameTooLong": "A name can have up to {{max}} characters",
     "tripNameRequired": "Enter a trip name",
     "tripNameTooLong": "A trip name can have up to {{max}} characters",
+    "expenseNameRequired": "Enter the expense name",
+    "expenseNameTooLong": "An expense name can have up to {{max}} characters",
     "amountRequired": "Enter an amount",
     "amountInvalid": "Enter the amount as a number, e.g. 2500 or 2500.50",
     "amountPositive": "The amount must be more than zero",
-    "amountInvalidWhole": "Enter the amount as a whole number, e.g. 2500"
+    "amountInvalidWhole": "Enter the amount as a whole number, e.g. 2500",
+    "categoryRequired": "Choose a category"
   },
   "interests": {
     "nightlife": "Nightlife",
@@ -341,5 +344,61 @@
   },
   "splash": {
     "loading": "Loading app"
+  },
+  "budget": {
+    "group": "Group",
+    "me": "Me",
+    "left": "{{amount}} left",
+    "over": "{{amount}} over budget",
+    "carryover": "+{{amount}} from previous days",
+    "today": {
+      "left": "{{amount}} left today",
+      "atLimit": "Today’s planned budget is used",
+      "over": "{{amount}} over today’s plan"
+    }
+  },
+  "empty": {
+    "expenses": {
+      "title": "No expenses yet",
+      "body": "Add the first expense. It only takes a few seconds.",
+      "action": "Add expense"
+    }
+  },
+  "expenses": {
+    "loadError": "Couldn't load expenses.",
+    "who": "Who spent what",
+    "spent": "{{amount}} spent",
+    "category": {
+      "food": "Food",
+      "transport": "Transport",
+      "stay": "Stay",
+      "activities": "Activities",
+      "other": "Other"
+    },
+    "sheet": {
+      "addTitle": "Add expense",
+      "editTitle": "Edit expense",
+      "amount": "Amount",
+      "category": "Category",
+      "name": "Name",
+      "namePlaceholder": "e.g. Dinner",
+      "who": "Who spent",
+      "date": "Date",
+      "save": "Save expense",
+      "delete": "Delete expense",
+      "saveError": "Couldn't save the expense.",
+      "deleteError": "Couldn't delete the expense.",
+      "deleteTitle": "Delete this expense?",
+      "deleteBody": "It will disappear from the list and the budget.",
+      "deleteConfirm": "Delete",
+      "deleteCancel": "Cancel"
+    }
+  },
+  "confirm": {
+    "expenseSaved": "Expense saved",
+    "expenseSavedPending": "Expense saved. Waiting to sync."
+  },
+  "a11y": {
+    "addExpense": "Add expense"
   }
 }

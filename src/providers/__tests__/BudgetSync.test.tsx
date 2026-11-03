@@ -6,7 +6,7 @@ import { AppState, Text, type AppStateStatus } from 'react-native';
 import { createInMemoryTripRepository, type TripRepository } from '@/data/trip-repository';
 import { useCurrentTrip } from '@/hooks/useTrips';
 import { AppProviders } from '@/providers/AppProviders';
-import { useIsOffline } from '@/providers/BudgetSync';
+import { useIsOffline, useRequestBudgetSync } from '@/providers/BudgetSync';
 import { setNetwork } from '@/test/mock-network';
 
 const NOW = new Date('2026-10-06T09:30:00.000Z');
@@ -110,5 +110,52 @@ describe('useIsOffline', () => {
     setNetwork(network);
     const { result } = await renderHook(() => useIsOffline(), { wrapper: wrapper(repositoryWithSync().repository) });
     expect(result.current).toBe(offline);
+  });
+});
+
+describe('expense sync triggers (expenses step 5)', () => {
+  function withExpenses(results: { nextAttemptAt: Date | null }[] = []) {
+    const { repository, syncBudgets } = repositoryWithSync();
+    const sync = jest.fn(async () => results.shift() ?? { nextAttemptAt: null });
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    function Wrapper({ children }: { children: ReactNode }) {
+      return (
+        <AppProviders queryClient={queryClient} tripRepository={repository} expenseSync={{ sync }}>
+          {children}
+        </AppProviders>
+      );
+    }
+    return { Wrapper, sync, syncBudgets, queryClient };
+  }
+
+  it('sends expenses on start, on reconnect, on foreground and on request, and refreshes the expense queries', async () => {
+    setNetwork({ isConnected: false, isInternetReachable: false });
+    const { Wrapper, sync, queryClient } = withExpenses();
+    const invalidate = jest.spyOn(queryClient, 'invalidateQueries');
+    const { result } = await renderHook(() => useRequestBudgetSync(), { wrapper: Wrapper });
+    expect(sync).not.toHaveBeenCalled();
+
+    await act(async () => setNetwork({ isConnected: true, isInternetReachable: true }));
+    await waitFor(() => expect(sync).toHaveBeenCalledTimes(1));
+    expect(invalidate).toHaveBeenCalledWith({ queryKey: ['expenses'] });
+
+    await act(async () => appStateListener('active'));
+    await waitFor(() => expect(sync).toHaveBeenCalledTimes(2));
+    await act(async () => result.current());
+    await waitFor(() => expect(sync).toHaveBeenCalledTimes(3));
+  });
+
+  it('retries at the earliest of the budget and expense backoff, and a failing expense sync does not stop the budget sync', async () => {
+    const { Wrapper, sync, syncBudgets } = withExpenses([{ nextAttemptAt: new Date(NOW.getTime() + 2000) }]);
+    syncBudgets.mockResolvedValueOnce({ nextAttemptAt: new Date(NOW.getTime() + 8000) });
+    await render(<Text>app</Text>, { wrapper: Wrapper });
+    await waitFor(() => expect(sync).toHaveBeenCalledTimes(1));
+
+    await act(async () => jest.advanceTimersByTime(2500));
+    await waitFor(() => expect(sync).toHaveBeenCalledTimes(2));
+
+    sync.mockRejectedValueOnce(new Error('SQLite busy'));
+    await act(async () => appStateListener('active'));
+    await waitFor(() => expect(syncBudgets).toHaveBeenCalledTimes(3));
   });
 });
