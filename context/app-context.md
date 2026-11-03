@@ -20,7 +20,7 @@ Travelo is a mobile app for **the one person who organizes a trip for a group of
 - A friend who does have an account can optionally be added by their **friend code** as a **linked member**, to follow the trip read-only (except their own expenses, which they add and edit — `prompts/expenses/plan.md` D15).
 - The app helps the organizer set up the trip, plan the days from real places, and keep the money under control during the trip.
 
-Platforms: iOS and Android (Expo / React Native). Languages: Polish (`pl`) and English (`en`), picked from the device language (English as fallback). Light and dark mode.
+Platforms: iOS and Android (Expo / React Native). Languages: Polish (`pl`) and English (`en`), following the choice in Settings, by default the device language (English as fallback). Light and dark mode, by default following the phone.
 
 ### Out of scope — do not build
 - Flight / hotel booking, a social feed, user reviews.
@@ -47,6 +47,7 @@ Platforms: iOS and Android (Expo / React Native). Languages: Polish (`pl`) and E
 14. **Sign-in and profile** (`prompts/auth-onboarding/`) — a required account: Google, Discord or e-mail with a 6-digit code; on first sign-in a profile with a unique nick, interests and an optional photo; a server-generated friend code, not shown yet. The device run (step 9) is partly done.
 15. **Friend invite** (`prompts/friend-invite/`) — in the wizard's friends step a friend can be added by their 6-character friend code: the card fills with their nick and interests and the account is linked to the trip at once, read-only. The linked friend sees the trip without edit controls. Layover labels line up with the flight lines on the home screen and the summary. On the hosted Supabase; device check passed.
 16. **Profile screen and sign-out** (`prompts/profile-screen/`) — "Profil" shows the photo, the nick and five numbers of the past trips (trips, countries, days travelled, flights, km flown), also offline; the gear opens Settings with "Wyloguj się" (a confirmation, disabled offline). The device run is done except the stats of a past trip (scenario 7).
+17. **Avatar and settings** (`prompts/profile-settings/`) — a full-screen avatar preview with change and remove, theme and language, profile editing, and account deletion. The code is finished; the `delete-account` function is not deployed and the device run is still open.
 17. **Expenses** (`prompts/expenses/`, done 2026-11-02). The "Wydatki" screen has a trip bar (opens the side panel), budget left for the group or "Ja" with today's amount and carryover from earlier days, a bar per person split by category, a timeline by day, and adding by the button in the empty state, then a floating button. One person per expense, the trip's base currency only, offline. The organizer edits anyone's expenses; a linked friend adds and edits only their own.
 
 ### In progress (plans in `prompts/`)
@@ -78,7 +79,9 @@ Root Stack (a gate decides which group exists)
 │   ├── /email             E-mail address
 │   └── /code              6-digit code from the e-mail
 ├── /onboarding            Signed in without a profile: profile setup
-├── /settings              Settings: "Wyloguj się" (signed in, above the drawer, no pill)
+├── /settings              Settings (signed in, above the drawer, no pill)
+├── /edit-profile          Nick and interests
+├── /avatar                Full-screen avatar preview, always dark
 ├── /auth/callback         OAuth redirect landing (redirects by state)
 ├── (drawer)               Signed in with a profile. Side panel with all trips (swipe from the left edge only on "Podróż")
 │   └── (tabs)             Floating pill with five screens
@@ -147,14 +150,18 @@ Changes the budget per person (currency fixed to the trip's base currency). Work
   - at least one of the 17 interests;
   - then "Zapisz i zaczynamy" → "Podróż". A failed save scrolls to the first error.
 - **Offline:** the banner shows and the sign-in and save buttons are disabled. A signed-in user with a profile opens the app offline normally.
-- **Signing out:** everything of the previous user is erased from the phone, then the welcome screen shows. It happens when the server ends the session, or when the account was deleted (checked once at startup in the background), and when the user signs out in Settings (see 3.9).
+- **Signing out:** everything of the previous user is erased from the phone (including cached images and files; theme and language stay), then the welcome screen shows. It happens when the server ends the session, or when the account was deleted (checked once at startup in the background), and when the user signs out in Settings (see 3.9).
 
 ### 3.9 Profile and Settings (`/profile`, `/settings`)
 - **Profil:** the title "Profil" with a gear (→ Settings), the round photo and the nick, then the card "Twoje podróże" with Podróże, Kraje, Dni w podróży, Loty, Przelecone km.
   - The numbers count trips that already ended (end date before today on the phone); an ongoing trip does not count yet. A trip's country is its destination airport's country; days are inclusive; every flight segment is one flight; km is the great-circle distance between the airports, summed.
   - They come from the trip list, so they show offline too. Loading: pulsing blocks; no list and no copy: "–"; no past trips: "0".
   - The photo: a pulsing circle until it is shown (also offline), a person placeholder without a photo; after an offline start it loads when the phone is back online.
-- **Ustawienia:** one button, "Wyloguj się", at the bottom. It asks "Wylogować się?" first; the message warns when budget changes were not sent yet (they are lost). Disabled offline with "Połącz się z internetem, żeby się wylogować.". Signing out ends the session on this phone only.
+  - Tapping the photo opens a full-screen dark preview (close, three dots → "Zmień zdjęcie" / "Usuń zdjęcie"). Without a photo it opens the gallery directly. After a change the preview stays with the new photo; a removal needs no confirmation and closes it. Offline the preview works, but the dots are disabled with the reason; without a photo the circle is disabled.
+- **Ustawienia:** one scrolling list: Konto ("Edytuj profil"), Wygląd ("Motyw" and "Język": Systemowy plus two options, applied at once and kept on the phone), O aplikacji (version only; privacy policy and terms come when their addresses exist), then the two buttons below.
+- **Edytuj profil:** nick and interests as in the profile setup; save is disabled without a change, offline and with an invalid nick; no limit on nick changes.
+- **Usuń konto:** disabled offline with "Połącz się z internetem, żeby usunąć konto.". A dialog warns what disappears and enables the button only after the user types their own nick. It erases the account, profile, photo and every trip the user organizes with its plans, expenses and photos, also for linked friends. In other people's trips the user's nick and expenses stay as a friend without an account. Afterwards the welcome screen says "Konto usunięte.". A failure says photos may already be gone and allows a retry; a nick changed on another phone asks for the current one and erases nothing.
+- **Wyloguj się:** at the bottom. It asks "Wylogować się?" first; the message warns when budget changes were not sent yet (they are lost). Disabled offline with "Połącz się z internetem, żeby się wylogować.". Signing out ends the session on this phone only.
 
 ---
 
@@ -232,7 +239,7 @@ Key facts:
 
 ## 6. Backend
 
-- **Supabase:** Postgres, Auth (Google and Discord OAuth with PKCE, e-mail OTP code; anonymous sign-ins off), Row Level Security, Storage. Edge Functions: none yet.
+- **Supabase:** Postgres, Auth (Google and Discord OAuth with PKCE, e-mail OTP code; anonymous sign-ins off), Row Level Security, Storage. Edge Functions: `delete-account` (the only way to erase an account; not deployed yet).
 - **Tables:** `trips`, `trip_members`, `flight_segments`, `trip_photos`. RLS on all of them: the owner can read and write; a linked member (`trip_members.user_id`) can only read.
 - **`profiles`:** one row per user. The user reads, creates and updates only their own row, and never deletes it. The friend code is set by a server trigger and cannot be changed by the app.
 - **Storage:**
