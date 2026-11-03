@@ -14,7 +14,7 @@ Answer one concrete question from the orchestrator about the codebase, e.g.:\r
 \r
 # How you work\r
 \r
-1. Start from the repo layout in `AGENTS.md`:\r
+1. Start from the folder tree in `docs/architecture/overview.md`:\r
    - `src/schemas/` — Zod schemas (single source of truth)\r
    - `src/` — Expo app (everything outside `src/schemas/`)\r
    - `supabase/migrations/`, `supabase/functions/`\r

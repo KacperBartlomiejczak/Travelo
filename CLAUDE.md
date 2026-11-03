@@ -74,6 +74,7 @@ These bias toward caution over speed. For trivial tasks, use judgment.
 **4. Goal-driven execution — define success criteria, loop until verified.**
 - Turn every task into a verifiable goal: "Add validation" → tests for invalid inputs, then make them pass; "Fix the bug" → a test that reproduces it first; "Refactor X" → tests pass before and after.
 - Strong success criteria let you loop independently. "Make it work" is not a success criterion.
+nThese principles are working if: diffs contain fewer unnecessary changes, there are fewer rewrites due to overcomplication, and clarifying questions come before implementation rather than after mistakes.
 
 ### Ask when unsure — always
 If you don't know or don't understand something, **stop and ask Kacper how he wants it to look and work** (requirements, behavior, data, visuals, copy, priorities) — before the plan and during execution. One focused question at a time, in Polish, with 2–3 options and a recommendation when it helps. Never fill a gap with a "reasonable default". Record the answer in the feature's `plan.md`. Asking is not approval. Details: [`docs/agents/workflow.md`](docs/agents/workflow.md).

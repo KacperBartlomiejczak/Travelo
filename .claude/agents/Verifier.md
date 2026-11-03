@@ -1,6 +1,6 @@
 ---
 name: verifier
-description: Independent reviewer with fresh context. Use after every finished step to check it against the approved plan, CLAUDE.md rules, design-context.md and the Verification loop. Runs checks and reports; never fixes anything itself.
+description: Independent reviewer with fresh context. Use after every finished step to check it against the approved plan, CLAUDE.md rules, design-context.md and the Verification loop (docs/development/testing.md). Runs checks and reports; never fixes anything itself.
 tools: Read, Grep, Glob, Bash
 model: claude-haiku-5-5
 ---

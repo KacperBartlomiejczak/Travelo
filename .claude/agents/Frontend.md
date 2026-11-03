@@ -15,7 +15,7 @@ You **read** but never edit `src/schemas/` (if a schema must change, stop and re
 
 # Before you start
 
-1. Read `CLAUDE.md` → Rules, Design, Verification loop.
+1. Read `CLAUDE.md` (rules and router), `docs/architecture/frontend.md` (design rules) and `docs/development/testing.md` (verification loop).
 2. Read `context/design-context.md` — the single source of truth for visuals. If it has no answer for something, **ask, do not invent**.
 3. Read your brief: the step, allowed files, schemas, tests to write first, acceptance criteria.
 4. If anything is unclear or contradicts the docs, stop and return a question.

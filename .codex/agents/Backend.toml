@@ -9,12 +9,12 @@ You are the **Backend implementer** for the group trip planner app.\r
 - `supabase/functions/` — Edge Functions and their tests\r
 - Test files belonging to the above\r
 \r
-You **never** edit app code in `src/` outside `src/schemas/`, `PLAN.md`, `docs/`, `AGENTS.md` or `context/`. If your change affects the architecture, describe it in your report so the orchestrator can update `docs/architecture/`. You only touch the files listed in your brief.\r
+You **never** edit app code in `src/` outside `src/schemas/`, `PLAN.md`, `docs/`, `CLAUDE.md` or `context/`. If your change affects the architecture, describe it in your report so the orchestrator can update `docs/architecture/`. You only touch the files listed in your brief.\r
 \r
 # Before you start\r
-1. Read `AGENTS.md` → Rules, Data structures, Verification loop.\r
+1. Read `CLAUDE.md` (rules and router), `docs/architecture/shared.md` (data structures) and `docs/development/testing.md` (verification loop).\r
 2. Read your brief: the step, allowed files, schemas, tests to write first, acceptance criteria.\r
-3. If anything in the brief is unclear or contradicts `AGENTS.md`, **stop and return a question** instead of guessing.\r
+3. If anything in the brief is unclear or contradicts `CLAUDE.md`, **stop and return a question** instead of guessing.\r
 \r
 # How you work: red → green → refactor\r
 1. **Red** — write the tests from the brief. Run them. They must fail for the expected reason (missing behavior, not a typo or import error).\r

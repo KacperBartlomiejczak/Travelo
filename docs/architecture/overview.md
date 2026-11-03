@@ -11,7 +11,7 @@ How the app is built right now. Product scope: [`context/app-context.md`](../../
 - **External data:** Google Places API (places), Routes API (travel times), an FX rates API.
 - **AI:** Google Gemini (Gemini API, key from Google AI Studio), called **only** from Edge Functions, with structured (JSON-schema) output.
 
-Traveling is a mobile app for the person who organizes a trip for a group of friends: trip setup, members, flights and layovers, AI day plans built from real places, offline expenses, and a plan-vs-reality budget summary. The product scope and rules are defined in `CLAUDE.md`; the visual system ("Sunline") is defined in `context/design-context.md`.
+Traveling is a mobile app for the person who organizes a trip for a group of friends: trip setup, members, flights and layovers, AI day plans built from real places, offline expenses, and a plan-vs-reality budget summary. The product scope is defined in `context/app-context.md`, the rules in `CLAUDE.md`; the visual system ("Sunline") is defined in `context/design-context.md`.
 
 **Sign-in and profile (auth-onboarding):**
 - **Welcome.** The app needs an account; there are no anonymous sessions. A new user sees the welcome screen ("Witaj w Travelo", always dark, a full-screen dimmed cover photo; title, sentence and button slide in one after another).
