@@ -266,7 +266,8 @@
     "welcome": {
       "title": "Welcome to Travelo",
       "body": "Plan a trip for the whole crew — flights, budget and days in one place.",
-      "signIn": "Sign in"
+      "signIn": "Sign in",
+      "accountDeleted": "Account deleted."
     },
     "signIn": {
       "title": "Sign in",
@@ -359,6 +360,17 @@
     "version": "Version",
     "signOut": "Sign out",
     "signOutOffline": "Connect to the internet to sign out.",
+    "deleteAccount": "Delete account",
+    "deleteAccountOffline": "Connect to the internet to delete your account.",
+    "delete": {
+      "title": "Delete account?",
+      "message": "We will permanently delete your account, profile and photo, and all the trips you organise, with their plans, expenses and photos. They will disappear for linked friends too. In other people's trips your nick and your expenses will stay. This cannot be undone.",
+      "field": "Type your nick: {{username}}",
+      "confirm": "Delete account",
+      "cancel": "Cancel",
+      "failed": "Could not finish deleting the account. Some photos may already be gone. Try again.",
+      "mismatch": "Your nick has changed. Type your current nick."
+    },
     "back": "Back, Profile",
     "confirm": {
       "title": "Sign out?",

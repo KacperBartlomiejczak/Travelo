@@ -43,6 +43,40 @@ describe('TextButton', () => {
     expect(icon.props.stroke).toBe(lightTheme.text.brand);
   });
 
+  describe('loading', () => {
+    const size = tokens.iconography.size.sm;
+
+    it('shows a spinner in a slot the size of the icon, is busy and not pressable', async () => {
+      const onPress = jest.fn();
+      await render(<TextButton variant="destructive" label="Usuń" loading onPress={onPress} />);
+      const button = screen.getByRole('button', { name: 'Usuń' });
+      expect(button).toBeBusy();
+      expect(button).toBeDisabled();
+      expect(screen.getByTestId('text-button-spinner')).toBeTruthy();
+      expect(flat(screen.getByTestId('text-button-spinner-slot'))).toMatchObject({ width: size, height: size });
+      await fireEvent.press(button);
+      expect(onPress).not.toHaveBeenCalled();
+    });
+
+    it('the spinner takes the icon place: the icon is gone, the slot stays', async () => {
+      await render(<TextButton variant="ghost" label="Dodaj" icon={Plus} loading onPress={() => {}} />);
+      expect(screen.queryByTestId('text-button-icon', { includeHiddenElements: true })).toBeNull();
+      expect(flat(screen.getByTestId('text-button-spinner-slot'))).toMatchObject({ width: size, height: size });
+    });
+
+    it('keeps the variant colors while loading', async () => {
+      await render(<TextButton variant="destructive" label="Usuń" loading onPress={() => {}} />);
+      expect(flat(screen.getByRole('button', { name: 'Usuń' })).backgroundColor).toBe(lightTheme.semantic.error.background);
+    });
+
+    it('without loading there is no spinner, no slot and the button is not busy', async () => {
+      await render(<TextButton variant="destructive" label="Usuń" onPress={() => {}} />);
+      expect(screen.queryByTestId('text-button-spinner')).toBeNull();
+      expect(screen.queryByTestId('text-button-spinner-slot')).toBeNull();
+      expect(screen.getByRole('button', { name: 'Usuń' })).not.toBeBusy();
+    });
+  });
+
   describe('secondary', () => {
     it('is surface.primary with a 1dp border.default, 52dp tall, labelLG in text.primary', async () => {
       await render(<TextButton variant="secondary" label="Wyślij bilet" onPress={() => {}} />);

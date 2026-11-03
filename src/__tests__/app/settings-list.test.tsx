@@ -132,9 +132,10 @@ describe('Settings list (profile-settings step 8)', () => {
     expect(screen.queryByRole('link')).toBeNull();
   });
 
-  it('keeps "Wyloguj się" last, below every section', async () => {
+  it('keeps "Wyloguj się" below every section, with "Usuń konto" as the very last button under it (D7)', async () => {
     await openSettings();
     const labels = within(screen.getByTestId('settings-scroll')).getAllByRole('button').map((b) => b.props.accessibilityLabel ?? '');
-    expect(labels.at(-1)).toBe('Wyloguj się');
+    expect(labels.at(-2)).toBe('Wyloguj się');
+    expect(labels.at(-1)).toBe('Usuń konto');
   });
 });

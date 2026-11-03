@@ -266,7 +266,8 @@
     "welcome": {
       "title": "Witaj w Travelo",
       "body": "Zaplanuj wyjazd dla całej ekipy — loty, budżet i dni w jednym miejscu.",
-      "signIn": "Zaloguj się"
+      "signIn": "Zaloguj się",
+      "accountDeleted": "Konto usunięte."
     },
     "signIn": {
       "title": "Zaloguj się",
@@ -359,6 +360,17 @@
     "version": "Wersja",
     "signOut": "Wyloguj się",
     "signOutOffline": "Połącz się z internetem, żeby się wylogować.",
+    "deleteAccount": "Usuń konto",
+    "deleteAccountOffline": "Połącz się z internetem, żeby usunąć konto.",
+    "delete": {
+      "title": "Usunąć konto?",
+      "message": "Trwale usuniemy Twoje konto, profil i zdjęcie oraz wszystkie podróże, które organizujesz, z planami, wydatkami i zdjęciami. Znikną też u połączonych znajomych. W cudzych podróżach zostaną Twój nick i Twoje wydatki. Tego nie da się cofnąć.",
+      "field": "Wpisz swój nick: {{username}}",
+      "confirm": "Usuń konto",
+      "cancel": "Anuluj",
+      "failed": "Nie udało się dokończyć usuwania konta. Część zdjęć mogła już zniknąć. Spróbuj ponownie.",
+      "mismatch": "Twój nick się zmienił. Wpisz aktualny nick."
+    },
     "back": "Wróć, Profil",
     "confirm": {
       "title": "Wylogować się?",
