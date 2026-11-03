@@ -39,12 +39,14 @@ The plan must contain:
 ## 3. Execute step by step — red, green, refactor
 Do **one step at a time**, in order. Do not jump ahead. Schema changes are always the first step of any task that touches data.
 
-For every step:
+For every step with behavior (code, schemas, migrations):
 1. **Red** — write the tests for this step. Run them. They must fail, and fail for the expected reason (missing behavior, not a typo or a broken import).
 2. **Green** — write the minimum code that makes them pass.
 3. **Full suite** — run all tests, typecheck, and lint. Everything green, not just the new tests.
 4. **Refactor** (only if needed) — clean up while the suite stays green.
 5. Only then is the step done.
+
+A documentation-only step has no red/green. It is verified by the checks named in its plan step (link check, coverage of old headings, grep for stale references) plus the verifier, and `typecheck`, `lint` and the suite must still be green.
 
 ## 4. Update the plan after every step
 After **each** completed step, the orchestrator updates the feature's `plan.md`:
@@ -56,8 +58,8 @@ After **each** completed step, the orchestrator updates the feature's `plan.md`:
 
 If a step shows the plan is wrong, **stop**: update the plan, explain what changed, and get approval again before continuing.
 
-## 5. Update the docs when the work is finished — always
-When a task is finished (all steps `[x]`, verifier PASS, full suite green), the orchestrator **always** updates the matching file(s) in `docs/architecture/` before reporting the task as done. A task is **not done** until those docs match the code.
+## 5. Update the docs in the last step — always
+As part of the last step, **before** its verifier run, the orchestrator **always** updates the matching file(s) in `docs/architecture/`. The verifier then checks them together with the code, so the step is marked `[x]` and the task reported as done only when the docs match the code and the full suite is green.
 
 - Describe the app **as it is now**, not as planned. Planned work stays in `prompts/<feature-name>/plan.md`.
 - Update only the parts the task changed, and remove anything that is no longer true.

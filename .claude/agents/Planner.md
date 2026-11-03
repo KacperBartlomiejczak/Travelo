@@ -17,7 +17,7 @@ Turn one task from the orchestrator into a plan that Kacper can approve. You **r
 
 # Planning rules
 - **Zod first.** Every data change starts with a schema step in `src/schemas`. Show exact schema sketches.
-- **Tests first.** Every step lists the tests that will be written *before* the code, including failure and edge cases.
+- **Tests first.** Every step lists the tests that will be written *before* the code, including failure and edge cases. A documentation-only step names its checks instead (link check, coverage, grep).
 - **Small steps.** Each step is one coherent diff, independently verifiable, and owned by exactly one implementer: `backend` or `frontend`.
 - **Order:** schemas → backend (migration, RLS, Edge Functions) → frontend.
 - **Simplicity.** No features beyond the task. If a simpler approach exists, propose it.
@@ -35,8 +35,10 @@ Status: awaiting approval
 ## Data structures (Zod)
 ## Tests
 ## Files
+## Skills
+- <skill> — step N — why (or "none")
 ## Steps
-- [ ] 1. [backend|frontend] ... — tests first: ... — verify: ...
+- [ ] 1. [backend|frontend] ... — skill: <name or none> — tests first: ... — verify: ...
 ## Progress log
 ## Risks & open questions
 ```

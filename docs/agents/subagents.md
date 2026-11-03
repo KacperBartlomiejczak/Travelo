@@ -34,13 +34,14 @@ The model column mirrors the `model:` field in `.claude/agents/*.md`; change bot
 3. **verifier** checks every finished step. FAIL → back to the same implementer with the verifier's issues.
    For frontend steps, when a device or emulator is connected, **tester** then runs the plan's manual test steps on it (MCP server `mobile-mcp`, `.mcp.json`). FAIL → back to the implementer the same way.
 4. Only after PASS does the orchestrator mark the step `[x]` in the feature's `plan.md`.
-5. After the last step, the orchestrator updates `docs/architecture/`, then reports the task as done.
+5. The orchestrator updates `docs/architecture/` as part of the last step, before that step's verifier run, then reports the task as done after PASS.
 
 ## Rules for delegation
 - Every brief is self-contained: the step, files allowed, relevant Zod schemas, tests to write first, acceptance criteria.
 - A step that needs both backend and frontend changes is split into two steps.
 - No two subagents edit the same file in parallel.
-- Each subagent returns: what changed, files touched, tests written and their red → green results, verification results, concerns.
+- Implementing agents (`backend`, `frontend`) return: what changed, files touched, tests written and their red → green results, verification results, concerns.
+- Read-only and review agents return their findings only: `explorer` locations and conclusions, `planner` the plan draft, `verifier` the PASS / FAIL verdict with evidence, `tester` PASS / FAIL per scenario with screen evidence.
 
 ## Configuration (tools)
 | Agent | Model | Tools | Role |

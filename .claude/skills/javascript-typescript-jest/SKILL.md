@@ -15,7 +15,7 @@ description: 'Best practices for writing JavaScript/TypeScript tests using Jest,
 - Use `jest.mock()` for module-level mocks
 - Use `jest.spyOn()` for specific function mocks
 - Use `mockImplementation()` or `mockReturnValue()` to define mock behavior
-- Reset mocks between tests with `jest.resetAllMocks()` in `afterEach`
+- Between tests use `jest.clearAllMocks()` and `jest.restoreAllMocks()` in `afterEach`; avoid `jest.resetAllMocks()` — it also wipes mock implementations set in setup files (e.g. `jest.setup.ts`), so the next test gets `undefined`. Reset a single mock with `mockFn.mockReset()` only when you re-define its behavior
 
 ### Testing Async Code
 - Always return promises or use async/await syntax in tests

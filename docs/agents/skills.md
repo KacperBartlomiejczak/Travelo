@@ -52,14 +52,14 @@ If instructions conflict, this order wins: **Kacper's current message → `CLAUD
 - **Architecture suggestions are not changes.** `improve-codebase-architecture` produces proposals only. Each proposal becomes a normal plan that Kacper approves, then runs through tests-first. This keeps the "surgical changes" rule intact.
 - **Workflow skills serve this file's process, they do not replace it.** `spec-driven-development`, `planning-and-task-breakdown` and `documentation-and-adrs` write into `prompts/<feature-name>/plan.md` and `docs/architecture/`, never into their own spec, task or ADR files; `idea-refine` and `constraint-driven-development` create files (`docs/ideas/`, `CONSTRAINTS.md`) only when Kacper asks.
 - **Do not install or add new skills without asking Kacper.** `find-skills` may suggest one; he decides.
-- **Skills are declared in the plan.** Every plan has a **Skills** section and every step names its skill (or "none"). Do not use a skill that is not in the approved plan (the one exception is `grill-me`, which runs *before* the plan exists; its outcome is then written into the plan); if another skill turns out to be needed, update the plan and get approval first. The orchestrator records the skill actually used in the progress log after each step.
-- **Skill output is input to the plan, not a replacement for it.** Decisions from `grill-me` and `domain-modeling` are recorded in the feature's `plan.md` (assumptions and Data structures sections).
+- **Skills are declared in the plan.** Every plan has a **Skills** section and every step names its skill (or "none"). Do not use a skill that is not in the approved plan (the exceptions are `grill-me` and `interview-me`, which run *before* the plan exists; its outcome is then written into the plan); if another skill turns out to be needed, update the plan and get approval first. The orchestrator records the skill actually used in the progress log after each step.
+- **Skill output is input to the plan, not a replacement for it.** Decisions from `grill-me`, `interview-me` and `domain-modeling` are recorded in the feature's `plan.md` (assumptions and Data structures sections).
 - Subagents use only the skills listed for them above. If one needs another skill, it returns `Status: question`.
 
 ## Installed skills (sources)
 | Skill | Source | Purpose |
 |---|---|---|
-| `domain-modeling` | mattpocock/skills | Sharpen domain terms; write `GLOSSARY.md` and ADRs |
+| `domain-modeling` | mattpocock/skills | Sharpen domain terms; results go into the plan and `docs/architecture/decisions.md`, not into separate `GLOSSARY.md` or ADR files (those need Kacper's approval) |
 | `grill-me` | mattpocock/skills | Interview the user to sharpen a plan (user-invoked only) |
 | `improve-codebase-architecture` | mattpocock/skills | Find refactoring opportunities and report them (user-invoked only) |
 | `frontend-design` | anthropics/skills | Guidance for building distinctive UI |
