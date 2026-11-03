@@ -94,8 +94,8 @@ describe('useTripList (trips-drawer D4)', () => {
           { fromIata: 'DXB', toIata: 'BKK' },
           { fromIata: 'BKK', toIata: 'WAW' },
         ],
-        startDate: '2026-11-03',
-        endDate: '2026-11-15',
+        startDate: '2099-11-03',
+        endDate: '2099-11-15',
       },
     ]);
   });

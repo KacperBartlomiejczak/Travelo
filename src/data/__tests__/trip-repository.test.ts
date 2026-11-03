@@ -43,8 +43,8 @@ describe('buildTrip', () => {
       name: 'Warsaw → Bangkok',
       coverImageUri: 'preset:auckland',
       destination: 'BKK',
-      startDate: '2026-11-03',
-      endDate: '2026-11-15',
+      startDate: '2099-11-03',
+      endDate: '2099-11-15',
       baseCurrency: 'THB',
       budgetPerPerson: { amountMinor: 3000000, currency: 'THB' },
       createdAt: '2026-10-04T12:00:00.000Z',
@@ -110,9 +110,9 @@ describe('buildTrip', () => {
       expect.objectContaining({
         tripId: trip.id,
         flightNumber: 'EK180',
-        departAt: '2026-11-02T10:00:00+01:00',
+        departAt: '2099-11-02T10:00:00+01:00',
         departTz: 'Europe/Warsaw',
-        arriveAt: '2026-11-02T18:30:00+04:00',
+        arriveAt: '2099-11-02T18:30:00+04:00',
         arriveTz: 'Asia/Dubai',
       }),
     );
@@ -247,8 +247,8 @@ describe('in-memory trip repository', () => {
             { fromIata: 'DXB', toIata: 'BKK' },
             { fromIata: 'BKK', toIata: 'WAW' },
           ],
-          startDate: '2026-11-03',
-          endDate: '2026-11-15',
+          startDate: '2099-11-03',
+          endDate: '2099-11-15',
         },
       ]);
     });

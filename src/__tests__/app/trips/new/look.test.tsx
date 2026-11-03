@@ -47,8 +47,8 @@ function Seed() {
       const withFriends = withCompanionCount(draft, 2);
       return {
         ...withFriends,
-        outbound: [{ ...emptySegment(), fromIata: 'WAW', departTz: 'Europe/Warsaw', toIata: 'BKK', arriveTz: 'Asia/Bangkok', departAt: '2026-11-02T22:00', arriveAt: '2026-11-03T14:00' }],
-        return: [{ ...emptySegment(), fromIata: 'BKK', departTz: 'Asia/Bangkok', toIata: 'WAW', arriveTz: 'Europe/Warsaw', departAt: '2026-11-15T09:00', arriveAt: '2026-11-15T17:00' }],
+        outbound: [{ ...emptySegment(), fromIata: 'WAW', departTz: 'Europe/Warsaw', toIata: 'BKK', arriveTz: 'Asia/Bangkok', departAt: '2099-11-02T22:00', arriveAt: '2099-11-03T14:00' }],
+        return: [{ ...emptySegment(), fromIata: 'BKK', departTz: 'Asia/Bangkok', toIata: 'WAW', arriveTz: 'Europe/Warsaw', departAt: '2099-11-15T09:00', arriveAt: '2099-11-15T17:00' }],
         friends: [{ ...emptyFriend(), displayName: 'Kasia', interests: ['beaches'] }, { ...emptyFriend(), displayName: 'Ola' }],
         budget: { amountText: '3000', currency: '' },
       };
