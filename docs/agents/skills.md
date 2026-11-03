@@ -6,6 +6,7 @@ Project skills live in `.claude/skills/`. A skill is a tool for a specific kind 
 If instructions conflict, this order wins: **Kacper's current message → `CLAUDE.md` → `context/design-context.md` → skills.** A skill never overrides the TDD loop, the approval gate, Zod as the single source of truth, or the design tokens. If a skill's advice conflicts with these, follow the project rules and tell Kacper.
 
 ## Available skills and when to use them
+
 | Skill | Use it when | Used by |
 |---|---|---|
 | `grill-me` | A task or idea is vague. Interview Kacper about it **before** drafting the plan. Supports "Ask when unsure". | orchestrator |
@@ -18,6 +19,7 @@ If instructions conflict, this order wins: **Kacper's current message → `CLAUD
 | `supabase-postgres-best-practices` | Before writing or changing anything in Postgres: tables, columns, indexes, RLS policies, SQL functions, migrations. | backend |
 
 ### Engineering workflow skills (`addyosmani/agent-skills`, installed 2026-10-08)
+
 | Skill | Use it when | Used by |
 |---|---|---|
 | `interview-me` | An ask is underspecified. Alternative to `grill-me` (one question at a time, in Polish); use one of them, not both. Runs before the plan, like `grill-me`. | orchestrator |
@@ -57,6 +59,7 @@ If instructions conflict, this order wins: **Kacper's current message → `CLAUD
 - Subagents use only the skills listed for them above. If one needs another skill, it returns `Status: question`.
 
 ## Installed skills (sources)
+
 | Skill | Source | Purpose |
 |---|---|---|
 | `domain-modeling` | mattpocock/skills | Sharpen domain terms; results go into the plan and `docs/architecture/decisions.md`, not into separate `GLOSSARY.md` or ADR files (those need Kacper's approval) |

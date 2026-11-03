@@ -39,10 +39,11 @@ Docs: https://docs.expo.dev/eas/index.md
 ## Rules
 
 - If `ios/` and `android/` directories do not exist, they are generated (Continuous Native Generation). Never create or edit them by hand — configure native behavior in `app.json` and config plugins.
-- Expo Go only includes its bundled native modules. After adding a library with native code, the app needs a development build: `npx expo run:ios|android` locally, or `eas build --profile development`.
+- Expo Go only includes its bundled native modules. After adding a library with native code, the app needs a development build: `npx expo run:ios` or `npx expo run:android` locally, or `eas build --profile development`.
 - Prefer recommended Expo modules over third-party libraries, and check your available skills before adding dependencies. Docs: https://docs.expo.dev/versions/latest/index.md
 
 ## Project tooling
+
 | Area | Setup |
 |---|---|
 | Runtime | Expo SDK 57, React Native 0.86, React 19.2, New Architecture, React Compiler and typed routes enabled in `app.json` |
@@ -59,6 +60,7 @@ Docs: https://docs.expo.dev/eas/index.md
 `expo-router` (incl. `expo-router/drawer`, on `react-native-drawer-layout` + `react-native-gesture-handler` + `react-native-reanimated` / `react-native-worklets`, already installed), `expo-font`, `expo-splash-screen`, `expo-localization`, `i18next`, `react-i18next`, `@expo-google-fonts/dm-sans`, `@expo-google-fonts/fraunces`, `lucide-react-native`, `react-native-svg`, `react-native-safe-area-context`, `zod`, `@tanstack/react-query`, `@expo/ui` (date/time pickers), `expo-crypto` (UUIDs), `expo-image-picker` (cover photo and trip photos from the gallery), `expo-image` (cover preview, trip hero, side panel thumbnails, trip photos and their disk cache), `expo-status-bar` (light bar over the hero), `@supabase/supabase-js` (trips, auth), `expo-sqlite` (auth session `localStorage`, and the database for budget changes, trip copies and the chosen trip), `expo-network` (offline detection, reconnect), `react-native-url-polyfill` (Supabase on React Native), `expo-image-manipulator` (downscale and re-encode trip photos without EXIF), `expo-file-system` (read the photo bytes for upload), `expo-web-browser` (the OAuth browser session), `expo-linking` (the OAuth redirect URL), `lottie-react-native` 7.3.8 (the animated splash). Dev: `supabase` (CLI), `@types/node` (tests: `fs`, `node:sqlite`).
 
 ### Dependencies installed for planned features (not used by any code yet)
+
 | Package | Intended use |
 |---|---|
 | `expo-asset` | Was used only for the example trip photos (removed in trips-supabase); no code imports it now — keep or remove is Kacper's call |

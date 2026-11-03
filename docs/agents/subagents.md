@@ -44,6 +44,7 @@ The model column mirrors the `model:` field in `.claude/agents/*.md`; change bot
 - Read-only and review agents return their findings only: `explorer` locations and conclusions, `planner` the plan draft, `verifier` the PASS / FAIL verdict with evidence, `tester` PASS / FAIL per scenario with screen evidence.
 
 ## Configuration (tools)
+
 | Agent | Model | Tools | Role |
 |---|---|---|---|
 | `explorer` | `claude-haiku-5-5` (Haiku 5.5) | Read, Grep, Glob | Read-only scout: finds code, schemas and patterns |

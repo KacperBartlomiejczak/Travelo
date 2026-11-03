@@ -3,7 +3,7 @@
 Zod schemas in `src/schemas/` are the single source of truth for every data shape, shared by the app, SQLite, Supabase and (later) Edge Functions.
 
 ## Zod is the single source of truth
-- Every entity, API payload, Edge Function input/output, AI output, and form lives as a Zod schema in `src/schemas/` (target: `packages/schemas`).
+- Every entity, API payload, Edge Function input/output, AI output, and form lives as a Zod schema in `src/schemas/` (planned move to `packages/schemas`, not adopted yet).
 - TypeScript types come **only** from `z.infer`. Never hand-write a type that duplicates a schema.
 - The JSON Schema sent to the LLM is **generated from Zod** (`z.toJSONSchema`), never hand-written.
 - SQL migrations mirror the schemas. Any data change goes in this order: **Zod → migration → regenerate Supabase types → parity check passes.**
@@ -11,7 +11,7 @@ Zod schemas in `src/schemas/` are the single source of truth for every data shap
 
 ## Conceptual model
 
-Conceptual model. **Canonical definitions live in `packages/schemas`** (for now `src/schemas/`, see [overview](overview.md)) — if this section and the schemas disagree, the schemas win and this section gets updated. Schema constants are named `XSchema`, types `X = z.infer<typeof XSchema>`.
+Conceptual model. **Canonical definitions live in `src/schemas/`** (planned move to `packages/schemas`, see [overview](overview.md)) — if this section and the schemas disagree, the schemas win and this section gets updated. Schema constants are named `XSchema`, types `X = z.infer<typeof XSchema>`.
 
 ```
 Money          { amountMinor: int, currency: ISO4217 }
