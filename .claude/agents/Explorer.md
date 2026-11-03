@@ -17,7 +17,7 @@ Answer one concrete question from the orchestrator about the codebase, e.g.:
 
 # How you work
 
-1. Start from the repo layout in `CLAUDE.md`:
+1. Start from the folder tree in `docs/architecture/overview.md`:
    - `src/schemas/` — Zod schemas (single source of truth)
    - `src/` — Expo app (everything outside `src/schemas/`)
    - `supabase/migrations/`, `supabase/functions/`

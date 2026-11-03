@@ -28,6 +28,10 @@ import {
 import { createTripInputFixture } from '@/test/fixtures';
 
 const NOW = new Date('2026-10-04T12:00:00Z');
+
+// The fixture's dates are relative to the clock, so pin it to keep the date literals below valid.
+beforeEach(() => jest.useFakeTimers({ now: NOW }));
+afterEach(() => jest.useRealTimers());
 const OWNER_ID = '9d3c1b2a-0f4e-4d5c-8b6a-7e8f9a0b1c2d';
 
 function sequentialIds() {
@@ -58,8 +62,8 @@ describe('toCreateTripArgs', () => {
       name: 'Warsaw → Bangkok',
       cover_image_uri: 'preset:auckland',
       destination: 'BKK',
-      start_date: '2099-11-03',
-      end_date: '2099-11-15',
+      start_date: '2026-11-03',
+      end_date: '2026-11-15',
       base_currency: 'THB',
       budget_per_person_minor: 3000000,
       budget_updated_at: '2026-10-04T12:00:00.000Z',
@@ -109,7 +113,7 @@ describe('toCreateTripArgs', () => {
       ['return', 0, 'BKK', 'WAW', null],
     ]);
     expect((segments as SegmentRow[])[0]).toEqual(
-      expect.objectContaining({ depart_at: '2099-11-02T10:00:00+01:00', depart_tz: 'Europe/Warsaw', arrive_tz: 'Asia/Dubai' }),
+      expect.objectContaining({ depart_at: '2026-11-02T10:00:00+01:00', depart_tz: 'Europe/Warsaw', arrive_tz: 'Asia/Dubai' }),
     );
   });
 
@@ -231,8 +235,8 @@ describe('listItemFromRow (trips-drawer D4)', () => {
     name: 'Warsaw → Bangkok',
     cover_image_uri: 'preset:bali',
     destination: 'BKK',
-    start_date: '2099-11-03',
-    end_date: '2099-11-15',
+    start_date: '2026-11-03',
+    end_date: '2026-11-15',
     flight_segments: [
       { from_iata: 'WAW', to_iata: 'DOH' },
       { from_iata: 'DOH', to_iata: 'BKK' },
@@ -253,8 +257,8 @@ describe('listItemFromRow (trips-drawer D4)', () => {
         { fromIata: 'DOH', toIata: 'BKK' },
         { fromIata: 'BKK', toIata: 'WAW' },
       ],
-      startDate: '2099-11-03',
-      endDate: '2099-11-15',
+      startDate: '2026-11-03',
+      endDate: '2026-11-15',
     });
   });
 

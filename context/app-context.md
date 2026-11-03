@@ -4,11 +4,11 @@ What the app is, what it does and what it contains. Read this before planning or
 
 - **Product rules, process and engineering rules:** `CLAUDE.md`.
 - **Visual system (Sunline):** `context/design-context.md`.
-- **How the code is built right now:** `Architecture.md` (modules, data flow, backend, routes, decisions, tech debt).
+- **How the code is built right now:** `docs/architecture/` (overview, frontend, backend, shared, flows, decisions, known limitations).
 - **Domain terms:** `GLOSSARY.md`.
 - **Plans and progress of each feature:** `prompts/<feature-name>/plan.md`.
 
-If this file and the code disagree, the code wins and this file gets updated. If this file and `Architecture.md` disagree about the current state, check the code and fix whichever is wrong.
+If this file and the code disagree, the code wins and this file gets updated. If this file and `docs/architecture/` disagree about the current state, check the code and fix whichever is wrong.
 
 ---
 
@@ -45,7 +45,7 @@ Platforms: iOS and Android (Expo / React Native). Languages: Polish (`pl`) and E
 12. **Trip covers** (`prompts/trip-covers/`) — every trip has a cover: one of five bundled photos (Auckland by default) or a photo from the gallery, uploaded to Storage.
 13. **Profile tab** (`prompts/profile-tab/`) — the fifth pill item is "Profil" (route `/profile`, title "Profil użytkownika", `CircleUser` icon); since profile-screen it is the profile screen (title "Profil").
 14. **Sign-in and profile** (`prompts/auth-onboarding/`) — a required account: Google, Discord or e-mail with a 6-digit code; on first sign-in a profile with a unique nick, interests and an optional photo; a server-generated friend code, not shown yet. The device run (step 9) is partly done.
-15. **Friend invite** (`prompts/friend-invite/`) — in the wizard's friends step a friend can be added by their 6-character friend code: the card fills with their nick and interests and the account is linked to the trip at once, read-only. The linked friend sees the trip without edit controls. Layover labels line up with the flight lines on the home screen and the summary. On the hosted Supabase; device check passed.
+15. **Friend invite** (`prompts/friend-invite/`) — in the wizard's friends step a friend can be added by their 6-character friend code: the card fills with their nick and interests and the account is linked to the trip at once, read-only except their own expenses, which they add and edit (`prompts/expenses/plan.md` D15). The linked friend sees the rest of the trip without edit controls. Layover labels line up with the flight lines on the home screen and the summary. On the hosted Supabase; device check passed.
 16. **Profile screen and sign-out** (`prompts/profile-screen/`) — "Profil" shows the photo, the nick and five numbers of the past trips (trips, countries, days travelled, flights, km flown), also offline; the gear opens Settings with "Wyloguj się" (a confirmation, disabled offline). The device run is done except the stats of a past trip (scenario 7).
 17. **Avatar and settings** (`prompts/profile-settings/`) — a full-screen avatar preview with change and remove, theme and language, profile editing, and account deletion. Done: the `delete-account` function is deployed and the device run partly passed on Android (iOS and a few deletion cases are not checked yet, see the plan).
 17. **Expenses** (`prompts/expenses/`, done 2026-11-02). The "Wydatki" screen has a trip bar (opens the side panel), budget left for the group or "Ja" with today's amount and carryover from earlier days, a bar per person split by category, a timeline by day, and adding by the button in the empty state, then a floating button. One person per expense, the trip's base currency only, offline. The organizer edits anyone's expenses; a linked friend adds and edits only their own.
@@ -167,7 +167,7 @@ Changes the budget per person (currency fixed to the trip's base currency). Work
 
 ## 4. Domain model
 
-Canonical definitions are Zod schemas in `src/schemas/` (the monorepo layout in `CLAUDE.md` is the target; the app currently sits at the repo root). Constants are `XSchema`, types are `X = z.infer<typeof XSchema>`.
+Canonical definitions are Zod schemas in `src/schemas/` (the planned monorepo layout in `docs/architecture/overview.md` is the target; the app currently sits at the repo root). Constants are `XSchema`, types are `X = z.infer<typeof XSchema>`.
 
 ```
 Money          { amountMinor: int, currency: ISO4217 }
@@ -197,7 +197,7 @@ Profile        { id (= auth user id), username (unique, 3–20, a–z 0–9 _ .)
                  createdAt, updatedAt }
 ```
 
-`Expense` / `LocalExpense` are in code (`src/schemas/expense.ts`). Planned (in `CLAUDE.md`, not in code yet): `Day`, `Activity`, `DayPlanDraft`. `OutboxEntry` is not used: local rows carry their own sync state.
+`Expense` / `LocalExpense` are in code (`src/schemas/expense.ts`). Planned (in `docs/architecture/shared.md`, not in code yet): `Day`, `Activity`, `DayPlanDraft`. `OutboxEntry` is not used: local rows carry their own sync state.
 
 Key facts:
 - The **organizer is not a `TripMember` row**; traveller count = members + 1.
@@ -281,7 +281,7 @@ Open decision: the exact Gemini model ID (it comes from config, never hardcoded)
 ## 8. Principles that shape every feature
 
 - **Built for one hand, on the move.** Primary actions sit in the thumb zone.
-- **Adding an expense takes under 5 seconds** (quick-add, category chips, last-used currency preselected).
+- **Adding an expense takes under 5 seconds** from the Expenses screen (quick-add, category chips; the trip's base currency is fixed for now).
 - **Local first for the offline scope.** Saving never waits for the network; the UI reads from SQLite.
 - **Zod is the single source of truth.** Validate at every boundary: forms, server responses, SQLite rows, external APIs, AI output.
 - **Privacy:** GPS is never read or stored from photos; no secret keys in the repo.
@@ -290,7 +290,7 @@ Open decision: the exact Gemini model ID (it comes from config, never hardcoded)
 
 ## 9. Known gaps (short list)
 
-The full list is in `Architecture.md` → "Known limitations & tech debt". The ones that matter for product decisions:
+The full list is in `docs/architecture/known-limitations.md`. The ones that matter for product decisions:
 - Two of five pill screens are placeholders.
 - Photos not yet sent are lost if the app closes.
 - Sign-in:
@@ -300,4 +300,4 @@ The full list is in `Architecture.md` → "Known limitations & tech debt". The o
   - in Expo Go, sign-in only comes back to the app through `127.0.0.1` (not a LAN IP).
 - Retrying "Utwórz podróż" after a lost response can create a second trip.
 - Several device checks (iOS, dark mode, large fonts, TalkBack/VoiceOver) are still pending for the pill navigation.
-- The monorepo layout in `CLAUDE.md` (`apps/mobile`, `packages/schemas`) is not applied yet; the app is a single package at the repo root.
+- The planned monorepo layout (`apps/mobile`, `packages/schemas`, see `docs/architecture/overview.md`) is not applied yet; the app is a single package at the repo root.

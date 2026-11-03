@@ -2,6 +2,11 @@ import type { z } from 'zod';
 
 import { DEFAULT_COVER, type CreateTripInputSchema } from '@/schemas';
 
+const DAY_MS = 86_400_000;
+
+// A calendar date `days` after today (UTC), so the "departure not in the past" rule holds on any day the suite runs.
+export const inDays = (days: number, time: string) => `${new Date(Date.now() + days * DAY_MS).toISOString().slice(0, 10)}T${time}`;
+
 // Shared wizard input for data-layer and screen tests: WAW → DXB → BKK, BKK → WAW, 2 friends.
 export function createTripInputFixture(): z.input<typeof CreateTripInputSchema> {
   return {
@@ -12,8 +17,8 @@ export function createTripInputFixture(): z.input<typeof CreateTripInputSchema> 
           departTz: 'Europe/Warsaw',
           toIata: 'DXB',
           arriveTz: 'Asia/Dubai',
-          departAt: '2099-11-02T10:00',
-          arriveAt: '2099-11-02T18:30',
+          departAt: inDays(29, '10:00'),
+          arriveAt: inDays(29, '18:30'),
           flightNumber: 'EK180',
         },
         {
@@ -21,8 +26,8 @@ export function createTripInputFixture(): z.input<typeof CreateTripInputSchema> 
           departTz: 'Asia/Dubai',
           toIata: 'BKK',
           arriveTz: 'Asia/Bangkok',
-          departAt: '2099-11-03T03:30',
-          arriveAt: '2099-11-03T12:45',
+          departAt: inDays(30, '03:30'),
+          arriveAt: inDays(30, '12:45'),
         },
       ],
       return: [
@@ -31,8 +36,8 @@ export function createTripInputFixture(): z.input<typeof CreateTripInputSchema> 
           departTz: 'Asia/Bangkok',
           toIata: 'WAW',
           arriveTz: 'Europe/Warsaw',
-          departAt: '2099-11-15T09:00',
-          arriveAt: '2099-11-15T17:00',
+          departAt: inDays(42, '09:00'),
+          arriveAt: inDays(42, '17:00'),
         },
       ],
       companionCount: 2,

@@ -104,6 +104,8 @@ export function createExpenseSync({ supabase, db, store, now = () => new Date(),
     } catch (error) {
       // Nobody signed in, or no connection to check the session: nothing is sent, nothing is counted.
       if (!(error instanceof NotSignedInError) && !isAuthRetryableFetchError(error)) throw error;
+      // No attempt was recorded, so a due date from older attempts may be in the past and would spin; a trigger restarts sync.
+      return { nextAttemptAt: null };
     }
     const rows = await db.getAllAsync<LocalRow>("select * from expenses where sync_status != 'synced' and last_attempt_at is not null", []);
     const due = rows.map((row) => Date.parse(row.last_attempt_at as string) + retryDelayMs(row.attempts));

@@ -1,5 +1,5 @@
 # Zadanie: Awatar i ustawienia
-Status: zrobione (2026-11-03; braki w R9, pytania P8–P11)
+Status: czeka na akceptację (kroki 1–13 zrobione 2026-11-03; kroki 14–15 z decyzji P10 i P11a czekają na akceptację; braki w R9, pytanie P11b otwarte)
 
 ## Zrozumienie i założenia
 Trzy rzeczy na istniejących ekranach „Profil” i „Ustawienia”:
@@ -160,6 +160,8 @@ Kroki 2–6 mogą iść równolegle po kroku 1 (rozłączne pliki, żaden nie po
 - [x] 12. [Kacper + tester] Kacper wdraża funkcję (`supabase functions deploy delete-account`) i potwierdza sekret klucza service role; tester przechodzi M1–M7 na koncie testowym — skill: brak — najpierw testy: brak (wdrożenie i próba na urządzeniu; automaty są w krokach 3 i 11) — weryfikacja: raport PASS / FAIL.
 - [x] 12a. [frontend] `SegmentedControl`: etykieta w jednej linii, przy braku miejsca czcionka się zmniejsza (`numberOfLines={1}`, `adjustsFontSizeToFit`), bez łamania w środku słowa (D19, po FAIL M3) — skill: frontend-ui-engineering, test-driven-development — najpierw testy: etykieta ma `numberOfLines` 1 i `adjustsFontSizeToFit`; istniejące testy bez zmian — weryfikacja: pełny zestaw, M3 przy `font_scale` 1.3 na emulatorze.
 - [x] 13. [docs, orkiestrator] `Architecture.md`, `context/app-context.md` (m.in. §1 „język z urządzenia”, §3.9, §6 „Edge Functions: none yet”), status planu — skill: documentation-and-adrs — najpierw testy: brak (tylko dokumenty) — weryfikacja: verifier porównuje dokumenty z kodem, pełny zestaw zielony.
+- [ ] 14. [frontend] Baner offline na ekranie edycji profilu nie obiecuje zapisu (D21): `OfflineBanner` dostaje opcjonalny tekst, a `AuthFormScreen` przekazuje go tylko z `EditProfileScreen`; tekst: „Jesteś offline. Zmiana profilu wymaga internetu.” / „You're offline. Editing your profile needs internet.” (do potwierdzenia przez Kacpra, zob. P12) — skill: frontend-ui-engineering, test-driven-development — najpierw testy: `OfflineBanner` z własnym tekstem i bez niego (domyślny bez zmian); ekran edycji offline pokazuje nowy tekst; ekrany logowania dalej domyślny; klucze pl/en — weryfikacja: pełny zestaw, M4 offline na emulatorze.
+- [ ] 15. [frontend] Inicjały zamiast szkieletu w `ProfilePhoto` (D22): gdy profil ma `avatarId`, a zdjęcia nie da się pokazać (brak podpisanego adresu przy starcie offline albo błąd ładowania), kółko pokazuje inicjał nicku (jedna litera, wielka, `labelLG` na `background.sunken`, design-context §8.7 „Error = failed image falls back to initials”); szkielet tylko w trakcie ładowania zdjęcia — skill: frontend-ui-engineering, test-driven-development — najpierw testy: start offline z `avatarId` bez adresu → inicjał, nie szkielet; błąd ładowania → inicjał; po powrocie sieci zdjęcie się ładuje (istniejące testy ponowienia D21/D23 zmienione tylko tam, gdzie oczekiwały szkieletu, z wpisem w dzienniku); czytnik ekranu nadal czyta „Zdjęcie profilowe” — weryfikacja: pełny zestaw, M5 offline po restarcie na emulatorze.
 
 ### Scenariusze ręczne
 - **M1 motyw:** każda z trzech opcji, zmiana bez restartu, po restarcie bez mignięcia złego motywu; ekran powitalny i przeglądarka zdjęć zostają ciemne; pasek statusu i picker daty pasują. Na Androidzie i iOS.
@@ -172,6 +174,13 @@ Kroki 2–6 mogą iść równolegle po kroku 1 (rozłączne pliki, żaden nie po
 
 ### Decyzje po testach na urządzeniu (2026-11-03)
 - **D19:** „Systemowy” łamał się w środku słowa przy `font_scale` 1.3 (M3). Kacper wybrał zmniejszanie czcionki w `SegmentedControl` zamiast krótszego tekstu opcji; zmiana obejmuje wszystkie użycia kontrolki.
+
+### Decyzje Kacpra po pytaniach P8–P11 (2026-11-03)
+- **D20 (P8, P9):** zostaje tak, jak jest. Okno „Usuń konto” jest aktywne także, gdy internet zniknie przy otwartym oknie; bez internetu ma się wyświetlić błąd („P8 zostawmy tak ma sie wyswietlic blad jezeli ktos nie ma internetu”). Awatar zostaje kadrowany do kwadratu („p9 Zostaw”).
+- **D21 (P10):** tekst banera offline na ekranie edycji profilu ma się zmienić, „nie mozemy wprowadzac uzytkownika w blad” → krok 14.
+- **D22 (P11a):** offline po restarcie zamiast szkieletu awatara inicjały („Daj inicjaly”) → krok 15.
+- P11b (zły nick tylko z czerwoną ramką) — bez odpowiedzi, zostaje otwarte.
+- **Dokumentacja:** po scaleniu `main` (docs-restructure, PR #26) `Architecture.md` zostaje usunięty, a opis z tego planu przeniesiony do `docs/architecture/` („chcialbym aby zostalo usuniete architecture md i zostal caly folder docs”).
 
 ## Dziennik postępu
 - Krok 0 (2026-11-02): tylko dokumenty, bez testów (zatwierdzone w planie) · `context/design-context.md`: linia 7 (motyw za wyborem użytkownika), opis ekranu ustawień i podglądu awatara w notatkach projektu · start według D14 · użyty skill: documentation-and-adrs.
@@ -200,6 +209,8 @@ Kroki 2–6 mogą iść równolegle po kroku 1 (rozłączne pliki, żaden nie po
 - Krok 12, zamknięcie (2026-11-03): Kacper: „Zamknij, rób krok 13” — krok zamknięty z brakami opisanymi w R9 i pytaniami P8–P11.
 - Krok 13 (2026-11-03): `Architecture.md` (nagłówek, Edge Functions wdrożona, `SegmentedControl` D19, znane ograniczenia, changelog) i `context/app-context.md` (§ funkcja 17, Supabase) według stanu po krokach 12–12a · verifier: PASS, drobne uwagi poprawione (przebieg „częściowo”, braki R9, P10–P11 w ograniczeniach, cytat Kacpra); podwójny numer 17 w `app-context.md` jest starszy, zostawiony · green ✓: 179 zestawów, 3584 testy, typecheck, lint · skill: documentation-and-adrs.
 
+- Scalenie `main` (2026-11-03, po otwarciu PR #27 w konflikcie): `Architecture.md` usunięty jak w `main`; zmiany z kroków 0–13 przeniesione do `docs/architecture/` (`overview.md`, `backend.md`, `frontend.md`, `shared.md`, `decisions.md`, `known-limitations.md`, `flows/features/profile-screen.md`, nowy `flows/features/profile-settings.md`, wiersz w `flows/README.md`); wpis „Changelog” pominięty, bo nowa struktura go nie ma. Konflikty w `src/test/fixtures.ts`, `look.test.tsx`, `TripsDrawer.test.tsx` (obie gałęzie naprawiały wygasające daty) rozwiązał backend, biorąc wersję `main` (`inDays`); `trip-repository.test.ts`, `trip-rows.test.ts` i `useTrips.test.tsx` (zmienione u nas tylko przez 92a1c3d, daty 2099) przywrócone do wersji `main`, bo nie pasowały do nowych fixture'ów. Asercje bez zmian (ta sama liczba `it(`). Pełny zestaw: 179 zestawów, 3587 testów, typecheck, lint ✓. Verifier: FAIL z drobnymi uwagami do dokumentów (brak wpisu o testach z datą 2026-11-15, stary opis `tsconfig`, P12, D19–D22 w `decisions.md`, ten wpis) — poprawione.
+
 ## Ryzyka i otwarte pytania
 ### Ryzyka
 - **R1 — Import schematu spoza `supabase/functions`.** Nie znalazłem w dokumentacji potwierdzenia, że bundler CLI obejmuje `src/schemas/account.ts`; dlatego ten plik importuje tylko `zod`. Krok 3 sprawdza to `serve` i próbnym bundlem przed zakończeniem. Jeśli nie zadziała: stop i pytanie do Kacpra, bo rozwiązaniem jest przeniesienie źródła schematu, a kopia złamałaby zasadę jednego źródła.
@@ -216,7 +227,6 @@ Kroki 2–6 mogą iść równolegle po kroku 1 (rozłączne pliki, żaden nie po
 
 ### Otwarte pytania
 P1–P7 rozstrzygnął Kacper 2026-11-02 (D5–D12). Z testów na urządzeniu (2026-11-03), bez odpowiedzi; to osobna praca, nie część tego planu:
-- **P8:** okno „Usuń konto” zostaje aktywne, gdy internet zniknie przy otwartym oknie (propozycja: zostawić, błąd sieci daje komunikat i ponowienie).
-- **P9:** awatar zawsze kadrowany do kwadratu 1:1 (propozycja: zostawić; M5 „w całości” = cały kwadrat).
-- **P10:** baner offline na ekranie edycji profilu mówi „Zmiany zapiszą się po połączeniu.”, choć profil nie zapisuje się offline.
-- **P11:** offline po restarcie awatar to szkielet; zły nick ma tylko czerwoną ramkę bez tekstu błędu.
+- ~~P8, P9, P10, P11a~~ rozstrzygnięte 2026-11-03 (D20–D22).
+- **P11b:** zły nick ma tylko czerwoną ramkę bez tekstu błędu.
+- **P12:** ten sam baner „Jesteś offline. Zmiany zapiszą się po połączeniu.” stoi też na ekranach logowania (e-mail, kod, profil startowy) i w Ustawieniach, gdzie też nic się nie zapisze później. Krok 14 zmienia tylko edycję profilu, chyba że Kacper zdecyduje inaczej.

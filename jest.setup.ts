@@ -128,3 +128,18 @@ afterEach(async () => {
   jest.requireActual('@/test/settle-gate').resetGateAllowance();
   jest.requireActual('@/test/fake-profile-repository').resetAppProfileRepository();
 });
+
+// Fixed "today": fixtures use fixed dates and the past-departure check reads today from Date, so the suite must not depend on the real date.
+// Date starts at 2026-10-04 and keeps ticking. It is not jest fake timers: those make RNTL's waitFor wait on a clock that never moves.
+// A test that calls jest.useFakeTimers() replaces it for its own run.
+const RealDate = Date;
+const clockOffset = new RealDate('2026-10-04T12:00:00Z').getTime() - RealDate.now();
+class ShiftedDate extends RealDate {
+  constructor(...args: unknown[]) {
+    super(...((args.length ? args : [RealDate.now() + clockOffset]) as [number]));
+  }
+  static now() {
+    return RealDate.now() + clockOffset;
+  }
+}
+globalThis.Date = ShiftedDate as DateConstructor;

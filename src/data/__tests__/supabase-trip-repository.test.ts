@@ -1922,7 +1922,7 @@ describe('a request that never answers (real Supabase client with the 20 s timeo
 
   const json = (body: unknown) => () => new Response(JSON.stringify(body), { status: 200, headers: { 'Content-Type': 'application/json' } });
 
-  beforeEach(() => jest.useFakeTimers({ doNotFake: ['nextTick', 'setImmediate'] }));
+  beforeEach(() => jest.useFakeTimers({ now: Date.now(), doNotFake: ['nextTick', 'setImmediate'] }));
   afterEach(() => jest.useRealTimers());
 
   it('the home screen gets the copy on the device after 20 s instead of loading forever', async () => {

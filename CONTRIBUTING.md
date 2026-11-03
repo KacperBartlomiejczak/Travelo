@@ -86,7 +86,7 @@ For database changes, also run `pnpm test:db` against a local Supabase (see the 
 ### Database
 
 - Never edit a migration that has already been applied. Write a new one.
-- Row Level Security on every table. A trip is visible only to its owner and to linked members, and linked members are read-only.
+- Row Level Security on every table. A trip is visible only to its owner and to linked members, and linked members are read-only, except their own expenses (`prompts/expenses/plan.md` D15).
 - Money is stored as **integer minor units plus an ISO 4217 currency code**. Never use floats for money.
 - Timestamps are ISO 8601 with an offset. Flights also store the airport's IANA time zone.
 
@@ -140,7 +140,7 @@ Open a pull request against `main`. In it:
 - List the tests you added and show that the full suite, typecheck and lint pass.
 - For UI changes, add screenshots (light and dark if both changed) and say which platform you checked.
 - If you changed `src/schemas/` or `supabase/migrations/`, say so, and confirm that the database tests pass.
-- Update [`Architecture.md`](Architecture.md) so it matches the code, as it is now and not as planned. If nothing architectural changed, add a one-line changelog entry saying so.
+- Update the matching file(s) in [`docs/architecture/`](docs/architecture/) so they match the code, as it is now and not as planned. If nothing architectural changed, there is nothing to update.
 
 Keep a pull request to one feature or fix. A review may ask you to split a big one.
 
