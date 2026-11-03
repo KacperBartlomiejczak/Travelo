@@ -3,7 +3,7 @@
 Zod schemas in `src/schemas/` are the single source of truth for every data shape, shared by the app, SQLite, Supabase and (later) Edge Functions.
 
 ## Zod is the single source of truth
-- Every entity, API payload, Edge Function input/output, AI output, and form lives as a Zod schema in `packages/schemas`.
+- Every entity, API payload, Edge Function input/output, AI output, and form lives as a Zod schema in `src/schemas/` (target: `packages/schemas`).
 - TypeScript types come **only** from `z.infer`. Never hand-write a type that duplicates a schema.
 - The JSON Schema sent to the LLM is **generated from Zod** (`z.toJSONSchema`), never hand-written.
 - SQL migrations mirror the schemas. Any data change goes in this order: **Zod → migration → regenerate Supabase types → parity check passes.**

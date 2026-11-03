@@ -63,7 +63,6 @@
 - Manual device checks pending (`prompts/trip-flight-tabs-name-cover/plan.md`): long name / largest Dynamic Type over a bright photo, status bar during the push into the wizard, the light → ink switch when the home screen finishes loading, tablet layout.
 - `src/hooks/useTrips.ts` exports `useTripList`, `useCurrentTrip`, `useSelectTrip`, `useCreateTrip`, `useSetTripBudget`, `useUpdateTripDetails` and `useDeleteTrip`.
 - `CLAUDE.md` and the agent definitions assume a monorepo (`apps/mobile`, `packages/schemas`, `supabase/`); the app is a single package at the repo root.
-- `.claude/agents/Planner.md`, `Frontend.md` and `Backend.md` still mention a root `PLAN.md`; plans now live in `prompts/<feature-name>/plan.md` (awaiting Kacper's decision whether to update them).
 - The home screen's empty and error states are not scrollable (the trip view is); at very large Dynamic Type on a small phone they may not fit (manual check pending).
 - Language is read once at startup; on Android a system-language change may only apply after an app restart.
 - Peer-range warnings: `lucide-react-native@1.50` declares `react-native ^0.87.1` (project has 0.86.3); `test-renderer` (RNTL 14) wants `react ^19.3.0` (project has 19.2.3). Both work in tests; device check pending.
