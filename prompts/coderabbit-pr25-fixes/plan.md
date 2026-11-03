@@ -65,8 +65,10 @@ uruchamiane raz jako dowód.
 - Decyzja (Kacper, 2026-11-03, przez sesję menedżera): „1. tak” — publikujemy odpowiedzi i rozwiązujemy wątki (P1, P2).
 - Krok 2 (2026-11-03): odpowiedzi w treści z planu w wątkach C1–C3 (discussion_r4459318666, r4459319242, r4459319788),
   wszystkie 3 wątki oznaczone jako rozwiązane · commit tego planu na `feature/expenses` · użyty skill: git-workflow-and-versioning.
+- Po pushu 9e0ce72: CodeRabbit potwierdził C1–C3 w wątkach; nowa uwaga (Minor, review 5759598942): P1/P2 nadal jako
+  otwarte → oznaczone jako rozstrzygnięte.
 
 ## Ryzyka i otwarte pytania
-- **P1:** czy publikujemy trzy odpowiedzi w treści jak wyżej (albo poprawionej)?
-- **P2:** czy po odpowiedzi oznaczamy wątki jako rozwiązane?
+- **P1:** rozstrzygnięte 2026-11-03 — odpowiedzi opublikowane (Decyzja, Krok 2).
+- **P2:** rozstrzygnięte 2026-11-03 — wątki oznaczone jako rozwiązane (Krok 2).
 - Poza zakresem: `budget-sync.ts:68-71` (podobna pętla) — osobny PR, jak już ustalono.
