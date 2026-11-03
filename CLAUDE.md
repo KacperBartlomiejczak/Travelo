@@ -26,7 +26,7 @@ Stack: React Native + Expo (expo-router), TypeScript strict, TanStack Query, SQL
 | Screens, routes, components, hooks, theme, i18n, design rules | [`docs/architecture/frontend.md`](docs/architecture/frontend.md) |
 | Supabase tables, RLS, Storage, RPC, Edge Functions, data & security rules | [`docs/architecture/backend.md`](docs/architecture/backend.md) |
 | Zod schemas, conceptual data model, SQLite and server tables | [`docs/architecture/shared.md`](docs/architecture/shared.md) |
-| Feature flows, one file per feature in the app (index in README) | [`docs/architecture/flows/`](docs/architecture/flows/README.md) |
+| Feature flows: one file per feature in `flows/features/`, cross-cutting flows in `flows/` (index in README) | [`docs/architecture/flows/`](docs/architecture/flows/README.md) |
 | Decisions made, open decisions | [`docs/architecture/decisions.md`](docs/architecture/decisions.md) |
 | Known limitations and tech debt | [`docs/architecture/known-limitations.md`](docs/architecture/known-limitations.md) |
 | **How the harness works** | |

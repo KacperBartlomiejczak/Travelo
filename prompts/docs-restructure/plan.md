@@ -80,6 +80,7 @@ Delete: `Architecture.md`.
 - [x] 5. [docs] Slim `CLAUDE.md` (kept as main source: core rules, router, "Subagents" section per D1a, Learned rules); `AGENTS.md` becomes a thin pointer — skill: context-engineering — verify: `CLAUDE.md` well under its current 465 lines, links resolve, every question lands in one file.
 - [x] 6. [docs] Delete `Architecture.md`; fix references in README, CONTRIBUTING, `context/app-context.md`, `.claude/agents`, `.codex/agents`; reword the "update Architecture.md" rule — skill: none — verify: grep returns nothing outside `prompts/`.
 - [ ] 7. Verifier PASS + `pnpm typecheck && pnpm lint && pnpm test` — skill: code-review-and-quality.
+- [ ] 8. [backend] (added 2026-11-03, approved by Kacper) Make `src/test/fixtures.ts` independent of the calendar date so the full suite is green on any day; red = the 5 currently failing suites (205 tests), green = full suite; no assertion weakened, only dates changed or derived from the fixture — skill: test-driven-development — verify: full `pnpm test`, typecheck, lint, verifier.
 
 Commits: one per step, on the single branch.
 

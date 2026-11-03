@@ -11,4 +11,4 @@
 - **Money in SQLite** is stored as INTEGER minor units + currency code, same as the server.
 
 ## What is implemented
-Only the trip budget works offline today; see [trip-budget.md](trip-budget.md). Offline expenses are not implemented.
+Only the trip budget works offline today; see [trip-budget.md](features/trip-budget.md). Offline expenses are not implemented.
