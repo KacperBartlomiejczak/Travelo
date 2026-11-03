@@ -1,5 +1,5 @@
 # Zadanie: Awatar i ustawienia
-Status: w trakcie (zaakceptowany przez Kacpra 2026-11-02; tekst ostrzeżenia A10 i zmiana awatara D13 także)
+Status: zrobione (2026-11-03; braki w R9, pytania P8–P11)
 
 ## Zrozumienie i założenia
 Trzy rzeczy na istniejących ekranach „Profil” i „Ustawienia”:
@@ -157,9 +157,9 @@ Kroki 2–6 mogą iść równolegle po kroku 1 (rozłączne pliki, żaden nie po
 - [x] 10. [frontend] Awatar na profilu (D13): `usePickAvatar` (wydzielone z `AvatarPicker`), kliknięcie w `ProfilePhoto`, trasa `/avatar` z `AvatarViewer`, `AvatarSheet` — skill: frontend-design, frontend-ui-engineering, test-driven-development, ui-taste — najpierw testy: lista kroku 10 — weryfikacja: pełny zestaw, M5.
 - [x] 10a. [backend] `deleteAccount` rozpoznaje 403 `username_mismatch` jako `UsernameMismatchError` (D16), odpowiedź błędu parsowana `DeleteAccountErrorSchema`; inne błędy bez zmian — skill: api-and-interface-design, test-driven-development — najpierw testy: 403 z tym kodem daje nowy błąd; 403 z innym kodem, zła treść i 500 dają zwykły błąd — weryfikacja: pełny zestaw.
 - [x] 11. [frontend] `DeleteAccountDialog`, rozszerzenie `ConfirmDialog`, `useDeleteAccount`, komunikat na ekranie powitalnym — skill: frontend-ui-engineering, doubt-driven-development, test-driven-development — najpierw testy: lista kroku 11 — weryfikacja: pełny zestaw, verifier ze skillem doubt-driven-development.
-- [ ] 12. [Kacper + tester] Kacper wdraża funkcję (`supabase functions deploy delete-account`) i potwierdza sekret klucza service role; tester przechodzi M1–M7 na koncie testowym — skill: brak — najpierw testy: brak (wdrożenie i próba na urządzeniu; automaty są w krokach 3 i 11) — weryfikacja: raport PASS / FAIL.
+- [x] 12. [Kacper + tester] Kacper wdraża funkcję (`supabase functions deploy delete-account`) i potwierdza sekret klucza service role; tester przechodzi M1–M7 na koncie testowym — skill: brak — najpierw testy: brak (wdrożenie i próba na urządzeniu; automaty są w krokach 3 i 11) — weryfikacja: raport PASS / FAIL.
 - [x] 12a. [frontend] `SegmentedControl`: etykieta w jednej linii, przy braku miejsca czcionka się zmniejsza (`numberOfLines={1}`, `adjustsFontSizeToFit`), bez łamania w środku słowa (D19, po FAIL M3) — skill: frontend-ui-engineering, test-driven-development — najpierw testy: etykieta ma `numberOfLines` 1 i `adjustsFontSizeToFit`; istniejące testy bez zmian — weryfikacja: pełny zestaw, M3 przy `font_scale` 1.3 na emulatorze.
-- [ ] 13. [docs, orkiestrator] `Architecture.md`, `context/app-context.md` (m.in. §1 „język z urządzenia”, §3.9, §6 „Edge Functions: none yet”), status planu — skill: documentation-and-adrs — najpierw testy: brak (tylko dokumenty) — weryfikacja: verifier porównuje dokumenty z kodem, pełny zestaw zielony.
+- [x] 13. [docs, orkiestrator] `Architecture.md`, `context/app-context.md` (m.in. §1 „język z urządzenia”, §3.9, §6 „Edge Functions: none yet”), status planu — skill: documentation-and-adrs — najpierw testy: brak (tylko dokumenty) — weryfikacja: verifier porównuje dokumenty z kodem, pełny zestaw zielony.
 
 ### Scenariusze ręczne
 - **M1 motyw:** każda z trzech opcji, zmiana bez restartu, po restarcie bez mignięcia złego motywu; ekran powitalny i przeglądarka zdjęć zostają ciemne; pasek statusu i picker daty pasują. Na Androidzie i iOS.
@@ -197,6 +197,8 @@ Kroki 2–6 mogą iść równolegle po kroku 1 (rozłączne pliki, żaden nie po
 - Krok 12, M5 reszta i przygotowanie M6 (2026-11-03, tester, konto „baxton”): **M5 PASS** dla anulowania galerii, zmiany (pion, poziom), usunięcia i wyboru z pustego kółka; zdjęcie jest kadrowane do kwadratu 1:1 (`usePickAvatar`, jak przy onboardingu), więc „w całości” znaczy cały kwadrat — pytanie do Kacpra · M6 przygotowanie: wydatek „Test M6” 12 000 IDR w „Warsaw → Jakarta”, okładka z galerii, wydatek „Test M6 FRA” 50 EUR jako połączony znajomy w „Warsaw → Frankfurt” · okno „Usuń konto”: tekst A10, przycisk aktywny dopiero po nicku, klawiatura OK (D18) · **pytanie:** gdy internet zniknie przy otwartym oknie, przycisk zostaje aktywny bez powodu; D6 mówi tylko o przycisku w ustawieniach, a błąd sieci przy usuwaniu daje komunikat i ponowienie · samo usunięcie jeszcze nie wykonane.
 - Krok 12, M6 i połowa M7 (2026-11-03): ostatnie kliknięcie zrobił Kacper, bo system uprawnień zablokował je testerowi jako nieodwracalne · ekran powitalny z komunikatem „Konto usunięte.” ✓ · **baza na hostowanym projekcie** (sprawdzone SQL): brak `auth.users`, `profiles`, własnej podróży, jej wydatków i 17 plików (awatar + 16 zdjęć) ✓ · **M7, znajomy usuwa konto:** „Warsaw → Frankfurt” i „Test friend-invite” zostają, wiersz „baxton” ma `user_id` null, wydatek „Test M6 FRA” 50 EUR zostaje ✓ · hostowane `verify_jwt` przepuściło żądanie, funkcja wdrożona działa · **zostaje:** ponowne logowanie tym samym mailem (nowe konto, pusty stan, wolny nick), M3 przy `font_scale` 1.3 po kroku 12a, M7 druga połowa (organizator usuwa konto) i samolotowy w trakcie usuwania · wskaźnik ładowania na przycisku nie zaobserwowany (kliknął Kacper).
 - Krok 12, M3 po kroku 12a (2026-11-03, tester, konto organizatora tylko do odczytu): **M3 PASS** — przy `font_scale` 1.3 „Systemowy” w jednej linii w obu kontrolkach, w jasnym i ciemnym motywie, lekko mniejsza czcionka niż sąsiednie etykiety, czytelna; pola dotyku bez zmian; przy 1.0 bez zmian względem wcześniej; ustawienia przywrócone · ponowne logowanie: Kacper zalogował się na inne, istniejące konto, więc „ten sam mail = nowe konto, wolny nick” nadal nie sprawdzone; od strony organizatora wiersz „baxton” widoczny w „Test friend-invite”.
+- Krok 12, zamknięcie (2026-11-03): Kacper zamyka krok z brakami opisanymi w R9 i pytaniami P8–P11.
+- Krok 13 (2026-11-03): `Architecture.md` (nagłówek, Edge Functions wdrożona, `SegmentedControl` D19, znane ograniczenia, changelog) i `context/app-context.md` (§ funkcja 17, Supabase) według stanu po krokach 12–12a · skill: documentation-and-adrs.
 
 ## Ryzyka i otwarte pytania
 ### Ryzyka
@@ -210,5 +212,11 @@ Kroki 2–6 mogą iść równolegle po kroku 1 (rozłączne pliki, żaden nie po
 - **R7 — Nick zostaje jako dana osobowa po usunięciu konta** (D11). Trzeba to ująć w przyszłej polityce prywatności.
 - **R8 — wynik z kroku 2 Wydatków (2026-11-02): zostaje RESTRICT, usunięcie podróży i konta organizatora przechodzi także z wydatkami członków; krok 2 tego planu powtarza test przez `auth.users`.** Pierwotny opis: **`expenses.member_id` ma RESTRICT.** Usunięcie konta organizatora kasuje kaskadowo `trip_members` i `expenses`, a RESTRICT nie może tego zablokować, bo wtedy usunięcie konta i zwykłe usunięcie podróży kończą się błędem. Wynik zależy od działania kaskad w Postgresie, a migracji `expenses` nie ma jeszcze na zdalnych gałęziach, więc nie mogłem tego sprawdzić. Lead Wydatków testuje to w swoim kroku 2. Ten plan rusza dopiero po tym teście; krok 2 tego planu powtarza go przez usunięcie z `auth.users`. Jeśli test nie przejdzie, poprawka należy do migracji `expenses` i wraca do Kacpra.
 
+- **R9 — niesprawdzone na urządzeniu (2026-11-03):** iOS w całości; ponowne logowanie tym samym mailem po usunięciu konta (nowe konto, wolny nick); organizator usuwa konto przy połączonym znajomym (druga połowa M7); utrata internetu w trakcie usuwania; wskaźnik ładowania na przycisku usuwania.
+
 ### Otwarte pytania
-Brak. P1–P7 rozstrzygnął Kacper 2026-11-02 (D5–D12).
+P1–P7 rozstrzygnął Kacper 2026-11-02 (D5–D12). Z testów na urządzeniu (2026-11-03), bez odpowiedzi; to osobna praca, nie część tego planu:
+- **P8:** okno „Usuń konto” zostaje aktywne, gdy internet zniknie przy otwartym oknie (propozycja: zostawić, błąd sieci daje komunikat i ponowienie).
+- **P9:** awatar zawsze kadrowany do kwadratu 1:1 (propozycja: zostawić; M5 „w całości” = cały kwadrat).
+- **P10:** baner offline na ekranie edycji profilu mówi „Zmiany zapiszą się po połączeniu.”, choć profil nie zapisuje się offline.
+- **P11:** offline po restarcie awatar to szkielet; zły nick ma tylko czerwoną ramkę bez tekstu błędu.
