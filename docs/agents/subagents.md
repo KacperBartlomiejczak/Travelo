@@ -3,7 +3,7 @@
 Definitions live in `.claude/agents/<Agent>.md` (mirrored in `.codex/agents/<Agent>.toml`). This file is the contract: who does what, when, and how work flows.
 
 ## Orchestrator (main session)
-- Owns the plans in `prompts/` and the docs in `docs/architecture/` — **the only one allowed to edit them**.
+- Owns the plans in `prompts/` and the docs (`docs/**/*.md`, `context/*.md`, `CLAUDE.md`) — **the only one allowed to edit them**.
 - Writes or collects the plan, waits for approval, delegates steps, integrates results, runs the verification loop, updates the plan after every step.
 - **Is a manager only (Kacper, 2026-10-25).** It edits **documents only**: `CLAUDE.md`, `docs/**/*.md`, `context/*.md`, `prompts/**/plan.md` and `.claude/agents/*.md`. It never writes or edits code, tests, schemas, migrations, config or i18n files, not even a one-line fix: every such change goes to **backend** or **frontend** as a step brief. It may run read-only commands and the checks (`pnpm test`, `pnpm typecheck`, `pnpm lint`) and git commands.
 - **Commits every step on the task's one branch after the verifier's PASS** (and the tester's, when it ran). See Step flow, point 4.

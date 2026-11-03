@@ -19,7 +19,7 @@
   - On Android TalkBack the invisible „Zamknij” scrim of `ConfirmDialog` may be read before its title; if so, move the scrim after the dialog in the tree.
   - The active pill label can truncate at very large font scale (R1).
   - The snackbar covers the offline banner while visible (pre-existing).
-  - The older route test maps omit the four empty screens, so expo-router logs "Route … is extraneous" warnings.
+  - The older route test maps omit the other tab screens, so expo-router logs "Route … is extraneous" warnings.
   - Leaving the wizard with `router.navigate('/')` bypasses the guard (`dismissTo` and `back` are guarded); no code does it today.
 - Wizard keyboard (`prompts/wizard-keyboard/plan.md`, checked by Kacper on iPhone and Android): while the keyboard is open, "Dalej" and the bottom sheet keep their safe-area bottom padding above the keyboard (kept, D8). On iOS the wizard scrolls to the focused field only when the keyboard shows, not when focus moves to another field while it stays open (left as is, D7). If the sheet's `Modal` ever loses `statusBarTranslucent`, the sheet needs a status-bar `keyboardVerticalOffset` on Android.
 - Sign-in and profile (`prompts/auth-onboarding/plan.md` Risks):

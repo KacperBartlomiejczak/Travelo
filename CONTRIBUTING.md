@@ -86,7 +86,7 @@ For database changes, also run `pnpm test:db` against a local Supabase (see the 
 ### Database
 
 - Never edit a migration that has already been applied. Write a new one.
-- Row Level Security on every table. A trip is visible only to its owner and to linked members, and linked members are read-only.
+- Row Level Security on every table. A trip is visible only to its owner and to linked members, and linked members are read-only, except their own expenses (`prompts/expenses/plan.md` D15).
 - Money is stored as **integer minor units plus an ISO 4217 currency code**. Never use floats for money.
 - Timestamps are ISO 8601 with an offset. Flights also store the airport's IANA time zone.
 

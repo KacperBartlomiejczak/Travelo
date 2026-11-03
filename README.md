@@ -10,7 +10,7 @@ Only the organizer needs the app. Friends are added to a trip by name and intere
 ![SQLite](https://img.shields.io/badge/Offline--first-SQLite-003B57?logo=sqlite&logoColor=white)
 ![Tests](https://img.shields.io/badge/Tests-3%2C000%2B-2ea44f)
 
-> **Status:** early development. The trip wizard, flights with time-zone-safe layovers, the multi-trip side panel, the private photo gallery and the offline budget work today. Expenses, AI day plans and the budget summary are next (see the [roadmap](#roadmap)).
+> **Status:** early development. The trip wizard, flights with time-zone-safe layovers, the multi-trip side panel, the private photo gallery, the offline budget and offline expenses work today. AI day plans and the budget summary are next (see the [roadmap](#roadmap)).
 
 ## Screenshots
 
@@ -81,10 +81,11 @@ The project follows production-grade rules rather than prototype shortcuts. The 
 | Trip photos: strip, upload queue, EXIF/GPS removal, full-screen viewer | Done |
 | Budget per person editable offline, synced later, with a visible sync status | Done |
 | Offline reading of the trip list and every trip opened on the phone | Done |
-| Floating pill navigation with five screens (four are placeholders for now) | Done |
+| Floating pill navigation with five screens (two are placeholders for now) | Done |
 | Ready-made trip covers bundled in the app, and gallery covers in Storage | Done |
 | Profile tab and settings screen | In progress |
-| **Expenses during the trip**: added in seconds, multi-currency, works offline | Planned |
+| **Expenses**: budget left, who spent what, timeline by day, add / edit, works offline | Done |
+| **Expenses, later parts**: other currencies with FX rates, split a bill, receipt photo | Planned |
 | **AI day plans** built from real Google Places, with cost ranges and group splits | Planned |
 | **Plan vs reality**: a live daily budget and an end-of-trip summary, shareable as an image | Planned |
 | "Rebuild the rest of today" (rain, closed place, tired group), keeping locked activities | Later |
@@ -102,7 +103,7 @@ Root Stack
 ├── (drawer)                    Side panel with all trips (swipe from the left edge on "Podróż")
 │   └── (tabs)                  Floating pill navigation, five tabs
 │       ├── /                   Podróż    current trip: hero, photo strip, flights, travellers, budget
-│       ├── /expenses           Wydatki   placeholder
+│       ├── /expenses           Wydatki   budget, who spent what, timeline, add expense
 │       ├── /places             Miejsca   placeholder
 │       ├── /plan               Plan      placeholder
 │       └── /profile            Profil    nick, photo, travel stats
