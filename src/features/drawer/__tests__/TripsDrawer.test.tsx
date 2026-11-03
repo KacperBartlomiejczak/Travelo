@@ -328,6 +328,11 @@ describe('TripsDrawer (trips-drawer D4)', () => {
         jest.advanceTimersByTime(ms);
       });
 
+    // The outer clock follows real time (advanceTimers: true), which skews animation samples under load.
+    beforeEach(() => {
+      jest.useFakeTimers({ now: NOW });
+    });
+
     afterEach(() => jest.restoreAllMocks());
 
     it('pulses 1 → 0.5 → 1 over 1200 ms once the system has said motion is fine', async () => {
