@@ -328,6 +328,10 @@ describe('TripsDrawer (trips-drawer D4)', () => {
         jest.advanceTimersByTime(ms);
       });
 
+    // The outer clock also follows real time (advanceTimers), which shifts Animated's Date.now() progress by the test's own run time.
+    beforeEach(() => {
+      jest.useFakeTimers({ now: NOW });
+    });
     afterEach(() => jest.restoreAllMocks());
 
     it('pulses 1 → 0.5 → 1 over 1200 ms once the system has said motion is fine', async () => {

@@ -430,6 +430,7 @@ The airport list is a static bundled file, validated row by row in its test (not
 - **i18n**: `src/i18n/index.ts` creates its own i18next instance (`createInstance()` + `initReactI18next`, synchronous init). Language = the device's first preferred locale if it is `pl` or `en`, otherwise `en`. It is read once at startup. Dictionaries: `src/i18n/locales/pl.json`, `en.json` (same keys, checked by a test).
 
 ## Testing
+- `jest.setup.ts` replaces `Date` with a subclass starting at 2026-10-04T12:00Z (it keeps ticking), so fixtures with fixed dates do not expire; a suite using `jest.useFakeTimers` with trip fixtures must pass `now: Date.now()`.
 - Jest (`jest-expo` preset) + React Native Testing Library 14 (async `render` / `fireEvent`); `testPathIgnorePatterns` / `modulePathIgnorePatterns` skip `.claude/worktrees/`, so a Claude session worktree inside the checkout does not add its tests or a second `package.json` to the run; route tests use `renderRouter` from `expo-router/testing-library` with the real root layout.
 - Test files never live under `src/app/` (Expo Router would turn them into routes); route tests sit in `src/__tests__/app/`.
 - `package.json` → `jest.moduleNameMapper` maps `lucide-react-native` to its CommonJS build, because its React Native entry is `.mjs`, which jest-expo does not transform.
