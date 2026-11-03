@@ -43,6 +43,7 @@ If instructions conflict, this order wins: **Kacper's current message → `CLAUD
 | `observability-and-instrumentation` | **Only when a task is about** logging, crash reporting or metrics. | backend, frontend |
 | `shipping-and-launch` | **Only when preparing a release** (store build, rollout, rollback). | orchestrator |
 | `browser-testing-with-devtools` | Debugging the Expo **web** build in a real browser. Needs the chrome-devtools MCP server, which is not configured; ask Kacper first. | frontend |
+| `javascript-typescript-jest` | Writing or fixing Jest tests: structure, mocking, async, snapshots. Supports the TDD rule and the project test setup in `docs/development/testing.md`; it never relaxes them. Where it disagrees with the existing tests or `jest.setup.ts`, the repo wins. | backend, frontend |
 | `using-agent-skills` | Picking which of the skills above fits a piece of work. Its "proceed unless corrected" rule does **not** apply here: the approval gate always wins. | orchestrator |
 
 ## Rules
@@ -64,4 +65,5 @@ If instructions conflict, this order wins: **Kacper's current message → `CLAUD
 | `ui-taste` | uizze.sh | UI polish and review playbooks for web and iOS |
 | `find-skills` | vercel-labs/skills | Discover and install further skills |
 | 25 engineering workflow skills (`interview-me`, `spec-driven-development`, `planning-and-task-breakdown`, `incremental-implementation`, `test-driven-development`, `source-driven-development`, `frontend-ui-engineering`, `code-review-and-quality`, `security-and-hardening`, …) | addyosmani/agent-skills | Workflow per development phase; when each one is used and its limits are listed in `CLAUDE.md` → Skills. Copied straight into `.claude/skills/` (not symlinked from `.agents/skills/` like the others) |
+| `javascript-typescript-jest` | github/awesome-copilot (installed 2026-11-03, `pnpm dlx skills add`) | Jest testing practices |
 
