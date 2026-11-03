@@ -104,6 +104,8 @@ Zod schemas in `src/schemas/` (constants `XSchema`, types `X = z.infer<typeof XS
   - `ProfileSchema`: `id` = the auth user id, `username`, `friendCode`, `interests` (≥ 1), `avatarId` (uuid or null), `createdAt`, `updatedAt`.
   - `ShownProfileSchema`: adds an optional signed `avatarUrl`.
   - `ProfileSetupInputSchema`: the form. The nick is trimmed and lowercased; an empty one gives `validation.usernameRequired`. Interests ≥ 1 (`validation.interestsRequired`). `avatarUri` is a `file://` path or null.
+- `provider-profile.ts` — `ProviderMetadataSchema` (the `user_metadata` fields read after a Google / Discord sign-in, parsed leniently: a wrong type counts as absent), `ProviderProfileSchema` (`suggestedUsername` nullable, `avatarUrl` nullable, https only on the provider's own avatar host), `providerProfile()` (never throws) — pre-fills the profile setup.
+- `index.ts` — re-exports the schemas.
 - `auth.ts`:
   - `EmailSchema`: trimmed, lowercased, `validation.emailFormat`.
   - `OTP_CODE_LENGTH` 6, `OtpCodeSchema` (`validation.otpFormat`).

@@ -159,7 +159,7 @@ Changes the budget per person (currency fixed to the trip's base currency). Work
 
 ## 4. Domain model
 
-Canonical definitions are Zod schemas in `src/schemas/` (the monorepo layout in `CLAUDE.md` is the target; the app currently sits at the repo root). Constants are `XSchema`, types are `X = z.infer<typeof XSchema>`.
+Canonical definitions are Zod schemas in `src/schemas/` (the planned monorepo layout in `docs/architecture/overview.md` is the target; the app currently sits at the repo root). Constants are `XSchema`, types are `X = z.infer<typeof XSchema>`.
 
 ```
 Money          { amountMinor: int, currency: ISO4217 }
@@ -189,7 +189,7 @@ Profile        { id (= auth user id), username (unique, 3–20, a–z 0–9 _ .)
                  createdAt, updatedAt }
 ```
 
-Planned (in `CLAUDE.md`, not in code yet): `Day`, `Activity`, `Expense` / `LocalExpense`, `OutboxEntry`, `DayPlanDraft`.
+Planned (in `docs/architecture/shared.md`, not in code yet): `Day`, `Activity`, `Expense` / `LocalExpense`, `OutboxEntry`, `DayPlanDraft`.
 
 Key facts:
 - The **organizer is not a `TripMember` row**; traveller count = members + 1.
@@ -292,4 +292,4 @@ The full list is in `docs/architecture/known-limitations.md`. The ones that matt
   - in Expo Go, sign-in only comes back to the app through `127.0.0.1` (not a LAN IP).
 - Retrying "Utwórz podróż" after a lost response can create a second trip.
 - Several device checks (iOS, dark mode, large fonts, TalkBack/VoiceOver) are still pending for the pill navigation.
-- The monorepo layout in `CLAUDE.md` (`apps/mobile`, `packages/schemas`) is not applied yet; the app is a single package at the repo root.
+- The planned monorepo layout (`apps/mobile`, `packages/schemas`, see `docs/architecture/overview.md`) is not applied yet; the app is a single package at the repo root.

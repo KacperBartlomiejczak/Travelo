@@ -14,7 +14,8 @@ If instructions conflict, this order wins: **Kacper's current message → `CLAUD
 | `ui-taste` | Reviewing a finished screen or component for visual polish. | frontend, verifier |
 | `improve-codebase-architecture` | **Only** at the end of a milestone or when Kacper asks. Never in the middle of a step. | orchestrator |
 | `find-skills` | You think a skill might exist for the job but none of the above fits. | orchestrator |
-| `stack-review` | Before milestone 0, whenever a new library/service/dependency is proposed, or when Kacper asks to re-check the stack. Questions each technology choice and asks Kacper to confirm or switch. | orchestrator, planner |
+| `supabase` | Any task that touches Supabase: Auth, Storage, Edge Functions, RLS, `supabase-js`, the CLI. | planner, backend |
+| `supabase-postgres-best-practices` | Before writing or changing anything in Postgres: tables, columns, indexes, RLS policies, SQL functions, migrations. | backend |
 
 ### Engineering workflow skills (`addyosmani/agent-skills`, installed 2026-10-08)
 | Skill | Use it when | Used by |
@@ -64,6 +65,7 @@ If instructions conflict, this order wins: **Kacper's current message → `CLAUD
 | `frontend-design` | anthropics/skills | Guidance for building distinctive UI |
 | `ui-taste` | uizze.sh | UI polish and review playbooks for web and iOS |
 | `find-skills` | vercel-labs/skills | Discover and install further skills |
-| 25 engineering workflow skills (`interview-me`, `spec-driven-development`, `planning-and-task-breakdown`, `incremental-implementation`, `test-driven-development`, `source-driven-development`, `frontend-ui-engineering`, `code-review-and-quality`, `security-and-hardening`, …) | addyosmani/agent-skills | Workflow per development phase; when each one is used and its limits are listed in `CLAUDE.md` → Skills. Copied straight into `.claude/skills/` (not symlinked from `.agents/skills/` like the others) |
+| 25 engineering workflow skills (`interview-me`, `spec-driven-development`, `planning-and-task-breakdown`, `incremental-implementation`, `test-driven-development`, `source-driven-development`, `frontend-ui-engineering`, `code-review-and-quality`, `security-and-hardening`, …) | addyosmani/agent-skills | Workflow per development phase; when each one is used and its limits are listed in "Engineering workflow skills" above. Copied straight into `.claude/skills/` (not symlinked from `.agents/skills/` like the others) |
+| `supabase`, `supabase-postgres-best-practices` | supabase/agent-skills | Supabase products and CLI; Postgres schema, RLS and query practices |
 | `javascript-typescript-jest` | github/awesome-copilot (installed 2026-11-03, `pnpm dlx skills add`) | Jest testing practices |
 

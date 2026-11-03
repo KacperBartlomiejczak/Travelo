@@ -2,13 +2,13 @@
 
 **A mobile app for the one person who organizes a trip for a group of friends.**
 
-Only the organizer needs the app. Friends are added to a trip by name and interests, with no accounts and no invite links. A friend who does have an account can optionally be linked by user ID to follow the plan read-only.
+Only the organizer needs the app. Friends are added to a trip by name and interests, with no accounts and no invite links. A friend who does have an account can optionally be linked by friend code to follow the plan read-only.
 
 ![TypeScript](https://img.shields.io/badge/TypeScript_6-strict-3178C6?logo=typescript&logoColor=white)
 ![Expo](https://img.shields.io/badge/Expo_SDK_57-React_Native_0.86-000020?logo=expo&logoColor=white)
 ![Supabase](https://img.shields.io/badge/Supabase-Postgres_%2B_RLS_%2B_Storage-3FCF8E?logo=supabase&logoColor=white)
 ![SQLite](https://img.shields.io/badge/Offline--first-SQLite-003B57?logo=sqlite&logoColor=white)
-![Tests](https://img.shields.io/badge/Tests-1%2C300%2B-2ea44f)
+![Tests](https://img.shields.io/badge/Tests-3%2C000%2B-2ea44f)
 
 > **Status:** early development. The trip wizard, flights with time-zone-safe layovers, the multi-trip side panel, the private photo gallery and the offline budget work today. Expenses, AI day plans and the budget summary are next (see the [roadmap](#roadmap)).
 
@@ -67,22 +67,23 @@ The project follows production-grade rules rather than prototype shortcuts. The 
 2. **Wall-clock time and clock-change gaps.** Flight times are stored as the airport's local wall clock plus its IANA time zone. They are never converted through the phone's time zone. A round-trip check catches local times that do not exist during a daylight-saving jump (`src/lib/time.ts`). The suite can be run under a shifted device time zone to prove it.
 3. **No floats for money.** Amounts are integer minor units (`bigint` in Postgres, integers in SQLite and TypeScript) plus an ISO 4217 code, with the decimal digits taken from a static table instead of `Intl`.
 4. **Offline budget with an outbox and bad-network protection.** A budget change is written to SQLite first (`trip_budget_changes`) and synced in the background. Last write wins by `budget_updated_at`. A failed send retries with exponential backoff (1 s × 2ⁿ, at most 5 minutes) and stays visible as `pending` or `failed`. Every Supabase request gives up after 20 seconds, so a silent network such as an airport captive portal ends as "offline" instead of hanging.
-5. **Row Level Security and private Storage.** The app signs in anonymously on first launch. `trips`, `trip_members`, `flight_segments`, `trip_photos` and the `trip-photos` Storage bucket are protected by RLS, with `security definer` helpers in a non-exposed `private` schema. A trip is created in one idempotent database call (`create_trip`).
-6. **Tests at every layer.** More than 1,300 Jest tests, a data layer tested against a real SQLite engine, and plain-SQL tests for RLS and Storage policies.
+5. **Row Level Security and private Storage.** The app needs an account (Google, Discord or an e-mail code); there are no anonymous sessions. `trips`, `trip_members`, `flight_segments`, `trip_photos` and the `trip-photos` Storage bucket are protected by RLS, with `security definer` helpers in a non-exposed `private` schema. A trip is created in one idempotent database call (`create_trip`).
+6. **Tests at every layer.** More than 3,000 Jest tests, a data layer tested against a real SQLite engine, and plain-SQL tests for RLS and Storage policies.
 
 ## Roadmap
 
 | Feature | Status |
 |---|---|
 | Trip setup wizard, friends with interests, flights and derived layovers | Done |
-| Supabase backend: anonymous auth, `create_trip` RPC, RLS | Done |
+| Supabase backend: `create_trip` RPC, RLS | Done |
+| Sign-in with Google, Discord or an e-mail code, profile setup | In progress |
 | Side panel with all trips, trip menu (rename, cover, budget, delete) | Done |
 | Trip photos: strip, upload queue, EXIF/GPS removal, full-screen viewer | Done |
 | Budget per person editable offline, synced later, with a visible sync status | Done |
 | Offline reading of the trip list and every trip opened on the phone | Done |
 | Floating pill navigation with five screens (four are placeholders for now) | Done |
-| Ready-made trip covers bundled in the app, and gallery covers in Storage | In progress |
-| Profile tab (replaces "Ustawienia") | In progress |
+| Ready-made trip covers bundled in the app, and gallery covers in Storage | Done |
+| Profile tab and settings screen | In progress |
 | **Expenses during the trip**: added in seconds, multi-currency, works offline | Planned |
 | **AI day plans** built from real Google Places, with cost ranges and group splits | Planned |
 | **Plan vs reality**: a live daily budget and an end-of-trip summary, shareable as an image | Planned |
@@ -95,13 +96,17 @@ The project follows production-grade rules rather than prototype shortcuts. The 
 
 ```text
 Root Stack
+├── (auth)                      Welcome, e-mail and code screens (signed-out users only)
+├── /auth/callback              Return from the Google / Discord sign-in
+├── /onboarding                 Profile setup on the first sign-in
 ├── (drawer)                    Side panel with all trips (swipe from the left edge on "Podróż")
 │   └── (tabs)                  Floating pill navigation, five tabs
 │       ├── /                   Podróż    current trip: hero, photo strip, flights, travellers, budget
 │       ├── /expenses           Wydatki   placeholder
 │       ├── /places             Miejsca   placeholder
 │       ├── /plan               Plan      placeholder
-│       └── /settings           Ustawienia (becoming "Profil") placeholder
+│       └── /profile            Profil    nick, photo, travel stats
+├── /settings                   Settings
 ├── /trips/new/*                Create-trip wizard: flights → friends → budget → summary
 └── /trips/[tripId]/photos      Full-screen photo viewer
 ```
@@ -134,7 +139,7 @@ A trip that was never opened on the phone has no copy, so it cannot be opened of
 | State and fetching | TanStack Query |
 | Validation and types | Zod: forms, database rows, cache, environment |
 | On-device storage | `expo-sqlite` with versioned migrations (also the auth session storage) |
-| Backend | Supabase: Postgres, anonymous Auth, Row Level Security, private Storage, a PL/pgSQL RPC |
+| Backend | Supabase: Postgres, Auth (Google, Discord, e-mail code), Row Level Security, private Storage, a PL/pgSQL RPC |
 | Media and device | `expo-image`, `expo-image-picker`, `expo-image-manipulator`, `expo-network` |
 | UI | The Sunline token system, `lucide-react-native`, DM Sans and Fraunces fonts |
 | i18n | i18next (`pl`, `en`) |
@@ -170,7 +175,7 @@ Pick one of the two options.
 **Option A: a hosted project**
 
 1. Create a project at [supabase.com](https://supabase.com).
-2. In **Authentication → Sign In / Providers**, turn on **Anonymous sign-ins**. The app signs in anonymously on first launch, and trips cannot be saved without it.
+2. In **Authentication → Sign In / Providers**, keep **Email** on (sign-in by e-mail code). Google and Discord are optional and need their own OAuth apps. Anonymous sign-ins stay off: the app needs an account.
 3. Apply the migrations from `supabase/migrations/`, for example with `pnpm supabase link` and `pnpm supabase db push`.
 4. Copy the project URL and the **publishable** key (`sb_publishable_…`) from **Project Settings → API**.
 
@@ -180,7 +185,7 @@ Pick one of the two options.
 pnpm supabase start
 ```
 
-This applies the migrations and prints the API URL and the publishable key. Run `pnpm supabase status` to see them again. Anonymous sign-ins are already on in `supabase/config.toml`. The Android emulator reaches your computer at `http://10.0.2.2:54321`. The app allows plain `http` only for `127.0.0.1`, `localhost` and `10.0.2.2`.
+This applies the migrations and prints the API URL and the publishable key. Run `pnpm supabase status` to see them again. Anonymous sign-ins are off in `supabase/config.toml`. The Android emulator reaches your computer at `http://10.0.2.2:54321`. The app allows plain `http` only for `127.0.0.1`, `localhost` and `10.0.2.2`.
 
 ### 3. Add the environment variables
 
@@ -258,7 +263,7 @@ pnpm lint
 src/
   app/           Expo Router routes only (every file here is a screen)
   components/    Shared UI: PillNav, BottomSheet, ConfirmDialog, form fields
-  features/      drawer, home, nav, trip-create, trip-photos
+  features/      auth, drawer, home, nav, profile, trip-create, trip-photos
   hooks/         TanStack Query hooks
   data/          Repositories, Supabase client, SQLite store, budget sync, photo preparation
   lib/           Pure logic: time zones, layovers, money, airport search

@@ -70,6 +70,8 @@ Delete: `Architecture.md`.
 ## Skills
 - `documentation-and-adrs` — steps 2–5 — where decisions/docs live.
 - `context-engineering` — step 5 — keeping `AGENTS.md` short with a router.
+- `test-driven-development` — step 8 — fixture fix, red then green.
+- `javascript-typescript-jest`, `debugging-and-error-recovery` — step 9 — flaky pulse test.
 - `code-review-and-quality` — step 7 — verifier review.
 
 ## Steps
@@ -100,6 +102,7 @@ Approved by Kacper 2026-11-02 (D1 revised: CLAUDE.md stays the main source; AGEN
 - Step 7 (2026-11-03): `pnpm typecheck` and `pnpm lint` green. Full `pnpm test`: 205 failed of 3153 (5 suites: photos, look, clear-during-operation, supabase-trip-repository, trip-rows). Root cause: `src/test/fixtures.ts` hardcodes the outbound `departAt` 2026-11-02T10:00, now in the past, so `validation.departureInPast` rejects it (the first run on 2026-11-02 had 2 failures for the same reason, once that hour passed). `src/` has no diff vs main. Not fixed here: a test-fixture change is outside this docs task and needs Kacper's decision. Verifier result: pending.
 - Step 8 (2026-11-03, backend agent): `src/test/fixtures.ts` builds flight times relative to now (`inDays(days, "HH:mm")`: outbound +29 d, connection +30 d, return +42 d); `trip-rows.test.ts` pins the clock with fake timers at its existing NOW (2026-10-04, where the fixture yields the old literals); `look.test.tsx` uses `inDays`. Red: 5 tests still failing after the fixture change (205 before). Green: full suite 3153/3153, typecheck and lint green (re-run by the orchestrator). Checked with a shifted clock: +30 days green; +400 days 1 failure, `TripsDrawer` pulse animation (0.55 vs 0.5), likely an artefact of the shim, not investigated. No assertion weakened. First verifier run: FAIL on docs (stale agent instructions etc.), fixed in 99306fc; a re-run is still pending.
 - Step 9 (2026-11-03, frontend agent): root cause of the flaky pulse test = `jest.useFakeTimers({ now, advanceTimers: true })` in the file's outer `beforeEach`, which lets the fake clock follow real time, so the Reanimated sample after `advanceTimersByTime(600)` drifts under load. Fix: the "skeleton pulse" describe resets to `jest.useFakeTimers({ now: NOW })`; no assertion or tolerance changed, production code untouched. Red: 8/8 parallel runs failed (0.55 vs 0.5). Green: 30 consecutive loaded runs of the file, each 29/29 tests; full suite 3153/3153, typecheck and lint green (re-run by the orchestrator). The +400-day shifted-clock run was not repeated.
+- Verifier run 4 (2026-11-03, fresh context): FAIL. typecheck, lint, test green (146 suites, 3153 tests); steps 8-9 PASS. Findings: (1) Verifier.md/.toml limit backend to `src/schemas/`; (2) Backend.toml omits data layer and `src/test/`; (3) Frontend.md/.toml scope lacks the data-layer exclusion; (4) README claims anonymous sign-in (config has it off); (5) README stale routes/features/test counts, testing.md stale counts; (6) skills.md lists missing `stack-review`, omits `supabase`, `supabase-postgres-best-practices`; (7) known-limitations.md:65 and app-context.md:295 reference a monorepo layout no longer in CLAUDE.md; (8) shared.md misses `provider-profile.ts`. Awaiting Kacper's decision on fixes.
 
 ## Risks & open questions
 - R1. Docs only, so a missed section is the real risk; the coverage check mitigates it.
