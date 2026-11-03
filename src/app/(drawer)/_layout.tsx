@@ -16,7 +16,7 @@ const SCRIM = tokens.primitives.pure.black + Math.round(tokens.components.bottom
 
 // The home screen sits in a drawer: a side panel slides in from the left with all trips (trips-drawer).
 // The wizard stays in the root stack above the drawer and shows no panel. The four other pill screens sit in the drawer
-// too, but only the home path "/" has the menu button, so the edge swipe is limited to it (pill-nav-and-dialog R3).
+// too; the home path "/" has the menu button and Expenses a trip bar that opens the panel, and the edge swipe is limited to home (pill-nav-and-dialog R3).
 // The panel still opens over the pill: the tabs are the drawer's child.
 // The panel follows the system theme (A7), like a bottom sheet: elevated surface over the scrim.
 export default function DrawerLayout() {

@@ -536,7 +536,9 @@ export function createSupabaseTripRepository({
     async hasUnsentChanges() {
       // A read failure rejects: "none" must not be guessed, the caller would then skip the warning about losing changes.
       // A synced change is deleted from the store (`markBudgetSynced`), so every row left is pending or failed.
-      return (await (await localStore).unsyncedBudgetChanges()).length > 0;
+      // Expenses the same way: a pending or failed row (a soft delete included) is deleted by sign-out.
+      const store = await localStore;
+      return (await store.unsyncedBudgetChanges()).length > 0 || (await store.hasUnsyncedExpenses());
     },
 
     syncBudgets() {

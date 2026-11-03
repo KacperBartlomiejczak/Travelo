@@ -3,6 +3,27 @@
 jest.mock('@/data/app-trip-repository', () => ({
   createAppTripRepository: () => jest.requireActual('@/data/trip-repository').createInMemoryTripRepository(),
 }));
+// Expenses (expenses step 5): the repository is the real one on an in-memory SQLite, the sync sends nothing.
+jest.mock('@/data/app-expense', () => ({
+  createAppExpenseRepository: () => {
+    const opened = (async () => {
+      const { openTestDb } = jest.requireActual('@/test/node-sqlite');
+      const { migrateLocalDb } = jest.requireActual('@/data/local-db');
+      const { createLocalStore } = jest.requireActual('@/data/local-store');
+      const { createExpenseRepository } = jest.requireActual('@/data/expense-repository');
+      const db = openTestDb();
+      await migrateLocalDb(db);
+      return createExpenseRepository({ db, store: createLocalStore(db), newId: () => jest.requireActual('crypto').randomUUID() });
+    })();
+    return {
+      add: async (...args: unknown[]) => (await opened).add(...args),
+      update: async (...args: unknown[]) => (await opened).update(...args),
+      remove: async (...args: unknown[]) => (await opened).remove(...args),
+      list: async (...args: unknown[]) => (await opened).list(...args),
+    };
+  },
+  createAppExpenseSync: () => ({ sync: async () => ({ nextAttemptAt: null }) }),
+}));
 // Sign-in (auth-onboarding step 5): the app is signed in with a profile unless a test says otherwise, so route tests land on / as before.
 // A test picks another state with useFakeAppSession() / setAppProfileRepository() before it renders (src/test/fake-session-source.ts, fake-profile-repository.ts).
 jest.mock('@/data/app-session-source', () => ({
@@ -107,3 +128,18 @@ afterEach(async () => {
   jest.requireActual('@/test/settle-gate').resetGateAllowance();
   jest.requireActual('@/test/fake-profile-repository').resetAppProfileRepository();
 });
+
+// Fixed "today": fixtures use fixed dates and the past-departure check reads today from Date, so the suite must not depend on the real date.
+// Date starts at 2026-10-04 and keeps ticking. It is not jest fake timers: those make RNTL's waitFor wait on a clock that never moves.
+// A test that calls jest.useFakeTimers() replaces it for its own run.
+const RealDate = Date;
+const clockOffset = new RealDate('2026-10-04T12:00:00Z').getTime() - RealDate.now();
+class ShiftedDate extends RealDate {
+  constructor(...args: unknown[]) {
+    super(...((args.length ? args : [RealDate.now() + clockOffset]) as [number]));
+  }
+  static now() {
+    return RealDate.now() + clockOffset;
+  }
+}
+globalThis.Date = ShiftedDate as DateConstructor;
