@@ -1,4 +1,4 @@
-# Sign-in and gate flow
+# Sign-in, sign-out and gate flow
 
 - Sign-in and gate (auth-onboarding):
   - **Session** (`SessionProvider` over `SessionSource`):
@@ -35,13 +35,4 @@
     - `verifyEmailCode`: `verifyOtp`, `type: 'email'`; `otp_expired` → `InvalidCodeError`; retryable → `ServerUnreachableError`.
     - The address lives in `EmailSignInContext` in the `(auth)` layout, never in the URL.
     - The code screen sends the code on the 6th digit. The resend is available after 60 s.
-  - **Profile** (`createSupabaseProfileRepository`):
-    - `myProfile()`: reads the own row (no row → `null`, copy cleared), signs the avatar URL (a failure there is not fatal), writes the SQLite copy. Unreachable → the copy, which D14 guarantees is the signed-in user's.
-    - `createProfile(input)`:
-      1. Zod first;
-      2. `prepareAvatar` (≤ 512 px, JPEG 0.8, no EXIF) and an upload to `avatars/<userId>/<avatarId>.jpg` (`upsert: false`);
-      3. insert `id, username, interests, avatar_id`.
-      - A `23505` on `profiles_username_key` → `UsernameTakenError`, and the uploaded file is removed.
-      - An unreachable insert, or a 5xx, keeps the file, because the row may exist.
-      - A pkey conflict returns the stored profile.
   - **Local store safety (D15).** expo-sqlite does not keep the order of async calls, so `createLocalStore` runs every method through one serial JS queue. The user epoch is captured at the start of each repository operation. The six writes that add user data are refused unless that epoch is still current, so nothing of a signed-out user is written after the clear.
