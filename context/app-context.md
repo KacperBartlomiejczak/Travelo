@@ -45,7 +45,7 @@ Platforms: iOS and Android (Expo / React Native). Languages: Polish (`pl`) and E
 12. **Trip covers** (`prompts/trip-covers/`) — every trip has a cover: one of five bundled photos (Auckland by default) or a photo from the gallery, uploaded to Storage.
 13. **Profile tab** (`prompts/profile-tab/`) — the fifth pill item is "Profil" (route `/profile`, title "Profil użytkownika", `CircleUser` icon); since profile-screen it is the profile screen (title "Profil").
 14. **Sign-in and profile** (`prompts/auth-onboarding/`) — a required account: Google, Discord or e-mail with a 6-digit code; on first sign-in a profile with a unique nick, interests and an optional photo; a server-generated friend code, not shown yet. The device run (step 9) is partly done.
-15. **Friend invite** (`prompts/friend-invite/`) — in the wizard's friends step a friend can be added by their 6-character friend code: the card fills with their nick and interests and the account is linked to the trip at once, read-only. The linked friend sees the trip without edit controls. Layover labels line up with the flight lines on the home screen and the summary. On the hosted Supabase; device check passed.
+15. **Friend invite** (`prompts/friend-invite/`) — in the wizard's friends step a friend can be added by their 6-character friend code: the card fills with their nick and interests and the account is linked to the trip at once, read-only except their own expenses, which they add and edit (`prompts/expenses/plan.md` D15). The linked friend sees the rest of the trip without edit controls. Layover labels line up with the flight lines on the home screen and the summary. On the hosted Supabase; device check passed.
 16. **Profile screen and sign-out** (`prompts/profile-screen/`) — "Profil" shows the photo, the nick and five numbers of the past trips (trips, countries, days travelled, flights, km flown), also offline; the gear opens Settings with "Wyloguj się" (a confirmation, disabled offline). The device run is done except the stats of a past trip (scenario 7).
 17. **Expenses** (`prompts/expenses/`, done 2026-11-02). The "Wydatki" screen has a trip bar (opens the side panel), budget left for the group or "Ja" with today's amount and carryover from earlier days, a bar per person split by category, a timeline by day, and adding by the button in the empty state, then a floating button. One person per expense, the trip's base currency only, offline. The organizer edits anyone's expenses; a linked friend adds and edits only their own.
 
@@ -274,7 +274,7 @@ Open decision: the exact Gemini model ID (it comes from config, never hardcoded)
 ## 8. Principles that shape every feature
 
 - **Built for one hand, on the move.** Primary actions sit in the thumb zone.
-- **Adding an expense takes under 5 seconds** (quick-add, category chips, last-used currency preselected).
+- **Adding an expense takes under 5 seconds** from the Expenses screen (quick-add, category chips; the trip's base currency is fixed for now).
 - **Local first for the offline scope.** Saving never waits for the network; the UI reads from SQLite.
 - **Zod is the single source of truth.** Validate at every boundary: forms, server responses, SQLite rows, external APIs, AI output.
 - **Privacy:** GPS is never read or stored from photos; no secret keys in the repo.

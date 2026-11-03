@@ -1,3 +1,5 @@
+import { AuthRetryableFetchError } from '@supabase/supabase-js';
+
 import { migrateLocalDb } from '@/data/local-db';
 import { createExpenseRepository, type ExpenseScope } from '@/data/expense-repository';
 import { createExpenseSync } from '@/data/expense-sync';
@@ -154,6 +156,37 @@ describe('expense sync: push (expenses D16; Verification loop 8)', () => {
     await sync.sync();
     expect(supabase.rpc).not.toHaveBeenCalled();
     expect(await status(added.id)).toMatchObject({ sync_status: 'pending', attempts: 0 });
+  });
+
+  describe('session unavailable with an elapsed backoff', () => {
+    async function elapsedBackoff() {
+      const ctx = await setup();
+      const added = await ctx.repo.add(owner, input);
+      ctx.supabase.rpc.mockResolvedValueOnce(NETWORK_FAILURE);
+      await ctx.sync.sync();
+      ctx.clock.at = new Date('2026-11-03T13:00:00.000Z');
+      return { ...ctx, added };
+    }
+
+    it('schedules nothing when the session check has no connection, and counts no attempt', async () => {
+      const { supabase, sync, status, added } = await elapsedBackoff();
+      supabase.auth.getSession.mockResolvedValue({ data: { session: null as never }, error: new AuthRetryableFetchError('offline', 0) });
+      expect(await sync.sync()).toEqual({ nextAttemptAt: null });
+      expect(await status(added.id)).toMatchObject({ sync_status: 'pending', attempts: 1 });
+    });
+
+    it('schedules nothing when nobody is signed in, and counts no attempt', async () => {
+      const { supabase, sync, status, added } = await elapsedBackoff();
+      supabase.storedSession('none');
+      expect(await sync.sync()).toEqual({ nextAttemptAt: null });
+      expect(await status(added.id)).toMatchObject({ sync_status: 'pending', attempts: 1 });
+    });
+
+    it('still rejects on any other error', async () => {
+      const { supabase, sync } = await elapsedBackoff();
+      supabase.auth.getSession.mockResolvedValue({ data: { session: null as never }, error: new Error('boom') });
+      await expect(sync.sync()).rejects.toThrow('boom');
+    });
   });
 
   it('sends nothing more and writes nothing after the user was cleared during the push', async () => {
