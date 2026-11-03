@@ -81,6 +81,7 @@ Delete: `Architecture.md`.
 - [x] 6. [docs] Delete `Architecture.md`; fix references in README, CONTRIBUTING, `context/app-context.md`, `.claude/agents`, `.codex/agents`; reword the "update Architecture.md" rule — skill: none — verify: grep returns nothing outside `prompts/`.
 - [ ] 7. Verifier PASS + `pnpm typecheck && pnpm lint && pnpm test` — skill: code-review-and-quality.
 - [x] 8. [backend] (added 2026-11-03, approved by Kacper) Make `src/test/fixtures.ts` independent of the calendar date so the full suite is green on any day; red = the 5 currently failing suites (205 tests), green = full suite; no assertion weakened, only dates changed or derived from the fixture — skill: test-driven-development — verify: full `pnpm test`, typecheck, lint, verifier.
+- [ ] 9. [frontend] (added 2026-11-03, approved by Kacper) Find the cause of the intermittent failure in `src/features/drawer/__tests__/TripsDrawer.test.tsx` (pulse animation: `expect(opacity()).toBeCloseTo(1, 1)` got 0.95; `pulses 1 → 0.5 → 1 over 1200 ms` got 0.55 under a shifted clock) and make it deterministic without weakening an assertion — skill: javascript-typescript-jest, debugging-and-error-recovery — tests first: reproduce the failure (loop the test / shifted clock), then fix — verify: test passes 30x in a loop, full suite green, typecheck, lint, verifier.
 
 Commits: one per step, on the single branch.
 
