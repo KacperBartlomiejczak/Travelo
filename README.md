@@ -295,7 +295,7 @@ The rules for this process are in [`CLAUDE.md`](CLAUDE.md).
 | File | What is in it |
 |---|---|
 | [`context/app-context.md`](context/app-context.md) | What the app is and does: features, screens, domain model, offline behavior, backend |
-| [`docs/architecture/`](docs/architecture/overview.md) | How the code is built right now: modules, data flow, decisions, known limitations |
+| [`docs/architecture/`](docs/architecture/) | How the code is built right now: modules, data flow, decisions, known limitations |
 | [`context/design-context.md`](context/design-context.md) | The Sunline design system |
 | [`GLOSSARY.md`](GLOSSARY.md) | Domain terms |
 | [`CONTRIBUTING.md`](CONTRIBUTING.md) | How to contribute |

@@ -9,6 +9,13 @@ import { darkTheme, lightTheme } from '@/theme/theme';
 import { tokens } from '@/theme/tokens';
 import { DarkThemeScope } from '@/theme/useTheme';
 
+// The first render of a Modal loads react-native's lazy modules and takes ~1 s idle, 4-6 s on a loaded machine, which is the
+// whole 5 s budget of the first test. Pay it here, with its own generous timeout, so every test measures only itself.
+beforeAll(async () => {
+  await renderSheet();
+  screen.unmount();
+}, 60_000);
+
 beforeEach(async () => {
   await i18n.changeLanguage('pl');
 });

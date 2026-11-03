@@ -39,16 +39,18 @@ The model column mirrors the `model:` field in `.claude/agents/*.md`; change bot
    - one commit with the step's code, tests and its `plan.md` update, English message `<type>(<feature-name>): <what> (step N)`, using `git-workflow-and-versioning`;
    - `git push` to that branch; the next step continues on it.
    No commit or push before PASS, and never with a failing test.
-5. After the last step, the orchestrator updates `docs/architecture/`, then reports the task as done.
+5. The orchestrator updates `docs/architecture/` as part of the last step, before that step's verifier run, then reports the task as done after PASS.
 
 ## Rules for delegation
 - Every brief is self-contained: the step, files allowed, relevant Zod schemas, tests to write first, acceptance criteria.
 - A step that needs both backend and frontend changes is split into two steps.
 - No two subagents edit the same file in parallel.
 - **Several backend subagents may run at the same time, each on a different approved step** (Kacper, 2026-10-25), when the steps are independent: none needs another's result and their files do not overlap. The orchestrator says which steps run in parallel before starting them. Each one is verified separately; after each PASS it is committed with only its own files (`git add <paths>`) onto the task's branch, in the order the steps passed. Frontend steps still run one at a time.
-- Each subagent returns: what changed, files touched, tests written and their red → green results, verification results, concerns.
+- Implementing agents (`backend`, `frontend`) return: what changed, files touched, tests written and their red → green results, verification results, concerns.
+- Read-only and review agents return their findings only: `explorer` locations and conclusions, `planner` the plan draft, `verifier` the PASS / FAIL verdict with evidence, `tester` PASS / FAIL per scenario with screen evidence.
 
 ## Configuration (tools)
+
 | Agent | Model | Tools | Role |
 |---|---|---|---|
 | `explorer` | `claude-haiku-5-5` (Haiku 5.5) | Read, Grep, Glob | Read-only scout: finds code, schemas and patterns |
