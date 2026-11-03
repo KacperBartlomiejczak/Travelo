@@ -28,6 +28,10 @@ import {
 import { createTripInputFixture } from '@/test/fixtures';
 
 const NOW = new Date('2026-10-04T12:00:00Z');
+
+// The fixture's dates are relative to the clock, so pin it to keep the date literals below valid.
+beforeEach(() => jest.useFakeTimers({ now: NOW }));
+afterEach(() => jest.useRealTimers());
 const OWNER_ID = '9d3c1b2a-0f4e-4d5c-8b6a-7e8f9a0b1c2d';
 
 function sequentialIds() {
