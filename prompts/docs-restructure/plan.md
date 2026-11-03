@@ -1,5 +1,5 @@
 # Task: docs-restructure (split CLAUDE.md and Architecture.md into AGENTS.md + docs/)
-Status: awaiting approval
+Status: in progress (steps 1-6 done; step 7 waiting for the verifier)
 
 ## Understanding & assumptions
 Goal: `CLAUDE.md` (465 lines) and `Architecture.md` (764 lines) are hard to navigate. Slim `CLAUDE.md` into a short main file (how the AI works + a router) and move the detail into a `docs/` tree, so each question has one obvious file:
@@ -73,12 +73,12 @@ Delete: `Architecture.md`.
 - `code-review-and-quality` — step 7 — verifier review.
 
 ## Steps
-- [ ] 1. [docs] Create branch `feature/docs-restructure` from main, carrying the uncommitted `CLAUDE.md` change — skill: git-workflow-and-versioning — verify: `git status`.
-- [ ] 2. [docs] `docs/architecture/*` + `flows/` from `Architecture.md` and the relevant `CLAUDE.md` sections — skill: documentation-and-adrs — verify: coverage check.
-- [ ] 3. [docs] `docs/development/*` — skill: documentation-and-adrs — verify: coverage + links.
-- [ ] 4. [docs] `docs/agents/*` — skill: documentation-and-adrs — verify: coverage + links.
-- [ ] 5. [docs] Slim `CLAUDE.md` (kept as main source: core rules, router, "Subagents" section per D1a, Learned rules); `AGENTS.md` becomes a thin pointer — skill: context-engineering — verify: `CLAUDE.md` well under its current 465 lines, links resolve, every question lands in one file.
-- [ ] 6. [docs] Delete `Architecture.md`; fix references in README, CONTRIBUTING, `context/app-context.md`, `.claude/agents`, `.codex/agents`; reword the "update Architecture.md" rule — skill: none — verify: grep returns nothing outside `prompts/`.
+- [x] 1. [docs] Create branch `feature/docs-restructure` from main, carrying the uncommitted `CLAUDE.md` change — skill: git-workflow-and-versioning — verify: `git status`.
+- [x] 2. [docs] `docs/architecture/*` + `flows/` from `Architecture.md` and the relevant `CLAUDE.md` sections — skill: documentation-and-adrs — verify: coverage check.
+- [x] 3. [docs] `docs/development/*` — skill: documentation-and-adrs — verify: coverage + links.
+- [x] 4. [docs] `docs/agents/*` — skill: documentation-and-adrs — verify: coverage + links.
+- [x] 5. [docs] Slim `CLAUDE.md` (kept as main source: core rules, router, "Subagents" section per D1a, Learned rules); `AGENTS.md` becomes a thin pointer — skill: context-engineering — verify: `CLAUDE.md` well under its current 465 lines, links resolve, every question lands in one file.
+- [x] 6. [docs] Delete `Architecture.md`; fix references in README, CONTRIBUTING, `context/app-context.md`, `.claude/agents`, `.codex/agents`; reword the "update Architecture.md" rule — skill: none — verify: grep returns nothing outside `prompts/`.
 - [ ] 7. Verifier PASS + `pnpm typecheck && pnpm lint && pnpm test` — skill: code-review-and-quality.
 
 Commits: one per step, on the single branch.
@@ -87,9 +87,18 @@ Commits: one per step, on the single branch.
 See Tests. Manual check for Kacper: open `CLAUDE.md`, confirm each of the four questions (how the AI works / how the app works / how the harness works / how we work) lands in exactly one folder.
 
 ## Progress log
-(empty)
+Approved by Kacper 2026-11-02 (D1 revised: CLAUDE.md stays the main source; AGENTS.md is a pointer). Docs-only, so no tests-first (A7); checks = link check + coverage + grep.
+- Step 1: branch `feature/docs-restructure` created, the uncommitted CLAUDE.md change carried.
+- Step 2: `docs/architecture/{overview,frontend,backend,shared,decisions,known-limitations}.md` + `flows/{server-first,auth-and-gate,offline,ai-day-plan}.md`, moved verbatim with a line-range script. Deviations: extra `flows/auth-and-gate.md`; `offline-expenses.md` became `offline.md` (the budget is the only offline write in code; the expense rules stay there as planned, not implemented); the "Repo layout" block of CLAUDE.md was dropped (it described the unadopted monorepo; the note lives in overview.md "Planned monorepo layout").
+- Step 3: `docs/development/{testing,git-workflow,commands}.md`. Deviation: the Expo Navigation / EAS / Rules text of the old AGENTS.md went to `commands.md`, not `frontend.md`.
+- Step 4: `docs/agents/{workflow,subagents,skills}.md`; workflow step 5 rewritten from "update Architecture.md" to "update docs/architecture/"; the template and the changelog are dropped.
+- Step 5: CLAUDE.md 465 -> 136 lines (rules + router + Subagents section + Learned rules); AGENTS.md is a one-paragraph pointer.
+- Step 6: Architecture.md deleted; references fixed in README, CONTRIBUTING, context/app-context.md, `.claude/agents/{Backend,Frontend,Verifier}.md` and `.codex/agents/*.toml`. `grep` outside `prompts/` is empty; link check over 21 files: 0 broken.
+- Step 7 (2026-11-03): `pnpm typecheck` and `pnpm lint` green. Full `pnpm test`: 205 failed of 3153 (5 suites: photos, look, clear-during-operation, supabase-trip-repository, trip-rows). Root cause: `src/test/fixtures.ts` hardcodes the outbound `departAt` 2026-11-02T10:00, now in the past, so `validation.departureInPast` rejects it (the first run on 2026-11-02 had 2 failures for the same reason, once that hour passed). `src/` has no diff vs main. Not fixed here: a test-fixture change is outside this docs task and needs Kacper's decision. Verifier result: pending.
 
 ## Risks & open questions
 - R1. Docs only, so a missed section is the real risk; the coverage check mitigates it.
 - R2. `.codex/agents/*.toml` mirrors `.claude/agents/*.md` (CRLF in the Verifier file); edit both consistently.
+- R4. Merge conflict: `feature/expenses` and `feature/profile-settings` still edit `Architecture.md` and `CLAUDE.md`; their entries must be moved into `docs/architecture/*` when merging.
+- Q1. Date-dependent fixtures (`src/test/fixtures.ts`) make the suite red on any day after the hardcoded date; fix with a relative date? (a backend step, needs approval)
 - R3. `CLAUDE.md` is auto-loaded into every session, so what stays in it costs context every time; rules that must always apply stay, everything else is reached through the router.
