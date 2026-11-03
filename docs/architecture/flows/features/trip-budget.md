@@ -1,0 +1,5 @@
+# Trip budget (works offline)
+
+Entry: the Budget card on the home screen („Zmień”) and the trip menu. The only offline write today.
+
+- Offline budget: `setBudget(trip, amountMinor)` validates with `TripBudgetFormSchema` in the trip's base currency and upserts a `pending` row in `trip_budget_changes` (no network). `syncBudgets()` (serialized: one run at a time) sends each change with `update trips … eq(id) lt(budget_updated_at, updatedAt) select(id)` (last write wins); 0 rows → it reads the server's `budget_updated_at` to tell "already there / newer" (synced) from "trip not visible" (`failed`, `trip-not-found`). Unreachable → stays `pending` with the attempt counted; refused → `failed` with its error. A synced change is written into the SQLite copy of that trip, then removed. It returns `nextAttemptAt` (backoff 1 s × 2ⁿ, max 5 min). `BudgetSyncProvider` runs it on start and whenever the network comes back (`expo-network`), on app foreground, after each save, and at `nextAttemptAt`; afterwards it cancels any in-flight trips read and refetches `['trips']`.

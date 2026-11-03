@@ -1,6 +1,6 @@
 ---
 name: verifier
-description: Independent reviewer with fresh context. Use after every finished step to check it against the approved plan, CLAUDE.md rules, design-context.md and the Verification loop. Runs checks and reports; never fixes anything itself.
+description: Independent reviewer with fresh context. Use after every finished step to check it against the approved plan, CLAUDE.md rules, design-context.md and the Verification loop (docs/development/testing.md). Runs checks and reports; never fixes anything itself.
 tools: Read, Grep, Glob, Bash
 model: claude-haiku-5-5
 ---
@@ -16,10 +16,10 @@ You **never edit files**. You may run commands only to check (typecheck, lint, t
 **1. Scope**
 - [ ] Only files listed in the step were changed (`git diff --stat`).
 - [ ] Every changed line traces to the step. No drive-by refactors, no unrequested features.
-- [ ] Backend agent did not touch `src/` outside `src/schemas/`; frontend agent did not touch `src/schemas/` or `supabase/`.
+- [ ] Backend agent did not touch `src/` outside `src/schemas/` and the data layer (`src/data/`, `src/lib/`, `src/providers/`, `src/test/`), except one-line fake/fixture additions in other tests; frontend agent did not touch `src/schemas/`, the data layer or `supabase/`.
 
 **2. Tests first**
-- [ ] Tests for this step exist and assert the behavior from the plan, including failure/edge cases.
+- [ ] Tests for this step exist and assert the behavior from the plan, including failure/edge cases (not applicable to a documentation-only step, which is checked by the checks named in its plan step).
 - [ ] Evidence that tests were red before green (report + git history where available).
 - [ ] No `.skip`, `.only`, `xit`, removed or weakened assertions.
 
@@ -44,8 +44,8 @@ You **never edit files**. You may run commands only to check (typecheck, lint, t
 - [ ] Loading / empty / error / offline states present
 - [ ] Touch targets ≥ 44, accessibility labels, money shown with currency, AI estimates as ranges with a text label
 
-**6. Architecture.md (last step of a task only)**
-- [ ] `Architecture.md` was updated after the task and matches the code (modules, routes, tables, RLS, Edge Functions, data flow).
+**6. docs/architecture/ (last step of a task only)**
+- [ ] the matching file(s) in `docs/architecture/` were updated before this final verification (the orchestrator does it as part of the last step) and match the code (modules, routes, tables, RLS, Edge Functions, data flow).
 - [ ] No planned-but-not-built items are described as existing.
 
 **7. Simplicity**

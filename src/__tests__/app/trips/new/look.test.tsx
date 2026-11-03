@@ -17,6 +17,7 @@ import { emptyFriend, emptySegment, withCompanionCount } from '@/features/trip-c
 import { useTripDraft } from '@/features/trip-create/TripDraftContext';
 import i18n from '@/i18n';
 import { formatMoney } from '@/lib/money';
+import { inDays } from '@/test/fixtures';
 import { repositoryWithProfile, setAppProfileRepository } from '@/test/fake-profile-repository';
 import { darkTheme, lightTheme } from '@/theme/theme';
 import { tokens } from '@/theme/tokens';
@@ -47,8 +48,8 @@ function Seed() {
       const withFriends = withCompanionCount(draft, 2);
       return {
         ...withFriends,
-        outbound: [{ ...emptySegment(), fromIata: 'WAW', departTz: 'Europe/Warsaw', toIata: 'BKK', arriveTz: 'Asia/Bangkok', departAt: '2026-11-02T22:00', arriveAt: '2026-11-03T14:00' }],
-        return: [{ ...emptySegment(), fromIata: 'BKK', departTz: 'Asia/Bangkok', toIata: 'WAW', arriveTz: 'Europe/Warsaw', departAt: '2026-11-15T09:00', arriveAt: '2026-11-15T17:00' }],
+        outbound: [{ ...emptySegment(), fromIata: 'WAW', departTz: 'Europe/Warsaw', toIata: 'BKK', arriveTz: 'Asia/Bangkok', departAt: inDays(29, '22:00'), arriveAt: inDays(30, '14:00') }],
+        return: [{ ...emptySegment(), fromIata: 'BKK', departTz: 'Asia/Bangkok', toIata: 'WAW', arriveTz: 'Europe/Warsaw', departAt: inDays(42, '09:00'), arriveAt: inDays(42, '17:00') }],
         friends: [{ ...emptyFriend(), displayName: 'Kasia', interests: ['beaches'] }, { ...emptyFriend(), displayName: 'Ola' }],
         budget: { amountText: '3000', currency: '' },
       };

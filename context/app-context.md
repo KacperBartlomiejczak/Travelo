@@ -4,11 +4,11 @@ What the app is, what it does and what it contains. Read this before planning or
 
 - **Product rules, process and engineering rules:** `CLAUDE.md`.
 - **Visual system (Sunline):** `context/design-context.md`.
-- **How the code is built right now:** `Architecture.md` (modules, data flow, backend, routes, decisions, tech debt).
+- **How the code is built right now:** `docs/architecture/` (overview, frontend, backend, shared, flows, decisions, known limitations).
 - **Domain terms:** `GLOSSARY.md`.
 - **Plans and progress of each feature:** `prompts/<feature-name>/plan.md`.
 
-If this file and the code disagree, the code wins and this file gets updated. If this file and `Architecture.md` disagree about the current state, check the code and fix whichever is wrong.
+If this file and the code disagree, the code wins and this file gets updated. If this file and `docs/architecture/` disagree about the current state, check the code and fix whichever is wrong.
 
 ---
 
@@ -160,7 +160,7 @@ Changes the budget per person (currency fixed to the trip's base currency). Work
 
 ## 4. Domain model
 
-Canonical definitions are Zod schemas in `src/schemas/` (the monorepo layout in `CLAUDE.md` is the target; the app currently sits at the repo root). Constants are `XSchema`, types are `X = z.infer<typeof XSchema>`.
+Canonical definitions are Zod schemas in `src/schemas/` (the planned monorepo layout in `docs/architecture/overview.md` is the target; the app currently sits at the repo root). Constants are `XSchema`, types are `X = z.infer<typeof XSchema>`.
 
 ```
 Money          { amountMinor: int, currency: ISO4217 }
@@ -190,7 +190,7 @@ Profile        { id (= auth user id), username (unique, 3–20, a–z 0–9 _ .)
                  createdAt, updatedAt }
 ```
 
-`Expense` / `LocalExpense` are in code (`src/schemas/expense.ts`). Planned (in `CLAUDE.md`, not in code yet): `Day`, `Activity`, `DayPlanDraft`. `OutboxEntry` is not used: local rows carry their own sync state.
+`Expense` / `LocalExpense` are in code (`src/schemas/expense.ts`). Planned (in `docs/architecture/shared.md`, not in code yet): `Day`, `Activity`, `DayPlanDraft`. `OutboxEntry` is not used: local rows carry their own sync state.
 
 Key facts:
 - The **organizer is not a `TripMember` row**; traveller count = members + 1.
@@ -283,7 +283,7 @@ Open decision: the exact Gemini model ID (it comes from config, never hardcoded)
 
 ## 9. Known gaps (short list)
 
-The full list is in `Architecture.md` → "Known limitations & tech debt". The ones that matter for product decisions:
+The full list is in `docs/architecture/known-limitations.md`. The ones that matter for product decisions:
 - Two of five pill screens are placeholders.
 - Photos not yet sent are lost if the app closes.
 - Sign-in:
@@ -293,4 +293,4 @@ The full list is in `Architecture.md` → "Known limitations & tech debt". The o
   - in Expo Go, sign-in only comes back to the app through `127.0.0.1` (not a LAN IP).
 - Retrying "Utwórz podróż" after a lost response can create a second trip.
 - Several device checks (iOS, dark mode, large fonts, TalkBack/VoiceOver) are still pending for the pill navigation.
-- The monorepo layout in `CLAUDE.md` (`apps/mobile`, `packages/schemas`) is not applied yet; the app is a single package at the repo root.
+- The planned monorepo layout (`apps/mobile`, `packages/schemas`, see `docs/architecture/overview.md`) is not applied yet; the app is a single package at the repo root.

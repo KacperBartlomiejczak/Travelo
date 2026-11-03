@@ -1,0 +1,7 @@
+# Expenses (works offline)
+
+Entry: the „Wydatki” tab in the pill. Screen and components: see `/expenses` in [frontend.md](../../frontend.md). Decisions D5–D25 are in `prompts/expenses/plan.md`.
+
+- **Write:** `useSaveExpense` / `useDeleteExpense` (`src/hooks/useExpenses.ts`, `networkMode: 'always'`) → `createExpenseRepository` (`src/data/expense-repository.ts`) writes SQLite through `store.writeGuarded` (store queue + user epoch, so nothing lands after sign-out; a dropped write throws `ExpenseWriteDroppedError`). The row is `pending` and is its own outbox entry. Other currency than the trip's base → `CurrencyMismatchError`; a linked friend writing another's row → `NotYourExpenseError`. Deletes are soft (`deletedAt`).
+- **Sync:** `createExpenseSync` (`src/data/expense-sync.ts`), driven by `BudgetSyncProvider` with the budget (start, reconnect, foreground, after a save; one retry timer at the earliest `nextAttemptAt`; `Promise.allSettled`; invalidates `['expenses']`). Push: each unsynced row → `rpc('upsert_expense')`; marked `synced` only if `updated_at` is still what was sent; status 0 stays `pending`, a refusal becomes `failed` with backoff 1 s × 2ⁿ up to 5 min. Pull: every trip in the local list copy, all rows including soft-deleted; a newer server row replaces only a `synced` local row. Server timestamps are rewritten to `…sssZ` so they compare as text with the device's.
+- **Numbers:** pure `computeExpenseBudget` and `groupExpensesByDay` (`src/lib/expense-budget.ts`, D7, D9, D10), rendered by the screen.

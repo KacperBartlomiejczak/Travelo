@@ -1,0 +1,80 @@
+# Known limitations and tech debt
+
+- Splash animation: not yet checked on a device (look, spinner, reduce motion, dark colour filters on the matted wordmark, native → Lottie handoff; Android 12+ draws the native splash icon in its own icon area). The dark native splash uses the reversed (≈ 5 % thinner) cut while the Lottie recolours the regular cut. `pnpm-lock.yaml` was rewritten with `supports-color` peer suffixes when `lottie-react-native` was added — check `pnpm install --frozen-lockfile` on a clean checkout. App icons are still the Expo template (`prompts/app-icon/plan.md` not done).
+- Friend invite (`prompts/friend-invite/plan.md` Risks):
+  - Friend codes can be guessed (31⁶ ≈ 887 M); the lookup has no rate limit and returns nick + interests (R1). Decide before real users.
+  - A linked member's `display_name` is a snapshot of the nick at save time (R2).
+  - A linked member cannot leave a trip and the organizer cannot unlink (D10, later feature); there is no member editing.
+  - If the own profile has not loaded yet, typing the own code asks the server; the save then fails with FI001 and the summary says „To Twój kod.”.
+  - A retry of `create_trip` after the friend's profile was deleted fails with FI002 although the link exists (rare).
+  - An owner may briefly see the read-only view on first render, before the own profile is read.
+  - Photo-viewer delete was not checked on a device (no photos on the test trip; covered by `photos.test.tsx`).
+- Theme split and profile pre-fill (`prompts/theme-split-and-profile-prefill/plan.md`):
+  - The downloaded account photo is not aborted on unmount; an unused `avatar-<uuid>` file may stay in the cache directory. The file has no extension (`ImageManipulator` decodes by content).
+  - A Google photo URL with a size suffix other than `=sNN` / `=sNN-c` gets `=s512-c` appended and may fail to download (then the circle stays empty).
+  - Unconfirmed (emulator, twice): a tap on a sheet / dialog button reached the control underneath (e.g. after „Usuń podróż” the wizard opened). Possibly emulator lag; not reproduced cleanly.
+- Pill nav and dialog (`prompts/pill-nav-and-dialog/plan.md`; some device checks listed there are pending):
+  - The Android emulator run (2026-10-18) checked the pill floating over the screens, the four empty screens, the side panel opening over the pill on „Podróż” and not on „Wydatki”, Android back from „Wydatki” to „Podróż”, and the wizard's leave dialog. Still unverified on a device: touches passing through the pill's wrapper, the status bar when switching tabs, dark mode, large font size, English labels, the offline banner and the empty-state button above the pill, reduce motion, TalkBack / VoiceOver order, and iOS.
+  - A swipe from the very left edge triggers Android's own back gesture; on the emulator the panel opened only from about x = 80 px (open point for Kacper).
+  - On Android TalkBack the invisible „Zamknij” scrim of `ConfirmDialog` may be read before its title; if so, move the scrim after the dialog in the tree.
+  - The active pill label can truncate at very large font scale (R1).
+  - The snackbar covers the offline banner while visible (pre-existing).
+  - The older route test maps omit the other tab screens, so expo-router logs "Route … is extraneous" warnings.
+  - Leaving the wizard with `router.navigate('/')` bypasses the guard (`dismissTo` and `back` are guarded); no code does it today.
+- Wizard keyboard (`prompts/wizard-keyboard/plan.md`, checked by Kacper on iPhone and Android): while the keyboard is open, "Dalej" and the bottom sheet keep their safe-area bottom padding above the keyboard (kept, D8). On iOS the wizard scrolls to the focused field only when the keyboard shows, not when focus moves to another field while it stays open (left as is, D7). If the sheet's `Modal` ever loses `statusBarTranslucent`, the sheet needs a status-bar `keyboardVerticalOffset` on Android.
+- Sign-in and profile (`prompts/auth-onboarding/plan.md` Risks):
+  - **Old data:** trips made by anonymous accounts before this change are no longer visible (R1).
+  - **E-mail and store limits:** the hosted project still uses the built-in sender (a few e-mails per hour, default templates with a link). Gmail SMTP is planned for testing and the MVP (D25); a provider with our own domain is needed before a public release (R2). "Sign in with Apple" is needed before an iOS release (R3).
+  - **Google:** the consent screen is in testing mode, so only test users can sign in (R4).
+  - **Discord:** a Discord account without a verified e-mail cannot sign in (R11).
+  - **Sign-out:** unsynced budget changes are erased with the user data at a sign-out (R12); the Settings dialog warns first (profile-screen D5).
+  - **SQLite queue:** a native call that never returns would block it, because there is no timeout (R13).
+  - **Background check:** residual races are left in it (R14): the same user signing out and back in while the check is in flight is signed out once; `getSession()` and `signOut()` are two awaits, so a sign-in of another user in the milliseconds between them would be signed out (coderabbit-pr21-fixes).
+  - **Expo Go over a LAN IP:** sign-in cannot come back to the app (R15). A dev build, or Expo Go through `127.0.0.1` with `adb reverse`, works.
+  - **WebCrypto is partial:** the `web-crypto` polyfill gives only `getRandomValues` and `subtle.digest` (SHA-256). Anything in auth-js that needs more of `crypto.subtle` (`getClaims`' local JWT check) must not be used; the app calls `getUser` instead. auth-js also needs a global `TextEncoder` for S256 (Hermes has it; checked on the device run of pkce-sha256).
+  - **Redirect lost on reload:** if the app is reloaded while the browser is open, the code in the returned URL is not exchanged, because `auth/callback` only redirects.
+  - **Account deletion:** a future account deletion must also remove the user's files in `avatars` (R9).
+  - **Device checks:** what is still pending is listed in the plan's step 9 (keyboard, TalkBack focus, Discord, the e-mail code, a taken nick, the save and the offline reopen, a revoked session).
+- Retrying "Utwórz podróż" after a lost response can create a second trip (new ids per attempt); `create_trip` itself is idempotent per id.
+- The 20 s request timeout covers the wait for the response, not a body that stalls after the headers. On phones React Native's fetch resolves only after the whole body, so this only matters on web.
+- Members have no stored order; they are shown sorted by name. The organizer is not a `TripMember` row; `travellerCount` = members + 1.
+- Offline, a trip never opened on this phone has no copy: choosing it in the panel shows the error state until the phone is online. On web, `expo-sqlite`'s database needs extra setup that has not been checked — the web preview may not load trips; the list pruning uses SQLite's JSON functions (`json_each`), checked under Node's SQLite only.
+- The side panel's slide always animates (the drawer library ignores reduced motion; P2 (a)). Edge swipe, scrim tap, Android back, focus moving into the panel and the slide feel are covered only by the manual steps (`prompts/trips-drawer/plan.md`); Jest mocks gesture-handler and Reanimated. Jest prints `react-native-drawer-layout`'s "InteractionManager has been deprecated" warning.
+- Two rare races (`prompts/trips-drawer/plan.md` Risks): the default trip deleted between the list read and the trip read shows the empty state once; a list read that answers after a new trip was created may forget that trip as the choice. `cacheList` runs its three statements without a transaction.
+- The `deviceToday` test only catches a UTC-based bug when the suite runs outside UTC.
+- The budget sheet repeats the wizard budget step's amount validation (8 lines) instead of sharing it.
+- Trip menu (`prompts/trip-edit-menu/plan.md`): a trips fetch already running when a delete starts is dropped from the query cache, but its repository call keeps going and can write the deleted trip back into the SQLite copies; offline afterwards the trip can show from the copy until the next online list read prunes it (N7). The snackbar does not move above the offline banner if the connection drops within 3.5 s of a delete. While a delete runs, the locked backdrop still reads as a "Zamknij" button that does nothing. `TripDetailsSheet` can be dismissed while saving (left as is, D22). `LocalStore.forgetTrip` uses raw `begin` / `commit` on the shared expo-sqlite connection. Choosing a menu row swaps one sheet's `Modal` for the next in one render (D16).
+- Trip photos (`prompts/trip-photos/plan.md` Risks):
+  - Photos not sent yet are lost when the app closes or the trip changes (A4).
+  - A deleted photo's files can stay in Storage if removing them fails after the row is gone (R6).
+  - A trip keeps its row but loses its files if the row delete fails after the files were removed (R11).
+  - Every upload shares the 20 s request timeout, which a very slow network may not meet (R13).
+  - Paging the photo list assumes the project's `max_rows` stays 1000 (R12).
+  - A viewer left open for over 1 h cannot load photos the phone has not cached (R5).
+  - A photos fetch racing a trip delete can write the deleted trip's photo copy back, until the next list read (R7).
+  - The free plan has 1 GB of Storage (R8).
+  - The viewer's pager re-renders on every scroll event during a swipe.
+  - The emulator could not prove GPS stripping or EXIF orientation, because its camera files have neither; Kacper checked them on his phone.
+- Airport list (3,153 airports, ~470 KB): city names come from merged sources with hand overrides for large airports; some small airports keep odd names, 91 airports are dropped (no time zone / city). City names are in English ("Warsaw").
+- Pickers are mocked in tests; device checks are pending (see the manual steps in `prompts/trip-create-wizard/plan.md`). On web, browser back/forward may bypass the leave confirmation.
+- Expenses (`prompts/expenses/plan.md`): the pull has no pagination (PostgREST's 1000 rows per trip); `updated_at` comes from the client, so a far-future clock wins every later write (LWW); the `DateField` is private to `ExpenseSheet` and has no web variant; corrupt rows are only logged with `console.warn`.
+- A trip whose return local date is before the outbound arrival date (open-jaw across the date line) breaks the per-day figure and is rejected on save.
+- Covers (`prompts/trip-covers/plan.md`): the Jakarta preset is only 640 px (soft on the hero) until a larger original arrives; preset licences (Q3) are Kacper's to confirm; `updateDetails` reads, then writes (not atomic, R7); old builds that send a null cover to `create_trip` fail with 23502 (R5); after `cover-not-current` the sheet keeps its stale value until reopened; a failed-cover message is dropped if another snackbar is showing. On iOS the picker crops square (Expo ignores `aspect` there); the preview and hero show it with `cover` fit.
+- City names in default trip names come from the airport list (mostly English, e.g. "Warsaw → Barcelona"). A default name can exceed 60 characters (PKY → NLI is 61); the summary then shows it and asks to shorten it ("Nazwa może mieć do 60 znaków") — the redirect guard ignores the name.
+- Manual device checks pending (`prompts/trip-flight-tabs-name-cover/plan.md`): long name / largest Dynamic Type over a bright photo, status bar during the push into the wizard, the light → ink switch when the home screen finishes loading, tablet layout.
+- `src/hooks/useTrips.ts` exports `useTripList`, `useCurrentTrip`, `useSelectTrip`, `useCreateTrip`, `useSetTripBudget`, `useUpdateTripDetails` and `useDeleteTrip`.
+- The agent docs name a target monorepo layout (`apps/mobile`, `packages/schemas`, see `overview.md` "Planned monorepo layout"); the app is a single package at the repo root.
+- The home screen's empty and error states are not scrollable (the trip view is); at very large Dynamic Type on a small phone they may not fit (manual check pending).
+- Language is read once at startup; on Android a system-language change may only apply after an app restart.
+- Peer-range warnings: `lucide-react-native@1.50` declares `react-native ^0.87.1` (project has 0.86.3); `test-renderer` (RNTL 14) wants `react ^19.3.0` (project has 19.2.3). Both work in tests; device check pending.
+- `pnpm install` skipped the `unrs-resolver` build script (pnpm build-script approval); lint works without it.
+- `package.json` has a `reset-project` script pointing at `scripts/reset-project.js`, which does not exist.
+- Profile screen (`prompts/profile-screen/plan.md`):
+  - **Unsent changes** means budget changes and expenses that are not `synced`.
+  - **Stats states:** a list that fails with no copy shows „–” without a retry on the profile (A2, an approved exception to design-context §12), after ~7 s of skeleton (the default query retries).
+  - **Old list copy:** a copy saved before the list carried routes reads as no copy, so an offline start before the first online list read shows the side panel's offline error once (R1).
+  - **Airport script:** `scripts/build-airports.mjs` reads `/usr/share/zoneinfo/zone.tab`, which Windows does not have; it needs WSL / Linux.
+  - **Device evidence:** the 180 ms photo fade and the app-loading chrome colours are checked by unit tests only (D28).
+- `README.md` is the unmodified Expo template (mentions npm).
+- Template images in `assets/images/` (React/Expo logos, `tabIcons/`, `tutorial-web.png`) are not referenced by any code.
+
