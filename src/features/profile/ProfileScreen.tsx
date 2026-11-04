@@ -181,7 +181,7 @@ function ProfilePhoto({ username, uri, avatarId, offline, adding, onAdd, onOpen 
   // which is on the phone's cache and so also works offline, but not while the skeleton is shown. Pressed shows the sunken
   // background in a ring round the circle (§8.7).
   const adds = avatarId === null;
-  const disabled = adds ? offline || adding : !(loaded && source);
+  const disabled = adds ? offline || adding : !(loaded && source) || failed === source;
   const tap = (child: ReactNode) => (
     <Pressable
       accessibilityRole="button"
@@ -216,7 +216,7 @@ function ProfilePhoto({ username, uri, avatarId, offline, adding, onAdd, onOpen 
     );
   }
   // D22: a photo that cannot be shown (no url, or it failed) is the initial of the nick on the sunken background (§8.7).
-  if (!source || failed === source) {
+  if (!source || (!loaded && failed === source)) {
     return tap(
       <View
         testID="profile-photo-initial"
@@ -244,7 +244,7 @@ function ProfilePhoto({ username, uri, avatarId, offline, adding, onAdd, onOpen 
           setFailed(null);
         }}
         onError={() => {
-          if (!loaded) setFailed(source);
+          setFailed(source);
         }}
         style={circle}
       />

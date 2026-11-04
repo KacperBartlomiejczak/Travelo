@@ -1,6 +1,6 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Animated, KeyboardAvoidingView, Modal, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Animated, KeyboardAvoidingView, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { PrimaryButton } from '@/components/PrimaryButton';
 import { TextButton } from '@/components/TextButton';
@@ -71,6 +71,26 @@ export function ConfirmDialog({
 
   const dismiss = busy ? () => {} : onCancel;
 
+  const content = (
+    <>
+        <View style={{ gap: tokens.spacing[2] }}>
+          <Text accessibilityRole="header" style={[tokens.typography.styles.headingSM, { color: theme.text.primary }]}>
+            {title}
+          </Text>
+          <Text style={[tokens.typography.styles.bodyMD, { color: theme.text.secondary }]}>{message}</Text>
+        </View>
+        {children}
+        <View testID="confirm-dialog-actions" style={{ gap: tokens.spacing[4] }}>
+          {destructive ? (
+            <TextButton variant="destructive" label={confirmLabel} onPress={onConfirm} disabled={confirmDisabled} loading={busy} />
+          ) : (
+            <PrimaryButton label={confirmLabel} onPress={onConfirm} disabled={confirmDisabled} loading={busy} />
+          )}
+          <TextButton variant="secondary" label={cancelLabel} onPress={onCancel} disabled={busy} />
+        </View>
+    </>
+  );
+
   const dialogView = (
     <Animated.View
       testID="confirm-dialog-container"
@@ -88,6 +108,7 @@ export function ConfirmDialog({
         accessibilityViewIsModal
         style={{
           width: '100%',
+          maxHeight: children ? '100%' : undefined,
           maxWidth: dialog.maxWidth,
           borderRadius: dialog.radius,
           padding: dialog.padding,
@@ -96,21 +117,14 @@ export function ConfirmDialog({
           ...theme.elevation.level3, // §5.2: level 3 is for blocking dialogs (a border in dark mode)
         }}
       >
-        <View style={{ gap: tokens.spacing[2] }}>
-          <Text accessibilityRole="header" style={[tokens.typography.styles.headingSM, { color: theme.text.primary }]}>
-            {title}
-          </Text>
-          <Text style={[tokens.typography.styles.bodyMD, { color: theme.text.secondary }]}>{message}</Text>
-        </View>
-        {children}
-        <View testID="confirm-dialog-actions" style={{ gap: tokens.spacing[4] }}>
-          {destructive ? (
-            <TextButton variant="destructive" label={confirmLabel} onPress={onConfirm} disabled={confirmDisabled} loading={busy} />
-          ) : (
-            <PrimaryButton label={confirmLabel} onPress={onConfirm} disabled={confirmDisabled} loading={busy} />
-          )}
-          <TextButton variant="secondary" label={cancelLabel} onPress={onCancel} disabled={busy} />
-        </View>
+        {children ? (
+          // Bounded by the keyboard-avoiding area: at a large font scale the buttons scroll into reach instead of leaving the screen.
+          <ScrollView testID="confirm-dialog-scroll" keyboardShouldPersistTaps="handled" contentContainerStyle={{ gap: tokens.spacing[6] }}>
+            {content}
+          </ScrollView>
+        ) : (
+          content
+        )}
       </View>
     </Animated.View>
   );

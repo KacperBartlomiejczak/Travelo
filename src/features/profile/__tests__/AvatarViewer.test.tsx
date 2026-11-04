@@ -252,4 +252,17 @@ describe('AvatarViewer', () => {
     expect(screen.getByText(OFFLINE_HINT)).toBeTruthy();
     expect(screen.getByRole('button', { name: CLOSE })).toBeEnabled();
   });
+
+  it('the sheet open when the network drops: change and remove are disabled, and enabled again when online', async () => {
+    await profileWithPhoto();
+    await renderViewer();
+    await openSheet();
+    expect(screen.getByRole('button', { name: CHANGE })).toBeEnabled();
+    await act(async () => setNetwork(OFFLINE));
+    await waitFor(() => expect(screen.getByRole('button', { name: CHANGE })).toBeDisabled());
+    expect(screen.getByRole('button', { name: REMOVE })).toBeDisabled();
+    await act(async () => setNetwork({ isConnected: true, isInternetReachable: true }));
+    await waitFor(() => expect(screen.getByRole('button', { name: CHANGE })).toBeEnabled());
+    expect(screen.getByRole('button', { name: REMOVE })).toBeEnabled();
+  });
 });

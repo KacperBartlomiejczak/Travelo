@@ -169,7 +169,7 @@ export function AvatarViewer({ fallbackUri, fallbackAvatarId, onClose }: Props) 
           {offline && <Hint>{t('avatar.offlineHint')}</Hint>}
         </View>
       )}
-      {sheetOpen && <AvatarSheet busy={working} saving={saving} onChange={change} onRemove={remove} onClose={() => setSheetOpen(false)} />}
+      {sheetOpen && <AvatarSheet busy={working} offline={offline} saving={saving} onChange={change} onRemove={remove} onClose={() => setSheetOpen(false)} />}
     </View>
   );
 }

@@ -90,4 +90,16 @@ describe('ConfirmDialog — optional content, disabled confirm and busy (profile
     await renderDialog();
     expect(screen.queryByTestId('confirm-dialog-keyboard')).toBeNull();
   });
+  it('with children the content and both actions sit in a scroll view that keeps taps while the keyboard is open', async () => {
+    await renderDialog({ withChildren: true });
+    const scroll = screen.getByTestId('confirm-dialog-scroll');
+    expect(scroll.props.keyboardShouldPersistTaps).toBe('handled');
+    expect(within(scroll).getByRole('button', { name: 'Usuń konto' })).toBeTruthy();
+    expect(within(scroll).getByRole('button', { name: 'Anuluj' })).toBeTruthy();
+  });
+
+  it('without children there is no scroll view', async () => {
+    await renderDialog();
+    expect(screen.queryByTestId('confirm-dialog-scroll')).toBeNull();
+  });
 });

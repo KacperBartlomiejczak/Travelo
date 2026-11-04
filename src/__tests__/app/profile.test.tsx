@@ -626,6 +626,32 @@ describe('Profile screen — photo and nick (A3)', () => {
         expect(photoSkeleton()).toBeNull();
       });
 
+      // Step 20: the shown photo stays (D21), but a newer url that failed must not open the viewer on that url.
+      it('a newer url that fails after the photo loaded keeps the photo but disables the circle; a url that loads enables it', async () => {
+        await signedAgainOnEveryRead();
+        await showPhotoThenReconnect();
+        await fireEvent(photo() as NonNullable<ReturnType<typeof photo>>, 'error', errorEvent());
+        await act(async () => {});
+        expect(photo()).toBeTruthy();
+        expect(photoInitial()).toBeNull();
+        const circle = screen.getByRole('button', { name: 'Otwórz zdjęcie profilowe' });
+        expect(circle).toBeDisabled();
+        const push = jest.spyOn(router, 'push').mockImplementation(() => undefined); // the test routes have no /avatar
+        await fireEvent.press(circle);
+        expect(push).not.toHaveBeenCalled();
+
+        const failedUrl = urlOfPhoto();
+        await go(false);
+        await go(true);
+        await waitFor(() => expect(urlOfPhoto()).not.toBe(failedUrl));
+        await fireEvent(photo() as NonNullable<ReturnType<typeof photo>>, 'load', loadEvent());
+        const open = screen.getByRole('button', { name: 'Otwórz zdjęcie profilowe' });
+        expect(open).toBeEnabled();
+        await fireEvent.press(open);
+        expect(push).toHaveBeenCalledWith(expect.objectContaining({ pathname: '/avatar' }));
+        push.mockRestore();
+      });
+
       it('a photo that was never shown and fails is still the skeleton (D20)', async () => {
         await signedAgainOnEveryRead();
         await renderProfile();

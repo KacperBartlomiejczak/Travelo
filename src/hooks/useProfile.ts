@@ -90,6 +90,8 @@ function usePhotoMutation<V>(run: (repository: ReturnType<typeof useProfileRepos
       if (!isEpochCurrent(context.epoch)) return;
       const mine: MyProfile = { profile, fromCache: false };
       queryClient.setQueryData(PROFILE_KEY, mine);
+      // The photo URL could not be signed: read again instead of leaving a photo that cannot load.
+      if (profile.avatarId && !profile.avatarUrl) void queryClient.invalidateQueries({ queryKey: PROFILE_KEY });
     },
   });
 }
