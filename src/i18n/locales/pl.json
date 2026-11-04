@@ -211,6 +211,7 @@
     "organizer": "{{name}} (organizator)",
     "organizerUnknown": "Organizator",
     "changeBudget": "Zmień budżet",
+    "perDayGroup": "dziennie dla grupy",
     "saveBudget": "Zapisz",
     "saveBudgetError": "Nie udało się zapisać. Spróbuj ponownie."
   },

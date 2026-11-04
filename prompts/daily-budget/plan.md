@@ -54,7 +54,7 @@ Gałąź: `feature/daily-budget`, commit na krok.
 - [x] 3. [backend] `expense-budget.ts` na kwotach dziennych per osoba (B6) — skill: TDD — najpierw testy: lista z sekcji Testy — weryfikacja: pełny zestaw.
 - [x] 4. [backend] Repozytorium, SQLite, `budget-sync` — skill: TDD — najpierw testy: zapis offline + sync — weryfikacja: pełny zestaw.
 - [x] 5. [frontend] Kreator: krok „Budżet” z przełącznikiem i listą osób + podsumowanie — skill: TDD, frontend-ui-engineering — weryfikacja: pełny zestaw + tester.
-- [ ] 6. [frontend] Arkusz „Budżet” (B4) i ekran Wydatków — skill: TDD, frontend-ui-engineering — weryfikacja: pełny zestaw + tester.
+- [x] 6. [frontend] Arkusz „Budżet” (B4) i ekran Wydatków — skill: TDD, frontend-ui-engineering — weryfikacja: pełny zestaw + tester.
 - [ ] 7. Docs: `shared.md`, `backend.md`, `decisions.md`, flow wydatków.
 
 ## Dziennik postępu
@@ -67,6 +67,10 @@ Gałąź: `feature/daily-budget`, commit na krok.
 - Weryfikacja 2: FAIL — blok B5 w `trips_rls.sql` po `rollback`; brak testu błędu RPC (okazał się istnieć). Poprawione: B5 w transakcji, usunięty grant `authenticated` na `private.daily_from_total`.
 - Weryfikacja 3: PASS (3383 testy, typecheck ✓, lint ✓). Niezweryfikowane: `pnpm test:db`, regeneracja `database.types.ts`. Commit kroków 1–5 jednym commitem (pliki przeplecione).
 - Krok 2 domknięty (Docker): migracja zastosowana na lokalnej bazie — 3 stare podróże przeliczone poprawnie (100000/3 dni → 33333, członkowie tak samo) · `supabase gen types` identyczne z ręczną wersją · poprawiony payload członka w `trips_rls.sql` (brak `daily_budget_minor`) · wszystkie 7 plików `supabase/tests` przechodzą (przez `docker exec`, brak lokalnego psql).
+- Krok 6: `BudgetSheet` z Razem/Osobno (otwiera w Osobno przy różnych kwotach, zapis pełnej listy członków), karta na ekranie głównym: kwota dzienna lub suma grupy dziennie (`home.perDayGroup`) + suma na podróż · Wydatki bez zmian (już liczą pule per osoba) · red: agent nie uruchomił testów przed implementacją — orkiestrator potwierdził po fakcie (7/10 nowych pada na starym komponencie) · green ✓ · użyty skill: TDD, frontend-ui-engineering.
+
+- Weryfikacja kroku 6: FAIL — `BudgetSheet` bez `ScrollView` (przy wielu osobach „Zapisz” poza ekranem); **odstępstwo procesowe:** red nowych testów potwierdzony dopiero po implementacji (orkiestrator, 7/10 pada na komponencie z HEAD). Poprawka: `ScrollView` (`budget-scroll`), „Zapisz” poza nim, test z 9 osobami (red tylko na brakującym `testID` — znów nie prawdziwy red) · ponowna weryfikacja kroku 6: PASS (3393 testy, typecheck ✓, lint ✓).
+- Krok 7: zaktualizowane `shared.md`, `backend.md`, `decisions.md`, `flows/features/trip-budget.md`, `overview.md`, `context/app-context.md`.
 
 ## Ryzyka i otwarte pytania
 - Zmiana kształtu `TripBudgetChange`: wpisy w lokalnej kolejce ze starym kształtem — proponuję je odrzucić przy migracji SQLite (serwer i tak ma B5).

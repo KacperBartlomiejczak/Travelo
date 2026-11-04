@@ -1,11 +1,12 @@
-import { act, fireEvent, render, screen } from '@testing-library/react-native';
+import { act, fireEvent, render, screen, within } from '@testing-library/react-native';
 import { AccessibilityInfo } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import { createInMemoryTripRepository, type TripRepository } from '@/data/trip-repository';
 import i18n from '@/i18n';
+import { formatMoney } from '@/lib/money';
 import { AppProviders } from '@/providers/AppProviders';
-import type { TripSummary } from '@/schemas';
+import type { TripMember, TripSummary } from '@/schemas';
 import { drawsCircleAlert } from '@/test/alert-icon';
 import { lightTheme } from '@/theme/theme';
 import { tokens } from '@/theme/tokens';
@@ -31,18 +32,24 @@ const trip: TripSummary = {
   travellerCount: 3,
 };
 
+const KASIA = '0b9e7c4e-6a43-4c4b-9a55-2f6f0f7e1a02';
+const OLA = '0b9e7c4e-6a43-4c4b-9a55-2f6f0f7e1a03';
+const member = (id: string, displayName: string, dailyBudgetMinor: number): TripMember => ({ id, tripId: TRIP_ID, userId: null, displayName, role: 'viewer', interests: [], dailyBudgetMinor });
+const equalMembers = [member(KASIA, 'Kasia', 300000), member(OLA, 'Ola', 300000)];
+const unequalMembers = [member(KASIA, 'Kasia', 300000), member(OLA, 'Ola', 150000)];
+
 type SetBudget = jest.Mock<Promise<void>, Parameters<TripRepository['setBudget']>>;
 
 // A mock `setBudget` that answers with `impl`.
 const budget = (impl: () => Promise<void> = async () => {}): SetBudget => jest.fn((_trip, _amountMinor) => impl());
 
-async function setup(setBudget: SetBudget = budget()) {
+async function setup(setBudget: SetBudget = budget(), members: TripMember[] = equalMembers, tripOverride: TripSummary = trip) {
   const onClose = jest.fn();
   const repository: TripRepository = { ...createInMemoryTripRepository(), setBudget };
   await render(
     <SafeAreaProvider initialMetrics={metrics}>
       <AppProviders tripRepository={repository}>
-        <BudgetSheet trip={trip} onClose={onClose} />
+        <BudgetSheet trip={tripOverride} members={members} onClose={onClose} />
       </AppProviders>
     </SafeAreaProvider>,
   );
@@ -64,7 +71,13 @@ describe('BudgetSheet (trips-supabase D5, sunline-redesign D28)', () => {
     const { onClose, setBudget } = await setup();
     await fireEvent.changeText(screen.getByLabelText('Kwota dziennie na osobę'), '2500');
     await fireEvent.press(save());
-    expect(setBudget).toHaveBeenCalledWith(expect.objectContaining({ id: TRIP_ID, baseCurrency: 'THB' }), { organizerDailyMinor: 250000, members: [] });
+    expect(setBudget).toHaveBeenCalledWith(expect.objectContaining({ id: TRIP_ID, baseCurrency: 'THB' }), {
+      organizerDailyMinor: 250000,
+      members: [
+        { memberId: KASIA, dailyMinor: 250000 },
+        { memberId: OLA, dailyMinor: 250000 },
+      ],
+    });
     await act(async () => {});
     expect(onClose).toHaveBeenCalledTimes(1);
   });
@@ -91,5 +104,74 @@ describe('BudgetSheet (trips-supabase D5, sunline-redesign D28)', () => {
     await setup();
     expect(screen.queryByText(ERROR)).toBeNull();
     expect(screen.queryByTestId('budget-error-icon', { includeHiddenElements: true })).toBeNull();
+  });
+
+  it('opens in Razem when everyone has the same amount, with one field', async () => {
+    await setup();
+    expect(screen.getByRole('radio', { name: 'Razem' })).toBeChecked();
+    expect(screen.queryByLabelText('Kasia')).toBeNull();
+    expect(screen.getByLabelText('Kwota dziennie na osobę').props.value).toBe('3000');
+  });
+
+  it('opens in Osobno when amounts differ, one field per person', async () => {
+    await setup(budget(), unequalMembers);
+    expect(screen.getByRole('radio', { name: 'Osobno' })).toBeChecked();
+    expect(screen.getByLabelText('Ty').props.value).toBe('3000');
+    expect(screen.getByLabelText('Kasia').props.value).toBe('3000');
+    expect(screen.getByLabelText('Ola').props.value).toBe('1500');
+  });
+
+  it('has no Razem / Osobno switch on a solo trip', async () => {
+    await setup(budget(), [], { ...trip, travellerCount: 1 });
+    expect(screen.queryByRole('radio', { name: 'Osobno' })).toBeNull();
+    expect(screen.getByLabelText('Kwota dziennie')).toBeTruthy();
+  });
+
+  it('prefills everyone with the shared amount when switching to Osobno, and uses the organizer amount going back', async () => {
+    await setup();
+    await fireEvent.changeText(screen.getByLabelText('Kwota dziennie na osobę'), '1000');
+    await fireEvent.press(screen.getByRole('radio', { name: 'Osobno' }));
+    expect(screen.getByLabelText('Kasia').props.value).toBe('1000');
+    await fireEvent.changeText(screen.getByLabelText('Ola'), '400');
+    await fireEvent.changeText(screen.getByLabelText('Ty'), '900');
+    await fireEvent.press(screen.getByRole('radio', { name: 'Razem' }));
+    expect(screen.getByLabelText('Kwota dziennie na osobę').props.value).toBe('900');
+  });
+
+  it('saves every amount of the full list in Osobno', async () => {
+    const { setBudget } = await setup(budget(), unequalMembers);
+    await fireEvent.changeText(screen.getByLabelText('Ola'), '2000');
+    await fireEvent.press(save());
+    expect(setBudget).toHaveBeenCalledWith(expect.anything(), {
+      organizerDailyMinor: 300000,
+      members: [
+        { memberId: KASIA, dailyMinor: 300000 },
+        { memberId: OLA, dailyMinor: 200000 },
+      ],
+    });
+  });
+
+  it('does not save when a person has no amount in Osobno, and flags the field', async () => {
+    const { setBudget } = await setup(budget(), unequalMembers);
+    await fireEvent.changeText(screen.getByLabelText('Ola'), '');
+    await fireEvent.press(save());
+    expect(setBudget).not.toHaveBeenCalled();
+    expect(screen.getByText('Wpisz kwotę')).toBeTruthy();
+  });
+
+  it('shows the group total and each person total for the trip (13 days)', async () => {
+    await setup(budget(), unequalMembers);
+    expect(screen.getByText(`Razem dla 3 osób: ${formatMoney({ amountMinor: 9750000, currency: 'THB' }, 'pl')}`)).toBeTruthy();
+    expect(screen.getByText(`Ola: ${formatMoney({ amountMinor: 1950000, currency: 'THB' }, 'pl')} na podróż`)).toBeTruthy();
+  });
+
+  it('scrolls the fields when many people are listed, with Save outside the scroll area', async () => {
+    const many = Array.from({ length: 9 }, (_, i) => member(`0b9e7c4e-6a43-4c4b-9a55-2f6f0f7e1b${String(i).padStart(2, '0')}`, `Friend ${i}`, 100000 + i));
+    await setup(budget(), many);
+    const scroll = within(screen.getByTestId('budget-scroll'));
+    expect(scroll.getByLabelText('Friend 8')).toBeTruthy();
+    expect(scroll.getByLabelText('Ty')).toBeTruthy();
+    expect(scroll.queryByRole('button', { name: 'Zapisz' })).toBeNull();
+    expect(save()).toBeTruthy();
   });
 });
