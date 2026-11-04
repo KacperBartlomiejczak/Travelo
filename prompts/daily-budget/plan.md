@@ -1,5 +1,5 @@
 # Zadanie: dzienny budżet na osobę (razem / osobno)
-Status: w trakcie (zaakceptowany 2026-11-04)
+Status: w trakcie — poprawki po review zaakceptowane 2026-11-05
 
 ## Zrozumienie i założenia
 Dziś podróż ma jedną kwotę `budgetPerPerson` na całą podróż, wspólną dla wszystkich. Przenoszenie niewydanej kwoty na następny dzień już działa (`src/lib/expense-budget.ts`, expenses D7), ale liczy się z kwoty na całą podróż.
@@ -56,6 +56,28 @@ Gałąź: `feature/daily-budget`, commit na krok.
 - [x] 5. [frontend] Kreator: krok „Budżet” z przełącznikiem i listą osób + podsumowanie — skill: TDD, frontend-ui-engineering — weryfikacja: pełny zestaw + tester.
 - [x] 6. [frontend] Arkusz „Budżet” (B4) i ekran Wydatków — skill: TDD, frontend-ui-engineering — weryfikacja: pełny zestaw + tester.
 - [x] 7. Docs: `shared.md`, `backend.md`, `decisions.md`, flow wydatków.
+
+## Poprawki po review CodeRabbita (PR #28) — 2026-11-05
+CodeRabbit zgłosił 15 uwag (9 w liniach, 1 „follow-up”, 5 drobnych do testów). Explorer (Sonnet) sprawdził je w kodzie: 11 trafnych lub częściowo trafnych, #6 trafna po sprawdzeniu przez orkiestratora, #12–#14 to drobne braki w testach (niesprawdzone w szczegółach, do dopisania); 4 punkty wymagały decyzji Kacpra. Dodatkowo PR ma konflikt z `main` (PR #27) w `docs/architecture/decisions.md` i `overview.md`.
+
+### Decyzje Kacpra (2026-11-05)
+- **R-D1 (#9, Major) — stare wersje aplikacji vs migracja.** Migracja usuwa `budget_per_person_minor`, a stary klient wysyła `create_trip` bez `daily_budget_minor` → błąd. Nie ma `eas.json` ani blokady wersji. **Decyzja:** brak warstwy zgodności — aplikacja jest zainstalowana tylko u Kacpra; wpis w `known-limitations.md`.
+- **R-D2 (#3) — stare kopie podróży w SQLite.** Po aktualizacji kopia w starym kształcie nie parsuje się, więc offline podróż jest niedostępna do pierwszego otwarcia online. **Decyzja:** zaakceptować, wpis w `known-limitations.md`.
+- **R-D3 (#2) — kopia offline po zignorowanej zmianie.** `set_trip_budget` nic nie zwraca, więc zmiana starsza niż serwerowa wygląda jak zapisana; kopia offline może pokazać ją do następnego udanego odczytu. **Decyzja:** zaakceptować, wpis w `known-limitations.md`.
+- **R-D4 (#8) — górny limit kwoty.** Suma `dzienna × dni × osoby` może teoretycznie przekroczyć `Number.MAX_SAFE_INTEGER`. **Decyzja:** pominąć (tylko absurdalne kwoty).
+
+### Kroki
+- [ ] R0. [orkiestrator] Scalić `origin/main` do `feature/daily-budget`, rozwiązać konflikty w `decisions.md` i `overview.md` (zachować oba wpisy); pełny zestaw testów zielony.
+- [ ] R1. [frontend] Poprawki zachowania — skill: TDD — najpierw testy dla każdego punktu:
+  - #4 tapnięcie aktywnego segmentu nie wywołuje `onChange` (`SegmentedControl`: pomija, gdy `option.value === value`) → kwoty w trybie Osobno nie są nadpisywane (arkusz i kreator);
+  - #10 błąd „kwota > 0” dopiero po „Dalej”/„Zapisz” (`budget.tsx:40`, `BudgetSheet.tsx:55`), wpisywanie „0,50” bez błędu;
+  - #7 `withCompanionCount` przycina `budget.friendAmountTexts` do liczby znajomych (`draft.ts`);
+  - #1 po nieudanym „Dalej” kreator przewija do pierwszego błędnego pola (jak `friends.tsx`, `scrollRef`);
+  - #5 iOS: arkusz „Budżet” przewija aktywne pole nad klawiaturę — wyeksportować `useScrollFocusedFieldIntoView` z `WizardScreen.tsx` i użyć w `BudgetSheet`;
+  - testy z uwag #11 (assert `ScrollView`) i #12 (kreator przekazuje kwoty Osobno dalej) — weryfikacja: pełny zestaw.
+- [ ] R2. [backend] Testy z uwag #13 (zapis offline bez wywołania RPC), #14 (`trip-rows`: różne kwoty znajomych), #15 (`trips_rls.sql`: drugie wywołanie z tym samym czasem i innymi kwotami nie zmienia danych) — skill: TDD — weryfikacja: pełny zestaw + `supabase/tests` przez `docker exec`.
+- [ ] R3. [orkiestrator] Docs: wiersz `/` w `frontend.md` (karta „Budżet”: kwota dzienna lub suma grupy dziennie + suma na podróż — #6); `known-limitations.md`: R-D1, R-D2, R-D3.
+- [ ] R4. Weryfikator na R0–R3, commit na krok, push, odpowiedzi na komentarze CodeRabbita w PR (co poprawione, co świadomie pominięte i dlaczego).
 
 ## Dziennik postępu
 - Krok 1: testy schematów napisane (red ✓, 37 porażek) · `dailyBudget` na podróży, `dailyBudgetMinor` na członku, nowy `BudgetStepInputSchema` (`mode`, `organizerDailyMinor`, `friendDailyMinor[]`), `TripBudgetChange` z listą członków, klucz `validation.budgetSharedMismatch` · warstwa danych tylko zmostkowana (TODO kroki 2 i 4) · green dla schematów ✓; typecheck/testy UI i test parzystości czerwone do czasu kroków 2, 3 i poprawek UI · użyty skill: TDD · **odstępstwo:** zmiana nazwy pola psuje UI, więc kroki 1–3 + minimalne poprawki UI (frontend) weryfikuję razem jako jedną całość; dopiero wtedy pełny zestaw jest zielony.
