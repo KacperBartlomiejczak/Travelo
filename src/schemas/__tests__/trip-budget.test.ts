@@ -7,10 +7,16 @@ import {
 } from '@/schemas';
 
 const TRIP_ID = '0b9e7c4e-6a43-4c4b-9a55-2f6f0f7e1a01';
+const MEMBER_A = '7c2d9e1f-3a4b-4c5d-8e6f-7a8b9c0d1e2f';
+const MEMBER_B = '1a2b3c4d-5e6f-4a7b-8c9d-0e1f2a3b4c5d';
 
 const change = {
   tripId: TRIP_ID,
-  budgetPerPerson: { amountMinor: 250000, currency: 'EUR' },
+  organizerDailyBudget: { amountMinor: 25000, currency: 'EUR' },
+  members: [
+    { memberId: MEMBER_A, dailyBudgetMinor: 25000 },
+    { memberId: MEMBER_B, dailyBudgetMinor: 10000 },
+  ],
   updatedAt: '2026-10-06T09:30:00.000Z',
 };
 
@@ -29,15 +35,18 @@ describe('TripBudgetChange', () => {
     expect(TripBudgetChangeSchema.safeParse(change).success).toBe(true);
   });
 
-  it('accepts a zero budget (the trip schema allows it)', () => {
-    expect(TripBudgetChangeSchema.safeParse({ ...change, budgetPerPerson: { amountMinor: 0, currency: 'EUR' } }).success).toBe(true);
+  it('accepts a solo trip with no members', () => {
+    expect(TripBudgetChangeSchema.safeParse({ ...change, members: [] }).success).toBe(true);
   });
 
   it.each([
     ['a trip id that is not a UUID', { tripId: 'trip-1' }],
-    ['an amount with a fraction', { budgetPerPerson: { amountMinor: 1.5, currency: 'EUR' } }],
-    ['a negative amount', { budgetPerPerson: { amountMinor: -1, currency: 'EUR' } }],
-    ['a lowercase currency', { budgetPerPerson: { amountMinor: 100, currency: 'eur' } }],
+    ['a zero organizer amount', { organizerDailyBudget: { amountMinor: 0, currency: 'EUR' } }],
+    ['an amount with a fraction', { organizerDailyBudget: { amountMinor: 1.5, currency: 'EUR' } }],
+    ['a negative amount', { organizerDailyBudget: { amountMinor: -1, currency: 'EUR' } }],
+    ['a lowercase currency', { organizerDailyBudget: { amountMinor: 100, currency: 'eur' } }],
+    ['a member id that is not a UUID', { members: [{ memberId: 'm1', dailyBudgetMinor: 100 }] }],
+    ['a zero member amount', { members: [{ memberId: MEMBER_A, dailyBudgetMinor: 0 }] }],
     ['a time without an offset', { updatedAt: '2026-10-06T09:30:00' }],
   ])('rejects %s', (_, patch) => {
     expect(TripBudgetChangeSchema.safeParse({ ...change, ...patch }).success).toBe(false);
@@ -67,12 +76,40 @@ describe('LocalTripBudgetChange', () => {
 });
 
 describe('TripBudgetForm', () => {
-  it('accepts a positive amount', () => {
-    expect(TripBudgetFormSchema.safeParse({ budgetPerPerson: { amountMinor: 1, currency: 'EUR' } }).success).toBe(true);
+  const individual = {
+    mode: 'individual',
+    organizerDailyMinor: 20000,
+    members: [
+      { memberId: MEMBER_A, dailyMinor: 5000 },
+      { memberId: MEMBER_B, dailyMinor: 10000 },
+    ],
+  };
+
+  it('accepts individual mode with different amounts', () => {
+    expect(TripBudgetFormSchema.safeParse(individual).success).toBe(true);
+  });
+
+  it('accepts shared mode when every amount equals the organizer\'s', () => {
+    const shared = { mode: 'shared', organizerDailyMinor: 7000, members: individual.members.map((m) => ({ ...m, dailyMinor: 7000 })) };
+    expect(TripBudgetFormSchema.safeParse(shared).success).toBe(true);
+  });
+
+  it('rejects shared mode when a member amount differs', () => {
+    const result = TripBudgetFormSchema.safeParse({ ...individual, mode: 'shared' });
+    expect(result.error?.issues.map((i) => [i.path, i.message])).toEqual([
+      [['members', 0, 'dailyMinor'], 'validation.budgetSharedMismatch'],
+      [['members', 1, 'dailyMinor'], 'validation.budgetSharedMismatch'],
+    ]);
   });
 
   it('rejects 0 with the wizard\'s message', () => {
-    const result = TripBudgetFormSchema.safeParse({ budgetPerPerson: { amountMinor: 0, currency: 'EUR' } });
+    const result = TripBudgetFormSchema.safeParse({ ...individual, organizerDailyMinor: 0 });
+    expect(result.error?.issues[0].message).toBe('validation.amountPositive');
+    expect(result.error?.issues[0].path).toEqual(['organizerDailyMinor']);
+  });
+
+  it('rejects a zero member amount', () => {
+    const result = TripBudgetFormSchema.safeParse({ ...individual, members: [{ memberId: MEMBER_A, dailyMinor: 0 }] });
     expect(result.error?.issues[0].message).toBe('validation.amountPositive');
   });
 });
@@ -89,7 +126,7 @@ describe('CurrentTrip', () => {
         startDate: '2026-11-02',
         endDate: '2026-11-09',
         baseCurrency: 'EUR',
-        budgetPerPerson: { amountMinor: 300000, currency: 'EUR' },
+        dailyBudget: { amountMinor: 30000, currency: 'EUR' },
         createdAt: '2026-10-04T12:00:00+02:00',
         budgetUpdatedAt: '2026-10-04T12:00:00+02:00',
         travellerCount: 1,

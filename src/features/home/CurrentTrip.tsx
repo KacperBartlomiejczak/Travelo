@@ -19,7 +19,6 @@ import { formatLocalShort } from '@/lib/date-time';
 import { savedLayoverMinutes } from '@/lib/layovers';
 import { formatMoney } from '@/lib/money';
 import { isoToLocal } from '@/lib/time';
-import { perPersonPerDay, tripDayCount } from '@/lib/trip-days';
 import { useIsOffline, useRequestBudgetSync } from '@/providers/BudgetSync';
 import type { FlightSegment, SyncStatus, TripOverview } from '@/schemas';
 import { tokens } from '@/theme/tokens';
@@ -197,8 +196,6 @@ function Budget({ trip, syncStatus, onChangeBudget }: BudgetProps) {
   const theme = useTheme();
   const requestSync = useRequestBudgetSync();
   const locale = i18n.language;
-  const perPerson = trip.budgetPerPerson;
-  const perDay = formatMoney(perPersonPerDay(perPerson, tripDayCount(trip.startDate, trip.endDate)), locale);
   return (
     <Section
       testID="home-budget"
@@ -215,17 +212,9 @@ function Budget({ trip, syncStatus, onChangeBudget }: BudgetProps) {
       }
     >
       <View style={{ flexDirection: 'row', alignItems: 'baseline', flexWrap: 'wrap', gap: spacing[2] }}>
-        <Text style={[typography.styles.moneyLG, { color: theme.text.primary }]}>{formatMoney(perPerson, locale)}</Text>
-        <Body tone="secondary">{t('newTrip.summary.perPerson')}</Body>
+        <Text style={[typography.styles.moneyLG, { color: theme.text.primary }]}>{formatMoney(trip.dailyBudget, locale)}</Text>
+        <Body tone="secondary">{t(trip.travellerCount > 1 ? 'newTrip.summary.perPerson' : 'newTrip.summary.perDay')}</Body>
       </View>
-      <Body tone="secondary">
-        {trip.travellerCount > 1
-          ? t('newTrip.summary.totals', {
-              total: formatMoney({ ...perPerson, amountMinor: perPerson.amountMinor * trip.travellerCount }, locale),
-              perDay,
-            })
-          : t('newTrip.summary.perDay', { perDay })}
-      </Body>
       <SyncIndicator status={syncStatus} onRetry={requestSync} />
     </Section>
   );

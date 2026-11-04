@@ -293,13 +293,38 @@ describe('FriendsStepInput (friend-invite)', () => {
 });
 
 describe('BudgetStepInput', () => {
-  it('accepts a positive amount', () => {
-    expect(BudgetStepInputSchema.safeParse({ budgetPerPerson: { amountMinor: 300000, currency: 'EUR' } }).success).toBe(true);
+  const shared = { mode: 'shared', currency: 'EUR', organizerDailyMinor: 10000, friendDailyMinor: [10000, 10000] };
+
+  it('accepts shared mode with equal amounts', () => {
+    expect(BudgetStepInputSchema.safeParse(shared).success).toBe(true);
   });
 
-  it('rejects zero', () => {
-    const result = BudgetStepInputSchema.safeParse({ budgetPerPerson: { amountMinor: 0, currency: 'EUR' } });
-    expect(issues(result)).toEqual([{ path: ['budgetPerPerson', 'amountMinor'], message: 'validation.amountPositive' }]);
+  it('accepts individual mode with different amounts', () => {
+    expect(BudgetStepInputSchema.safeParse({ ...shared, mode: 'individual', friendDailyMinor: [5000, 20000] }).success).toBe(true);
+  });
+
+  it('accepts a solo budget with no friends', () => {
+    expect(BudgetStepInputSchema.safeParse({ ...shared, friendDailyMinor: [] }).success).toBe(true);
+  });
+
+  it('rejects shared mode when a friend amount differs from the organizer', () => {
+    const result = BudgetStepInputSchema.safeParse({ ...shared, friendDailyMinor: [10000, 5000] });
+    expect(issues(result)).toEqual([{ path: ['friendDailyMinor', 1], message: 'validation.budgetSharedMismatch' }]);
+  });
+
+  it('rejects a zero organizer amount', () => {
+    const result = BudgetStepInputSchema.safeParse({ ...shared, organizerDailyMinor: 0, friendDailyMinor: [] });
+    expect(issues(result)).toEqual([{ path: ['organizerDailyMinor'], message: 'validation.amountPositive' }]);
+  });
+
+  it('rejects a zero friend amount in individual mode', () => {
+    const result = BudgetStepInputSchema.safeParse({ ...shared, mode: 'individual', friendDailyMinor: [0, 5000] });
+    expect(issues(result)).toEqual([{ path: ['friendDailyMinor', 0], message: 'validation.amountPositive' }]);
+  });
+
+  it('rejects an unknown mode and a lowercase currency', () => {
+    expect(BudgetStepInputSchema.safeParse({ ...shared, mode: 'split' }).success).toBe(false);
+    expect(BudgetStepInputSchema.safeParse({ ...shared, currency: 'eur' }).success).toBe(false);
   });
 });
 
@@ -361,7 +386,7 @@ describe('CreateTripInput', () => {
         { displayName: 'Ola', interests: [] },
       ],
     },
-    budget: { budgetPerPerson: { amountMinor: 300000, currency: 'THB' } },
+    budget: { mode: 'shared', currency: 'THB', organizerDailyMinor: 100000, friendDailyMinor: [100000, 100000] },
     details: { name: 'Warszawa → Bangkok', coverImageUri: DEFAULT_COVER },
   };
 
@@ -390,8 +415,18 @@ describe('CreateTripInput', () => {
   });
 
   it('accepts a solo trip with no friends', () => {
-    const solo = { ...input, flights: { ...flights, companionCount: 0 }, friends: { friends: [] } };
+    const solo = {
+      ...input,
+      flights: { ...flights, companionCount: 0 },
+      friends: { friends: [] },
+      budget: { ...input.budget, friendDailyMinor: [] },
+    };
     expect(CreateTripInputSchema.safeParse(solo).success).toBe(true);
+  });
+
+  it('rejects a budget with a different number of friend amounts than friends', () => {
+    const result = CreateTripInputSchema.safeParse({ ...input, budget: { ...input.budget, friendDailyMinor: [100000] } });
+    expect(issues(result)).toEqual([{ path: ['budget', 'friendDailyMinor'], message: 'validation.friendCountMismatch' }]);
   });
 
   it('rejects a friend count different from the companion count', () => {

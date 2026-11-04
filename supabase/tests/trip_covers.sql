@@ -65,7 +65,7 @@ $$;
 create function test_helpers.insert_trip(trip_id uuid, owner uuid, cover text) returns void language plpgsql as $$
 begin
   insert into public.trips (id, owner_id, name, cover_image_uri, destination, start_date, end_date, base_currency,
-                            budget_per_person_minor, budget_updated_at)
+                            daily_budget_minor, budget_updated_at)
   values (trip_id, owner, 'Warsaw → Bangkok', cover, 'BKK', '2026-11-03', '2026-11-15', 'THB', 3000000, '2026-10-04T12:00:00Z');
 end $$;
 
@@ -94,7 +94,7 @@ select test_helpers.ok(
 
 -- A row inserted without the column gets the default preset.
 insert into public.trips (id, owner_id, name, destination, start_date, end_date, base_currency,
-                          budget_per_person_minor, budget_updated_at)
+                          daily_budget_minor, budget_updated_at)
 values ('1a000000-0000-4000-8000-0000000000d0', '00000000-0000-4000-a000-00000000000a', 'No cover given', 'BKK',
         '2026-11-03', '2026-11-15', 'THB', 3000000, '2026-10-04T12:00:00Z');
 select test_helpers.ok(
@@ -163,7 +163,7 @@ create function test_helpers.create_with_cover(trip_id uuid, cover jsonb) return
 begin
   perform public.create_trip(
     jsonb_build_object('id', trip_id, 'name', 'Warsaw → Bangkok', 'cover_image_uri', cover, 'destination', 'BKK',
-      'start_date', '2026-11-03', 'end_date', '2026-11-15', 'base_currency', 'THB', 'budget_per_person_minor', 3000000,
+      'start_date', '2026-11-03', 'end_date', '2026-11-15', 'base_currency', 'THB', 'daily_budget_minor', 3000000,
       'budget_updated_at', '2026-10-04T12:00:00Z', 'created_at', '2026-10-04T12:00:00Z'),
     '[]', '[]');
 end $$;
@@ -229,9 +229,9 @@ select test_helpers.throws(
 -- ---------------------------------------------------------------------------
 select test_helpers.insert_trip('1a000000-0000-4000-8000-0000000000a1', '00000000-0000-4000-a000-00000000000a', 'preset:auckland');
 select test_helpers.insert_trip('1b000000-0000-4000-8000-0000000000b1', '00000000-0000-4000-a000-00000000000b', 'preset:auckland');
-insert into public.trip_members (id, trip_id, user_id, display_name, role, interests)
+insert into public.trip_members (id, trip_id, user_id, display_name, role, interests, daily_budget_minor)
 values ('20000000-0000-4000-8000-000000000001', '1a000000-0000-4000-8000-0000000000a1',
-        '00000000-0000-4000-a000-00000000000c', 'Celina', 'viewer', '{}');
+        '00000000-0000-4000-a000-00000000000c', 'Celina', 'viewer', '{}', 100000);
 
 select test_helpers.login('00000000-0000-4000-a000-00000000000a');
 select test_helpers.ok(

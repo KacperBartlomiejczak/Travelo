@@ -136,7 +136,7 @@ function TripExpenses({ overview, onOpenMenu, offline }: TripProps) {
       list &&
       computeExpenseBudget({
         expenses: list,
-        budgetPerPersonMinor: trip.budgetPerPerson.amountMinor,
+        organizerDailyMinor: trip.dailyBudget.amountMinor,
         startDate: trip.startDate,
         endDate: trip.endDate,
         today,

@@ -65,7 +65,7 @@ describe('toCreateTripArgs', () => {
       start_date: '2026-11-03',
       end_date: '2026-11-15',
       base_currency: 'THB',
-      budget_per_person_minor: 3000000,
+      daily_budget_minor: 100000,
       budget_updated_at: '2026-10-04T12:00:00.000Z',
       created_at: '2026-10-04T12:00:00.000Z',
     });
@@ -78,6 +78,14 @@ describe('toCreateTripArgs', () => {
       expect.objectContaining({ display_name: 'Ola', interests: [], friend_code: null }),
     ]);
     (members as object[]).forEach((member) => expect(member).not.toHaveProperty('user_id'));
+  });
+
+  it('sends each friend daily budget (daily-budget A2)', () => {
+    const { members } = toCreateTripArgs(created());
+    expect(members).toEqual([
+      expect.objectContaining({ display_name: 'Kasia', daily_budget_minor: 100000 }),
+      expect.objectContaining({ display_name: 'Ola', daily_budget_minor: 100000 }),
+    ]);
   });
 
   it('sends the friend code of a friend found by code, and still no account id (friend-invite D12)', () => {
@@ -208,13 +216,21 @@ describe('overviewFromRows', () => {
     ]);
   });
 
+  it('reads the organizer and each friend daily budget from daily_budget_minor', () => {
+    const { tripRow, members, segments } = storedRows(created());
+    const overview = overviewFromRows({ ...tripRow, daily_budget_minor: 250000 }, [{ ...members[0], daily_budget_minor: 90000 }, members[1]], segments);
+    expect(overview.trip.dailyBudget).toEqual({ amountMinor: 250000, currency: 'THB' });
+    expect(overview.members.map((m) => m.dailyBudgetMinor)).toEqual([90000, 100000]);
+  });
+
   it('orders members by name, whatever order the server sends', () => {
     const { tripRow, members, segments } = storedRows(created());
     expect(overviewFromRows(tripRow, [members[1], members[0]], segments).members.map((m) => m.displayName)).toEqual(['Kasia', 'Ola']);
   });
 
   it.each([
-    ['a budget with a fraction', { budget_per_person_minor: 1.5 }],
+    ['a budget with a fraction', { daily_budget_minor: 1.5 }],
+    ['a zero daily budget', { daily_budget_minor: 0 }],
     ['a lowercase currency', { base_currency: 'thb' }],
     ['a timestamp without an offset', { created_at: '2026-10-04T12:00:00' }],
   ])('rejects a trip row with %s', (_, patch) => {

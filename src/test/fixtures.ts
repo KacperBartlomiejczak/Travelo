@@ -48,7 +48,7 @@ export function createTripInputFixture(): z.input<typeof CreateTripInputSchema> 
         { displayName: 'Ola', interests: [] },
       ],
     },
-    budget: { budgetPerPerson: { amountMinor: 3000000, currency: 'THB' } },
+    budget: { mode: 'shared', currency: 'THB', organizerDailyMinor: 100000, friendDailyMinor: [100000, 100000] },
     details: { name: 'Warsaw → Bangkok', coverImageUri: DEFAULT_COVER },
   };
 }

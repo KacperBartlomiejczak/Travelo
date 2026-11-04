@@ -20,6 +20,7 @@ type BudgetChangeRow = {
   trip_id: string;
   amount_minor: number;
   currency: string;
+  members_json: string;
   updated_at: string;
   sync_status: string;
   sync_error: string | null;
@@ -30,7 +31,8 @@ type BudgetChangeRow = {
 function budgetChangeFromRow(row: BudgetChangeRow): LocalTripBudgetChange {
   return LocalTripBudgetChangeSchema.parse({
     tripId: row.trip_id,
-    budgetPerPerson: { amountMinor: row.amount_minor, currency: row.currency },
+    organizerDailyBudget: { amountMinor: row.amount_minor, currency: row.currency },
+    members: JSON.parse(row.members_json),
     updatedAt: row.updated_at,
     syncStatus: row.sync_status,
     ...(row.sync_error !== null ? { syncError: row.sync_error } : {}),
@@ -299,12 +301,12 @@ export function createLocalStore(db: LocalDb) {
     async saveBudgetChange(change: TripBudgetChange, epoch?: number): Promise<void> {
       if (!current(epoch)) return;
       await db.runAsync(
-        `insert into trip_budget_changes (trip_id, amount_minor, currency, updated_at, sync_status, sync_error, attempts, last_attempt_at)
-         values (?, ?, ?, ?, 'pending', null, 0, null)
+        `insert into trip_budget_changes (trip_id, amount_minor, currency, members_json, updated_at, sync_status, sync_error, attempts, last_attempt_at)
+         values (?, ?, ?, ?, ?, 'pending', null, 0, null)
          on conflict (trip_id) do update set
-           amount_minor = excluded.amount_minor, currency = excluded.currency, updated_at = excluded.updated_at,
+           amount_minor = excluded.amount_minor, currency = excluded.currency, members_json = excluded.members_json, updated_at = excluded.updated_at,
            sync_status = 'pending', sync_error = null, attempts = 0, last_attempt_at = null`,
-        [change.tripId, change.budgetPerPerson.amountMinor, change.budgetPerPerson.currency, change.updatedAt],
+        [change.tripId, change.organizerDailyBudget.amountMinor, change.organizerDailyBudget.currency, JSON.stringify(change.members), change.updatedAt],
       );
     },
 
@@ -330,9 +332,11 @@ export function createLocalStore(db: LocalDb) {
     async markBudgetSynced(change: TripBudgetChange): Promise<void> {
       const cached = await cachedOverview(change.tripId);
       if (cached && Date.parse(cached.trip.budgetUpdatedAt) < Date.parse(change.updatedAt)) {
-        const trip = { ...cached.trip, budgetPerPerson: change.budgetPerPerson, budgetUpdatedAt: change.updatedAt };
+        const trip = { ...cached.trip, dailyBudget: change.organizerDailyBudget, budgetUpdatedAt: change.updatedAt };
+        const amounts = new Map(change.members.map((member) => [member.memberId, member.dailyBudgetMinor]));
+        const members = cached.members.map((member) => ({ ...member, dailyBudgetMinor: amounts.get(member.id) ?? member.dailyBudgetMinor }));
         await db.runAsync('update trip_overview_cache set overview_json = ? where trip_id = ?', [
-          JSON.stringify(TripOverviewSchema.parse({ ...cached, trip })),
+          JSON.stringify(TripOverviewSchema.parse({ ...cached, trip, members })),
           change.tripId,
         ]);
       }

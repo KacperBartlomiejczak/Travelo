@@ -69,7 +69,7 @@ function overview(): TripOverview {
       startDate: '2026-11-03',
       endDate: '2026-11-15',
       baseCurrency: 'THB',
-      budgetPerPerson: { amountMinor: 300000, currency: 'THB' },
+      dailyBudget: { amountMinor: 300000, currency: 'THB' },
       createdAt: '2026-10-04T12:00:00.000Z',
       budgetUpdatedAt: '2026-10-04T12:00:00.000Z',
       travellerCount: 1,

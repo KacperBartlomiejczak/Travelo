@@ -72,14 +72,19 @@
       "interests": "What do they enjoy?"
     },
     "budget": {
-      "heading": "How much will each person spend?",
-      "hint": "For the whole trip, without flights: stays, food, attractions, local transport.",
-      "amount": "Amount per person",
+      "heading": "How much can each person spend per day?",
+      "headingSolo": "How much do you want to spend per day?",
+      "hint": "Excluding flights: stays, food, activities, local transport. Whatever you don't spend carries over to the next day.",
+      "modeShared": "Together",
+      "modeIndividual": "Separately",
+      "mode": "Group budget",
+      "amountShared": "Daily amount per person",
+      "amountSolo": "Daily amount",
+      "you": "You",
       "currency": "Currency",
-      "groupTotal": "Total for {{count}} people: {{total}}",
-      "perDay": "~{{amount}} per person per day",
-      "headingSolo": "How much will you spend?",
-      "amountSolo": "Amount"
+      "personTotal": "{{name}}: {{total}} for the trip",
+      "tripTotal": "{{total}} per person for the trip",
+      "groupTotal": "Total for {{count}} people: {{total}}"
     },
     "summary": {
       "heading": "Check your trip",
@@ -97,16 +102,18 @@
       "friendInterests": "{{name}} — {{interests}}",
       "friendNoInterests": "{{name}} — no interests yet",
       "segment": "{{from}} {{departAt}} → {{to}} {{arriveAt}}",
-      "perPerson": "per person",
-      "totals": "Total {{total}} · ~{{perDay}} per person a day",
-      "perDay": "~{{perDay}} a day",
+      "perPerson": "per day per person",
+      "totals": "Total {{total}} for the trip",
+      "perDay": "per day",
       "create": "Create trip",
       "saveError": "Couldn't save the trip. Try again.",
       "coverUploadFailed": "Couldn't upload the cover photo. Change it in “Name and photo”.",
       "budgetTitle": "Budget",
       "changeSection": "Change: {{section}}",
       "detailsTitle": "Name and photo",
-      "name": "Trip name"
+      "name": "Trip name",
+      "soloTotal": "{{total}} for the trip",
+      "personDaily": "{{name}}: {{amount}} per day"
     }
   },
   "duration": {
@@ -154,6 +161,8 @@
     "amountRequired": "Enter an amount",
     "amountInvalid": "Enter the amount as a number, e.g. 2500 or 2500.50",
     "amountPositive": "The amount must be more than zero",
+    "friendCountMismatch": "The number of amounts doesn't match the number of friends.",
+    "budgetSharedMismatch": "In shared mode everyone has the same amount",
     "amountInvalidWhole": "Enter the amount as a whole number, e.g. 2500",
     "categoryRequired": "Choose a category"
   },

@@ -14,7 +14,7 @@ import { useTheme } from '@/theme/useTheme';
 
 type Props = { trip: TripSummary; onClose: () => void };
 
-// Changing the budget per person of an existing trip (trips-supabase D5): amount only, in the trip's
+// Changing the daily budget of an existing trip (trips-supabase D5): the organizer's amount only for now (daily-budget step 6), in the trip's
 // base currency. Saved on the phone first, so it works offline (D1); the sheet closes after saving (D13).
 export function BudgetSheet({ trip, onClose }: Props) {
   const { t, i18n } = useTranslation();
@@ -22,11 +22,11 @@ export function BudgetSheet({ trip, onClose }: Props) {
   const setBudget = useSetTripBudget();
   const currency = trip.baseCurrency;
   const solo = trip.travellerCount === 1;
-  const [amountText, setAmountText] = useState(() => formatAmountInput(trip.budgetPerPerson.amountMinor, currency, i18n.language));
+  const [amountText, setAmountText] = useState(() => formatAmountInput(trip.dailyBudget.amountMinor, currency, i18n.language));
   const [submitted, setSubmitted] = useState(false);
 
   const amountMinor = parseAmountToMinor(amountText, currency, i18n.language);
-  const result = TripBudgetFormSchema.safeParse({ budgetPerPerson: { amountMinor, currency } });
+  const result = TripBudgetFormSchema.safeParse({ mode: 'shared', organizerDailyMinor: amountMinor, members: [] });
 
   // Same rules as the wizard's budget step (§10.5): not a number while typing; empty or zero on save.
   let errorKey: string | undefined;
@@ -45,7 +45,7 @@ export function BudgetSheet({ trip, onClose }: Props) {
       return;
     }
     setBudget.mutate(
-      { trip, amountMinor: result.data.budgetPerPerson.amountMinor },
+      { trip, budget: { organizerDailyMinor: result.data.organizerDailyMinor, members: result.data.members } },
       { onSuccess: onClose, onError: () => AccessibilityInfo.announceForAccessibility(t('home.saveBudgetError')) },
     );
   }
@@ -54,7 +54,7 @@ export function BudgetSheet({ trip, onClose }: Props) {
     <BottomSheet visible title={t(solo ? 'newTrip.budget.headingSolo' : 'newTrip.budget.heading')} onClose={onClose}>
       <Text style={[tokens.typography.styles.bodyMD, { color: theme.text.secondary }]}>{t('newTrip.budget.hint')}</Text>
       <AmountField
-        label={t(solo ? 'newTrip.budget.amountSolo' : 'newTrip.budget.amount')}
+        label={t(solo ? 'newTrip.budget.amountSolo' : 'newTrip.budget.amountShared')}
         amountText={amountText}
         currency={currency}
         onChangeText={setAmountText}

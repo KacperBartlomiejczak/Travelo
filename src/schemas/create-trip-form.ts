@@ -3,7 +3,7 @@ import { z } from 'zod';
 import { isExistingLocalTime, todayIn, zonedLocalToDate } from '@/lib/time';
 
 import { CoverChoiceSchema } from './cover';
-import { IATA_CODE_PATTERN, isLocalDateTime, isTimeZone, MoneySchema } from './common';
+import { CurrencyCodeSchema, IATA_CODE_PATTERN, isLocalDateTime, isTimeZone } from './common';
 import { FLIGHT_NUMBER_MAX_LENGTH } from './flight';
 import { InterestTagSchema } from './interests';
 import { DISPLAY_NAME_MAX_LENGTH } from './member';
@@ -123,10 +123,39 @@ export const FriendsStepInputSchema = z.object({ friends: z.array(FriendInputSch
 });
 export type FriendsStepInput = z.infer<typeof FriendsStepInputSchema>;
 
-/** Step 3: budget per person for the whole trip (D5). */
-export const BudgetStepInputSchema = z.object({
-  budgetPerPerson: MoneySchema.extend({ amountMinor: z.int().positive({ error: 'validation.amountPositive' }) }),
-});
+/** A daily budget in minor units; the one rule and error key every budget form shares. */
+export const DailyMinorSchema = z.int().positive({ error: 'validation.amountPositive' });
+
+/** The form-only "Razem / Osobno" switch (daily-budget A1): never stored, "shared" just means one amount for everyone. */
+export const BudgetModeSchema = z.enum(['shared', 'individual']);
+
+/** The "Razem" rule shared by the wizard and the budget sheet: every friend's amount equals the organizer's. */
+export function addSharedModeIssues(
+  ctx: z.RefinementCtx,
+  mode: z.infer<typeof BudgetModeSchema>,
+  organizerDailyMinor: number,
+  friendAmounts: number[],
+  pathOf: (index: number) => (string | number)[],
+): void {
+  if (mode !== 'shared') return;
+  friendAmounts.forEach((amount, i) => {
+    if (amount !== organizerDailyMinor) {
+      ctx.addIssue({ code: 'custom', path: pathOf(i), message: 'validation.budgetSharedMismatch' });
+    }
+  });
+}
+
+/** Step 3: a daily budget per person, the organizer's and each friend's (daily-budget B1, B2). Friends in the order of `friends.friends`. */
+export const BudgetStepInputSchema = z
+  .object({
+    mode: BudgetModeSchema,
+    currency: CurrencyCodeSchema,
+    organizerDailyMinor: DailyMinorSchema,
+    friendDailyMinor: z.array(DailyMinorSchema),
+  })
+  .superRefine((budget, ctx) => {
+    addSharedModeIssues(ctx, budget.mode, budget.organizerDailyMinor, budget.friendDailyMinor, (i) => ['friendDailyMinor', i]);
+  }, onlyWhenFieldsValid);
 export type BudgetStepInput = z.infer<typeof BudgetStepInputSchema>;
 
 /** Summary step: the trip's name and its cover, a preset or a gallery photo not yet sent (trip-covers D1). */
@@ -150,6 +179,10 @@ export const CreateTripInputSchema = z
   })
   .refine((input) => input.friends.friends.length === input.flights.companionCount, {
     path: ['friends', 'friends'],
+    error: 'validation.friendCountMismatch',
+  })
+  .refine((input) => input.budget.friendDailyMinor.length === input.friends.friends.length, {
+    path: ['budget', 'friendDailyMinor'],
     error: 'validation.friendCountMismatch',
   });
 export type CreateTripInput = z.infer<typeof CreateTripInputSchema>;

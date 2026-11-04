@@ -7,6 +7,7 @@ import { defaultTripName } from '@/lib/trip-name';
 import {
   DEFAULT_COVER,
   type CoverChoice,
+  type BudgetStepInputSchema,
   type CreateTripInputSchema,
   type FlightsStepInputSchema,
   type FoundFriend,
@@ -30,8 +31,11 @@ export type TripDraft = Omit<z.input<typeof FlightsStepInputSchema>, 'outbound' 
   return: SegmentDraft[];
 } & Omit<z.input<typeof FriendsStepInputSchema>, 'friends'> & {
     friends: FriendDraft[];
-    /** The amount as typed; parsed to minor units on "Next". `currency` is only what the user tapped. */
-    budget: { amountText: string; currency: string };
+    /**
+     * Daily amounts as typed; parsed to minor units on "Next". `amountText` is the organizer's (in "shared" mode, everyone's);
+     * `friendAmountTexts` follow the order of `friends` and matter only in "individual" mode. `currency` is only what the user tapped.
+     */
+    budget: { mode: z.input<typeof BudgetStepInputSchema>['mode']; amountText: string; friendAmountTexts: string[]; currency: string };
     /** null = not typed yet: the default name follows the flights (trip-flight-tabs-name-cover A2). */
     name: DetailsInput['name'] | null;
     /** Always set: a preset from the start (trip-covers D4), or a gallery photo picked on this phone. */
@@ -51,7 +55,7 @@ export function emptyDraft(): TripDraft {
     return: [emptySegment()],
     companionCount: 0,
     friends: [],
-    budget: { amountText: '', currency: '' },
+    budget: { mode: 'shared', amountText: '', friendAmountTexts: [], currency: '' },
     name: null,
     coverImageUri: DEFAULT_COVER,
   };
@@ -137,6 +141,7 @@ export function tripName(draft: TripDraft): string {
 /** What the summary saves; the schema strips draft-only fields such as segment keys. */
 export function toCreateTripInput(draft: TripDraft, locale: string): z.input<typeof CreateTripInputSchema> {
   const currency = budgetCurrency(draft);
+  const organizerDaily = parseAmountToMinor(draft.budget.amountText, currency, locale) ?? 0;
   return {
     flights: { outbound: draft.outbound, return: draft.return, companionCount: draft.companionCount },
     // The typed code text stays on the phone; only a found code (`friendCode`) is sent (friend-invite D12).
@@ -144,7 +149,14 @@ export function toCreateTripInput(draft: TripDraft, locale: string): z.input<typ
       friends: draft.friends.map(({ displayName, interests, friendCode }) => ({ displayName, interests, friendCode })),
     },
     // The budget step only lets valid amounts through; 0 makes the schema reject anything else.
-    budget: { budgetPerPerson: { amountMinor: parseAmountToMinor(draft.budget.amountText, currency, locale) ?? 0, currency } },
+    budget: {
+      mode: draft.budget.mode,
+      currency,
+      organizerDailyMinor: organizerDaily,
+      friendDailyMinor: draft.friends.map((_, i) =>
+        draft.budget.mode === 'shared' ? organizerDaily : (parseAmountToMinor(draft.budget.friendAmountTexts[i] ?? '', currency, locale) ?? 0),
+      ),
+    },
     details: { name: tripName(draft), coverImageUri: draft.coverImageUri },
   };
 }

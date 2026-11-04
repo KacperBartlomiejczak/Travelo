@@ -1,7 +1,6 @@
 import { z } from 'zod';
 
-import { CurrencyCodeSchema, IsoDateSchema, IsoDateTimeSchema } from './common';
-import { BudgetStepInputSchema } from './create-trip-form';
+import { CurrencyCodeSchema, IsoDateSchema, IsoDateTimeSchema, MoneySchema } from './common';
 import { SyncStatusSchema } from './sync';
 
 export const ExpenseCategorySchema = z.enum(['food', 'transport', 'stay', 'activities', 'other']);
@@ -10,7 +9,7 @@ export type ExpenseCategory = z.infer<typeof ExpenseCategorySchema>;
 export const EXPENSE_NAME_MAX_LENGTH = 60;
 
 /** A positive amount; same rule and error key as the budget form. */
-const PositiveMoneySchema = BudgetStepInputSchema.shape.budgetPerPerson;
+const PositiveMoneySchema = MoneySchema.extend({ amountMinor: z.int().positive({ error: 'validation.amountPositive' }) });
 
 /** An expense of a trip (expenses plan D5-D15). `memberId` null = the organizer. Currency = the trip's base currency, checked by the repository. */
 export const ExpenseSchema = z.object({

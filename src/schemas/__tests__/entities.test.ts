@@ -125,7 +125,15 @@ describe('TripMember', () => {
     displayName: 'Kasia',
     role: 'viewer',
     interests: ['beaches', 'nightlife'],
+    dailyBudgetMinor: 10000,
   };
+
+  it('requires a positive whole daily budget', () => {
+    const { dailyBudgetMinor: _omit, ...without } = friend;
+    expect(TripMemberSchema.safeParse(without).success).toBe(false);
+    expect(TripMemberSchema.safeParse({ ...friend, dailyBudgetMinor: 0 }).success).toBe(false);
+    expect(TripMemberSchema.safeParse({ ...friend, dailyBudgetMinor: 1.5 }).success).toBe(false);
+  });
 
   it('accepts a friend without an account, pace or budget level', () => {
     expect(TripMemberSchema.safeParse(friend).success).toBe(true);
@@ -157,7 +165,14 @@ describe('CreateTripMemberPayload (friend-invite D12)', () => {
     display_name: 'Kasia',
     role: 'viewer',
     interests: ['beaches'],
+    daily_budget_minor: 10000,
   };
+
+  it('requires a positive daily_budget_minor', () => {
+    const { daily_budget_minor: _omit, ...without } = payload;
+    expect(CreateTripMemberPayloadSchema.safeParse(without).success).toBe(false);
+    expect(CreateTripMemberPayloadSchema.safeParse({ ...payload, daily_budget_minor: 0 }).success).toBe(false);
+  });
 
   it('accepts a friend without a code, with a null code and with a friend code', () => {
     expect(CreateTripMemberPayloadSchema.safeParse(payload).success).toBe(true);
@@ -190,7 +205,7 @@ describe('Trip', () => {
     startDate: '2026-11-02',
     endDate: '2026-11-09',
     baseCurrency: 'EUR',
-    budgetPerPerson: { amountMinor: 300000, currency: 'EUR' },
+    dailyBudget: { amountMinor: 30000, currency: 'EUR' },
     createdAt: '2026-10-04T12:00:00+02:00',
     budgetUpdatedAt: '2026-10-04T12:00:00+02:00',
     coverImageUri: 'preset:auckland',
@@ -206,11 +221,15 @@ describe('Trip', () => {
   });
 
   it('rejects a budget in a currency other than the base currency', () => {
-    expect(TripSchema.safeParse({ ...trip, budgetPerPerson: { amountMinor: 300000, currency: 'PLN' } }).success).toBe(false);
+    expect(TripSchema.safeParse({ ...trip, dailyBudget: { amountMinor: 30000, currency: 'PLN' } }).success).toBe(false);
   });
 
-  it('rejects a trip without a budget per person', () => {
-    const { budgetPerPerson: _omit, ...withoutBudget } = trip;
+  it('rejects a zero daily budget', () => {
+    expect(TripSchema.safeParse({ ...trip, dailyBudget: { amountMinor: 0, currency: 'EUR' } }).success).toBe(false);
+  });
+
+  it('rejects a trip without a daily budget', () => {
+    const { dailyBudget: _omit, ...withoutBudget } = trip;
     expect(TripSchema.safeParse(withoutBudget).success).toBe(false);
   });
 
@@ -294,7 +313,7 @@ describe('Trip', () => {
     const overview = {
       trip: { ...trip, travellerCount: 2 },
       members: [
-        { id: '7c2d9e1f-3a4b-4c5d-8e6f-7a8b9c0d1e2f', tripId: TRIP_ID, userId: null, displayName: 'Kasia', role: 'viewer', interests: [] },
+        { id: '7c2d9e1f-3a4b-4c5d-8e6f-7a8b9c0d1e2f', tripId: TRIP_ID, userId: null, displayName: 'Kasia', role: 'viewer', interests: [], dailyBudgetMinor: 10000 },
       ],
       segments: [
         {

@@ -25,7 +25,7 @@ const trip: TripSummary = {
   startDate: '2026-11-03',
   endDate: '2026-11-15',
   baseCurrency: 'THB',
-  budgetPerPerson: { amountMinor: 300000, currency: 'THB' },
+  dailyBudget: { amountMinor: 300000, currency: 'THB' },
   createdAt: '2026-10-04T12:00:00.000Z',
   budgetUpdatedAt: '2026-10-04T12:00:00.000Z',
   travellerCount: 3,
@@ -62,9 +62,9 @@ afterEach(() => {
 describe('BudgetSheet (trips-supabase D5, sunline-redesign D28)', () => {
   it('saves the new amount in minor units, then closes', async () => {
     const { onClose, setBudget } = await setup();
-    await fireEvent.changeText(screen.getByLabelText('Kwota na osobę'), '2500');
+    await fireEvent.changeText(screen.getByLabelText('Kwota dziennie na osobę'), '2500');
     await fireEvent.press(save());
-    expect(setBudget).toHaveBeenCalledWith(expect.objectContaining({ id: TRIP_ID, baseCurrency: 'THB' }), 250000);
+    expect(setBudget).toHaveBeenCalledWith(expect.objectContaining({ id: TRIP_ID, baseCurrency: 'THB' }), { organizerDailyMinor: 250000, members: [] });
     await act(async () => {});
     expect(onClose).toHaveBeenCalledTimes(1);
   });
@@ -72,7 +72,7 @@ describe('BudgetSheet (trips-supabase D5, sunline-redesign D28)', () => {
   it('keeps the sheet open when saving fails, with the error as a CircleAlert and text, announced, never colour alone (D28)', async () => {
     const announce = jest.spyOn(AccessibilityInfo, 'announceForAccessibility');
     const { onClose } = await setup(budget(() => Promise.reject(new Error('disk full'))));
-    await fireEvent.changeText(screen.getByLabelText('Kwota na osobę'), '2500');
+    await fireEvent.changeText(screen.getByLabelText('Kwota dziennie na osobę'), '2500');
     await fireEvent.press(save());
 
     const message = await screen.findByText(ERROR);

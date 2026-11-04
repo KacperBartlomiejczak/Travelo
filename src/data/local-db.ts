@@ -66,6 +66,10 @@ const MIGRATIONS = [
      last_attempt_at text
    );
    create index expenses_trip_id on expenses (trip_id);`,
+  // daily-budget: a queued budget change also carries the friends' daily amounts. Old-shape changes are dropped (the server already
+  // holds the migrated amounts); old trip copies fail to parse and are read again from the server.
+  `delete from trip_budget_changes;
+   alter table trip_budget_changes add column members_json text not null default '[]';`,
 ];
 
 export async function migrateLocalDb(db: LocalDb): Promise<void> {

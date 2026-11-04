@@ -90,6 +90,7 @@ describe('Zod ↔ database parity: friend invite', () => {
       budget_level: true,
       pace: true,
       dietary_notes: true,
+      daily_budget_minor: true,
       friend_code: true,
     };
     expect(Object.keys(CreateTripMemberPayloadSchema.shape).sort()).toEqual(Object.keys(columns).sort());

@@ -15,7 +15,7 @@ describe('local database', () => {
     const db = openTestDb();
     await migrateLocalDb(db);
     expect(await tables(db)).toEqual(['expenses', 'my_profile_cache', 'selected_trip', 'trip_budget_changes', 'trip_list_cache', 'trip_overview_cache', 'trip_photos_cache']);
-    expect(await db.getFirstAsync('pragma user_version', [])).toEqual({ user_version: 5 });
+    expect(await db.getFirstAsync('pragma user_version', [])).toEqual({ user_version: 6 });
   });
 
   it('runs each migration once (opening again keeps the data)', async () => {
@@ -44,10 +44,11 @@ describe('local database', () => {
 
     await migrateLocalDb(db);
 
-    expect(await db.getFirstAsync('pragma user_version', [])).toEqual({ user_version: 5 });
+    expect(await db.getFirstAsync('pragma user_version', [])).toEqual({ user_version: 6 });
     expect(await tables(db)).toEqual(['expenses', 'my_profile_cache', 'selected_trip', 'trip_budget_changes', 'trip_list_cache', 'trip_overview_cache', 'trip_photos_cache']);
     expect(await db.getAllAsync('select trip_id from trip_overview_cache', [])).toEqual([{ trip_id: 't' }]);
-    expect(await db.getAllAsync('select trip_id, amount_minor from trip_budget_changes', [])).toEqual([{ trip_id: 't', amount_minor: 100 }]);
+    // Old-shape queued changes are dropped (daily-budget: the server already holds the migrated amounts).
+    expect(await db.getAllAsync('select trip_id from trip_budget_changes', [])).toEqual([]);
   });
 
   it('upgrades a version 2 database to the latest version and keeps its rows (trip-photos)', async () => {
@@ -72,10 +73,11 @@ describe('local database', () => {
 
     await migrateLocalDb(db);
 
-    expect(await db.getFirstAsync('pragma user_version', [])).toEqual({ user_version: 5 });
+    expect(await db.getFirstAsync('pragma user_version', [])).toEqual({ user_version: 6 });
     expect(await tables(db)).toEqual(['expenses', 'my_profile_cache', 'selected_trip', 'trip_budget_changes', 'trip_list_cache', 'trip_overview_cache', 'trip_photos_cache']);
     expect(await db.getAllAsync('select trip_id from trip_overview_cache', [])).toEqual([{ trip_id: 't' }]);
-    expect(await db.getAllAsync('select trip_id, amount_minor from trip_budget_changes', [])).toEqual([{ trip_id: 't', amount_minor: 100 }]);
+    // Old-shape queued changes are dropped (daily-budget: the server already holds the migrated amounts).
+    expect(await db.getAllAsync('select trip_id from trip_budget_changes', [])).toEqual([]);
     expect(await db.getAllAsync('select list_json from trip_list_cache', [])).toEqual([{ list_json: '[]' }]);
     expect(await db.getAllAsync('select trip_id from selected_trip', [])).toEqual([{ trip_id: 't' }]);
     expect(await db.getAllAsync('select * from trip_photos_cache', [])).toEqual([]);
@@ -105,9 +107,10 @@ describe('local database', () => {
 
     await migrateLocalDb(db);
 
-    expect(await db.getFirstAsync('pragma user_version', [])).toEqual({ user_version: 5 });
+    expect(await db.getFirstAsync('pragma user_version', [])).toEqual({ user_version: 6 });
     expect(await db.getAllAsync('select trip_id from trip_overview_cache', [])).toEqual([{ trip_id: 't' }]);
-    expect(await db.getAllAsync('select trip_id, amount_minor from trip_budget_changes', [])).toEqual([{ trip_id: 't', amount_minor: 100 }]);
+    // Old-shape queued changes are dropped (daily-budget: the server already holds the migrated amounts).
+    expect(await db.getAllAsync('select trip_id from trip_budget_changes', [])).toEqual([]);
     expect(await db.getAllAsync('select list_json from trip_list_cache', [])).toEqual([{ list_json: '[]' }]);
     expect(await db.getAllAsync('select trip_id from selected_trip', [])).toEqual([{ trip_id: 't' }]);
     expect(await db.getAllAsync('select trip_id, photos_json from trip_photos_cache', [])).toEqual([{ trip_id: 't', photos_json: '[]' }]);
@@ -126,7 +129,7 @@ describe('local database', () => {
     await migrateLocalDb(db);
     await db.runAsync("insert into trip_photos_cache (trip_id, photos_json, cached_at) values ('t', '[]', 'now')", []);
     await migrateLocalDb(db);
-    expect(await db.getFirstAsync('pragma user_version', [])).toEqual({ user_version: 5 });
+    expect(await db.getFirstAsync('pragma user_version', [])).toEqual({ user_version: 6 });
     expect(await db.getAllAsync('select trip_id, photos_json from trip_photos_cache', [])).toEqual([{ trip_id: 't', photos_json: '[]' }]);
   });
 
@@ -168,5 +171,17 @@ describe('local database', () => {
     await expect(openLocalDb()).resolves.toBe(db);
     expect(openDatabaseAsync).toHaveBeenCalledWith('travelo.db');
     expect(await tables(db)).toContain('trip_budget_changes');
+  });
+});
+
+describe('local database: member amounts of a queued budget change (daily-budget step 4)', () => {
+  it('stores the members of a queued change as JSON', async () => {
+    const db = openTestDb();
+    await migrateLocalDb(db);
+    await db.runAsync(
+      "insert into trip_budget_changes (trip_id, amount_minor, currency, updated_at, sync_status, members_json) values ('t', 100, 'EUR', 'now', 'pending', '[]')",
+      [],
+    );
+    expect(await db.getAllAsync('select members_json from trip_budget_changes', [])).toEqual([{ members_json: '[]' }]);
   });
 });
