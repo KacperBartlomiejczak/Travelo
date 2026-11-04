@@ -374,7 +374,7 @@ describe('Home screen — changing the budget (trips-supabase D5, D10–D13)', (
     await renderHome();
     await openSheet();
     expect(screen.getByRole('header', { name: 'Ile każdy może wydać dziennie?' })).toBeTruthy();
-    expect(screen.getByText('Bez lotów: noclegi, jedzenie, atrakcje, transport na miejscu. Co nie wydasz danego dnia, przechodzi na następny.')).toHaveStyle({
+    expect(screen.getByText('Bez lotów: noclegi, jedzenie, atrakcje, transport na miejscu. Czego nie wydasz danego dnia, przechodzi na następny.')).toHaveStyle({
       ...tokens.typography.styles.bodyMD,
       color: sunlineLightTheme.text.secondary,
     });

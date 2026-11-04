@@ -74,7 +74,7 @@
     "budget": {
       "heading": "Ile każdy może wydać dziennie?",
       "headingSolo": "Ile chcesz wydać dziennie?",
-      "hint": "Bez lotów: noclegi, jedzenie, atrakcje, transport na miejscu. Co nie wydasz danego dnia, przechodzi na następny.",
+      "hint": "Bez lotów: noclegi, jedzenie, atrakcje, transport na miejscu. Czego nie wydasz danego dnia, przechodzi na następny.",
       "modeShared": "Razem",
       "modeIndividual": "Osobno",
       "mode": "Budżet dla grupy",

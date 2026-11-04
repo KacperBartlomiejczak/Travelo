@@ -71,7 +71,7 @@ Gałąź: `feature/daily-budget`, commit na krok.
 
 - Weryfikacja kroku 6: FAIL — `BudgetSheet` bez `ScrollView` (przy wielu osobach „Zapisz” poza ekranem); **odstępstwo procesowe:** red nowych testów potwierdzony dopiero po implementacji (orkiestrator, 7/10 pada na komponencie z HEAD). Poprawka: `ScrollView` (`budget-scroll`), „Zapisz” poza nim, test z 9 osobami (red tylko na brakującym `testID` — znów nie prawdziwy red) · ponowna weryfikacja kroku 6: PASS (3393 testy, typecheck ✓, lint ✓).
 - Krok 7: zaktualizowane `shared.md`, `backend.md`, `decisions.md`, `flows/features/trip-budget.md`, `overview.md`, `context/app-context.md`; po weryfikacji (FAIL: stare sformułowania o budżecie na całą podróż) też `frontend.md`, `README.md` i notki „Superseded” w `decisions.md` · ponowna weryfikacja: PASS. Do zrobienia: zrzut `docs/screenshots/wizard-budget.png` pokazuje stary krok.
-- Czeka na Kacpra: akceptacja copy PL/EN (kroki 5–6) i test na telefonie.
+- 2026-11-04: Kacper zaakceptował copy PL/EN z poprawką „Czego nie wydasz…” (test red ✓ → green ✓, 3393). Zostaje test na telefonie.
 
 ## Ryzyka i otwarte pytania
 - Zmiana kształtu `TripBudgetChange`: wpisy w lokalnej kolejce ze starym kształtem — proponuję je odrzucić przy migracji SQLite (serwer i tak ma B5).
