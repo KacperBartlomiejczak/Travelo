@@ -67,16 +67,16 @@ CodeRabbit zgłosił 15 uwag (9 w liniach, 1 „follow-up”, 5 drobnych do test
 - **R-D4 (#8) — górny limit kwoty.** Suma `dzienna × dni × osoby` może teoretycznie przekroczyć `Number.MAX_SAFE_INTEGER`. **Decyzja:** pominąć (tylko absurdalne kwoty).
 
 ### Kroki
-- [ ] R0. [orkiestrator] Scalić `origin/main` do `feature/daily-budget`, rozwiązać konflikty w `decisions.md` i `overview.md` (zachować oba wpisy); pełny zestaw testów zielony.
-- [ ] R1. [frontend] Poprawki zachowania — skill: TDD — najpierw testy dla każdego punktu:
+- [x] R0. [orkiestrator] Scalić `origin/main` do `feature/daily-budget`, rozwiązać konflikty w `decisions.md` i `overview.md` (zachować oba wpisy); pełny zestaw testów zielony.
+- [x] R1. [frontend] Poprawki zachowania — skill: TDD — najpierw testy dla każdego punktu:
   - #4 tapnięcie aktywnego segmentu nie wywołuje `onChange` (`SegmentedControl`: pomija, gdy `option.value === value`) → kwoty w trybie Osobno nie są nadpisywane (arkusz i kreator);
   - #10 błąd „kwota > 0” dopiero po „Dalej”/„Zapisz” (`budget.tsx:40`, `BudgetSheet.tsx:55`), wpisywanie „0,50” bez błędu;
   - #7 `withCompanionCount` przycina `budget.friendAmountTexts` do liczby znajomych (`draft.ts`);
   - #1 po nieudanym „Dalej” kreator przewija do pierwszego błędnego pola (jak `friends.tsx`, `scrollRef`);
   - #5 iOS: arkusz „Budżet” przewija aktywne pole nad klawiaturę — wyeksportować `useScrollFocusedFieldIntoView` z `WizardScreen.tsx` i użyć w `BudgetSheet`;
   - testy z uwag #11 (assert `ScrollView`) i #12 (kreator przekazuje kwoty Osobno dalej) — weryfikacja: pełny zestaw.
-- [ ] R2. [backend] Testy z uwag #13 (zapis offline bez wywołania RPC), #14 (`trip-rows`: różne kwoty znajomych), #15 (`trips_rls.sql`: drugie wywołanie z tym samym czasem i innymi kwotami nie zmienia danych) — skill: TDD — weryfikacja: pełny zestaw + `supabase/tests` przez `docker exec`.
-- [ ] R3. [orkiestrator] Docs: wiersz `/` w `frontend.md` (karta „Budżet”: kwota dzienna lub suma grupy dziennie + suma na podróż — #6); `known-limitations.md`: R-D1, R-D2, R-D3.
+- [x] R2. [backend] Testy z uwag #13 (zapis offline bez wywołania RPC), #14 (`trip-rows`: różne kwoty znajomych), #15 (`trips_rls.sql`: drugie wywołanie z tym samym czasem i innymi kwotami nie zmienia danych) — skill: TDD — weryfikacja: pełny zestaw + `supabase/tests` przez `docker exec`.
+- [x] R3. [orkiestrator] Docs: wiersz `/` w `frontend.md` (karta „Budżet”: kwota dzienna lub suma grupy dziennie + suma na podróż — #6); `known-limitations.md`: R-D1, R-D2, R-D3.
 - [ ] R4. Weryfikator na R0–R3, commit na krok, push, odpowiedzi na komentarze CodeRabbita w PR (co poprawione, co świadomie pominięte i dlaczego).
 
 ## Dziennik postępu
@@ -99,3 +99,8 @@ CodeRabbit zgłosił 15 uwag (9 w liniach, 1 „follow-up”, 5 drobnych do test
 ## Ryzyka i otwarte pytania
 - Zmiana kształtu `TripBudgetChange`: wpisy w lokalnej kolejce ze starym kształtem — proponuję je odrzucić przy migracji SQLite (serwer i tak ma B5).
 - Dodawanie znajomych po utworzeniu podróży jeszcze nie istnieje; gdy powstanie, nowa osoba dostanie kwotę „Razem” — do decyzji wtedy.
+- R0: scalony `origin/main` (PR #27); konflikty w `decisions.md` (oba wpisy) i `overview.md` (wiersz Home z tej gałęzi, Profile z main) · 3648 testów ✓, lint ✓, typecheck ✓ po odświeżeniu wygenerowanych typów tras `.expo/types`.
+- R2: testy #13 (zapis offline bez RPC), #14 (różne kwoty znajomych w `trip-rows`), #15 (`trips_rls.sql`: ten sam `updated_at`, inne kwoty → bez zmian) · każdy sprawdzony mutacją kodu (red ✓ → przywrócone, green ✓) · dodatkowo naprawiony `supabase/tests/account_delete.sql` z PR #27 (stara kolumna `budget_per_person_minor`) · wszystkie 8 plików `supabase/tests` ✓, `src/data` 875 ✓, lint ✓.
+- R3: `frontend.md` (wiersz `/`: karta „Budżet”), `known-limitations.md` (R-D1–R-D4 + błąd wyboru przylotu w kreatorze).
+- R1: #4 `SegmentedControl` pomija aktywną opcję (red ✓ ×3), #10 błąd zera dopiero po „Dalej”/„Zapisz” (red ✓ ×2), #7 `withCompanionCount` przycina kwoty znajomych (red ✓), #1 przewinięcie do pierwszego błędnego pola w kreatorze (red ✓), #5 `useScrollFocusedFieldIntoView` wyeksportowany i użyty w `BudgetSheet` (red ✓), testy #11 i #12 (tylko asercje, bez red — kod był już poprawny) · 3657 testów ✓, typecheck ✓, lint ✓ · niesprawdzone na iOS.
+- Weryfikacja R0–R3: PASS (3657 testów, typecheck ✓, lint ✓, 8/8 plików SQL ✓). Uwagi niewymagające zmian: hook z `WizardScreen` importowany w `BudgetSheet` (przyszłe przeniesienie do wspólnego modułu), `isValidAmount` powtarza regułę z `errorFor`.
