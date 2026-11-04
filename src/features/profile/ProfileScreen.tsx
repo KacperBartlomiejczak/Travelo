@@ -20,6 +20,7 @@ import { travelStats } from '@/lib/travel-stats';
 import { deviceToday } from '@/lib/trip-sections';
 import { useIsOffline } from '@/providers/BudgetSync';
 import { useTheme } from '@/theme/legacy/useTheme';
+import { tokens } from '@/theme/tokens';
 import { useTheme as useSunlineTheme } from '@/theme/useTheme';
 
 import { TravelStatsCard } from './TravelStatsCard';
@@ -97,6 +98,7 @@ export function ProfileScreen() {
           {profile && (
             <View testID="profile-row" style={{ flexDirection: 'row', alignItems: 'center', gap: spacing[4] }}>
               <ProfilePhoto
+                username={profile.username}
                 uri={profile.avatarUrl}
                 avatarId={profile.avatarId}
                 offline={offline}
@@ -135,6 +137,7 @@ export function ProfileScreen() {
 // url: a photo that is shown stays shown while the new url loads, when that url fails (D21), and when a later read has no
 // url at all (D23): then the last url that loaded is kept as the source.
 type PhotoProps = {
+  username: string;
   uri: string | undefined;
   avatarId: string | null;
   offline: boolean;
@@ -145,7 +148,7 @@ type PhotoProps = {
   onOpen: (uri: string) => void;
 };
 
-function ProfilePhoto({ uri, avatarId, offline, adding, onAdd, onOpen }: PhotoProps) {
+function ProfilePhoto({ username, uri, avatarId, offline, adding, onAdd, onOpen }: PhotoProps) {
   const { t } = useTranslation();
   const theme = useTheme();
   const { colors, size, radius } = theme;
@@ -170,6 +173,7 @@ function ProfilePhoto({ uri, avatarId, offline, adding, onAdd, onOpen }: PhotoPr
     if (wasOffline.current && !offline) setFailed(null);
     wasOffline.current = offline;
   }, [offline]);
+  const initial = (Array.from(username)[0] ?? '').toUpperCase();
   const circle = { width: size.avatarSetup, height: size.avatarSetup, borderRadius: radius.full };
   const skeleton = <SkeletonBlock testID="profile-photo-skeleton" width={size.avatarSetup} height={size.avatarSetup} radius={radius.full} />;
 
@@ -211,7 +215,18 @@ function ProfilePhoto({ uri, avatarId, offline, adding, onAdd, onOpen }: PhotoPr
       </View>,
     );
   }
-  if (!source || failed === source) return tap(skeleton);
+  // D22: a photo that cannot be shown (no url, or it failed) is the initial of the nick on the sunken background (§8.7).
+  if (!source || failed === source) {
+    return tap(
+      <View
+        testID="profile-photo-initial"
+        aria-hidden
+        style={[circle, { alignItems: 'center', justifyContent: 'center', backgroundColor: sunline.background.sunken }]}
+      >
+        <Text style={[tokens.typography.styles.labelLG, { color: sunline.text.primary }]}>{initial}</Text>
+      </View>,
+    );
+  }
   // The Image loads under the skeleton in the same box, so the circle does not change size when the photo arrives. It has
   // no `recyclingKey`, so when the url changes expo-image keeps showing the image it has until the new one has loaded
   // (`recyclingKey` is what would blank it: "Changing this prop resets the image view content to blank or a placeholder"),
