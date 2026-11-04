@@ -113,6 +113,8 @@ describe('EditProfileScreen', () => {
 
     await fireEvent.changeText(nickField(), 'kacper2');
     expect(screen.getByTestId('offline-banner')).toBeTruthy();
+    expect(screen.getByText('Jesteś offline. Zmiana profilu wymaga internetu.')).toBeTruthy();
+    expect(screen.queryByText('Jesteś offline. Zmiany zapiszą się po połączeniu.')).toBeNull();
     expect(saveButton()).toBeDisabled();
     await fireEvent.press(saveButton());
     expect(update).not.toHaveBeenCalled();

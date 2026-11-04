@@ -347,6 +347,7 @@
     "account": "Konto",
     "editProfile": "Edytuj profil",
     "saveProfile": "Zapisz",
+    "editProfileOffline": "Jesteś offline. Zmiana profilu wymaga internetu.",
     "backFromEdit": "Wróć, Ustawienia",
     "appearance": "Wygląd",
     "theme": "Motyw",

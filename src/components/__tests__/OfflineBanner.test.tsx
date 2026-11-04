@@ -23,6 +23,12 @@ describe('OfflineBanner (D11, design-context §10.4)', () => {
     expect(screen.queryByRole('button')).toBeNull();
   });
 
+  it('shows a custom text instead of the default when given one', async () => {
+    await render(<OfflineBanner text="Własny tekst" />);
+    expect(screen.getByText('Własny tekst')).toBeTruthy();
+    expect(screen.queryByText('Jesteś offline. Zmiany zapiszą się po połączeniu.')).toBeNull();
+  });
+
   it('uses the English copy from the design context', async () => {
     await i18n.changeLanguage('en');
     await render(<OfflineBanner />);

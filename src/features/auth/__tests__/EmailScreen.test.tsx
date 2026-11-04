@@ -330,6 +330,7 @@ describe('EmailScreen (auth-onboarding D6, P3, P5, D17)', () => {
       await fireEvent.changeText(field(), 'kacper@example.com');
 
       expect(screen.getByTestId('offline-banner')).toBeTruthy();
+      expect(screen.getByText('Jesteś offline. Zmiany zapiszą się po połączeniu.')).toBeTruthy();
       expect(field().props.value).toBe('kacper@example.com');
       expect(field().props.editable).not.toBe(false); // D18: the address can still be typed offline
       expect(sendButton()).toBeDisabled();

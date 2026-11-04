@@ -88,6 +88,7 @@ function EditForm({ profile }: { profile: ShownProfile }) {
   return (
     <AuthFormScreen
       testID="edit-profile-screen"
+      offlineText={t('settings.editProfileOffline')}
       title={t('settings.editProfile')}
       footer={
         <>

@@ -22,6 +22,8 @@ type Props = {
   topInset?: boolean;
   /** Lets a screen scroll the fields, e.g. to the first one with an error. */
   scrollRef?: Ref<ScrollView>;
+  /** Replaces the default offline banner text, for a screen where the default would promise a later sync. */
+  offlineText?: string;
 };
 
 /**
@@ -29,7 +31,7 @@ type Props = {
  * scroll view, and the actions pinned at the bottom. Like the wizard, the frame is padded by the keyboard's height on both
  * platforms (with edge-to-edge Android does not resize the window), so the action stays above the keyboard.
  */
-export function AuthFormScreen({ testID, title, hint, children, footer, topInset = false, scrollRef }: Props) {
+export function AuthFormScreen({ testID, title, hint, children, footer, topInset = false, scrollRef, offlineText }: Props) {
   const theme = useTheme();
   const insets = useSafeAreaInsets();
   // The frame sits under the stack header; the keyboard's position is measured from the top of the window.
@@ -63,7 +65,7 @@ export function AuthFormScreen({ testID, title, hint, children, footer, topInset
           </Text>
           {hint && <Text style={[typography.styles.bodyMD, { color: theme.text.secondary }]}>{hint}</Text>}
         </View>
-        {offline && <OfflineBanner />}
+        {offline && <OfflineBanner text={offlineText} />}
         {children}
       </ScrollView>
       <View

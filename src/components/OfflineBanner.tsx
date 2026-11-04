@@ -9,7 +9,7 @@ const { offlineBanner } = tokens.components;
 
 // Persistent compact banner while the phone is offline (design-context §10.4 "Global OfflineBanner", trips-supabase D11):
 // info colors, 20dp WifiOff icon and explicit text.
-export function OfflineBanner() {
+export function OfflineBanner({ text }: { text?: string }) {
   const { t } = useTranslation();
   const theme = useTheme();
   return (
@@ -35,7 +35,7 @@ export function OfflineBanner() {
         aria-hidden
       />
       <Text style={[tokens.typography.styles.bodySM, { color: theme.semantic.info.foreground, flexShrink: 1 }]}>
-        {t('offline.banner')}
+        {text ?? t('offline.banner')}
       </Text>
     </View>
   );
