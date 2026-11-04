@@ -138,7 +138,7 @@ export function SettingsScreen() {
             <Text style={[typography.styles.bodyMD, { color: theme.text.secondary }]}>{Constants.expoConfig?.version}</Text>
           </View>
         </Section>
-        {offline && <OfflineBanner />}
+        {offline && <OfflineBanner text={t('settings.offline')} />}
         {offline && (
           <Text style={[typography.styles.bodySM, { color: theme.text.secondary }]} accessibilityLiveRegion="polite">
             {t('settings.signOutOffline')}

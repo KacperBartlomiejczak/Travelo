@@ -348,6 +348,7 @@
     "editProfile": "Edit profile",
     "saveProfile": "Save",
     "editProfileOffline": "You're offline. Editing your profile needs internet.",
+    "offline": "You're offline. Account settings need internet.",
     "backFromEdit": "Back, Settings",
     "appearance": "Appearance",
     "theme": "Theme",

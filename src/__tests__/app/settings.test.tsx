@@ -297,6 +297,8 @@ describe('Settings — offline (D8)', () => {
     expect(signOutButton()).toBeDisabled();
     expect(screen.getByText(OFFLINE_MESSAGE)).toBeTruthy();
     expect(screen.getByTestId('offline-banner')).toBeTruthy();
+    expect(screen.getByText('Jesteś offline. Ustawienia konta wymagają internetu.')).toBeTruthy();
+    expect(screen.queryByText(/Zmiany zapiszą się po połączeniu/)).toBeNull();
   });
 
   it('says it in English', async () => {
