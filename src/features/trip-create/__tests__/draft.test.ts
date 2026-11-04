@@ -80,6 +80,14 @@ describe('withCompanionCount', () => {
     expect(withCompanionCount(two, 4).friends.map((friend) => friend.displayName)).toEqual(['Kasia', 'Ola', '', '']);
   });
 
+  it('trims and resizes the per-friend budget amounts with the count, so a removed friend never pre-fills a new one', () => {
+    const three = withCompanionCount(emptyDraft(), 3);
+    three.budget = { ...three.budget, friendAmountTexts: ['100', '200', '300'] };
+    const one = withCompanionCount(three, 1);
+    expect(one.budget.friendAmountTexts).toEqual(['100']);
+    expect(withCompanionCount(one, 3).budget.friendAmountTexts).toEqual(['100', '', '']);
+  });
+
   it('does not change the draft it was given', () => {
     const draft = emptyDraft();
     withCompanionCount(draft, 2);

@@ -1,5 +1,5 @@
 import { CircleAlert } from 'lucide-react-native';
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { AccessibilityInfo, ScrollView, Text, View } from 'react-native';
 
@@ -9,6 +9,7 @@ import { PrimaryButton } from '@/components/PrimaryButton';
 import { SegmentedControl } from '@/components/SegmentedControl';
 import { useSetTripBudget } from '@/hooks/useTrips';
 import { currencyMinorDigits, formatAmountInput, formatMoney, parseAmountToMinor } from '@/lib/money';
+import { useScrollFocusedFieldIntoView } from '@/features/trip-create/WizardScreen';
 import { tripDayCount } from '@/lib/trip-days';
 import { TripBudgetFormSchema, type TripBudgetForm, type TripMember, type TripSummary } from '@/schemas';
 import { tokens } from '@/theme/tokens';
@@ -32,6 +33,8 @@ export function BudgetSheet({ trip, members, onClose }: Props) {
   const [texts, setTexts] = useState(() => initial.map((amount) => formatAmountInput(amount, currency, i18n.language)));
   const [submitted, setSubmitted] = useState(false);
   const individual = !solo && mode === 'individual';
+  const scrollRef = useRef<ScrollView>(null);
+  const keyboardScrollProps = useScrollFocusedFieldIntoView(scrollRef, tokens.spacing[4]);
 
   const names = [t('newTrip.budget.you'), ...members.map((member) => member.displayName)];
   const amounts = texts.map((text) => parseAmountToMinor(text, currency, i18n.language));
@@ -52,7 +55,7 @@ export function BudgetSheet({ trip, members, onClose }: Props) {
       return t(currencyMinorDigits(currency) === 0 ? 'validation.amountInvalidWhole' : 'validation.amountInvalid');
     }
     if (submitted && text.trim() === '') return t('validation.amountRequired');
-    if (amounts[i] === 0) return t('validation.amountPositive');
+    if (submitted && amounts[i] === 0) return t('validation.amountPositive');
     return undefined;
   }
 
@@ -78,7 +81,7 @@ export function BudgetSheet({ trip, members, onClose }: Props) {
   return (
     <BottomSheet visible title={t(solo ? 'newTrip.budget.headingSolo' : 'newTrip.budget.heading')} onClose={onClose}>
       {/* Scrolls when many people are listed; the save button below stays in reach. */}
-      <ScrollView testID="budget-scroll" keyboardShouldPersistTaps="handled" style={{ flexShrink: 1 }} contentContainerStyle={{ gap: tokens.spacing[4] }}>
+      <ScrollView ref={scrollRef} {...keyboardScrollProps} testID="budget-scroll" keyboardShouldPersistTaps="handled" style={{ flexShrink: 1 }} contentContainerStyle={{ gap: tokens.spacing[4] }}>
         <Text style={[tokens.typography.styles.bodyMD, { color: theme.text.secondary }]}>{t('newTrip.budget.hint')}</Text>
         {!solo && (
           <SegmentedControl

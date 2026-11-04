@@ -1,7 +1,7 @@
 import { useFonts } from 'expo-font';
 import { router, useRouter } from 'expo-router';
 import { act, fireEvent, renderRouter, screen, within } from 'expo-router/testing-library';
-import { AccessibilityInfo, Pressable, Text } from 'react-native';
+import { AccessibilityInfo, Pressable, ScrollView, Text } from 'react-native';
 
 import DrawerLayout from '@/app/(drawer)/_layout';
 import TabsLayout from '@/app/(drawer)/(tabs)/_layout';
@@ -9,7 +9,7 @@ import HomeScreen from '@/app/(drawer)/(tabs)/index';
 import RootLayout from '@/app/_layout';
 import BudgetStep from '@/app/trips/new/budget';
 import NewTripLayout from '@/app/trips/new/_layout';
-import { emptyFriend, emptySegment, withCompanionCount } from '@/features/trip-create/draft';
+import { emptyFriend, emptySegment, toCreateTripInput, withCompanionCount } from '@/features/trip-create/draft';
 import { useTripDraft } from '@/features/trip-create/TripDraftContext';
 import i18n from '@/i18n';
 import { formatMoney } from '@/lib/money';
@@ -76,7 +76,13 @@ async function openBudget(companions = 2, destination: Destination = BKK) {
 
 // Stand-in for step 4.
 function SummaryStandIn() {
-  return <Text>summary</Text>;
+  const { draft } = useTripDraft();
+  return (
+    <>
+      <Text>summary</Text>
+      <Text testID="summary-friend-amounts">{JSON.stringify(toCreateTripInput(draft, 'pl').budget.friendDailyMinor)}</Text>
+    </>
+  );
 }
 
 const amountBox = () => within(screen.getByTestId('amount-field-box'));
@@ -256,5 +262,37 @@ describe('Budget step', () => {
     await fireEvent.changeText(screen.getByLabelText('Ola'), '300');
     await fireEvent.press(screen.getByText('Dalej'));
     expect(app.getPathname()).toBe('/trips/new/summary');
+    expect(screen.getByTestId('summary-friend-amounts').children.join('')).toBe('[20000,30000]');
+  });
+
+  it('keeps distinct amounts when the already active Osobno is tapped again', async () => {
+    await openBudget();
+    await fireEvent.press(screen.getByRole('radio', { name: 'Osobno' }));
+    await fireEvent.changeText(screen.getByLabelText('Ty'), '300');
+    await fireEvent.changeText(screen.getByLabelText('Kasia'), '100');
+    await fireEvent.press(screen.getByRole('radio', { name: 'Osobno' }));
+    expect(screen.getByLabelText('Ty').props.value).toBe('300');
+    expect(screen.getByLabelText('Kasia').props.value).toBe('100');
+  });
+
+  it('shows no "greater than zero" error while typing 0, only after Dalej', async () => {
+    await openBudget();
+    await fireEvent.changeText(screen.getByLabelText(SHARED), '0');
+    expect(screen.queryByText('Kwota musi być większa od zera')).toBeNull();
+    await fireEvent.press(screen.getByText('Dalej'));
+    expect(screen.getByText('Kwota musi być większa od zera')).toBeTruthy();
+  });
+
+  it('scrolls to the first invalid amount after a failed Dalej', async () => {
+    const scrollTo = jest.mocked(ScrollView.prototype.scrollTo);
+    scrollTo.mockClear();
+    await openBudget();
+    await fireEvent.press(screen.getByRole('radio', { name: 'Osobno' }));
+    await fireEvent.changeText(screen.getByLabelText('Ty'), '100');
+    await fireEvent.changeText(screen.getByLabelText('Kasia'), '100');
+    await fireEvent.changeText(screen.getByLabelText('Ola'), '');
+    await fireEvent(screen.getByTestId('budget-field-2'), 'layout', { nativeEvent: { layout: { x: 0, y: 700, width: 335, height: 80 } } });
+    await fireEvent.press(screen.getByText('Dalej'));
+    expect(scrollTo).toHaveBeenLastCalledWith({ y: 700 - 16, animated: true });
   });
 });

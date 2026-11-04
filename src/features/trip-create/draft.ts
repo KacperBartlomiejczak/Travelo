@@ -87,7 +87,9 @@ export function hasUnresolvedCode(friend: FriendDraft): boolean {
 /** One friend per companion; filled-in friends (code state included) are kept when the count changes (D10). */
 export function withCompanionCount(draft: TripDraft, companionCount: number): TripDraft {
   const friends = Array.from({ length: companionCount }, (_, i) => draft.friends[i] ?? emptyFriend());
-  return { ...draft, companionCount, friends };
+  // A removed friend's amount must not pre-fill a friend added later.
+  const friendAmountTexts = Array.from({ length: companionCount }, (_, i) => draft.budget.friendAmountTexts[i] ?? '');
+  return { ...draft, companionCount, friends, budget: { ...draft.budget, friendAmountTexts } };
 }
 
 /** Adds a layover segment that departs from where the last segment landed. */

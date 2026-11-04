@@ -40,7 +40,7 @@ export function SegmentedControl<T extends string>({ label, options, value, onCh
             accessibilityRole="radio"
             accessibilityLabel={option.label}
             aria-checked={selected}
-            onPress={() => onChange(option.value)}
+            onPress={() => !selected && onChange(option.value)}
             onFocus={() => setFocusedValue(option.value)}
             onBlur={() => setFocusedValue(null)}
             style={({ pressed }) => ({

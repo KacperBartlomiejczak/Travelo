@@ -1,5 +1,14 @@
 import { act, fireEvent, render, screen, within } from '@testing-library/react-native';
-import { AccessibilityInfo } from 'react-native';
+import {
+  AccessibilityInfo,
+  Keyboard,
+  ScrollView,
+  TextInput,
+  type EmitterSubscription,
+  type HostInstance,
+  type KeyboardEvent,
+  type MeasureInWindowOnSuccessCallback,
+} from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import { createInMemoryTripRepository, type TripRepository } from '@/data/trip-repository';
@@ -168,10 +177,44 @@ describe('BudgetSheet (trips-supabase D5, sunline-redesign D28)', () => {
   it('scrolls the fields when many people are listed, with Save outside the scroll area', async () => {
     const many = Array.from({ length: 9 }, (_, i) => member(`0b9e7c4e-6a43-4c4b-9a55-2f6f0f7e1b${String(i).padStart(2, '0')}`, `Friend ${i}`, 100000 + i));
     await setup(budget(), many);
+    expect(screen.getByTestId('budget-scroll').type).toBe('RCTScrollView');
     const scroll = within(screen.getByTestId('budget-scroll'));
     expect(scroll.getByLabelText('Friend 8')).toBeTruthy();
     expect(scroll.getByLabelText('Ty')).toBeTruthy();
     expect(scroll.queryByRole('button', { name: 'Zapisz' })).toBeNull();
     expect(save()).toBeTruthy();
+  });
+
+  it('keeps distinct amounts when the already active Osobno is tapped again', async () => {
+    await setup(budget(), unequalMembers);
+    await fireEvent.press(screen.getByRole('radio', { name: 'Osobno' }));
+    expect(screen.getByLabelText('Ty').props.value).toBe('3000');
+    expect(screen.getByLabelText('Ola').props.value).toBe('1500');
+  });
+
+  it('shows no "greater than zero" error while typing 0, only after Zapisz', async () => {
+    await setup();
+    await fireEvent.changeText(screen.getByLabelText('Kwota dziennie na osobę'), '0');
+    expect(screen.queryByText('Kwota musi być większa od zera')).toBeNull();
+    await fireEvent.press(save());
+    expect(screen.getByText('Kwota musi być większa od zera')).toBeTruthy();
+  });
+
+  // iOS: the keyboard covers the lower fields, so the focused one is scrolled up (same hook as the wizard).
+  it('scrolls the focused field above the keyboard once it is shown (iOS)', async () => {
+    const listeners: Record<string, ((event: KeyboardEvent) => void)[]> = {};
+    jest.spyOn(Keyboard, 'addListener').mockImplementation((name, listener) => {
+      (listeners[name] ??= []).push(listener as (event: KeyboardEvent) => void);
+      return { remove: () => {} } as EmitterSubscription;
+    });
+    const inWindow = (top: number, height: number) =>
+      ({ measureInWindow: (cb: MeasureInWindowOnSuccessCallback) => cb(0, top, 390, height) }) as unknown as HostInstance;
+    jest.mocked(ScrollView.prototype.getNativeScrollRef).mockReturnValue(inWindow(100, 500));
+    jest.spyOn(TextInput.State, 'currentlyFocusedInput').mockReturnValue(inWindow(650, 48));
+    const scrollTo = jest.mocked(ScrollView.prototype.scrollTo);
+    scrollTo.mockClear();
+    await setup();
+    for (const listener of listeners.keyboardDidShow ?? []) listener({} as KeyboardEvent);
+    expect(scrollTo).toHaveBeenLastCalledWith({ y: 650 + 48 + tokens.spacing[4] - 600, animated: true });
   });
 });

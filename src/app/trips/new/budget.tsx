@@ -1,6 +1,6 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { AccessibilityInfo, Text, View } from 'react-native';
+import { AccessibilityInfo, Text, View, type ScrollView } from 'react-native';
 
 import { AmountField } from '@/components/AmountField';
 import { SegmentedControl } from '@/components/SegmentedControl';
@@ -21,6 +21,8 @@ export default function BudgetStep() {
   const { draft, setDraft } = useTripDraft();
   const goNext = useGoToNextStep('budget');
   const [submitted, setSubmitted] = useState(false);
+  const scrollRef = useRef<ScrollView>(null);
+  const fieldY = useRef<Record<number, number>>({});
 
   const currencies = budgetCurrencyOptions(draft);
   const currency = budgetCurrency(draft);
@@ -37,7 +39,7 @@ export default function BudgetStep() {
       return t(currencyMinorDigits(currency) === 0 ? 'validation.amountInvalidWhole' : 'validation.amountInvalid');
     }
     if (submitted && text.trim() === '') return t('validation.amountRequired');
-    if (amountMinor === 0) return t('validation.amountPositive');
+    if (submitted && amountMinor === 0) return t('validation.amountPositive');
     return undefined;
   }
 
@@ -49,10 +51,17 @@ export default function BudgetStep() {
   const dailyMinor = [input.organizerDailyMinor, ...input.friendDailyMinor];
   const money = (amountMinor: number) => formatMoney({ amountMinor, currency }, i18n.language);
 
+  const isValidAmount = (text: string) => (parseAmountToMinor(text, currency, i18n.language) ?? 0) > 0;
+
   function next() {
     setSubmitted(true);
     if (result.success) goNext();
-    else AccessibilityInfo.announceForAccessibility(t('newTrip.fixErrors'));
+    else {
+      AccessibilityInfo.announceForAccessibility(t('newTrip.fixErrors'));
+      // Like the friends step: scroll to the first amount with an error (Razem has a single field at the top).
+      const first = individual ? [amountText, ...draft.friends.map((_, i) => friendAmountTexts[i] ?? '')].findIndex((text) => !isValidAmount(text)) : 0;
+      if (first >= 0) scrollRef.current?.scrollTo({ y: Math.max(0, (fieldY.current[first] ?? 0) - tokens.spacing[4]), animated: true });
+    }
   }
 
   const setBudget = (patch: Partial<typeof draft.budget>) =>
@@ -64,7 +73,7 @@ export default function BudgetStep() {
     setBudget({ mode: next, ...(next === 'individual' && { friendAmountTexts: draft.friends.map(() => amountText) }) });
 
   return (
-    <WizardScreen step="budget" action={{ label: t('newTrip.next'), onPress: next }}>
+    <WizardScreen step="budget" scrollRef={scrollRef} action={{ label: t('newTrip.next'), onPress: next }}>
       <View style={{ gap: tokens.spacing[2] }}>
         <Text accessibilityRole="header" style={[tokens.typography.styles.headingLG, { color: theme.text.primary }]}>
           {t(solo ? 'newTrip.budget.headingSolo' : 'newTrip.budget.heading')}
@@ -86,14 +95,15 @@ export default function BudgetStep() {
         [t('newTrip.budget.you'), ...friendNames].map((name, i) => {
           const text = i === 0 ? amountText : (friendAmountTexts[i - 1] ?? '');
           return (
-            <AmountField
-              key={i}
-              label={name}
-              amountText={text}
-              currency={currency}
-              error={errorFor(text)}
-              onChangeText={(value) => (i === 0 ? setBudget({ amountText: value }) : setFriendAmount(i - 1, value))}
-            />
+            <View key={i} testID={`budget-field-${i}`} onLayout={(event) => (fieldY.current[i] = event.nativeEvent.layout.y)}>
+              <AmountField
+                label={name}
+                amountText={text}
+                currency={currency}
+                error={errorFor(text)}
+                onChangeText={(value) => (i === 0 ? setBudget({ amountText: value }) : setFriendAmount(i - 1, value))}
+              />
+            </View>
           );
         })
       ) : (
