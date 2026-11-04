@@ -21,7 +21,7 @@ Trip           { id, ownerId, name, destination: IATA,     // destination = outb
                                                            // name: organizer's, default "<from city> → <destination city>", ≤ 60 chars
                  coverImageUri,                            // required cover: 'preset:<id>' (bundled) | 'photo:<uuid>' (Storage)
                  startDate, endDate,                       // derived from flights
-                 baseCurrency, budgetPerPerson: Money,     // whole trip, without flights; daily budget is derived
+                 baseCurrency, dailyBudget: Money,         // organizer's budget per day, without flights; friends' on TripMember.dailyBudgetMinor
                  budgetUpdatedAt,                          // last budget change; last write wins on sync
                  createdAt }
 
@@ -67,7 +67,7 @@ LocalExpense   // device only (SQLite), the row is its own outbox entry
                Expense & { syncStatus: 'synced' | 'pending' | 'failed', syncError?, attempts: int, lastAttemptAt? }
 
 TripBudgetChange // a budget change made on the device, possibly offline
-               { tripId, budgetPerPerson: Money, updatedAt }
+               { tripId, organizerDailyBudget: Money, members: { memberId, dailyBudgetMinor }[], updatedAt }
 LocalTripBudgetChange // device only (SQLite), the change is its own outbox row
                TripBudgetChange & { syncStatus, syncError?, attempts: int, lastAttemptAt? }
 
@@ -88,9 +88,9 @@ Zod schemas in `src/schemas/` (constants `XSchema`, types `X = z.infer<typeof XS
 - `flight.ts` — `FlightSegmentSchema` (arrival after departure as instants), `FlightRouteSchema` (`{ fromIata, toIata }` — a segment's route on the trip list, profile-screen D11).
 - `member.ts` — `TripMemberSchema` (friends: role `viewer`; `userId` null for a friend without an account, the friend's account id once linked by code; `budgetLevel`/`pace` optional); `CreateTripMemberPayloadSchema` (friend-invite 2b: the snake_case member `create_trip` receives, with `friend_code` nullish and no `user_id`).
 - `cover.ts` — `COVER_PRESET_IDS` (auckland, bali, beijing, jakarta, majorka), `CoverSchema` (`preset:<id>` | `photo:<lowercase uuid>`, a `z.templateLiteral`), `DEFAULT_COVER` (`preset:auckland`), `CoverChoiceSchema` (a cover, or `file://<path>` = a gallery photo picked but not sent; no whitespace-only or line breaks), `CoverUrlsSchema` (`{ url, thumbnailUrl }`, http(s) only via `HttpUrlSchema` in `common.ts`).
-- `trip.ts` — `TripSchema` (`name` 1–60 chars, required `coverImageUri: Cover`, `budgetPerPerson`, `budgetUpdatedAt`, end ≥ start, budget in base currency), `TripSummarySchema` (+ `travellerCount`, optional `coverUrls` — only on a `photo:` cover), `TripOverviewSchema` (`{ trip: TripSummary, members, segments, organizerUsername? }` — the organizer's nick, only for a linked member, friend-invite D4), `TripListItemSchema` (`id`, `name`, `destination`, `flights: FlightRoute[]` in any order, `coverImageUri`, optional `coverUrls` as above, `startDate`, `endDate` — one row of the side panel, also the input of the profile stats), `TripListSchema` (array; also the device copy), `SelectedTripSchema` (`{ tripId }` — device only, the chosen trip).
+- `trip.ts` — `TripSchema` (`name` 1–60 chars, required `coverImageUri: Cover`, `dailyBudget` (organizer's daily amount > 0), `budgetUpdatedAt`, end ≥ start, budget in base currency), `TripSummarySchema` (+ `travellerCount`, optional `coverUrls` — only on a `photo:` cover), `TripOverviewSchema` (`{ trip: TripSummary, members, segments, organizerUsername? }` — the organizer's nick, only for a linked member, friend-invite D4), `TripListItemSchema` (`id`, `name`, `destination`, `flights: FlightRoute[]` in any order, `coverImageUri`, optional `coverUrls` as above, `startDate`, `endDate` — one row of the side panel, also the input of the profile stats), `TripListSchema` (array; also the device copy), `SelectedTripSchema` (`{ tripId }` — device only, the chosen trip).
 - `sync.ts` — `SyncStatusSchema` (`synced | pending | failed`).
-- `trip-budget.ts` — `TripBudgetChangeSchema` (`tripId`, `budgetPerPerson`, `updatedAt`), `LocalTripBudgetChangeSchema` (+ `syncStatus`, `syncError?`, `attempts`, `lastAttemptAt?`), `TripBudgetFormSchema` (= the wizard's `BudgetStepInputSchema`, amount > 0), `CurrentTripSchema` (`{ overview, budgetSyncStatus, fromCache }` — what the home screen shows).
+- `trip-budget.ts` — `TripBudgetChangeSchema` (`tripId`, `organizerDailyBudget`, `members[{ memberId, dailyBudgetMinor }]`, `updatedAt`), `LocalTripBudgetChangeSchema` (+ `syncStatus`, `syncError?`, `attempts`, `lastAttemptAt?`), `TripBudgetFormSchema` (`{ mode: 'shared' | 'individual', organizerDailyMinor, members[{ memberId, dailyMinor }] }`; shared mode = all equal, `addSharedModeIssues` from `create-trip-form.ts`, shared with the wizard's `BudgetStepInputSchema` `{ mode, currency, organizerDailyMinor, friendDailyMinor[] }`), `CurrentTripSchema` (`{ overview, budgetSyncStatus, fromCache }` — what the home screen shows).
 - `supabase-config.ts` — `SupabaseConfigSchema`:
   - `url`: an https URL. http is accepted only for the hosts `127.0.0.1`, `localhost` and `10.0.2.2`, so a local Supabase can be reached from the machine or the Android emulator (trip-photos D36).
   - `key`: must start with `sb_publishable_`, so a secret key cannot ship in the app.
@@ -126,8 +126,8 @@ Zod schemas in `src/schemas/` (constants `XSchema`, types `X = z.infer<typeof XS
     - `created_at`, `updated_at`.
   - `private.touch_profile()` pins `id`, `friend_code` and `created_at` on update and sets `updated_at`.
   - A parity test (`profiles-db-parity.test.ts`) keeps the patterns, alphabet and columns in line with the Zod schemas.
-- `trips` — `id`, `owner_id` (= `auth.uid()`), `name` (1–60), `cover_image_uri` (not null, default `preset:auckland`, check = the exact `CoverSchema` shape; a `photo:<uuid>` cover lives in Storage at `<tripId>/<uuid>.jpg` + `_thumb.jpg`, next to the trip's photos), `destination`, `start_date`, `end_date` (≥ start), `base_currency`, `budget_per_person_minor` (bigint ≥ 0; currency = `base_currency`), `budget_updated_at`, `created_at`.
-- `trip_members` — `id`, `trip_id`, `user_id` (null = friend without an account; set only by `private.link_trip_member` from a friend code, friend-invite D12), `display_name` (trimmed, 1–40), `role`, `interests text[]` (⊆ the 17 tags), `budget_level`, `pace`, `dietary_notes` (≤ 200); unique `(trip_id, user_id) where user_id is not null` (`trip_members_trip_user_key`).
+- `trips` — `id`, `owner_id` (= `auth.uid()`), `name` (1–60), `cover_image_uri` (not null, default `preset:auckland`, check = the exact `CoverSchema` shape; a `photo:<uuid>` cover lives in Storage at `<tripId>/<uuid>.jpg` + `_thumb.jpg`, next to the trip's photos), `destination`, `start_date`, `end_date` (≥ start), `base_currency`, `daily_budget_minor` (bigint > 0, the organizer's budget per day; currency = `base_currency`; replaced `budget_per_person_minor` on 2026-11-04, backfill `private.daily_from_total` = `greatest(1, total / days)`), `budget_updated_at`, `created_at`.
+- `trip_members` — `id`, `trip_id`, `user_id` (null = friend without an account; set only by `private.link_trip_member` from a friend code, friend-invite D12), `display_name` (trimmed, 1–40), `role`, `interests text[]` (⊆ the 17 tags), `budget_level`, `pace`, `dietary_notes` (≤ 200), `daily_budget_minor` (bigint > 0, the friend's budget per day, changed only through `set_trip_budget`); unique `(trip_id, user_id) where user_id is not null` (`trip_members_trip_user_key`).
 - `flight_segments` — `id`, `trip_id`, `direction`, `position` (= `order`), `flight_number` (2–8), `from_iata`, `to_iata`, `depart_at`, `depart_tz`, `arrive_at` (> depart), `arrive_tz`; unique `(trip_id, direction, position)`.
 - `trip_photos` — `id`, `trip_id` (deleted with its trip by cascade), `taken_at` (`timestamp without time zone`, nullable), `created_at`; an index on `trip_id`; no updates.
 - `expenses` (`20261102120000_expenses.sql`, schema `src/schemas/expense.ts`) — mirrors `ExpenseSchema`; `trip_id` cascades with the trip (D17); composite FK `(trip_id, member_id)` → `trip_members (trip_id, id)` with RESTRICT (D18): a member with expenses, also soft-deleted ones, can't be deleted (23503), while deleting a trip or the organizer's account works (`expenses_rls.sql`). RLS: owner reads and writes any row of the trip; a linked member reads all, writes only rows with their own `member_id` (D15); no delete for anyone; column-level update without `id`, `trip_id`, `created_at`. `public.upsert_expense(expense jsonb)` (security invoker): upsert by `id`, a stale or repeated `updated_at` is a silent no-op.
@@ -141,12 +141,12 @@ Zod schemas in `src/schemas/` (constants `XSchema`, types `X = z.infer<typeof XS
   - each user may insert / select / update / delete only in their own folder;
   - shown through a signed URL (1 h).
 
-**SQLite tables** (`src/data/local-db.ts`, migrations v1–v5, `pragma user_version`):
+**SQLite tables** (`src/data/local-db.ts`, migrations v1–v6, `pragma user_version`):
 - `expenses` (v5) — mirrors `LocalExpenseSchema`: `id`, `trip_id`, `member_id` (null = organizer), `name`, `amount_minor INTEGER`, `currency`, `category`, `spent_on`, `created_at`, `updated_at`, `deleted_at`, `sync_status`, `sync_error`, `attempts`, `last_attempt_at`; index on `trip_id`. Cleared by `clearUserData`, a trip's rows dropped by `forgetTrip`; a trip that only vanished from the server list keeps its rows (D22).
 - `trip_overview_cache (trip_id, overview_json, cached_at)` — a copy of every trip read from Supabase on this phone; parsed with `TripOverviewSchema` (a corrupt copy counts as none). Copies of trips no longer on the server's list are deleted when the list is read.
 - `trip_list_cache (id = 1, list_json, cached_at)` (v2) — the last list read from Supabase; parsed with `TripListSchema`.
 - `selected_trip (id = 1, trip_id)` (v2) — the trip chosen in the side panel; parsed with `SelectedTripSchema`; forgotten when a new server list no longer has it.
-- `trip_budget_changes (trip_id, amount_minor INTEGER, currency, updated_at, sync_status, sync_error, attempts, last_attempt_at)` — one unsynced budget change per trip (its own outbox); parsed with `LocalTripBudgetChangeSchema`.
+- `trip_budget_changes (trip_id, amount_minor INTEGER, currency, members_json, updated_at, sync_status, sync_error, attempts, last_attempt_at)` — one unsynced budget change per trip (`amount_minor` = the organizer's daily amount, `members_json` (v6) = the friends' amounts; v6 dropped queued changes in the old whole-trip shape, B7) (its own outbox); parsed with `LocalTripBudgetChangeSchema`.
 - `trip_photos_cache (trip_id, photos_json, cached_at)` (v3) — the last photo list read for a trip, parsed with `TripPhotoListSchema`.
   - The signed URLs in it expire after 1 h. The images themselves stay in expo-image's disk cache.
   - An invalid list is never written, and a corrupt one reads as none.

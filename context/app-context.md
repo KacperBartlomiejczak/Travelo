@@ -31,14 +31,14 @@ Platforms: iOS and Android (Expo / React Native). Languages: Polish (`pl`) and E
 ## 2. Roadmap
 
 ### Done (works in the app today)
-1. **Trip setup (create-trip wizard)** — flights, friends, budget per person, name and cover photo.
+1. **Trip setup (create-trip wizard)** — flights, friends, a daily budget per person („Razem” one amount for all / „Osobno” per person), name and cover photo.
 2. **Members** — friends with interests (17 interest tags in 6 groups).
 3. **Flights and layovers** — manual entry of flight segments; layovers are derived from consecutive segments.
 4. **Trips in Supabase** — Postgres with RLS, trip list and the current trip.
 5. **Side panel with all trips** — "Nadchodzące" / "Minione", choose the current trip, start a new trip.
 6. **Trip menu** — rename, change the cover, change the budget, delete the trip.
 7. **Trip photos** — photo strip under the hero, full-screen viewer, upload to private Supabase Storage.
-8. **Offline budget** — the budget per person can be changed without internet and syncs later.
+8. **Offline budget** — the daily budgets can be changed without internet and syncs later.
 9. **Offline reading** — the trip list and every trip opened on the phone are kept in SQLite.
 10. **Pill navigation** — a floating bottom pill with five screens (two of them are placeholders).
 11. **Confirm dialog** — in-app dialog used when leaving the wizard with entered data.
@@ -103,7 +103,7 @@ The trip view, top to bottom:
 - **"Loty"** — outbound and return flights in airport-local time, with layover labels.
 - **"Podróżni · N"** — "Ty" plus the friends' names. A linked friend sees "<organizer's nick> (organizator)" (or "Organizator" without a nick), "Ty", then the others.
 - **A linked friend's view** is read-only (their own expenses excepted, D15 in `prompts/expenses/plan.md`): no ⋮, no "Zmień" on the budget, no "+" photo tile, no delete in the photo viewer, and no photo strip on a trip without photos.
-- **"Budżet"** — budget per person, group total and the derived ~per person per day; "Zmień" opens the budget sheet; a sync indicator shows while a change has not been sent.
+- **"Budżet"** — the daily budget (per person, or the group's sum per day when amounts differ) and the total for the trip; "Zmień" opens the budget sheet; a sync indicator shows while a change has not been sent.
 
 ### 3.3 Side panel
 "Twoje podróże", with sections "Nadchodzące" (not ended yet, soonest first) and "Minione" (most recently ended first). A row has a thumbnail, the name (2 lines) and the dates; the open trip is marked. Tapping another trip makes it the current trip and closes the panel. Footer: "Nowa podróż" (starts the wizard). Loading, error, empty and offline states exist.
@@ -119,11 +119,11 @@ Four steps. Each step validates its slice with a Zod schema on "Dalej". Leaving 
    - The code is uppercased and checked after the 6th character ("Sprawdzam kod…"). A found code fills the card with the friend's nick and interests, not editable; editing the code gives back an empty card.
    - Messages: "To Twój kod.", "Nie ma użytkownika z tym kodem.", "Ten znajomy jest już dodany.", "Połącz się z internetem, żeby sprawdzić kod." (the field is disabled offline), "Nie udało się sprawdzić kodu. Spróbuj ponownie.", "Kod ma 6 znaków.".
    - "Dalej" waits until every typed code is found or cleared.
-3. **Budget** — amount per person for the whole trip (without flights) and a currency (destination currency, PLN, EUR, USD); shows the group total and ~per person per day.
+3. **Budget** — a daily amount per person (without flights) and a currency (destination currency, PLN, EUR, USD); with friends a „Razem / Osobno” switch (one amount for everyone / an amount per person); shows each person's total and the group total for the trip.
 4. **Summary** — the trip name (default "<from city> → <destination city>", max 60), the cover, and cards with "Zmień" back to each step. "Utwórz podróż" saves (needs internet) and returns home; the new trip becomes the current trip.
 
 ### 3.6 Budget sheet
-Changes the budget per person (currency fixed to the trip's base currency). Works **with or without internet**; the indicator shows "Czeka na wysłanie" (pending) or "Nie udało się wysłać" (failed, with retry).
+Changes the daily budgets with the same „Razem / Osobno” switch as the wizard (currency fixed to the trip's base currency). Works **with or without internet**; the indicator shows "Czeka na wysłanie" (pending) or "Nie udało się wysłać" (failed, with retry).
 
 ### 3.7 Photos
 - Add up to 20 photos at a time from the gallery. Each is downscaled (longer side ≤ 2048 px), re-encoded as JPEG **without EXIF (so without GPS)**, and uploaded with a 480 px thumbnail, one at a time. It appears at once with its sending or failed state.
@@ -169,7 +169,7 @@ CostEstimate   { minMinor: int, maxMinor: int, currency: ISO4217, perPerson: boo
 Trip           { id, ownerId, name (1–60), destination: IATA,       // destination = outbound's final airport
                  coverImageUri,                                     // required: 'preset:<id>' | 'photo:<uuid>'
                  startDate, endDate,                                // dates derived from flights
-                 baseCurrency, budgetPerPerson: Money,              // whole trip, without flights
+                 baseCurrency, dailyBudget: Money,                  // organizer's per day, without flights; friends' on TripMember.dailyBudgetMinor
                  budgetUpdatedAt, createdAt }                       // last write wins on sync
 
 TripMember     { id, tripId, userId: string | null,                 // null = friend without an account
@@ -195,7 +195,7 @@ Profile        { id (= auth user id), username (unique, 3–20, a–z 0–9 _ .)
 Key facts:
 - The **organizer is not a `TripMember` row**; traveller count = members + 1.
 - Members are shown sorted by name (no stored order).
-- Budget is **one amount per person for the whole trip, without flights**. The daily budget is derived.
+- Budget is **a daily amount per person, without flights** (the organizer's on the trip, each friend's on the member). Totals for the trip = daily × trip days; unspent money carries over to the next day.
 - Trip dates come from the flights. Times are stored as airport-local wall clock + IANA zone, never converted through the device time zone. A local time that does not exist (DST gap) is rejected, not shifted.
 - Money is **integer minor units + ISO 4217 code**, with digits from a static table. No floats for money.
 
@@ -208,7 +208,7 @@ Key facts:
 | Create a trip | Supabase (`create_trip` RPC) | **No** — needs internet |
 | Rename, cover, delete trip | Supabase | **No** — disabled offline |
 | Trip photos (add, delete) | Supabase Storage + `trip_photos` | **No** |
-| **Budget per person** | SQLite first, synced to Supabase | **Yes** — last write wins by `budgetUpdatedAt` |
+| **Daily budgets** | SQLite first, synced to Supabase | **Yes** — last write wins by `budgetUpdatedAt` |
 | Read the trip list and any trip opened before | SQLite copies of Supabase data | **Yes** — read-only |
 | Chosen (current) trip | SQLite only, never sent to Supabase | **Yes** |
 | Photo list | SQLite copy | Yes (read-only; signed URLs expire after 1 h, images stay in the image cache) |
@@ -218,9 +218,9 @@ Key facts:
 | Profile stats | Computed on the phone from the trip list copy | **Yes** |
 | **Expenses** | SQLite, the local row is its own outbox entry, synced to Supabase | **Yes** (decided; see below) |
 
-**Offline scope (MVP decision):** expenses and changes to a trip's budget per person work offline. Everything else is server-first. Read-only copies cover the trip list (with each trip's destination and flight routes, for the profile stats — profile-screen D11), every trip opened on the phone, and the user's own profile (auth-onboarding D9). Extending offline to other entities is a new decision for Kacper.
+**Offline scope (MVP decision):** expenses and changes to a trip's daily budgets work offline. Everything else is server-first. Read-only copies cover the trip list (with each trip's destination and flight routes, for the profile stats — profile-screen D11), every trip opened on the phone, and the user's own profile (auth-onboarding D9). Extending offline to other entities is a new decision for Kacper.
 
-**Budget sync:** `setBudget` writes a `pending` row to `trip_budget_changes` in SQLite with no network. A sync worker sends it with `update … where budget_updated_at < updatedAt` (last write wins). Unreachable → stays `pending` and retries with backoff (1 s × 2ⁿ, max 5 min); refused → `failed` and visible. It runs on start, on reconnect, on app foreground, after each save and on a timer.
+**Budget sync:** `setBudget` writes a `pending` row to `trip_budget_changes` in SQLite with no network. A sync worker sends it with `rpc('set_trip_budget')` (organizer + friends in one call, last write wins by `budget_updated_at`). Unreachable → stays `pending` and retries with backoff (1 s × 2ⁿ, max 5 min); refused → `failed` and visible. It runs on start, on reconnect, on app foreground, after each save and on a timer.
 
 **Reading when unreachable:** a request that gets no answer within 20 s counts as "unreachable" and falls back to the SQLite copy. A trip never opened on the phone has no copy, so choosing it offline shows the error state.
 

@@ -55,7 +55,7 @@ Gałąź: `feature/daily-budget`, commit na krok.
 - [x] 4. [backend] Repozytorium, SQLite, `budget-sync` — skill: TDD — najpierw testy: zapis offline + sync — weryfikacja: pełny zestaw.
 - [x] 5. [frontend] Kreator: krok „Budżet” z przełącznikiem i listą osób + podsumowanie — skill: TDD, frontend-ui-engineering — weryfikacja: pełny zestaw + tester.
 - [x] 6. [frontend] Arkusz „Budżet” (B4) i ekran Wydatków — skill: TDD, frontend-ui-engineering — weryfikacja: pełny zestaw + tester.
-- [ ] 7. Docs: `shared.md`, `backend.md`, `decisions.md`, flow wydatków.
+- [x] 7. Docs: `shared.md`, `backend.md`, `decisions.md`, flow wydatków.
 
 ## Dziennik postępu
 - Krok 1: testy schematów napisane (red ✓, 37 porażek) · `dailyBudget` na podróży, `dailyBudgetMinor` na członku, nowy `BudgetStepInputSchema` (`mode`, `organizerDailyMinor`, `friendDailyMinor[]`), `TripBudgetChange` z listą członków, klucz `validation.budgetSharedMismatch` · warstwa danych tylko zmostkowana (TODO kroki 2 i 4) · green dla schematów ✓; typecheck/testy UI i test parzystości czerwone do czasu kroków 2, 3 i poprawek UI · użyty skill: TDD · **odstępstwo:** zmiana nazwy pola psuje UI, więc kroki 1–3 + minimalne poprawki UI (frontend) weryfikuję razem jako jedną całość; dopiero wtedy pełny zestaw jest zielony.
@@ -70,7 +70,8 @@ Gałąź: `feature/daily-budget`, commit na krok.
 - Krok 6: `BudgetSheet` z Razem/Osobno (otwiera w Osobno przy różnych kwotach, zapis pełnej listy członków), karta na ekranie głównym: kwota dzienna lub suma grupy dziennie (`home.perDayGroup`) + suma na podróż · Wydatki bez zmian (już liczą pule per osoba) · red: agent nie uruchomił testów przed implementacją — orkiestrator potwierdził po fakcie (7/10 nowych pada na starym komponencie) · green ✓ · użyty skill: TDD, frontend-ui-engineering.
 
 - Weryfikacja kroku 6: FAIL — `BudgetSheet` bez `ScrollView` (przy wielu osobach „Zapisz” poza ekranem); **odstępstwo procesowe:** red nowych testów potwierdzony dopiero po implementacji (orkiestrator, 7/10 pada na komponencie z HEAD). Poprawka: `ScrollView` (`budget-scroll`), „Zapisz” poza nim, test z 9 osobami (red tylko na brakującym `testID` — znów nie prawdziwy red) · ponowna weryfikacja kroku 6: PASS (3393 testy, typecheck ✓, lint ✓).
-- Krok 7: zaktualizowane `shared.md`, `backend.md`, `decisions.md`, `flows/features/trip-budget.md`, `overview.md`, `context/app-context.md`.
+- Krok 7: zaktualizowane `shared.md`, `backend.md`, `decisions.md`, `flows/features/trip-budget.md`, `overview.md`, `context/app-context.md`; po weryfikacji (FAIL: stare sformułowania o budżecie na całą podróż) też `frontend.md`, `README.md` i notki „Superseded” w `decisions.md` · ponowna weryfikacja: PASS. Do zrobienia: zrzut `docs/screenshots/wizard-budget.png` pokazuje stary krok.
+- Czeka na Kacpra: akceptacja copy PL/EN (kroki 5–6) i test na telefonie.
 
 ## Ryzyka i otwarte pytania
 - Zmiana kształtu `TripBudgetChange`: wpisy w lokalnej kolejce ze starym kształtem — proponuję je odrzucić przy migracji SQLite (serwer i tak ma B5).

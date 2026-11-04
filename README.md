@@ -51,10 +51,10 @@ Taken on an Android emulator with test data. The app is shown in Polish.
 
 Planning a group trip means juggling flights, who likes what, a shared budget and, later, who paid for what. Travelo keeps all of it with the person who does the organizing. It is built for one hand, on the move.
 
-- **Trip setup wizard.** Flights → friends and interests → budget per person → summary with the trip name and cover. Leaving with entered data asks for confirmation in an in-app dialog, so nothing is lost by accident.
+- **Trip setup wizard.** Flights → friends and interests → daily budget per person → summary with the trip name and cover. Leaving with entered data asks for confirmation in an in-app dialog, so nothing is lost by accident.
 - **Time-zone-accurate flights and layovers.** Search a bundled list of about 3,150 airports, which works offline. Enter departure and arrival in each airport's local time. Layovers are never typed in; they are derived from consecutive segments across time zones. A local time that does not exist because the clocks jump forward is rejected on the spot.
 - **Friends without accounts.** Add up to 19 companions with a name and interests, chosen from 17 tags in 6 groups. Friends do not install the app or sign up.
-- **Budget.** One amount per person for the whole trip, without flights, in the destination's currency, PLN, EUR or USD. The group total and the per-day figure are derived. It can be changed offline at any time.
+- **Budget.** A daily amount per person, without flights, in the destination's currency, PLN, EUR or USD — one amount for everyone („Razem”) or one per person („Osobno”). Totals for the trip are derived; unspent money carries over to the next day. It can be changed offline at any time.
 - **All your trips.** A side panel lists trips as "Nadchodzące" (upcoming or ongoing) and "Minione" (past). The app remembers which trip you picked.
 - **Private trip photos.** Add up to 20 photos at a time. Each one is shrunk on the phone (longer side ≤ 2048 px, plus a 480 px thumbnail), re-encoded as JPEG **without EXIF or GPS data**, and uploaded to a private Supabase Storage bucket. It is shown through signed URLs that last one hour.
 - **Trip menu.** Rename a trip, change its cover or budget, or delete it.
@@ -79,7 +79,7 @@ The project follows production-grade rules rather than prototype shortcuts. The 
 | Sign-in with Google, Discord or an e-mail code, profile setup | In progress |
 | Side panel with all trips, trip menu (rename, cover, budget, delete) | Done |
 | Trip photos: strip, upload queue, EXIF/GPS removal, full-screen viewer | Done |
-| Budget per person editable offline, synced later, with a visible sync status | Done |
+| Daily budgets editable offline, synced later, with a visible sync status | Done |
 | Offline reading of the trip list and every trip opened on the phone | Done |
 | Floating pill navigation with five screens (two are placeholders for now) | Done |
 | Ready-made trip covers bundled in the app, and gallery covers in Storage | Done |
@@ -125,7 +125,7 @@ Travelo is built for roaming and airport Wi-Fi. What works offline is decided on
 | Read the trip list and any trip opened before | **Yes** | Read-only copies in SQLite. The app falls back to them when a request fails or takes more than 20 s. |
 | Switch the current trip | **Yes** | The choice is stored on the phone and never sent to the server. Works for trips opened before. |
 | View trip photos already seen | **Yes** | The photo list is copied to SQLite and the images stay in the image cache. |
-| Change the budget per person | **Yes** | Saved to SQLite as `pending`, then synced on reconnect, on app foreground, after each save and on a backoff timer. |
+| Change the daily budgets | **Yes** | Saved to SQLite as `pending`, then synced on reconnect, on app foreground, after each save and on a backoff timer. |
 | Add expenses (planned) | **Yes** | SQLite plus an outbox, synced later. |
 | Create, rename or delete a trip; add or delete photos | **No** | Server-first. The controls are disabled offline. |
 
