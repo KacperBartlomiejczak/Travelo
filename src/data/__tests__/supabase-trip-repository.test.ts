@@ -1640,6 +1640,7 @@ describe('budget changes (offline-first)', () => {
     const queriesBefore = supabase.queries.length;
     await repository.setBudget(trip, { organizerDailyMinor: 250000, members: [] });
     expect(supabase.queries).toHaveLength(queriesBefore);
+    expect(supabase.rpc).not.toHaveBeenCalled();
     await expect(local.budgetChange(trip.id)).resolves.toEqual({
       tripId: trip.id,
       organizerDailyBudget: { amountMinor: 250000, currency: 'THB' },

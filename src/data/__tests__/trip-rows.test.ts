@@ -88,6 +88,18 @@ describe('toCreateTripArgs', () => {
     ]);
   });
 
+  it('sends each friend their own daily budget in individual mode (daily-budget A2)', () => {
+    const individual = created((input) => {
+      input.budget = { mode: 'individual', currency: 'THB', organizerDailyMinor: 300000, friendDailyMinor: [120000, 80000] };
+    });
+    const { trip, members } = toCreateTripArgs(individual);
+    expect(trip).toEqual(expect.objectContaining({ daily_budget_minor: 300000 }));
+    expect(members).toEqual([
+      expect.objectContaining({ display_name: 'Kasia', daily_budget_minor: 120000 }),
+      expect.objectContaining({ display_name: 'Ola', daily_budget_minor: 80000 }),
+    ]);
+  });
+
   it('sends the friend code of a friend found by code, and still no account id (friend-invite D12)', () => {
     const linked = created((input) => {
       input.friends.friends[0].friendCode = '5ZMRX8';

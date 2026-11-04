@@ -172,6 +172,17 @@ select test_helpers.ok(
   'a newer budget change wins for the trip and its friends, and sending it twice changes nothing more'
 );
 
+-- Same timestamp, different amounts: the guard is strict, so the first applied change stays.
+select public.set_trip_budget('10000000-0000-4000-8000-000000000001', 111, jsonb_build_array(
+  jsonb_build_object('member_id', '20000000-0000-4000-8000-000000000001', 'daily_budget_minor', 111),
+  jsonb_build_object('member_id', '20000000-0000-4000-8000-000000000002', 'daily_budget_minor', 222)), '2026-10-06T09:30:00Z');
+select test_helpers.ok(
+  (select daily_budget_minor from public.trips) = 2500000
+    and (select daily_budget_minor from public.trip_members where display_name = 'Kasia') = 2500000
+    and (select daily_budget_minor from public.trip_members where display_name = 'Ola') = 90000,
+  'a change with the same timestamp but other amounts does not overwrite the applied one (strict guard)'
+);
+
 -- A member of another trip is rejected, and nothing at all is changed.
 reset role;
 insert into public.trips (id, owner_id, name, destination, start_date, end_date, base_currency, daily_budget_minor, budget_updated_at)
