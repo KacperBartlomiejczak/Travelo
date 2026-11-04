@@ -343,7 +343,7 @@ select public.create_trip(
   test_helpers.trip_payload('10000000-0000-4000-8000-0000000000e1', '{"name": "Old name", "cover_image_uri": "preset:bali"}'),
   jsonb_build_array(
     jsonb_build_object('id', '20000000-0000-4000-8000-0000000000e1', 'trip_id', '10000000-0000-4000-8000-0000000000e1',
-      'user_id', null, 'display_name', 'Basia', 'role', 'viewer', 'interests', jsonb_build_array('museums'))),
+      'user_id', null, 'display_name', 'Basia', 'role', 'viewer', 'interests', jsonb_build_array('museums'), 'daily_budget_minor', 100)),
   jsonb_build_array(
     jsonb_build_object('id', '30000000-0000-4000-8000-0000000000e1', 'trip_id', '10000000-0000-4000-8000-0000000000e1',
       'direction', 'outbound', 'position', 0, 'flight_number', null, 'from_iata', 'WAW', 'to_iata', 'BKK',

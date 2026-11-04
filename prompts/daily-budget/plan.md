@@ -50,7 +50,7 @@ Założenia do potwierdzenia przy akceptacji:
 ## Kroki
 Gałąź: `feature/daily-budget`, commit na krok.
 - [x] 1. [backend] Zod: nowe pola i formularz budżetu (B1–B3, A1) — skill: TDD — najpierw testy: schematy — weryfikacja: pełny zestaw, typecheck.
-- [ ] 2. [backend] (kod zweryfikowany PASS; czeka na `pnpm test:db` i `pnpm db:types` z Dockerem) Migracja + `create_trip` + `set_trip_budget` + przeliczenie starych danych (B5), regeneracja typów, parzystość — skill: TDD — najpierw testy: SQL — weryfikacja: testy SQL + parzystość.
+- [x] 2. [backend] Migracja + `create_trip` + `set_trip_budget` + przeliczenie starych danych (B5), regeneracja typów, parzystość — skill: TDD — najpierw testy: SQL — weryfikacja: testy SQL + parzystość.
 - [x] 3. [backend] `expense-budget.ts` na kwotach dziennych per osoba (B6) — skill: TDD — najpierw testy: lista z sekcji Testy — weryfikacja: pełny zestaw.
 - [x] 4. [backend] Repozytorium, SQLite, `budget-sync` — skill: TDD — najpierw testy: zapis offline + sync — weryfikacja: pełny zestaw.
 - [x] 5. [frontend] Kreator: krok „Budżet” z przełącznikiem i listą osób + podsumowanie — skill: TDD, frontend-ui-engineering — weryfikacja: pełny zestaw + tester.
@@ -66,6 +66,7 @@ Gałąź: `feature/daily-budget`, commit na krok.
 - Weryfikacja kroków 1–5: FAIL — blocker: odrzucanie starej kolejki bez decyzji (→ B7), drobne: martwe `perPersonPerDay`, test backfillu na literałach, zdublowana reguła trybu „Razem”, nieaktualny komentarz w `budget-sync.test.ts`, brak klucza `validation.friendCountMismatch` w i18n, minimum 1 (→ B8). Poprawki w toku.
 - Weryfikacja 2: FAIL — blok B5 w `trips_rls.sql` po `rollback`; brak testu błędu RPC (okazał się istnieć). Poprawione: B5 w transakcji, usunięty grant `authenticated` na `private.daily_from_total`.
 - Weryfikacja 3: PASS (3383 testy, typecheck ✓, lint ✓). Niezweryfikowane: `pnpm test:db`, regeneracja `database.types.ts`. Commit kroków 1–5 jednym commitem (pliki przeplecione).
+- Krok 2 domknięty (Docker): migracja zastosowana na lokalnej bazie — 3 stare podróże przeliczone poprawnie (100000/3 dni → 33333, członkowie tak samo) · `supabase gen types` identyczne z ręczną wersją · poprawiony payload członka w `trips_rls.sql` (brak `daily_budget_minor`) · wszystkie 7 plików `supabase/tests` przechodzą (przez `docker exec`, brak lokalnego psql).
 
 ## Ryzyka i otwarte pytania
 - Zmiana kształtu `TripBudgetChange`: wpisy w lokalnej kolejce ze starym kształtem — proponuję je odrzucić przy migracji SQLite (serwer i tak ma B5).
