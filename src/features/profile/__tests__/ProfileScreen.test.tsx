@@ -9,7 +9,10 @@ import { ProfileScreen } from '../ProfileScreen';
 // The profile is not there yet (still being read) and the trip list is whatever the test sets.
 type TripsQuery = { data: unknown[] | undefined; isPending: boolean; isError: boolean };
 let mockTrips: TripsQuery = { data: [], isPending: false, isError: false };
-jest.mock('@/hooks/useProfile', () => ({ useMyProfile: () => ({ data: undefined }) }));
+jest.mock('@/hooks/useProfile', () => ({
+  useMyProfile: () => ({ data: undefined }),
+  useChangeAvatar: () => ({ mutateAsync: jest.fn(), isPending: false }),
+}));
 jest.mock('@/hooks/useTrips', () => ({ useTripList: () => mockTrips }));
 jest.mock('expo-router', () => ({ useRouter: () => ({ push: jest.fn() }) }));
 

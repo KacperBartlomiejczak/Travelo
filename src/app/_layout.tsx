@@ -14,6 +14,8 @@ import { useTranslation } from "react-i18next";
 import { Platform } from "react-native";
 
 import "@/i18n";
+import { readThemePreference } from "@/data/preferences";
+import { applyThemePreference } from "@/hooks/usePreferences";
 import { AnimatedSplash } from "@/components/AnimatedSplash";
 import { AppLoading } from "@/features/auth/AppLoading";
 import { FullScreenError } from "@/features/auth/FullScreenError";
@@ -23,6 +25,8 @@ import { tokens } from "@/theme/tokens";
 import { useTheme } from "@/theme/useTheme";
 
 SplashScreen.preventAutoHideAsync();
+// Before the first render, so the first frame already has the chosen theme (profile-settings D8).
+applyThemePreference(readThemePreference());
 
 export default function RootLayout() {
   const [fontsLoaded, fontError] = useFonts({
@@ -127,6 +131,31 @@ function GateContent({ view, retry }: ReturnType<typeof useGateView>) {
             ),
           }}
         />
+        {/* Edit profile above settings; its back button returns there (profile-settings D9). */}
+        <Stack.Screen
+          name="edit-profile"
+          options={{
+            title: "",
+            headerStyle: { backgroundColor: theme.background.canvas },
+            headerTintColor: theme.text.primary,
+            headerShadowVisible: false,
+            headerLeft: ({ tintColor }) => (
+              <HeaderBackButton
+                label={t("profile.settings")}
+                accessibilityLabel={t("settings.backFromEdit")}
+                tintColor={tintColor}
+                style={
+                  Platform.OS === "ios"
+                    ? { minWidth: tokens.layout.touchTarget, minHeight: tokens.layout.touchTarget }
+                    : { minHeight: tokens.layout.touchTarget }
+                }
+                onPress={() => router.back()}
+              />
+            ),
+          }}
+        />
+        {/* The profile photo full screen over the profile screen (profile-settings D13). */}
+        <Stack.Screen name="avatar" options={{ headerShown: false, presentation: 'fullScreenModal' }} />
         {/* The trip's photos full screen over the home screen (trip-photos D6, P4). */}
         <Stack.Screen name="trips/[tripId]/photos" options={{ headerShown: false, presentation: 'fullScreenModal' }} />
       </Stack.Protected>

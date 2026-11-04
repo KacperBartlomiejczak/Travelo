@@ -63,3 +63,8 @@ export const ProfileSetupInputSchema = z.object({
 });
 export type ProfileSetupInputValues = z.input<typeof ProfileSetupInputSchema>;
 export type ProfileSetupInput = z.infer<typeof ProfileSetupInputSchema>;
+
+/** The profile edit form: nick and interests only; the photo changes through its own actions. */
+export const ProfileEditInputSchema = ProfileSetupInputSchema.pick({ username: true, interests: true });
+export type ProfileEditInputValues = z.input<typeof ProfileEditInputSchema>;
+export type ProfileEditInput = z.infer<typeof ProfileEditInputSchema>;

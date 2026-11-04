@@ -62,6 +62,15 @@ describe('SegmentedControl', () => {
     expect(screen.getByText('PLN')).toHaveStyle({ color: darkTheme.text.secondary });
   });
 
+  // Large font scale: "Systemowy" must shrink, never wrap mid-word.
+  it('keeps each label on one line and shrinks the font instead of wrapping', async () => {
+    await render(<SegmentedControl label="Waluta" options={options} value="THB" onChange={() => {}} />);
+    for (const text of ['THB', 'PLN']) {
+      expect(screen.getByText(text).props.numberOfLines).toBe(1);
+      expect(screen.getByText(text).props.adjustsFontSizeToFit).toBe(true);
+    }
+  });
+
   it('gives an unselected segment an underlay while pressed', async () => {
     await render(<SegmentedControl label="Waluta" options={options} value="THB" onChange={() => {}} />);
     await press(screen.getByRole('radio', { name: 'PLN' }));

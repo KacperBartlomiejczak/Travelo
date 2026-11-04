@@ -51,6 +51,8 @@ export function fakeSupabase() {
     stopAutoRefresh: jest.fn(async () => {}),
   };
   const rpc = jest.fn(async (_name: string, _args: unknown): Promise<FakeResponse> => ({ data: null, error: null, status: 204 }));
+  /** `functions.invoke`: functions-js returns `{ data, error }` and never throws (a failure is a `Functions*Error`). */
+  const invoke = jest.fn(async (_name: string, _options?: unknown): Promise<{ data: unknown; error: Error | null }> => ({ data: null, error: null }));
 
   function from(table: string) {
     sequence.push(`from:${table}`);
@@ -97,9 +99,10 @@ export function fakeSupabase() {
   }
 
   return {
-    client: { auth, rpc, from: jest.fn(from), storage: { from: jest.fn(storageFrom) } } as unknown as SupabaseClient<Database>,
+    client: { auth, rpc, functions: { invoke }, from: jest.fn(from), storage: { from: jest.fn(storageFrom) } } as unknown as SupabaseClient<Database>,
     auth,
     rpc,
+    invoke,
     queries,
     storageCalls,
     sequence,

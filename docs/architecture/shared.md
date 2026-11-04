@@ -106,8 +106,11 @@ Zod schemas in `src/schemas/` (constants `XSchema`, types `X = z.infer<typeof XS
   - `FoundFriendSchema` (friend-invite): `{ username, interests }` — what the lookup by friend code returns, never the account id.
   - `ProfileSchema`: `id` = the auth user id, `username`, `friendCode`, `interests` (≥ 1), `avatarId` (uuid or null), `createdAt`, `updatedAt`.
   - `ShownProfileSchema`: adds an optional signed `avatarUrl`.
+  - `ProfileEditInputSchema` (profile-settings): `username` and `interests` picked from `ProfileSetupInputSchema`, for the edit screen.
   - `ProfileSetupInputSchema`: the form. The nick is trimmed and lowercased; an empty one gives `validation.usernameRequired`. Interests ≥ 1 (`validation.interestsRequired`). `avatarUri` is a `file://` path or null.
 - `provider-profile.ts` — `ProviderMetadataSchema` (the `user_metadata` fields read after a Google / Discord sign-in, parsed leniently: a wrong type counts as absent), `ProviderProfileSchema` (`suggestedUsername` nullable, `avatarUrl` nullable, https only on the provider's own avatar host), `providerProfile()` (never throws) — pre-fills the profile setup.
+- `account.ts` (profile-settings) — `delete-account` contract: `DeleteAccountInputSchema` (`confirmUsername`, 1–64 chars), `DeleteAccountResultSchema` (`{ deleted: true }`), `DeleteAccountErrorSchema` (`invalid_input | unauthorized | username_mismatch | storage_failed | auth_failed`). The Edge Function imports this file by path.
+- `preferences.ts` (profile-settings) — `ThemePreferenceSchema` (`system | light | dark`), `LanguagePreferenceSchema` (`system | pl | en`); stored on the phone only.
 - `index.ts` — re-exports the schemas.
 - `auth.ts`:
   - `EmailSchema`: trimmed, lowercased, `validation.emailFormat`.

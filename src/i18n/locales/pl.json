@@ -266,7 +266,8 @@
     "welcome": {
       "title": "Witaj w Travelo",
       "body": "Zaplanuj wyjazd dla całej ekipy — loty, budżet i dni w jednym miejscu.",
-      "signIn": "Zaloguj się"
+      "signIn": "Zaloguj się",
+      "accountDeleted": "Konto usunięte."
     },
     "signIn": {
       "title": "Zaloguj się",
@@ -327,9 +328,51 @@
       "km": "Przelecone km"
     }
   },
+  "avatar": {
+    "add": "Dodaj zdjęcie profilowe",
+    "addOffline": "Dodaj zdjęcie profilowe, niedostępne bez internetu",
+    "open": "Otwórz zdjęcie profilowe",
+    "close": "Zamknij podgląd zdjęcia profilowego",
+    "options": "Opcje zdjęcia profilowego",
+    "sheetTitle": "Zdjęcie profilowe",
+    "change": "Zmień zdjęcie",
+    "remove": "Usuń zdjęcie",
+    "working": "Trwa zapisywanie zdjęcia",
+    "offlineHint": "Bez internetu nie zmienisz ani nie usuniesz zdjęcia.",
+    "galleryError": "Nie udało się otworzyć galerii. Spróbuj ponownie.",
+    "uploadError": "Nie udało się zmienić zdjęcia. Spróbuj ponownie.",
+    "removeError": "Nie udało się usunąć zdjęcia. Spróbuj ponownie."
+  },
   "settings": {
+    "account": "Konto",
+    "editProfile": "Edytuj profil",
+    "saveProfile": "Zapisz",
+    "editProfileOffline": "Jesteś offline. Zmiana profilu wymaga internetu.",
+    "offline": "Jesteś offline. Ustawienia konta wymagają internetu.",
+    "backFromEdit": "Wróć, Ustawienia",
+    "appearance": "Wygląd",
+    "theme": "Motyw",
+    "language": "Język",
+    "system": "Systemowy",
+    "light": "Jasny",
+    "dark": "Ciemny",
+    "polish": "Polski",
+    "english": "Angielski",
+    "about": "O aplikacji",
+    "version": "Wersja",
     "signOut": "Wyloguj się",
     "signOutOffline": "Połącz się z internetem, żeby się wylogować.",
+    "deleteAccount": "Usuń konto",
+    "deleteAccountOffline": "Połącz się z internetem, żeby usunąć konto.",
+    "delete": {
+      "title": "Usunąć konto?",
+      "message": "Trwale usuniemy Twoje konto, profil i zdjęcie oraz wszystkie podróże, które organizujesz, z planami, wydatkami i zdjęciami. Znikną też u połączonych znajomych. W cudzych podróżach zostaną Twój nick i Twoje wydatki. Tego nie da się cofnąć.",
+      "field": "Wpisz swój nick: {{username}}",
+      "confirm": "Usuń konto",
+      "cancel": "Anuluj",
+      "failed": "Nie udało się dokończyć usuwania konta. Część zdjęć mogła już zniknąć. Spróbuj ponownie.",
+      "mismatch": "Twój nick się zmienił. Wpisz aktualny nick."
+    },
     "back": "Wróć, Profil",
     "confirm": {
       "title": "Wylogować się?",

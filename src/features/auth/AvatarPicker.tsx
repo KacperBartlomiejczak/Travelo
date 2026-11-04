@@ -1,18 +1,14 @@
 import { Image } from 'expo-image';
-import { launchImageLibraryAsync } from 'expo-image-picker';
 import { Camera } from 'lucide-react-native';
-import { useRef, useState } from 'react';
+import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { AccessibilityInfo, ActivityIndicator, Pressable, Text, View } from 'react-native';
 
-import { AvatarUriSchema } from '@/lib/avatar';
+import { usePickAvatar } from '@/hooks/usePickAvatar';
 import { tokens } from '@/theme/tokens';
 import { useTheme } from '@/theme/useTheme';
 
 import { FormError } from './AuthFormScreen';
-
-// The profile photo is square-cropped in the system picker (P2); the app downsizes and re-encodes it when the profile is saved.
-const ASPECT: [number, number] = [1, 1];
 
 const { avatar, focusRing, input } = tokens.components;
 
@@ -37,8 +33,6 @@ export function AvatarPicker({ uri, onPick, disabled = false, loading = false }:
   const theme = useTheme();
   const [focused, setFocused] = useState(false);
   const [failed, setFailed] = useState(false);
-  // A second tap before React renders anything (or while the gallery is still opening) must not open it again (D21).
-  const picking = useRef(false);
   const { spacing } = tokens;
   const label = t(uri ? 'auth.profile.avatarChange' : 'auth.profile.avatar');
 
@@ -47,22 +41,12 @@ export function AvatarPicker({ uri, onPick, disabled = false, loading = false }:
     AccessibilityInfo.announceForAccessibility(t('auth.profile.avatarError'));
   }
 
-  async function pick() {
-    if (picking.current) return;
-    picking.current = true;
+  // A second tap before React renders anything (or while the gallery is still opening) must not open it again (D21): the hook guards that.
+  const openGallery = usePickAvatar({ onPick, onError: fail });
+  const pick = () => {
     setFailed(false);
-    try {
-      const result = await launchImageLibraryAsync({ mediaTypes: ['images'], allowsEditing: true, aspect: ASPECT });
-      if (result.canceled) return;
-      const picked = AvatarUriSchema.safeParse(result.assets[0].uri);
-      if (!picked.success) return fail();
-      onPick(picked.data);
-    } catch {
-      fail();
-    } finally {
-      picking.current = false;
-    }
-  }
+    return openGallery();
+  };
 
   const circle = {
     width: avatar.xxl,

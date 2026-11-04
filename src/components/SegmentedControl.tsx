@@ -54,6 +54,8 @@ export function SegmentedControl<T extends string>({ label, options, value, onCh
             })}
           >
             <Text
+              numberOfLines={1}
+              adjustsFontSizeToFit
               style={[tokens.typography.styles.labelMD, { color: selected ? theme.text.primary : theme.text.secondary }]}
             >
               {option.label}
