@@ -1,5 +1,5 @@
 # Zadanie: dzienny budżet na osobę (razem / osobno)
-Status: w trakcie — poprawki po review zaakceptowane 2026-11-05
+Status: zrobione (poprawki po review wypchnięte 2026-11-05; scenariusze kreatora na urządzeniu czekają na naprawę wyboru przylotu)
 
 ## Zrozumienie i założenia
 Dziś podróż ma jedną kwotę `budgetPerPerson` na całą podróż, wspólną dla wszystkich. Przenoszenie niewydanej kwoty na następny dzień już działa (`src/lib/expense-budget.ts`, expenses D7), ale liczy się z kwoty na całą podróż.
@@ -77,7 +77,7 @@ CodeRabbit zgłosił 15 uwag (9 w liniach, 1 „follow-up”, 5 drobnych do test
   - testy z uwag #11 (assert `ScrollView`) i #12 (kreator przekazuje kwoty Osobno dalej) — weryfikacja: pełny zestaw.
 - [x] R2. [backend] Testy z uwag #13 (zapis offline bez wywołania RPC), #14 (`trip-rows`: różne kwoty znajomych), #15 (`trips_rls.sql`: drugie wywołanie z tym samym czasem i innymi kwotami nie zmienia danych) — skill: TDD — weryfikacja: pełny zestaw + `supabase/tests` przez `docker exec`.
 - [x] R3. [orkiestrator] Docs: wiersz `/` w `frontend.md` (karta „Budżet”: kwota dzienna lub suma grupy dziennie + suma na podróż — #6); `known-limitations.md`: R-D1, R-D2, R-D3.
-- [ ] R4. Weryfikator na R0–R3, commit na krok, push, odpowiedzi na komentarze CodeRabbita w PR (co poprawione, co świadomie pominięte i dlaczego).
+- [x] R4. Weryfikator na R0–R3, commit na krok, push, odpowiedzi na komentarze CodeRabbita w PR (co poprawione, co świadomie pominięte i dlaczego).
 
 ## Dziennik postępu
 - Krok 1: testy schematów napisane (red ✓, 37 porażek) · `dailyBudget` na podróży, `dailyBudgetMinor` na członku, nowy `BudgetStepInputSchema` (`mode`, `organizerDailyMinor`, `friendDailyMinor[]`), `TripBudgetChange` z listą członków, klucz `validation.budgetSharedMismatch` · warstwa danych tylko zmostkowana (TODO kroki 2 i 4) · green dla schematów ✓; typecheck/testy UI i test parzystości czerwone do czasu kroków 2, 3 i poprawek UI · użyty skill: TDD · **odstępstwo:** zmiana nazwy pola psuje UI, więc kroki 1–3 + minimalne poprawki UI (frontend) weryfikuję razem jako jedną całość; dopiero wtedy pełny zestaw jest zielony.
@@ -104,3 +104,4 @@ CodeRabbit zgłosił 15 uwag (9 w liniach, 1 „follow-up”, 5 drobnych do test
 - R3: `frontend.md` (wiersz `/`: karta „Budżet”), `known-limitations.md` (R-D1–R-D4 + błąd wyboru przylotu w kreatorze).
 - R1: #4 `SegmentedControl` pomija aktywną opcję (red ✓ ×3), #10 błąd zera dopiero po „Dalej”/„Zapisz” (red ✓ ×2), #7 `withCompanionCount` przycina kwoty znajomych (red ✓), #1 przewinięcie do pierwszego błędnego pola w kreatorze (red ✓), #5 `useScrollFocusedFieldIntoView` wyeksportowany i użyty w `BudgetSheet` (red ✓), testy #11 i #12 (tylko asercje, bez red — kod był już poprawny) · 3657 testów ✓, typecheck ✓, lint ✓ · niesprawdzone na iOS.
 - Weryfikacja R0–R3: PASS (3657 testów, typecheck ✓, lint ✓, 8/8 plików SQL ✓). Uwagi niewymagające zmian: hook z `WizardScreen` importowany w `BudgetSheet` (przyszłe przeniesienie do wspólnego modułu), `isValidAmount` powtarza regułę z `errorFor`.
+- R4: commity 4da32f7 (R1), 801a515 (R2), 2c0a04e (R3), push · odpowiedzi na 9 komentarzy CodeRabbita w liniach + komentarz zbiorczy w PR #28.
