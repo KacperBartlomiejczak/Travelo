@@ -11,6 +11,7 @@ import { OfflineBanner } from '@/components/OfflineBanner';
 import { PrimaryButton } from '@/components/PrimaryButton';
 import { useReduceMotion } from '@/hooks/useReduceMotion';
 import { useIsOffline } from '@/providers/BudgetSync';
+import { useSession } from '@/providers/Session';
 import { tokens } from '@/theme/tokens';
 import { DarkThemeScope, useTheme } from '@/theme/useTheme';
 
@@ -84,6 +85,7 @@ function Welcome() {
   const { width } = useWindowDimensions();
   const gradientId = useId();
   const offline = useIsOffline();
+  const { accountDeleted } = useSession();
   const [sheetOpen, setSheetOpen] = useState(false);
   // Pushed screens stay mounted under the next one (the e-mail screens): only the focused screen keeps the bar light.
   const focused = useIsFocused();
@@ -146,6 +148,15 @@ function Welcome() {
               <Text style={[typography.styles.bodyLG, { color: theme.text.secondary }]}>{t('auth.welcome.body')}</Text>
             </Animated.View>
           </View>
+          {accountDeleted && (
+            <Text
+              testID="welcome-deleted"
+              accessibilityLiveRegion="polite"
+              style={[typography.styles.bodyMD, { color: theme.text.primary }]}
+            >
+              {t('auth.welcome.accountDeleted')}
+            </Text>
+          )}
           {offline && <OfflineBanner />}
           <Animated.View testID="welcome-action" style={enter(actionProgress)}>
             <PrimaryButton label={t('auth.welcome.signIn')} onPress={() => setSheetOpen(true)} disabled={offline} />

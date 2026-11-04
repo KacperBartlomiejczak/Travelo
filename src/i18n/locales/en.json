@@ -276,7 +276,8 @@
     "welcome": {
       "title": "Welcome to Travelo",
       "body": "Plan a trip for the whole crew — flights, budget and days in one place.",
-      "signIn": "Sign in"
+      "signIn": "Sign in",
+      "accountDeleted": "Account deleted."
     },
     "signIn": {
       "title": "Sign in",
@@ -337,9 +338,51 @@
       "km": "Km flown"
     }
   },
+  "avatar": {
+    "add": "Add profile photo",
+    "addOffline": "Add profile photo, unavailable offline",
+    "open": "Open profile photo",
+    "close": "Close profile photo preview",
+    "options": "Profile photo options",
+    "sheetTitle": "Profile photo",
+    "change": "Change photo",
+    "remove": "Remove photo",
+    "working": "Saving the photo",
+    "offlineHint": "You need internet to change or remove the photo.",
+    "galleryError": "Couldn't open your photos. Try again.",
+    "uploadError": "Couldn't change the photo. Try again.",
+    "removeError": "Couldn't remove the photo. Try again."
+  },
   "settings": {
+    "account": "Account",
+    "editProfile": "Edit profile",
+    "saveProfile": "Save",
+    "editProfileOffline": "You're offline. Editing your profile needs internet.",
+    "offline": "You're offline. Account settings need internet.",
+    "backFromEdit": "Back, Settings",
+    "appearance": "Appearance",
+    "theme": "Theme",
+    "language": "Language",
+    "system": "System",
+    "light": "Light",
+    "dark": "Dark",
+    "polish": "Polish",
+    "english": "English",
+    "about": "About",
+    "version": "Version",
     "signOut": "Sign out",
     "signOutOffline": "Connect to the internet to sign out.",
+    "deleteAccount": "Delete account",
+    "deleteAccountOffline": "Connect to the internet to delete your account.",
+    "delete": {
+      "title": "Delete account?",
+      "message": "We will permanently delete your account, profile and photo, and all the trips you organise, with their plans, expenses and photos. They will disappear for linked friends too. In other people's trips your nick and your expenses will stay. This cannot be undone.",
+      "field": "Type your nick: {{username}}",
+      "confirm": "Delete account",
+      "cancel": "Cancel",
+      "failed": "Could not finish deleting the account. Some photos may already be gone. Try again.",
+      "mismatch": "Your nick has changed. Type your current nick."
+    },
     "back": "Back, Profile",
     "confirm": {
       "title": "Sign out?",

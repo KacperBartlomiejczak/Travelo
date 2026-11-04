@@ -1,10 +1,14 @@
 import { getLocales } from 'expo-localization';
 import type { i18n as I18n } from 'i18next';
 
+import { readLanguagePreference } from '@/data/preferences';
 import en from '../locales/en.json';
 import pl from '../locales/pl.json';
 
 jest.mock('expo-localization', () => ({ getLocales: jest.fn() }));
+jest.mock('@/data/preferences', () => ({ readLanguagePreference: jest.fn(() => 'system') }));
+
+const mockedRead = jest.mocked(readLanguagePreference);
 
 const mockedGetLocales = jest.mocked(getLocales);
 
@@ -28,6 +32,8 @@ function keysOf(obj: object, prefix = ''): string[] {
 }
 
 describe('i18n', () => {
+  beforeEach(() => mockedRead.mockReturnValue('system'));
+
   it('uses Polish on a Polish device', () => {
     const i18n = loadI18nFor('pl-PL', 'pl');
     expect(i18n.language).toBe('pl');
@@ -48,5 +54,20 @@ describe('i18n', () => {
 
   it('has the same keys in Polish and English', () => {
     expect(keysOf(pl).sort()).toEqual(keysOf(en).sort());
+  });
+});
+
+describe('i18n saved language (profile-settings step 7)', () => {
+  it('a saved language wins over the device', () => {
+    mockedRead.mockReturnValue('pl');
+    expect(loadI18nFor('en-US', 'en').language).toBe('pl');
+    mockedRead.mockReturnValue('en');
+    expect(loadI18nFor('pl-PL', 'pl').language).toBe('en');
+  });
+
+  it('system goes back to the device language, English when unsupported', () => {
+    mockedRead.mockReturnValue('system');
+    expect(loadI18nFor('pl-PL', 'pl').language).toBe('pl');
+    expect(loadI18nFor('de-DE', 'de').language).toBe('en');
   });
 });

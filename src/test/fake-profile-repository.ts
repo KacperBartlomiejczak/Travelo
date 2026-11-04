@@ -30,4 +30,8 @@ export const delegatingProfileRepository: ProfileRepository = {
   myProfile: async () => (await active).myProfile(),
   createProfile: async (input) => (await active).createProfile(input),
   findByFriendCode: async (code) => (await active).findByFriendCode(code),
+  updateProfile: async (input) => (await active).updateProfile(input),
+  changeAvatar: async (pickedUri) => (await active).changeAvatar(pickedUri),
+  removeAvatar: async () => (await active).removeAvatar(),
+  deleteAccount: async (confirmUsername) => (await active).deleteAccount(confirmUsername),
 };

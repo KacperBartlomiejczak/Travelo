@@ -1,13 +1,17 @@
-import { isAuthRetryableFetchError, type SupabaseClient } from '@supabase/supabase-js';
+import { FunctionsFetchError, FunctionsHttpError, isAuthRetryableFetchError, type SupabaseClient } from '@supabase/supabase-js';
 import { randomUUID } from 'expo-crypto';
 import { Image } from 'expo-image';
 import { z } from 'zod';
 
-import { avatarPath } from '@/lib/avatar';
+import { AvatarUriSchema, avatarPath } from '@/lib/avatar';
 import {
+  DeleteAccountErrorSchema,
+  DeleteAccountInputSchema,
+  DeleteAccountResultSchema,
   FoundFriendSchema,
   FriendCodeInputSchema,
   HttpUrlSchema,
+  ProfileEditInputSchema,
   ProfileSetupInputSchema,
   ShownProfileSchema,
   type Profile,
@@ -19,7 +23,7 @@ import type { Database } from './database.types';
 import { ServerUnreachableError } from './errors';
 import { currentUserEpoch, type LocalStore } from './local-store';
 import { prepareAvatar } from './photo-files';
-import { UsernameTakenError, type MyProfile, type ProfileRepository } from './profile-repository';
+import { UsernameMismatchError, UsernameTakenError, type MyProfile, type ProfileRepository } from './profile-repository';
 import { profileFromRow } from './profile-rows';
 
 /** The private Storage bucket of profile photos (auth-onboarding P2). */
@@ -32,6 +36,17 @@ const SERVER_ERROR = 500;
 const UNIQUE_VIOLATION = '23505';
 /** Storage paths are case-sensitive and the server accepts only lowercase ids in them (trip-photos step 5). */
 const PathIdSchema = z.uuid().regex(/^[0-9a-f-]+$/);
+
+/** True when the Edge Function answered 403 `username_mismatch` (profile-settings D16). */
+async function isUsernameMismatch(response: Response): Promise<boolean> {
+  if (response.status !== 403) return false;
+  try {
+    const body = DeleteAccountErrorSchema.safeParse(await response.json());
+    return body.success && body.data.error === 'username_mismatch';
+  } catch {
+    return false;
+  }
+}
 
 /** Puts a local image into expo-image's disk cache under `cacheKey`, so showing it later needs no download. */
 const writeToImageCache = (uri: string, cacheKey: string) => Image.writeToCacheAsync(uri, cacheKey);
@@ -152,6 +167,24 @@ export function createSupabaseProfileRepository({
     return { id: avatarId, path, uri: prepared.uri };
   }
 
+  /** The avatar id the server has now: it names the file to remove, so the copy on the phone is not trusted for it. */
+  async function currentAvatarId(userId: string): Promise<string | null> {
+    const { data, error, status } = await supabase.from('profiles').select('avatar_id').eq('id', userId).single();
+    if (error) throw failure(error, status);
+    return data.avatar_id;
+  }
+
+  /** Sets the avatar id of the own row and gives the stored profile; `refused` runs when the server refused the update (4xx). */
+  async function setAvatarId(local: LocalStore, epoch: number, userId: string, avatarId: string | null, refused?: () => Promise<void>): Promise<ShownProfile> {
+    const { data, error, status } = await supabase.from('profiles').update({ avatar_id: avatarId }).eq('id', userId).select('*').single();
+    if (error) {
+      // No answer or a 5xx: the update may have been applied, so the new file may be in use. It stays, as in `createProfile`.
+      if (refused && status > 0 && status < SERVER_ERROR) await refused();
+      throw failure(error, status);
+    }
+    return show(local, epoch, userId, profileFromRow(data));
+  }
+
   return {
     async myProfile() {
       const epoch = currentUserEpoch();
@@ -224,6 +257,61 @@ export function createSupabaseProfileRepository({
       if (error) throw failure(error, status);
       // At most one account has a code; the rows carry nick and interests only (an extra field such as an id is dropped).
       return FoundFriendSchema.array().max(1).parse(data)[0] ?? null;
+    },
+
+    async updateProfile(input) {
+      const epoch = currentUserEpoch();
+      const { username, interests } = ProfileEditInputSchema.parse(input);
+      const userId = await signedIn();
+      const local = await localStore;
+      const { data, error, status } = await supabase.from('profiles').update({ username, interests }).eq('id', userId).select('*').single();
+      if (error) {
+        if (error.code === UNIQUE_VIOLATION && `${error.message} ${error.details ?? ''}`.includes('profiles_username_key')) {
+          throw new UsernameTakenError(error.message);
+        }
+        throw failure(error, status);
+      }
+      return show(local, epoch, userId, profileFromRow(data));
+    },
+
+    async changeAvatar(pickedUri) {
+      const epoch = currentUserEpoch();
+      AvatarUriSchema.parse(pickedUri);
+      const userId = await signedIn();
+      const local = await localStore;
+      const avatarId = newId();
+      PathIdSchema.parse(userId);
+      PathIdSchema.parse(avatarId);
+      const oldId = await currentAvatarId(userId);
+      const avatar = await uploadAvatar(userId, avatarId, pickedUri);
+      const shown = await setAvatarId(local, epoch, userId, avatarId, () => removeQuietly(avatar.path));
+      await seedQuietly(avatar);
+      if (oldId && oldId !== avatarId) await removeQuietly(avatarPath(userId, oldId));
+      return shown;
+    },
+
+    async removeAvatar() {
+      const epoch = currentUserEpoch();
+      const userId = await signedIn();
+      const local = await localStore;
+      const oldId = await currentAvatarId(userId);
+      const shown = await setAvatarId(local, epoch, userId, null);
+      if (oldId) await removeQuietly(avatarPath(userId, oldId));
+      return shown;
+    },
+
+    async deleteAccount(confirmUsername) {
+      const body = DeleteAccountInputSchema.parse({ confirmUsername });
+      await signedIn();
+      const { data, error } = await supabase.functions.invoke('delete-account', { body });
+      // `FunctionsFetchError`: no answer at all (no connection, or the 20 s limit of `withTimeout`). A relay error means the
+      // gateway answered but the function did not run: the server is reachable, so it is a plain failure.
+      if (error) {
+        if (error instanceof FunctionsFetchError) throw new ServerUnreachableError(error.message);
+        if (error instanceof FunctionsHttpError && (await isUsernameMismatch(error.context))) throw new UsernameMismatchError(error.message);
+        throw new Error(error.message);
+      }
+      DeleteAccountResultSchema.parse(data);
     },
   };
 }
