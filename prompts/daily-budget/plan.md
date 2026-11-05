@@ -108,7 +108,7 @@ Kroki:
 - [x] R8. Commit `docs(overview): SQLite migrations v1–v6`, push do PR #28, odpowiedź na komentarz CodeRabbita w PR (co poprawione).
 - R7 dziennik: `grep "v1–v5" docs/` pusty · 3663 testy ✓, typecheck ✓, lint ✓.
 
-Poza tym planem (osobna gałąź wg „jedna gałąź na zadanie”): skille `coderabbitai/skills` (`code-review`, `autofix`) zainstalowane 2026-11-05 w `.agents/skills/` + kopia w `.claude/skills/`, wpis w `docs/agents/skills.md`, `skills-lock.json` — niezacommitowane na tej gałęzi; do przeniesienia na `chore/coderabbit-skills`.
+Poza tym planem (osobna gałąź wg „jedna gałąź na zadanie”): skille `coderabbitai/skills` (`code-review`, `autofix`) zainstalowane 2026-11-05 w `.agents/skills/` + kopia w `.claude/skills/`, wpis w `docs/agents/skills.md`, `skills-lock.json` — decyzja Kacpra 2026-11-05: zostają na tej gałęzi (PR #28) razem z verifierem z CodeRabbitem — plan w `prompts/coderabbit-reviewer/plan.md`.
 
 ## Dziennik postępu
 - Krok 1: testy schematów napisane (red ✓, 37 porażek) · `dailyBudget` na podróży, `dailyBudgetMinor` na członku, nowy `BudgetStepInputSchema` (`mode`, `organizerDailyMinor`, `friendDailyMinor[]`), `TripBudgetChange` z listą członków, klucz `validation.budgetSharedMismatch` · warstwa danych tylko zmostkowana (TODO kroki 2 i 4) · green dla schematów ✓; typecheck/testy UI i test parzystości czerwone do czasu kroków 2, 3 i poprawek UI · użyty skill: TDD · **odstępstwo:** zmiana nazwy pola psuje UI, więc kroki 1–3 + minimalne poprawki UI (frontend) weryfikuję razem jako jedną całość; dopiero wtedy pełny zestaw jest zielony.
