@@ -59,11 +59,13 @@ export function BudgetSheet({ trip, members, onClose }: Props) {
     return undefined;
   }
 
-  const setText = (i: number, text: string) => setTexts((current) => current.map((old, j) => (j === i ? text : old)));
-  // Razem → Osobno: everyone starts at the shared amount. Osobno → Razem: the organizer's amount is the shared one.
+  // Typing the shared amount in Razem sets everyone, so the amounts typed in Osobno survive a Razem round trip untouched.
+  const setText = (i: number, text: string) =>
+    setTexts((current) => current.map((old, j) => (individual && j !== i ? old : text)));
+  // Razem → Osobno: amounts already typed are kept; an empty one gets the shared amount.
   function changeMode(next: BudgetMode) {
     setMode(next);
-    if (next === 'individual') setTexts((current) => current.map(() => current[0]));
+    if (next === 'individual') setTexts((current) => current.map((text) => (text.trim() === '' ? current[0] : text)));
   }
 
   function save() {

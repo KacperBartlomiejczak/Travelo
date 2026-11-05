@@ -136,6 +136,40 @@ describe('Budget step', () => {
     for (const name of ['Ty', 'Kasia', 'Ola']) expect(screen.getByLabelText(name).props.value).toBe('200');
   });
 
+  it('keeps the amounts typed in Osobno after Razem and back to Osobno', async () => {
+    await openBudget();
+    await fireEvent.press(screen.getByRole('radio', { name: 'Osobno' }));
+    await fireEvent.changeText(screen.getByLabelText('Ty'), '100');
+    await fireEvent.changeText(screen.getByLabelText('Kasia'), '80');
+    await fireEvent.changeText(screen.getByLabelText('Ola'), '50');
+    await fireEvent.press(screen.getByRole('radio', { name: 'Razem' }));
+    await fireEvent.press(screen.getByRole('radio', { name: 'Osobno' }));
+    expect(['Ty', 'Kasia', 'Ola'].map((name) => screen.getByLabelText(name).props.value)).toEqual(['100', '80', '50']);
+  });
+
+  it('gives a cleared friend the shared amount when going Razem → Osobno, the others keep theirs', async () => {
+    await openBudget();
+    await fireEvent.press(screen.getByRole('radio', { name: 'Osobno' }));
+    await fireEvent.changeText(screen.getByLabelText('Ty'), '100');
+    await fireEvent.changeText(screen.getByLabelText('Kasia'), '');
+    await fireEvent.changeText(screen.getByLabelText('Ola'), '50');
+    await fireEvent.press(screen.getByRole('radio', { name: 'Razem' }));
+    await fireEvent.press(screen.getByRole('radio', { name: 'Osobno' }));
+    expect(['Ty', 'Kasia', 'Ola'].map((name) => screen.getByLabelText(name).props.value)).toEqual(['100', '100', '50']);
+  });
+
+  it('sets every amount to what was typed in Razem when going back to Osobno', async () => {
+    await openBudget();
+    await fireEvent.press(screen.getByRole('radio', { name: 'Osobno' }));
+    await fireEvent.changeText(screen.getByLabelText('Ty'), '100');
+    await fireEvent.changeText(screen.getByLabelText('Kasia'), '80');
+    await fireEvent.changeText(screen.getByLabelText('Ola'), '50');
+    await fireEvent.press(screen.getByRole('radio', { name: 'Razem' }));
+    await fireEvent.changeText(screen.getByLabelText(SHARED), '120');
+    await fireEvent.press(screen.getByRole('radio', { name: 'Osobno' }));
+    expect(['Ty', 'Kasia', 'Ola'].map((name) => screen.getByLabelText(name).props.value)).toEqual(['120', '120', '120']);
+  });
+
   it("uses the organizer's amount for everyone when switching back to Razem", async () => {
     await openBudget();
     await fireEvent.press(screen.getByRole('radio', { name: 'Osobno' }));

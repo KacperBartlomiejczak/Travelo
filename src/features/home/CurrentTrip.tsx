@@ -221,7 +221,7 @@ function Budget({ trip, members, syncStatus, onChangeBudget }: BudgetProps) {
         <Text style={[typography.styles.moneyLG, { color: theme.text.primary }]}>{money(same ? daily[0] : groupDaily)}</Text>
         <Body tone="secondary">{t(!same ? 'home.perDayGroup' : trip.travellerCount > 1 ? 'newTrip.summary.perPerson' : 'newTrip.summary.perDay')}</Body>
       </View>
-      <Body tone="secondary">{t('newTrip.summary.totals', { total: money(groupDaily * days) })}</Body>
+      <Body tone="secondary">{t(trip.travellerCount > 1 ? 'newTrip.summary.totals' : 'newTrip.summary.soloTotal', { total: money(groupDaily * days) })}</Body>
       <SyncIndicator status={syncStatus} onRetry={requestSync} />
     </Section>
   );

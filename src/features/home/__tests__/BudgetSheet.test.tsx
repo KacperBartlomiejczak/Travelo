@@ -147,6 +147,30 @@ describe('BudgetSheet (trips-supabase D5, sunline-redesign D28)', () => {
     expect(screen.getByLabelText('Kwota dziennie na osobę').props.value).toBe('900');
   });
 
+  it('keeps the Osobno amounts after Razem and back, and still saves equal amounts in Razem', async () => {
+    const { setBudget } = await setup(budget(), unequalMembers);
+    await fireEvent.press(screen.getByRole('radio', { name: 'Razem' }));
+    await fireEvent.press(screen.getByRole('radio', { name: 'Osobno' }));
+    expect(['Ty', 'Kasia', 'Ola'].map((name) => screen.getByLabelText(name).props.value)).toEqual(['3000', '3000', '1500']);
+    await fireEvent.press(screen.getByRole('radio', { name: 'Razem' }));
+    await fireEvent.press(save());
+    expect(setBudget).toHaveBeenCalledWith(expect.anything(), {
+      organizerDailyMinor: 300000,
+      members: [
+        { memberId: KASIA, dailyMinor: 300000 },
+        { memberId: OLA, dailyMinor: 300000 },
+      ],
+    });
+  });
+
+  it('gives a cleared friend the shared amount when going Razem → Osobno, the others keep theirs', async () => {
+    await setup(budget(), unequalMembers);
+    await fireEvent.changeText(screen.getByLabelText('Kasia'), '');
+    await fireEvent.press(screen.getByRole('radio', { name: 'Razem' }));
+    await fireEvent.press(screen.getByRole('radio', { name: 'Osobno' }));
+    expect(['Ty', 'Kasia', 'Ola'].map((name) => screen.getByLabelText(name).props.value)).toEqual(['3000', '3000', '1500']);
+  });
+
   it('saves every amount of the full list in Osobno', async () => {
     const { setBudget } = await setup(budget(), unequalMembers);
     await fireEvent.changeText(screen.getByLabelText('Ola'), '2000');

@@ -224,6 +224,14 @@ describe('Home screen — current trip (D4)', () => {
     expect(budget.getByText(`Razem ${formatMoney({ amountMinor: 11700000, currency: 'THB' }, 'pl')} na podróż`)).toBeTruthy();
   });
 
+  it('shows the trip total without "Razem" on a solo trip (13 days x 1 person)', async () => {
+    mockCurrent = () => Promise.resolve({ ...overview({ travellerCount: 1 }), members: [] });
+    await renderHome();
+    const budget = within(await screen.findByTestId('home-budget'));
+    expect(budget.getByText(`${formatMoney({ amountMinor: 3900000, currency: 'THB' }, 'pl')} na podróż`)).toBeTruthy();
+    expect(budget.queryByText(/^Razem/)).toBeNull();
+  });
+
   it('shows the group amount per day when the amounts differ', async () => {
     mockCurrent = () => {
       const base = overview();

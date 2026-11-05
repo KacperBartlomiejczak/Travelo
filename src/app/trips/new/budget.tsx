@@ -68,9 +68,12 @@ export default function BudgetStep() {
     setDraft((current) => ({ ...current, budget: { ...current.budget, ...patch } }));
   const setFriendAmount = (index: number, text: string) =>
     setBudget({ friendAmountTexts: draft.friends.map((_, i) => (i === index ? text : (friendAmountTexts[i] ?? ''))) });
-  // Razem → Osobno: everyone starts at the shared amount. Osobno → Razem: the organizer's amount is already the shared one.
+  // Razem → Osobno: amounts already typed are kept; an empty one gets the shared amount. Osobno → Razem: the organizer's amount is already the shared one.
   const setMode = (next: typeof mode) =>
-    setBudget({ mode: next, ...(next === 'individual' && { friendAmountTexts: draft.friends.map(() => amountText) }) });
+    setBudget({
+      mode: next,
+      ...(next === 'individual' && { friendAmountTexts: draft.friends.map((_, i) => ((friendAmountTexts[i] ?? '').trim() === '' ? amountText : friendAmountTexts[i])) }),
+    });
 
   return (
     <WizardScreen step="budget" scrollRef={scrollRef} action={{ label: t('newTrip.next'), onPress: next }}>
@@ -112,7 +115,7 @@ export default function BudgetStep() {
           amountText={amountText}
           currency={currency}
           error={errorFor(amountText)}
-          onChangeText={(text) => setBudget({ amountText: text })}
+          onChangeText={(text) => setBudget({ amountText: text, friendAmountTexts: draft.friends.map(() => text) })}
         />
       )}
       <View style={{ gap: tokens.spacing[1] }}>
