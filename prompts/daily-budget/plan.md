@@ -1,5 +1,5 @@
 # Zadanie: dzienny budżet na osobę (razem / osobno)
-Status: zrobione (poprawki po review wypchnięte 2026-11-05; scenariusze kreatora 1–4 na urządzeniu w toku)
+Status: zrobione (R5–R6 wypchnięte 2026-11-05; zostaje zrzut `docs/screenshots/wizard-budget.png` i sprawdzenie na iOS)
 
 ## Zrozumienie i założenia
 Dziś podróż ma jedną kwotę `budgetPerPerson` na całą podróż, wspólną dla wszystkich. Przenoszenie niewydanej kwoty na następny dzień już działa (`src/lib/expense-budget.ts`, expenses D7), ale liczy się z kwoty na całą podróż.
