@@ -51,7 +51,7 @@ function current(item: TripListItem): CurrentTrip {
         ownerId: 'local-user',
         destination: 'BKK',
         baseCurrency: 'EUR',
-        budgetPerPerson: { amountMinor: 100000, currency: 'EUR' },
+        dailyBudget: { amountMinor: 100000, currency: 'EUR' },
         createdAt: '2026-10-01T12:00:00.000Z',
         budgetUpdatedAt: '2026-10-01T12:00:00.000Z',
         travellerCount: 1,

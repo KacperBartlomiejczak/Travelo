@@ -72,14 +72,19 @@
       "interests": "Co lubi?"
     },
     "budget": {
-      "heading": "Ile chcecie wydać na osobę?",
-      "hint": "Na cały wyjazd, bez lotów: noclegi, jedzenie, atrakcje, transport na miejscu.",
-      "amount": "Kwota na osobę",
+      "heading": "Ile każdy może wydać dziennie?",
+      "headingSolo": "Ile chcesz wydać dziennie?",
+      "hint": "Bez lotów: noclegi, jedzenie, atrakcje, transport na miejscu. Czego nie wydasz danego dnia, przechodzi na następny.",
+      "modeShared": "Razem",
+      "modeIndividual": "Osobno",
+      "mode": "Budżet dla grupy",
+      "amountShared": "Kwota dziennie na osobę",
+      "amountSolo": "Kwota dziennie",
+      "you": "Ty",
       "currency": "Waluta",
-      "groupTotal": "Razem dla {{count}} osób: {{total}}",
-      "perDay": "~{{amount}} dziennie na osobę",
-      "headingSolo": "Ile chcesz wydać?",
-      "amountSolo": "Kwota"
+      "personTotal": "{{name}}: {{total}} na podróż",
+      "tripTotal": "{{total}} na osobę na podróż",
+      "groupTotal": "Razem dla {{count}} osób: {{total}}"
     },
     "summary": {
       "heading": "Sprawdź podróż",
@@ -97,16 +102,18 @@
       "friendInterests": "{{name}} — {{interests}}",
       "friendNoInterests": "{{name}} — bez zainteresowań",
       "segment": "{{from}} {{departAt}} → {{to}} {{arriveAt}}",
-      "perPerson": "na osobę",
-      "totals": "Razem {{total}} · ~{{perDay}} dziennie na osobę",
-      "perDay": "~{{perDay}} dziennie",
+      "perPerson": "dziennie na osobę",
+      "totals": "Razem {{total}} na podróż",
+      "perDay": "dziennie",
       "create": "Utwórz podróż",
       "saveError": "Nie udało się zapisać podróży. Spróbuj ponownie.",
       "coverUploadFailed": "Nie udało się wysłać zdjęcia okładki. Zmień je w „Nazwa i zdjęcie”.",
       "budgetTitle": "Budżet",
       "changeSection": "Zmień: {{section}}",
       "detailsTitle": "Nazwa i zdjęcie",
-      "name": "Nazwa podróży"
+      "name": "Nazwa podróży",
+      "soloTotal": "{{total}} na podróż",
+      "personDaily": "{{name}}: {{amount}} dziennie"
     }
   },
   "duration": {
@@ -149,6 +156,8 @@
     "amountRequired": "Wpisz kwotę",
     "amountInvalid": "Wpisz kwotę liczbą, np. 2500 lub 2500,50",
     "amountPositive": "Kwota musi być większa od zera",
+    "friendCountMismatch": "Liczba kwot nie zgadza się z liczbą znajomych.",
+    "budgetSharedMismatch": "W trybie „Razem” wszyscy mają tę samą kwotę",
     "amountInvalidWhole": "Wpisz kwotę liczbą, np. 2500",
     "emailFormat": "Podaj poprawny adres e-mail.",
     "otpFormat": "Kod ma 6 cyfr.",
@@ -202,6 +211,7 @@
     "organizer": "{{name}} (organizator)",
     "organizerUnknown": "Organizator",
     "changeBudget": "Zmień budżet",
+    "perDayGroup": "dziennie dla grupy",
     "saveBudget": "Zapisz",
     "saveBudgetError": "Nie udało się zapisać. Spróbuj ponownie."
   },

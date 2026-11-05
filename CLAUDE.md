@@ -117,7 +117,7 @@ Before building any UI, read [`context/design-context.md`](context/design-contex
 | **planner** | Drafts a plan in the plan template, steps tagged `[backend]` / `[frontend]` | nothing | [`.claude/agents/Planner.md`](.claude/agents/Planner.md) |
 | **backend** | Executes one approved backend step, test-first (schemas, data layer, Supabase) | `src/schemas/`, `src/data/`, `src/lib/`, `src/providers/`, `src/test/`, `supabase/` | [`.claude/agents/Backend.md`](.claude/agents/Backend.md) |
 | **frontend** | Executes one approved frontend step, test-first, following the design context | `src/` outside the data layer and schemas | [`.claude/agents/Frontend.md`](.claude/agents/Frontend.md) |
-| **verifier** | Fresh-context PASS / FAIL review of a finished step; never fixes | nothing | [`.claude/agents/Verifier.md`](.claude/agents/Verifier.md) |
+| **verifier** | Fresh-context PASS / FAIL review of a finished step (Haiku); at the end of a plan, of the whole branch with a CodeRabbit review (Sonnet 5.5, effort medium); never fixes | nothing | [`.claude/agents/Verifier.md`](.claude/agents/Verifier.md) |
 | **tester** | Walks the plan's manual steps on a phone/emulator via `mobile-mcp`; never fixes | nothing | [`.claude/agents/Tester.md`](.claude/agents/Tester.md) |
 
 Rules that always apply:

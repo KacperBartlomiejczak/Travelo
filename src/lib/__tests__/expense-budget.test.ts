@@ -28,23 +28,24 @@ function expense(over: Partial<LocalExpense> & { amountMinor: number }): LocalEx
   };
 }
 
-// Trip 2026-11-10 .. 2026-11-12 = 3 days; 1000 minor per person; organizer only unless members given.
-const base = { budgetPerPersonMinor: 1000, startDate: '2026-11-10', endDate: '2026-11-12', organizerName: 'Me', members: [] as { id: string; displayName: string }[] };
+type TestMember = { id: string; displayName: string; dailyBudgetMinor: number };
+// Trip 2026-11-10 .. 2026-11-12 = 3 days; organizer 300/day (pool 900); organizer only unless members given.
+const base = { organizerDailyMinor: 300, startDate: '2026-11-10', endDate: '2026-11-12', organizerName: 'Me', members: [] as TestMember[] };
 const run = (expenses: Expense[], today: string, over: Partial<typeof base> = {}) =>
   computeExpenseBudget({ ...base, ...over, expenses, today });
 const organizer = (r: ReturnType<typeof run>) => r.people[0];
 
 describe('computeExpenseBudget: totals', () => {
-  it('group left = budget x travelers - all expenses; person left = budget - own expenses', () => {
+  it('group left = sum of pools - all expenses; person left = own pool - own expenses', () => {
     const r = run(
       [expense({ amountMinor: 300 }), expense({ amountMinor: 100, memberId: MEMBER })],
       '2026-11-01',
-      { members: [{ id: MEMBER, displayName: 'Ola' }] },
+      { members: [{ id: MEMBER, displayName: 'Ola', dailyBudgetMinor: 200 }] },
     );
-    expect(r.group).toMatchObject({ spentMinor: 400, leftMinor: 1600 });
+    expect(r.group).toMatchObject({ spentMinor: 400, leftMinor: 1100 });
     expect(r.people.map((p) => [p.memberId, p.displayName, p.spentMinor, p.leftMinor])).toEqual([
-      [null, 'Me', 300, 700],
-      [MEMBER, 'Ola', 100, 900],
+      [null, 'Me', 300, 600],
+      [MEMBER, 'Ola', 100, 500],
     ]);
     expect(GroupBudgetSchema.safeParse(r.group).success).toBe(true);
     r.people.forEach((p) => expect(PersonBudgetSchema.safeParse(p).success).toBe(true));
@@ -52,14 +53,14 @@ describe('computeExpenseBudget: totals', () => {
 
   it('ignores soft-deleted expenses everywhere', () => {
     const r = run([expense({ amountMinor: 300, deletedAt: '2026-11-02T00:00:00.000Z' })], '2026-11-11');
-    expect(r.group).toMatchObject({ spentMinor: 0, leftMinor: 1000 });
+    expect(r.group).toMatchObject({ spentMinor: 0, leftMinor: 900 });
     expect(organizer(r).byCategory.food).toBe(0);
-    expect(organizer(r).today).toEqual({ allowedMinor: 666, leftMinor: 666, carryoverMinor: 333 });
+    expect(organizer(r).today).toEqual({ allowedMinor: 600, leftMinor: 600, carryoverMinor: 300 });
   });
 
   it('counts an expense of an unknown member toward group totals without crashing', () => {
     const r = run([expense({ amountMinor: 200, memberId: REMOVED })], '2026-11-01');
-    expect(r.group).toMatchObject({ spentMinor: 200, leftMinor: 800 });
+    expect(r.group).toMatchObject({ spentMinor: 200, leftMinor: 700 });
     expect(r.people).toHaveLength(1);
     expect(organizer(r).spentMinor).toBe(0);
   });
@@ -73,7 +74,7 @@ describe('computeExpenseBudget: totals', () => {
         expense({ amountMinor: 40, category: 'other', memberId: MEMBER }),
       ],
       '2026-11-01',
-      { members: [{ id: MEMBER, displayName: 'Ola' }] },
+      { members: [{ id: MEMBER, displayName: 'Ola', dailyBudgetMinor: 200 }] },
     );
     expect(organizer(r).byCategory).toEqual({ food: 30, transport: 30, stay: 0, activities: 0, other: 0 });
     expect(r.people[1].byCategory.other).toBe(40);
@@ -89,49 +90,49 @@ describe('computeExpenseBudget: today (D7)', () => {
       expect(organizer(r).today).toBeUndefined();
     }
     const r = run([post], '2026-11-10');
-    expect(r.group).toMatchObject({ spentMinor: 50, leftMinor: 950 });
-    expect(organizer(r).today).toEqual({ allowedMinor: 333, leftMinor: 333, carryoverMinor: 0 });
+    expect(r.group).toMatchObject({ spentMinor: 50, leftMinor: 850 });
+    expect(organizer(r).today).toEqual({ allowedMinor: 300, leftMinor: 300, carryoverMinor: 0 });
   });
 
   it('day 1 has no carryover', () => {
-    expect(organizer(run([], '2026-11-10')).today).toEqual({ allowedMinor: 333, leftMinor: 333, carryoverMinor: 0 });
+    expect(organizer(run([], '2026-11-10')).today).toEqual({ allowedMinor: 300, leftMinor: 300, carryoverMinor: 0 });
   });
 
   it('underspending on day 1 carries over to day 2', () => {
     const r = run([expense({ amountMinor: 100, spentOn: '2026-11-10' })], '2026-11-11');
-    // floor(2000/3)=666 - 100 = 566; carry = 333 - 100 = 233
-    expect(organizer(r).today).toEqual({ allowedMinor: 566, leftMinor: 566, carryoverMinor: 233 });
+    // 600 - 100 = 500; carry = 300 - 100 = 200
+    expect(organizer(r).today).toEqual({ allowedMinor: 500, leftMinor: 500, carryoverMinor: 200 });
   });
 
   it('overspending on day 1 shrinks day 2 (negative carryover)', () => {
     const r = run([expense({ amountMinor: 500, spentOn: '2026-11-10' })], '2026-11-11');
-    expect(organizer(r).today).toEqual({ allowedMinor: 166, leftMinor: 166, carryoverMinor: -167 });
+    expect(organizer(r).today).toEqual({ allowedMinor: 100, leftMinor: 100, carryoverMinor: -200 });
   });
 
   it('subtracts today spending from leftToday', () => {
     const r = run([expense({ amountMinor: 100, spentOn: '2026-11-11' })], '2026-11-11');
-    expect(organizer(r).today).toEqual({ allowedMinor: 666, leftMinor: 566, carryoverMinor: 333 });
+    expect(organizer(r).today).toEqual({ allowedMinor: 600, leftMinor: 500, carryoverMinor: 300 });
   });
 
-  it('accumulates over 3 days and 1000 / 3 days sums to exactly 1000', () => {
+  it('accumulates over 3 days and the day allowances sum to exactly the pool', () => {
     const allowed = ['2026-11-10', '2026-11-11', '2026-11-12'].map(
       (d) => organizer(run([], d)).today,
     );
-    expect(allowed.map((t) => t?.allowedMinor)).toEqual([333, 666, 1000]);
-    // nothing spent: day allowances (allowed - carryover) add up to the whole budget
-    expect(allowed.reduce((s, t) => s + (t ? t.allowedMinor - t.carryoverMinor : 0), 0)).toBe(1000);
+    expect(allowed.map((t) => t?.allowedMinor)).toEqual([300, 600, 900]);
+    // nothing spent: day allowances (allowed - carryover) add up to the whole pool
+    expect(allowed.reduce((s, t) => s + (t ? t.allowedMinor - t.carryoverMinor : 0), 0)).toBe(900);
   });
 
   it('an expense before the trip reduces the daily amount', () => {
     const r = run([expense({ amountMinor: 400, spentOn: '2026-11-05' })], '2026-11-10');
-    expect(organizer(r).today).toEqual({ allowedMinor: 200, leftMinor: 200, carryoverMinor: 0 });
-    expect(organizer(r).leftMinor).toBe(600);
+    expect(organizer(r).today).toEqual({ allowedMinor: 166, leftMinor: 166, carryoverMinor: 0 }); // floor(500/3)
+    expect(organizer(r).leftMinor).toBe(500);
   });
 
   it('floors correctly when over budget before the trip (negative B - P)', () => {
     const r = run([expense({ amountMinor: 1100, spentOn: '2026-11-05' })], '2026-11-10');
-    // floor(-100/3) = -34
-    expect(organizer(r).today).toEqual({ allowedMinor: -34, leftMinor: -34, carryoverMinor: 0 });
+    // floor(-200/3) = -67
+    expect(organizer(r).today).toEqual({ allowedMinor: -67, leftMinor: -67, carryoverMinor: 0 });
   });
 
   it('day 3 after spending on days 1 and 2', () => {
@@ -143,15 +144,24 @@ describe('computeExpenseBudget: today (D7)', () => {
       ],
       '2026-11-12',
     );
-    // allowed = 1000 - 400; carry = floor(2000/3) - 400
-    expect(organizer(r).today).toEqual({ allowedMinor: 600, leftMinor: 550, carryoverMinor: 266 });
+    // allowed = 900 - 400; carry = 600 - 400
+    expect(organizer(r).today).toEqual({ allowedMinor: 500, leftMinor: 450, carryoverMinor: 200 });
   });
 
-  it('group today is the sum of the persons', () => {
+  it('group today is the sum of the persons, each on their own daily amount', () => {
     const r = run([expense({ amountMinor: 100, spentOn: '2026-11-10' })], '2026-11-11', {
-      members: [{ id: MEMBER, displayName: 'Ola' }],
+      members: [{ id: MEMBER, displayName: 'Ola', dailyBudgetMinor: 200 }],
     });
-    expect(r.group.today).toEqual({ allowedMinor: 566 + 666, leftMinor: 566 + 666, carryoverMinor: 233 + 333 });
+    expect(organizer(r).today).toEqual({ allowedMinor: 500, leftMinor: 500, carryoverMinor: 200 });
+    expect(r.people[1].today).toEqual({ allowedMinor: 400, leftMinor: 400, carryoverMinor: 200 });
+    expect(r.group.today).toEqual({ allowedMinor: 900, leftMinor: 900, carryoverMinor: 400 });
+  });
+
+  it('a longer trip grows the pool, not the daily amount', () => {
+    const r = run([], '2026-11-10', { endDate: '2026-11-14' });
+    expect(organizer(r).leftMinor).toBe(1500);
+    expect(organizer(r).today).toEqual({ allowedMinor: 300, leftMinor: 300, carryoverMinor: 0 });
+    expect(r.group.leftMinor).toBe(1500);
   });
 });
 

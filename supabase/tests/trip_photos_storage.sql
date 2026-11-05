@@ -90,7 +90,7 @@ insert into auth.users (id) values
 -- A's two trips and B's own trip (so a policy that only asks "is the caller an owner of any trip?" is caught),
 -- and C linked to A's first trip as a read-only member.
 insert into public.trips (id, owner_id, name, destination, start_date, end_date, base_currency,
-                          budget_per_person_minor, budget_updated_at)
+                          daily_budget_minor, budget_updated_at)
 values
   ('1a000000-0000-4000-8000-0000000000a1', '00000000-0000-4000-a000-00000000000a', 'Warsaw → Bangkok', 'BKK',
    '2026-11-03', '2026-11-15', 'THB', 3000000, '2026-10-04T12:00:00Z'),
@@ -98,9 +98,9 @@ values
    '2026-12-01', '2026-12-08', 'EUR', 90000, '2026-10-04T12:00:00Z'),
   ('1b000000-0000-4000-8000-0000000000b1', '00000000-0000-4000-a000-00000000000b', 'Krakow → Rome', 'FCO',
    '2026-09-01', '2026-09-07', 'EUR', 80000, '2026-08-04T12:00:00Z');
-insert into public.trip_members (id, trip_id, user_id, display_name, role, interests)
+insert into public.trip_members (id, trip_id, user_id, display_name, role, interests, daily_budget_minor)
 values ('20000000-0000-4000-8000-000000000001', '1a000000-0000-4000-8000-0000000000a1',
-        '00000000-0000-4000-a000-00000000000c', 'Celina', 'viewer', '{}');
+        '00000000-0000-4000-a000-00000000000c', 'Celina', 'viewer', '{}', 100000);
 
 -- A second bucket, to see that the policies of trip-photos reach nothing else.
 insert into storage.buckets (id, name) values ('other-bucket', 'other-bucket');

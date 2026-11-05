@@ -17,7 +17,7 @@ import {
   TripPhotoListSchema,
   TripPhotoSchema,
   TripSchema,
-  TripBudgetFormSchema,
+  TripBudgetChangeSchema,
   TripDetailsInputSchema,
   TripSummarySchema,
   type CoverChoice,
@@ -29,6 +29,7 @@ import {
   type PickedPhoto,
   type SegmentInput,
   type Trip,
+  type TripBudgetForm,
   type TripList,
   type TripMember,
   type TripPhoto,
@@ -67,8 +68,11 @@ export interface TripRepository {
    * `DEFAULT_COVER` although a `file://` cover was asked for, which is how the caller tells the photo did not make it.
    */
   create(input: z.input<typeof CreateTripInputSchema>): Promise<Trip>;
-  /** Saves a new budget per person (whole amount in minor units, the trip's base currency) on the device. */
-  setBudget(trip: Pick<Trip, 'id' | 'baseCurrency'>, amountMinor: number): Promise<void>;
+  /**
+   * Saves new daily budgets (whole amounts in minor units, the trip's base currency): the organizer's and the friends', as one change, on the device.
+   * Members not listed keep their amount.
+   */
+  setBudget(trip: Pick<Trip, 'id' | 'baseCurrency'>, budget: Pick<TripBudgetForm, 'organizerDailyMinor' | 'members'>): Promise<void>;
   /** Sends budget changes still on the device; says when the next retry is due. */
   syncBudgets(): Promise<SyncResult>;
   /** True while the device holds budget changes the server has not got yet (pending or failed): signing out would lose them. */
@@ -125,7 +129,7 @@ export function buildTrip(input: CreateTripInput, { now, newId, ownerId }: Deps)
   const tripId = newId();
   const { outbound } = input.flights;
   const destination = outbound[outbound.length - 1].toIata;
-  const { budgetPerPerson } = input.budget;
+  const { currency, organizerDailyMinor, friendDailyMinor } = input.budget;
   const { name, coverImageUri } = input.details;
 
   const trip = TripSchema.parse({
@@ -136,12 +140,12 @@ export function buildTrip(input: CreateTripInput, { now, newId, ownerId }: Deps)
     coverImageUri: coverImageUri.startsWith('file://') ? DEFAULT_COVER : coverImageUri,
     destination,
     ...deriveTripDates(input.flights),
-    baseCurrency: budgetPerPerson.currency,
-    budgetPerPerson,
+    baseCurrency: currency,
+    dailyBudget: { amountMinor: organizerDailyMinor, currency },
     createdAt: now.toISOString(),
     budgetUpdatedAt: now.toISOString(),
   });
-  const members = input.friends.friends.map((friend) =>
+  const members = input.friends.friends.map((friend, i) =>
     TripMemberSchema.parse({
       id: newId(),
       tripId,
@@ -149,6 +153,7 @@ export function buildTrip(input: CreateTripInput, { now, newId, ownerId }: Deps)
       displayName: friend.displayName,
       role: 'viewer',
       interests: friend.interests,
+      dailyBudgetMinor: friendDailyMinor[i],
     }),
   );
   const segments = [
@@ -244,10 +249,18 @@ export function createInMemoryTripRepository(
       selectedId = created.trip.id;
       return created.trip;
     },
-    async setBudget(trip, amountMinor) {
-      const { budgetPerPerson } = TripBudgetFormSchema.parse({ budgetPerPerson: { amountMinor, currency: trip.baseCurrency } });
+    async setBudget(trip, budget) {
+      const change = TripBudgetChangeSchema.parse({
+        tripId: trip.id,
+        organizerDailyBudget: { amountMinor: budget.organizerDailyMinor, currency: trip.baseCurrency },
+        members: budget.members.map(({ memberId, dailyMinor }) => ({ memberId, dailyBudgetMinor: dailyMinor })),
+        updatedAt: deps.now().toISOString(),
+      });
       const found = stored.find((entry) => entry.trip.id === trip.id);
-      if (found) found.trip = TripSchema.parse({ ...found.trip, budgetPerPerson, budgetUpdatedAt: deps.now().toISOString() });
+      if (!found) return;
+      const amounts = new Map(change.members.map((member) => [member.memberId, member.dailyBudgetMinor]));
+      found.trip = TripSchema.parse({ ...found.trip, dailyBudget: change.organizerDailyBudget, budgetUpdatedAt: change.updatedAt });
+      found.members = found.members.map((member) => ({ ...member, dailyBudgetMinor: amounts.get(member.id) ?? member.dailyBudgetMinor }));
     },
     async syncBudgets() {
       return { nextAttemptAt: null };

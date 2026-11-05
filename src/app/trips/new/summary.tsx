@@ -19,7 +19,7 @@ import { destinationName } from '@/lib/airport-search';
 import { formatDateRange, formatLocalShort } from '@/lib/date-time';
 import { layoverMinutes } from '@/lib/layovers';
 import { formatMoney } from '@/lib/money';
-import { perPersonPerDay, tripDayCount } from '@/lib/trip-days';
+import { tripDayCount } from '@/lib/trip-days';
 import { deriveTripDates } from '@/lib/trip-dates';
 import { CreateTripInputSchema, TRIP_NAME_MAX_LENGTH, TripDetailsInputSchema } from '@/schemas';
 import { tokens } from '@/theme/tokens';
@@ -66,8 +66,12 @@ function Summary() {
   const days = tripDayCount(startDate, endDate);
   const travellers = draft.companionCount + 1;
   const input = toCreateTripInput(draft, locale);
-  const perPerson = input.budget.budgetPerPerson;
-  const perDay = formatMoney(perPersonPerDay(perPerson, days), locale);
+  const { budget } = input;
+  const money = (amountMinor: number) => formatMoney({ amountMinor, currency: budget.currency }, locale);
+  const individualBudget = travellers > 1 && budget.mode === 'individual';
+  const dailyMinor = [budget.organizerDailyMinor, ...budget.friendDailyMinor];
+  const names = [t('newTrip.summary.you'), ...draft.friends.map((friend) => friend.displayName.trim())];
+  const total = money(dailyMinor.reduce((sum, amount) => sum + amount, 0) * days);
   const details = TripDetailsInputSchema.safeParse(input.details);
   const nameError = submitted && !details.success ? details.error.issues[0].message : undefined;
   const text = (style: 'primary' | 'secondary') => [tokens.typography.styles.bodyMD, { color: theme.text[style] }];
@@ -185,18 +189,19 @@ function Summary() {
       </SummaryCard>
 
       <SummaryCard testID="summary-budget" title={t('newTrip.summary.budgetTitle')} onChange={() => goTo('budget')}>
-        <View style={{ flexDirection: 'row', alignItems: 'baseline', flexWrap: 'wrap', gap: tokens.spacing[2] }}>
-          <Text style={[tokens.typography.styles.moneyLG, { color: theme.text.primary }]}>{formatMoney(perPerson, locale)}</Text>
-          <Text style={text('secondary')}>{t('newTrip.summary.perPerson')}</Text>
-        </View>
-        <Text style={text('secondary')}>
-          {travellers > 1
-            ? t('newTrip.summary.totals', {
-                total: formatMoney({ ...perPerson, amountMinor: perPerson.amountMinor * travellers }, locale),
-                perDay,
-              })
-            : t('newTrip.summary.perDay', { perDay })}
-        </Text>
+        {individualBudget ? (
+          dailyMinor.map((amount, i) => (
+            <Text key={i} style={text('primary')}>
+              {t('newTrip.summary.personDaily', { name: names[i], amount: money(amount) })}
+            </Text>
+          ))
+        ) : (
+          <View style={{ flexDirection: 'row', alignItems: 'baseline', flexWrap: 'wrap', gap: tokens.spacing[2] }}>
+            <Text style={[tokens.typography.styles.moneyLG, { color: theme.text.primary }]}>{money(budget.organizerDailyMinor)}</Text>
+            <Text style={text('secondary')}>{t(travellers > 1 ? 'newTrip.summary.perPerson' : 'newTrip.summary.perDay')}</Text>
+          </View>
+        )}
+        <Text style={text('secondary')}>{t(travellers > 1 ? 'newTrip.summary.totals' : 'newTrip.summary.soloTotal', { total })}</Text>
       </SummaryCard>
     </WizardScreen>
   );

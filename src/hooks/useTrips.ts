@@ -77,15 +77,15 @@ export function useDeleteTrip() {
   });
 }
 
-type SetBudget = { trip: Parameters<TripRepository['setBudget']>[0]; amountMinor: number };
+type SetBudget = { trip: Parameters<TripRepository['setBudget']>[0]; budget: Parameters<TripRepository['setBudget']>[1] };
 
-/** Saves a new budget per person on the device, then sends it when possible (trips-supabase D1). */
+/** Saves a new daily budget on the device, then sends it when possible (trips-supabase D1). */
 export function useSetTripBudget() {
   const repository = useTripRepository();
   const queryClient = useQueryClient();
   const requestSync = useRequestBudgetSync();
   return useMutation({
-    mutationFn: ({ trip, amountMinor }: SetBudget) => repository.setBudget(trip, amountMinor),
+    mutationFn: ({ trip, budget }: SetBudget) => repository.setBudget(trip, budget),
     // Saving never waits for the network.
     networkMode: 'always',
     // Not awaited: the trip is re-read from Supabase first, which must not hold the save up (weak connection).

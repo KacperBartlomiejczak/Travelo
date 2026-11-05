@@ -28,6 +28,13 @@ describe('SegmentedControl', () => {
     expect(onChange).toHaveBeenCalledWith('PLN');
   });
 
+  it('does not fire onChange when the tapped option is already active', async () => {
+    const onChange = jest.fn();
+    await render(<SegmentedControl label="Waluta" options={options} value="THB" onChange={onChange} />);
+    await fireEvent.press(screen.getByRole('radio', { name: 'THB' }));
+    expect(onChange).not.toHaveBeenCalled();
+  });
+
   // Sunline Editorial §8.15.
   it('is a 44dp background.sunken container with 4dp padding and concentric corners', async () => {
     await render(<SegmentedControl label="Waluta" options={options} value="THB" onChange={() => {}} />);

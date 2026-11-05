@@ -46,7 +46,7 @@ export function toCreateTripArgs({ trip, members, friendCodes, segments }: Creat
     start_date: trip.startDate,
     end_date: trip.endDate,
     base_currency: trip.baseCurrency,
-    budget_per_person_minor: trip.budgetPerPerson.amountMinor,
+    daily_budget_minor: trip.dailyBudget.amountMinor,
     budget_updated_at: trip.budgetUpdatedAt,
     created_at: trip.createdAt,
   };
@@ -61,6 +61,7 @@ export function toCreateTripArgs({ trip, members, friendCodes, segments }: Creat
       budget_level: member.budgetLevel ?? null,
       pace: member.pace ?? null,
       dietary_notes: member.dietaryNotes ?? null,
+      daily_budget_minor: member.dailyBudgetMinor,
       friend_code: friendCodes[member.id] ?? null,
     }),
   );
@@ -95,6 +96,7 @@ function memberFromRow(row: MemberRow): TripMember {
     ...(row.budget_level !== null ? { budgetLevel: row.budget_level } : {}),
     ...(row.pace !== null ? { pace: row.pace } : {}),
     ...(row.dietary_notes !== null ? { dietaryNotes: row.dietary_notes } : {}),
+    dailyBudgetMinor: row.daily_budget_minor,
   });
 }
 
@@ -138,7 +140,7 @@ export function overviewFromRows(
     startDate: tripRow.start_date,
     endDate: tripRow.end_date,
     baseCurrency: tripRow.base_currency,
-    budgetPerPerson: { amountMinor: tripRow.budget_per_person_minor, currency: tripRow.base_currency },
+    dailyBudget: { amountMinor: tripRow.daily_budget_minor, currency: tripRow.base_currency },
     createdAt: tripRow.created_at,
     budgetUpdatedAt: tripRow.budget_updated_at,
     // The organizer is not a member row (trips-supabase A4).

@@ -33,7 +33,7 @@ const overview: TripOverview = {
     startDate: '2026-11-02',
     endDate: '2026-11-09',
     baseCurrency: 'EUR',
-    budgetPerPerson: { amountMinor: 300000, currency: 'EUR' },
+    dailyBudget: { amountMinor: 300000, currency: 'EUR' },
     createdAt: '2026-10-04T12:00:00+00:00',
     budgetUpdatedAt: '2026-10-04T12:00:00+00:00',
     travellerCount: 1,
@@ -42,7 +42,7 @@ const overview: TripOverview = {
   segments: [],
 };
 
-const change = { tripId: TRIP_ID, budgetPerPerson: { amountMinor: 250000, currency: 'EUR' }, updatedAt: '2026-10-06T09:30:00.000Z' };
+const change = { tripId: TRIP_ID, organizerDailyBudget: { amountMinor: 250000, currency: 'EUR' }, members: [], updatedAt: '2026-10-06T09:30:00.000Z' };
 
 async function store() {
   const db = openTestDb();
@@ -299,6 +299,25 @@ describe('chosen trip (trips-drawer D2)', () => {
 });
 
 describe('budget changes', () => {
+  const MEMBER_ID = '5a4d2b9d-1f98-4b90-8faa-7e1d5d2d6f06';
+  const withMembers = { ...change, members: [{ memberId: MEMBER_ID, dailyBudgetMinor: 4500 }] };
+
+  it("keeps the members' amounts of a queued change (daily-budget step 4)", async () => {
+    const { local } = await store();
+    await local.saveBudgetChange(withMembers);
+    await expect(local.budgetChange(TRIP_ID)).resolves.toEqual({ ...withMembers, syncStatus: 'pending', attempts: 0 });
+    await expect(local.unsyncedBudgetChanges()).resolves.toEqual([expect.objectContaining({ members: withMembers.members })]);
+  });
+
+  it("writes the synced members' amounts into the device copy of the trip", async () => {
+    const { local } = await store();
+    const member = { id: MEMBER_ID, tripId: TRIP_ID, userId: null, displayName: 'Ola', role: 'viewer' as const, interests: [], dailyBudgetMinor: 1000 };
+    await local.cacheOverview({ ...overview, members: [member] }, '2026-10-06T09:00:00.000Z');
+    await local.saveBudgetChange(withMembers);
+    await local.markBudgetSynced(withMembers);
+    expect((await local.cachedOverview(TRIP_ID))?.members[0].dailyBudgetMinor).toBe(4500);
+  });
+
   it('saves a change as pending, with no attempts yet', async () => {
     const { local } = await store();
     await local.saveBudgetChange(change);
@@ -310,7 +329,7 @@ describe('budget changes', () => {
     const { local } = await store();
     await local.saveBudgetChange(change);
     await local.recordBudgetAttempt(change, { syncStatus: 'failed', error: 'boom', at: '2026-10-06T09:31:00.000Z' });
-    const newer = { ...change, budgetPerPerson: { amountMinor: 200000, currency: 'EUR' }, updatedAt: '2026-10-06T10:00:00.000Z' };
+    const newer = { ...change, organizerDailyBudget: { amountMinor: 200000, currency: 'EUR' }, updatedAt: '2026-10-06T10:00:00.000Z' };
     await local.saveBudgetChange(newer);
     await expect(local.budgetChange(TRIP_ID)).resolves.toEqual({ ...newer, syncStatus: 'pending', attempts: 0 });
   });
@@ -343,7 +362,7 @@ describe('budget changes', () => {
     await local.saveBudgetChange(change);
     await local.markBudgetSynced(change);
     const cached = await local.cachedOverview(TRIP_ID);
-    expect(cached?.trip.budgetPerPerson).toEqual(change.budgetPerPerson);
+    expect(cached?.trip.dailyBudget).toEqual(change.organizerDailyBudget);
     expect(cached?.trip.budgetUpdatedAt).toBe(change.updatedAt);
   });
 
@@ -354,7 +373,7 @@ describe('budget changes', () => {
     await local.cacheOverview(overview, '2026-10-08T09:00:00.000Z');
     await local.saveBudgetChange(change);
     await local.markBudgetSynced(change);
-    expect((await local.cachedOverview(TRIP_ID))?.trip.budgetPerPerson).toEqual(change.budgetPerPerson);
+    expect((await local.cachedOverview(TRIP_ID))?.trip.dailyBudget).toEqual(change.organizerDailyBudget);
     await expect(local.cachedOverview(OTHER_TRIP_ID)).resolves.toEqual(other);
   });
 
@@ -373,7 +392,7 @@ describe('budget changes', () => {
   it('does not remove a newer change saved while the older one was being sent', async () => {
     const { local } = await store();
     await local.saveBudgetChange(change);
-    const newer = { ...change, budgetPerPerson: { amountMinor: 1, currency: 'EUR' }, updatedAt: '2026-10-06T10:00:00.000Z' };
+    const newer = { ...change, organizerDailyBudget: { amountMinor: 1, currency: 'EUR' }, updatedAt: '2026-10-06T10:00:00.000Z' };
     await local.saveBudgetChange(newer);
     await local.markBudgetSynced(change);
     await expect(local.budgetChange(TRIP_ID)).resolves.toEqual(expect.objectContaining({ updatedAt: newer.updatedAt }));

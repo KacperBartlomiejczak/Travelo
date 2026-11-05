@@ -71,7 +71,7 @@ create function test_helpers.trip_payload(trip_id uuid) returns jsonb language s
     'start_date', '2026-11-03',
     'end_date', '2026-11-15',
     'base_currency', 'THB',
-    'budget_per_person_minor', 3000000,
+    'daily_budget_minor', 3000000,
     'budget_updated_at', '2026-10-04T12:00:00Z',
     'created_at', '2026-10-04T12:00:00Z'
   )
@@ -82,7 +82,7 @@ $$;
 create function test_helpers.member(member_id uuid, trip_id uuid, friend_code text, display_name text,
                                     raw_user_id uuid default null) returns jsonb language sql as $$
   select jsonb_build_object('id', member_id, 'trip_id', trip_id, 'friend_code', friend_code, 'user_id', raw_user_id,
-    'display_name', display_name, 'role', 'viewer', 'interests', jsonb_build_array('beaches'))
+    'display_name', display_name, 'role', 'viewer', 'interests', jsonb_build_array('beaches'), 'daily_budget_minor', 100000)
 $$;
 
 create function test_helpers.segments_payload(trip_id uuid) returns jsonb language sql as $$
@@ -343,14 +343,14 @@ select test_helpers.ok(
 -- Direct writes of user_id are refused (D12): only the server-side linking can set it
 -- ---------------------------------------------------------------------------
 select test_helpers.throws(
-  $$insert into public.trip_members (id, trip_id, user_id, display_name, role, interests)
+  $$insert into public.trip_members (id, trip_id, user_id, display_name, role, interests, daily_budget_minor)
     values ('20000000-0000-4000-8000-000000000051', '10000000-0000-4000-8000-000000000001',
-            '00000000-0000-4000-a000-00000000000c', 'carol directly', 'viewer', '{}')$$,
+            '00000000-0000-4000-a000-00000000000c', 'carol directly', 'viewer', '{}', 100000)$$,
   '42501', 'the owner cannot insert a member with a user_id directly');
 select test_helpers.throws(
-  $$insert into public.trip_members (id, trip_id, user_id, display_name, role, interests)
+  $$insert into public.trip_members (id, trip_id, user_id, display_name, role, interests, daily_budget_minor)
     values ('20000000-0000-4000-8000-000000000052', '10000000-0000-4000-8000-000000000001',
-            '00000000-0000-4000-a000-00000000000a', 'myself directly', 'viewer', '{}')$$,
+            '00000000-0000-4000-a000-00000000000a', 'myself directly', 'viewer', '{}', 100000)$$,
   '42501', 'the owner cannot link themselves by a direct insert');
 select test_helpers.throws(
   $$update public.trip_members set user_id = '00000000-0000-4000-a000-00000000000c'
@@ -363,8 +363,8 @@ select test_helpers.throws(
   $$update public.trip_members set trip_id = '10000000-0000-4000-8000-000000000003' where id = '20000000-0000-4000-8000-000000000001'$$,
   '42501', 'the owner cannot move a member to another trip');
 -- A plain friend without an account can still be added directly.
-insert into public.trip_members (id, trip_id, user_id, display_name, role, interests)
-values ('20000000-0000-4000-8000-000000000053', '10000000-0000-4000-8000-000000000003', null, 'Zuzia', 'viewer', '{}');
+insert into public.trip_members (id, trip_id, user_id, display_name, role, interests, daily_budget_minor)
+values ('20000000-0000-4000-8000-000000000053', '10000000-0000-4000-8000-000000000003', null, 'Zuzia', 'viewer', '{}', 100000);
 select test_helpers.ok(
   (select count(*) from public.trip_members where id = '20000000-0000-4000-8000-000000000053') = 1,
   'the owner can still add a member without an account directly');
@@ -441,7 +441,7 @@ select test_helpers.ok(
   test_helpers.changes($$update public.trips set name = 'Hacked' where id = '10000000-0000-4000-8000-000000000001'$$) = 0,
   'B cannot update the trip');
 select test_helpers.ok(
-  test_helpers.changes($$update public.trips set budget_per_person_minor = 1, budget_updated_at = '2030-01-01T00:00:00Z'
+  test_helpers.changes($$update public.trips set daily_budget_minor = 1, budget_updated_at = '2030-01-01T00:00:00Z'
     where id = '10000000-0000-4000-8000-000000000001'$$) = 0,
   'B cannot change the budget');
 select test_helpers.ok(
@@ -459,8 +459,8 @@ select test_helpers.ok(
     and test_helpers.changes($$delete from public.trips where id = '10000000-0000-4000-8000-000000000001'$$) = 0,
   'B cannot delete the trip, its members or its segments');
 select test_helpers.throws(
-  $$insert into public.trip_members (id, trip_id, user_id, display_name, role, interests)
-    values ('20000000-0000-4000-8000-000000000061', '10000000-0000-4000-8000-000000000001', null, 'Intruder', 'viewer', '{}')$$,
+  $$insert into public.trip_members (id, trip_id, user_id, display_name, role, interests, daily_budget_minor)
+    values ('20000000-0000-4000-8000-000000000061', '10000000-0000-4000-8000-000000000001', null, 'Intruder', 'viewer', '{}', 100000)$$,
   '42501', 'B cannot add a member');
 select test_helpers.throws(
   $$select private.link_trip_member('20000000-0000-4000-8000-000000000002', 'NPRSTU')$$,
@@ -477,7 +477,7 @@ select test_helpers.ok(
 reset role;
 select test_helpers.ok(
   (select name from public.trips where id = '10000000-0000-4000-8000-000000000001') = 'Warsaw → Bangkok'
-    and (select budget_per_person_minor from public.trips where id = '10000000-0000-4000-8000-000000000001') = 3000000
+    and (select daily_budget_minor from public.trips where id = '10000000-0000-4000-8000-000000000001') = 3000000
     and (select count(*) from public.trip_members where trip_id = '10000000-0000-4000-8000-000000000001') = 2
     and (select count(*) from public.flight_segments where trip_id = '10000000-0000-4000-8000-000000000001') = 3,
   'the trip is unchanged after B''s write attempts');

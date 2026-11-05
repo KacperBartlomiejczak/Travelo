@@ -46,15 +46,15 @@ insert into public.profiles (id, username, interests) values
 -- Trip e1 (O): Olga (owner row, linked to O), Filip (linked to F), Kasia (no account).
 -- Trip e2 (S): Sam (no account), Olga2 (linked to O, so deleting O must leave S's trip alone).
 -- Fixtures are written as the superuser.
-insert into public.trips (id, owner_id, name, destination, start_date, end_date, base_currency, budget_per_person_minor, budget_updated_at) values
-  ('10000000-0000-4000-8000-0000000000e1', '00000000-0000-4000-a000-0000000000a1', 'O trip', 'BKK', '2026-11-03', '2026-11-15', 'THB', 3000000, '2026-10-04T12:00:00Z'),
-  ('10000000-0000-4000-8000-0000000000e2', '00000000-0000-4000-a000-0000000000b1', 'S trip', 'BKK', '2026-11-03', '2026-11-15', 'THB', 3000000, '2026-10-04T12:00:00Z');
-insert into public.trip_members (id, trip_id, user_id, display_name, role, interests) values
-  ('20000000-0000-4000-8000-0000000000e1', '10000000-0000-4000-8000-0000000000e1', '00000000-0000-4000-a000-0000000000a1', 'Olga', 'owner', '{}'),
-  ('20000000-0000-4000-8000-0000000000e2', '10000000-0000-4000-8000-0000000000e1', '00000000-0000-4000-a000-0000000000f1', 'Filip', 'viewer', '{}'),
-  ('20000000-0000-4000-8000-0000000000e3', '10000000-0000-4000-8000-0000000000e1', null, 'Kasia', 'viewer', '{}'),
-  ('20000000-0000-4000-8000-0000000000e4', '10000000-0000-4000-8000-0000000000e2', null, 'Sam', 'viewer', '{}'),
-  ('20000000-0000-4000-8000-0000000000e5', '10000000-0000-4000-8000-0000000000e2', '00000000-0000-4000-a000-0000000000a1', 'Olga2', 'viewer', '{}');
+insert into public.trips (id, owner_id, name, destination, start_date, end_date, base_currency, daily_budget_minor, budget_updated_at) values
+  ('10000000-0000-4000-8000-0000000000e1', '00000000-0000-4000-a000-0000000000a1', 'O trip', 'BKK', '2026-11-03', '2026-11-15', 'THB', 100000, '2026-10-04T12:00:00Z'),
+  ('10000000-0000-4000-8000-0000000000e2', '00000000-0000-4000-a000-0000000000b1', 'S trip', 'BKK', '2026-11-03', '2026-11-15', 'THB', 100000, '2026-10-04T12:00:00Z');
+insert into public.trip_members (id, trip_id, user_id, display_name, role, interests, daily_budget_minor) values
+  ('20000000-0000-4000-8000-0000000000e1', '10000000-0000-4000-8000-0000000000e1', '00000000-0000-4000-a000-0000000000a1', 'Olga', 'owner', '{}', 100000),
+  ('20000000-0000-4000-8000-0000000000e2', '10000000-0000-4000-8000-0000000000e1', '00000000-0000-4000-a000-0000000000f1', 'Filip', 'viewer', '{}', 100000),
+  ('20000000-0000-4000-8000-0000000000e3', '10000000-0000-4000-8000-0000000000e1', null, 'Kasia', 'viewer', '{}', 100000),
+  ('20000000-0000-4000-8000-0000000000e4', '10000000-0000-4000-8000-0000000000e2', null, 'Sam', 'viewer', '{}', 100000),
+  ('20000000-0000-4000-8000-0000000000e5', '10000000-0000-4000-8000-0000000000e2', '00000000-0000-4000-a000-0000000000a1', 'Olga2', 'viewer', '{}', 100000);
 insert into public.flight_segments (id, trip_id, direction, position, from_iata, to_iata, depart_at, depart_tz, arrive_at, arrive_tz) values
   ('40000000-0000-4000-8000-0000000000e1', '10000000-0000-4000-8000-0000000000e1', 'outbound', 0, 'WAW', 'BKK', '2026-11-03T08:00:00Z', 'Europe/Warsaw', '2026-11-03T20:00:00Z', 'Asia/Bangkok'),
   ('40000000-0000-4000-8000-0000000000e2', '10000000-0000-4000-8000-0000000000e2', 'outbound', 0, 'WAW', 'BKK', '2026-11-03T08:00:00Z', 'Europe/Warsaw', '2026-11-03T20:00:00Z', 'Asia/Bangkok');

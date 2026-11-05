@@ -64,13 +64,13 @@ isOneToOne: false
                   ]
                 },"trip_members": {
                   Row: {
-                    "budget_level": string | null,"dietary_notes": string | null,"display_name": string,"id": string,"interests": (string)[],"pace": string | null,"role": string,"trip_id": string,"user_id": string | null
+                    "budget_level": string | null,"daily_budget_minor": number,"dietary_notes": string | null,"display_name": string,"id": string,"interests": (string)[],"pace": string | null,"role": string,"trip_id": string,"user_id": string | null
                   }
                   Insert: {
-                    "budget_level"?: string | null,"dietary_notes"?: string | null,"display_name": string,"id": string,"interests"?: (string)[],"pace"?: string | null,"role": string,"trip_id": string,"user_id"?: string | null
+                    "budget_level"?: string | null,"daily_budget_minor": number,"dietary_notes"?: string | null,"display_name": string,"id": string,"interests"?: (string)[],"pace"?: string | null,"role": string,"trip_id": string,"user_id"?: string | null
                   }
                   Update: {
-                    "budget_level"?: string | null,"dietary_notes"?: string | null,"display_name"?: string,"id"?: string,"interests"?: (string)[],"pace"?: string | null,"role"?: string,"trip_id"?: string,"user_id"?: string | null
+                    "budget_level"?: string | null,"daily_budget_minor"?: number,"dietary_notes"?: string | null,"display_name"?: string,"id"?: string,"interests"?: (string)[],"pace"?: string | null,"role"?: string,"trip_id"?: string,"user_id"?: string | null
                   }
                   Relationships: [
                     {
@@ -102,13 +102,13 @@ isOneToOne: false
                   ]
                 },"trips": {
                   Row: {
-                    "base_currency": string,"budget_per_person_minor": number,"budget_updated_at": string,"cover_image_uri": string,"created_at": string,"destination": string,"end_date": string,"id": string,"name": string,"owner_id": string,"start_date": string
+                    "base_currency": string,"budget_updated_at": string,"cover_image_uri": string,"created_at": string,"daily_budget_minor": number,"destination": string,"end_date": string,"id": string,"name": string,"owner_id": string,"start_date": string
                   }
                   Insert: {
-                    "base_currency": string,"budget_per_person_minor": number,"budget_updated_at": string,"cover_image_uri"?: string,"created_at"?: string,"destination": string,"end_date": string,"id": string,"name": string,"owner_id"?: string,"start_date": string
+                    "base_currency": string,"budget_updated_at": string,"cover_image_uri"?: string,"created_at"?: string,"daily_budget_minor": number,"destination": string,"end_date": string,"id": string,"name": string,"owner_id"?: string,"start_date": string
                   }
                   Update: {
-                    "base_currency"?: string,"budget_per_person_minor"?: number,"budget_updated_at"?: string,"cover_image_uri"?: string,"created_at"?: string,"destination"?: string,"end_date"?: string,"id"?: string,"name"?: string,"owner_id"?: string,"start_date"?: string
+                    "base_currency"?: string,"budget_updated_at"?: string,"cover_image_uri"?: string,"created_at"?: string,"daily_budget_minor"?: number,"destination"?: string,"end_date"?: string,"id"?: string,"name"?: string,"owner_id"?: string,"start_date"?: string
                   }
                   Relationships: [
                     
@@ -126,6 +126,9 @@ isOneToOne: false
 { Args: { "code": string }; Returns: {
               "interests": (string)[],"username": string
             }[]
+                           },
+"set_trip_budget":
+{ Args: { "members": Json,"organizer_daily_minor": number,"trip_id": string,"updated_at": string }; Returns: undefined
                            },
 "trip_organizer_username":
 { Args: { "trip_id": string }; Returns: string

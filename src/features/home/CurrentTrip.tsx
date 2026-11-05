@@ -19,7 +19,7 @@ import { formatLocalShort } from '@/lib/date-time';
 import { savedLayoverMinutes } from '@/lib/layovers';
 import { formatMoney } from '@/lib/money';
 import { isoToLocal } from '@/lib/time';
-import { perPersonPerDay, tripDayCount } from '@/lib/trip-days';
+import { tripDayCount } from '@/lib/trip-days';
 import { useIsOffline, useRequestBudgetSync } from '@/providers/BudgetSync';
 import type { FlightSegment, SyncStatus, TripOverview } from '@/schemas';
 import { tokens } from '@/theme/tokens';
@@ -105,7 +105,7 @@ export function CurrentTrip({ overview, budgetSyncStatus, onOpenMenu, onDeleted 
                 <Body key={member.id}>{member.displayName}</Body>
               ))}
           </Section>
-          <Budget trip={trip} syncStatus={budgetSyncStatus} onChangeBudget={owner ? () => setSheet('budget') : undefined} />
+          <Budget trip={trip} members={members} syncStatus={budgetSyncStatus} onChangeBudget={owner ? () => setSheet('budget') : undefined} />
         </View>
       </ScrollView>
       {sheet === 'menu' && (
@@ -118,7 +118,7 @@ export function CurrentTrip({ overview, budgetSyncStatus, onOpenMenu, onDeleted 
         />
       )}
       {sheet === 'details' && <TripDetailsSheet trip={trip} onClose={closeSheet} />}
-      {sheet === 'budget' && <BudgetSheet trip={trip} onClose={closeSheet} />}
+      {sheet === 'budget' && <BudgetSheet trip={trip} members={members} onClose={closeSheet} />}
       {sheet === 'delete' && <DeleteTripSheet trip={trip} onClose={closeSheet} onDeleted={onDeleted} />}
       {offline && (
         <View
@@ -190,15 +190,18 @@ function Direction({ label, segments }: { label: string; segments: FlightSegment
   );
 }
 
-type BudgetProps = { trip: TripOverview['trip']; syncStatus: SyncStatus; onChangeBudget?: () => void };
+type BudgetProps = { trip: TripOverview['trip']; members: TripOverview['members']; syncStatus: SyncStatus; onChangeBudget?: () => void };
 
-function Budget({ trip, syncStatus, onChangeBudget }: BudgetProps) {
+function Budget({ trip, members, syncStatus, onChangeBudget }: BudgetProps) {
   const { t, i18n } = useTranslation();
   const theme = useTheme();
   const requestSync = useRequestBudgetSync();
   const locale = i18n.language;
-  const perPerson = trip.budgetPerPerson;
-  const perDay = formatMoney(perPersonPerDay(perPerson, tripDayCount(trip.startDate, trip.endDate)), locale);
+  const daily = [trip.dailyBudget.amountMinor, ...members.map((member) => member.dailyBudgetMinor)];
+  const same = daily.every((amount) => amount === daily[0]);
+  const groupDaily = daily.reduce((sum, amount) => sum + amount, 0);
+  const days = tripDayCount(trip.startDate, trip.endDate);
+  const money = (amountMinor: number) => formatMoney({ amountMinor, currency: trip.baseCurrency }, locale);
   return (
     <Section
       testID="home-budget"
@@ -215,17 +218,10 @@ function Budget({ trip, syncStatus, onChangeBudget }: BudgetProps) {
       }
     >
       <View style={{ flexDirection: 'row', alignItems: 'baseline', flexWrap: 'wrap', gap: spacing[2] }}>
-        <Text style={[typography.styles.moneyLG, { color: theme.text.primary }]}>{formatMoney(perPerson, locale)}</Text>
-        <Body tone="secondary">{t('newTrip.summary.perPerson')}</Body>
+        <Text style={[typography.styles.moneyLG, { color: theme.text.primary }]}>{money(same ? daily[0] : groupDaily)}</Text>
+        <Body tone="secondary">{t(!same ? 'home.perDayGroup' : trip.travellerCount > 1 ? 'newTrip.summary.perPerson' : 'newTrip.summary.perDay')}</Body>
       </View>
-      <Body tone="secondary">
-        {trip.travellerCount > 1
-          ? t('newTrip.summary.totals', {
-              total: formatMoney({ ...perPerson, amountMinor: perPerson.amountMinor * trip.travellerCount }, locale),
-              perDay,
-            })
-          : t('newTrip.summary.perDay', { perDay })}
-      </Body>
+      <Body tone="secondary">{t(trip.travellerCount > 1 ? 'newTrip.summary.totals' : 'newTrip.summary.soloTotal', { total: money(groupDaily * days) })}</Body>
       <SyncIndicator status={syncStatus} onRetry={requestSync} />
     </Section>
   );

@@ -11,7 +11,6 @@ import {
   CurrentTripSchema,
   PickedPhotoSchema,
   TripBudgetChangeSchema,
-  TripBudgetFormSchema,
   TripDetailsInputSchema,
   TripPhotoListSchema,
   TripPhotoSchema,
@@ -212,8 +211,10 @@ export function createSupabaseTripRepository({
     if (!change) return CurrentTripSchema.parse({ overview, budgetSyncStatus: 'synced', fromCache });
     const newer = Date.parse(change.updatedAt) > Date.parse(overview.trip.budgetUpdatedAt);
     if (!newer) return CurrentTripSchema.parse({ overview, budgetSyncStatus: 'synced', fromCache });
-    const trip = { ...overview.trip, budgetPerPerson: change.budgetPerPerson, budgetUpdatedAt: change.updatedAt };
-    return CurrentTripSchema.parse({ overview: { ...overview, trip }, budgetSyncStatus: change.syncStatus, fromCache });
+    const trip = { ...overview.trip, dailyBudget: change.organizerDailyBudget, budgetUpdatedAt: change.updatedAt };
+    const amounts = new Map(change.members.map((member) => [member.memberId, member.dailyBudgetMinor]));
+    const members = overview.members.map((member) => ({ ...member, dailyBudgetMinor: amounts.get(member.id) ?? member.dailyBudgetMinor }));
+    return CurrentTripSchema.parse({ overview: { ...overview, trip, members }, budgetSyncStatus: change.syncStatus, fromCache });
   }
 
   /** The trip's photos with signed urls, sorted (D10, D13); the phone keeps the list as its copy (D8). */
@@ -409,10 +410,14 @@ export function createSupabaseTripRepository({
       }
     },
 
-    async setBudget(trip, amountMinor) {
+    async setBudget(trip, budget) {
       const epoch = currentUserEpoch();
-      const { budgetPerPerson } = TripBudgetFormSchema.parse({ budgetPerPerson: { amountMinor, currency: trip.baseCurrency } });
-      const change = TripBudgetChangeSchema.parse({ tripId: trip.id, budgetPerPerson, updatedAt: now().toISOString() });
+      const change = TripBudgetChangeSchema.parse({
+        tripId: trip.id,
+        organizerDailyBudget: { amountMinor: budget.organizerDailyMinor, currency: trip.baseCurrency },
+        members: budget.members.map(({ memberId, dailyMinor }) => ({ memberId, dailyBudgetMinor: dailyMinor })),
+        updatedAt: now().toISOString(),
+      });
       await (await localStore).saveBudgetChange(change, epoch);
     },
 

@@ -36,7 +36,7 @@ type Props = {
 // iOS only (wizard-keyboard Q5, D6): the frame's padding already makes room for the keyboard, so the scroll view must not
 // adjust by itself too (`automaticallyAdjustKeyboardInsets`). Once the keyboard is shown, a focused field still below the
 // visible part is scrolled up to sit `gap` above "Dalej". Returns the scroll view props it needs; Android gets none (D4).
-function useScrollFocusedFieldIntoView(scroll: RefObject<ScrollView | null>, gap: number): ScrollViewProps {
+export function useScrollFocusedFieldIntoView(scroll: RefObject<ScrollView | null>, gap: number): ScrollViewProps {
   const ios = Platform.OS === 'ios';
   // `scrollTo` wants an absolute offset, so the current one is tracked.
   const scrolledY = useRef(0);

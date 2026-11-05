@@ -464,7 +464,7 @@ describe('current (trips-drawer D2, A1)', () => {
   it('rejects a row that does not match the schema', async () => {
     const { supabase, repository } = await setup();
     await repository.select(PAST_ID);
-    supabase.respond('trips', { data: serverTrip({ id: PAST_ID, budget_per_person_minor: 1.5 }).row });
+    supabase.respond('trips', { data: serverTrip({ id: PAST_ID, daily_budget_minor: 1.5 }).row });
     await expect(repository.current()).rejects.toThrow();
   });
 });
@@ -740,8 +740,8 @@ describe('delete (trip-edit-menu D8, A5)', () => {
     await ctx.repository.current();
     await ctx.repository.list();
     await ctx.repository.select(PAST_ID);
-    await ctx.repository.setBudget({ id: PAST_ID, baseCurrency: 'THB' }, 250000);
-    await ctx.repository.setBudget({ id: ONGOING_ID, baseCurrency: 'THB' }, 260000);
+    await ctx.repository.setBudget({ id: PAST_ID, baseCurrency: 'THB' }, { organizerDailyMinor: 250000, members: [] });
+    await ctx.repository.setBudget({ id: ONGOING_ID, baseCurrency: 'THB' }, { organizerDailyMinor: 260000, members: [] });
     ctx.supabase.queries.length = 0;
     return ctx;
   }
@@ -1631,18 +1631,20 @@ describe('budget changes (offline-first)', () => {
     const server = serverTrip(changes);
     await ctx.repository.select(server.trip.id);
     ctx.supabase.respond('trips', { data: server.row });
-    await ctx.repository.current();
-    return { ...ctx, trip: server.trip };
+    const first = await ctx.repository.current();
+    return { ...ctx, trip: server.trip, members: first!.overview.members };
   }
 
   it('saves on the device without touching the network', async () => {
     const { supabase, local, repository, trip } = await withCurrent();
     const queriesBefore = supabase.queries.length;
-    await repository.setBudget(trip, 250000);
+    await repository.setBudget(trip, { organizerDailyMinor: 250000, members: [] });
     expect(supabase.queries).toHaveLength(queriesBefore);
+    expect(supabase.rpc).not.toHaveBeenCalled();
     await expect(local.budgetChange(trip.id)).resolves.toEqual({
       tripId: trip.id,
-      budgetPerPerson: { amountMinor: 250000, currency: 'THB' },
+      organizerDailyBudget: { amountMinor: 250000, currency: 'THB' },
+      members: [],
       updatedAt: NOW.toISOString(),
       syncStatus: 'pending',
       attempts: 0,
@@ -1651,62 +1653,82 @@ describe('budget changes (offline-first)', () => {
 
   it('uses the trip\'s base currency and rejects an amount that is not a positive whole number', async () => {
     const { repository, trip } = await withCurrent();
-    await expect(repository.setBudget(trip, 0)).rejects.toThrow();
-    await expect(repository.setBudget(trip, 12.5)).rejects.toThrow();
+    await expect(repository.setBudget(trip, { organizerDailyMinor: 0, members: [] })).rejects.toThrow();
+    await expect(repository.setBudget(trip, { organizerDailyMinor: 12.5, members: [] })).rejects.toThrow();
   });
 
   it('offline: the new amount shows right away as pending, also from the copy after a restart', async () => {
     const { supabase, repository, trip } = await withCurrent();
-    await repository.setBudget(trip, 250000);
-    supabase.respond('trips', NETWORK_FAILURE, NETWORK_FAILURE);
+    await repository.setBudget(trip, { organizerDailyMinor: 250000, members: [] });
+    supabase.rpc.mockResolvedValueOnce(NETWORK_FAILURE);
     await repository.syncBudgets();
+    supabase.respond('trips', NETWORK_FAILURE);
 
     const current = await repository.current();
     expect(current?.fromCache).toBe(true);
     expect(current?.budgetSyncStatus).toBe('pending');
-    expect(current?.overview.trip.budgetPerPerson).toEqual({ amountMinor: 250000, currency: 'THB' });
+    expect(current?.overview.trip.dailyBudget).toEqual({ amountMinor: 250000, currency: 'THB' });
     expect(current?.overview.trip.budgetUpdatedAt).toBe(NOW.toISOString());
   });
 
   it('on reconnect: sends the change with last-write-wins and forgets it once the server has it', async () => {
     const { supabase, local, repository, trip } = await withCurrent();
-    await repository.setBudget(trip, 250000);
-    supabase.respond('trips', { data: [{ id: trip.id }] });
+    await repository.setBudget(trip, { organizerDailyMinor: 250000, members: [] });
 
     await repository.syncBudgets();
 
-    expect(supabase.queries.at(-1)).toEqual({
-      table: 'trips',
-      ops: [
-        ['update', [{ budget_per_person_minor: 250000, budget_updated_at: NOW.toISOString() }]],
-        ['eq', ['id', trip.id]],
-        ['lt', ['budget_updated_at', NOW.toISOString()]],
-        ['select', ['id']],
-      ],
-    });
+    // One call: the organizer and the members change together, last write wins on the server (daily-budget A3).
+    expect(supabase.rpc.mock.calls).toEqual([
+      ['set_trip_budget', { trip_id: trip.id, organizer_daily_minor: 250000, members: [], updated_at: NOW.toISOString() }],
+    ]);
     await expect(local.budgetChange(trip.id)).resolves.toBeNull();
+  });
+
+  it("queues one change with the members' amounts, applies it over the fetched trip offline, and sends it all in one call (daily-budget step 4)", async () => {
+    const { supabase, local, repository, trip, members } = await withCurrent();
+    const memberId = members[0].id;
+    const form = { organizerDailyMinor: 250000, members: [{ memberId, dailyMinor: 4321 }] };
+    await repository.setBudget(trip, form);
+    await expect(local.unsyncedBudgetChanges()).resolves.toHaveLength(1);
+
+    supabase.respond('trips', NETWORK_FAILURE);
+    const current = await repository.current();
+    expect(current?.overview.trip.dailyBudget.amountMinor).toBe(250000);
+    expect(current?.overview.members.find((member) => member.id === memberId)?.dailyBudgetMinor).toBe(4321);
+    expect(current?.budgetSyncStatus).toBe('pending');
+
+    await repository.syncBudgets();
+    expect(supabase.rpc.mock.calls[0][1]).toEqual(
+      expect.objectContaining({ members: [{ member_id: memberId, daily_budget_minor: 4321 }] }),
+    );
+  });
+
+  it('rejects a member amount that is not a positive whole number or a member id that is not a UUID', async () => {
+    const { repository, trip, members } = await withCurrent();
+    const memberId = members[0].id;
+    await expect(repository.setBudget(trip, { organizerDailyMinor: 100, members: [{ memberId, dailyMinor: 0 }] })).rejects.toThrow();
+    await expect(repository.setBudget(trip, { organizerDailyMinor: 100, members: [{ memberId: 'x', dailyMinor: 5 }] })).rejects.toThrow();
   });
 
   it('retrying the same change never duplicates anything: the server already having it counts as synced', async () => {
     const { supabase, local, repository, trip } = await withCurrent();
-    await repository.setBudget(trip, 250000);
+    await repository.setBudget(trip, { organizerDailyMinor: 250000, members: [] });
     // First send: the response is lost.
-    supabase.respond('trips', NETWORK_FAILURE);
+    supabase.rpc.mockResolvedValueOnce(NETWORK_FAILURE);
     await repository.syncBudgets();
-    // Retry: nothing to update any more (the filter matches no row), and the server's copy is this change.
-    supabase.respond('trips', { data: [] }, { data: { budget_updated_at: '2026-10-06T09:30:00+00:00' } });
+    // Retry: the server ignores an update it already has or one that is older, and answers with success.
     await repository.syncBudgets();
 
-    const updates = supabase.queries.filter((q) => q.ops[0]?.[0] === 'update');
-    expect(updates).toHaveLength(2);
-    expect(updates[0]).toEqual(updates[1]);
+    const calls = supabase.rpc.mock.calls;
+    expect(calls).toHaveLength(2);
+    expect(calls[0]).toEqual(calls[1]);
     await expect(local.budgetChange(trip.id)).resolves.toBeNull();
   });
 
   it('a change the server refuses stays visible as failed, with its error', async () => {
     const { supabase, local, repository, trip } = await withCurrent();
-    await repository.setBudget(trip, 250000);
-    supabase.respond('trips', { error: { message: 'new row violates check constraint' }, status: 400 });
+    await repository.setBudget(trip, { organizerDailyMinor: 250000, members: [] });
+    supabase.rpc.mockResolvedValueOnce({ data: null, error: { message: 'new row violates check constraint' }, status: 400 });
     await repository.syncBudgets();
 
     await expect(local.budgetChange(trip.id)).resolves.toEqual(
@@ -1716,55 +1738,54 @@ describe('budget changes (offline-first)', () => {
     await expect(repository.current()).resolves.toEqual(expect.objectContaining({ budgetSyncStatus: 'failed' }));
   });
 
-  it('a trip the server no longer shows fails instead of silently dropping the change', async () => {
+  it('a trip the user does not own (or that is gone) fails instead of silently dropping the change', async () => {
     const { supabase, local, repository, trip } = await withCurrent();
-    await repository.setBudget(trip, 250000);
-    supabase.respond('trips', { data: [] }, { data: null });
+    await repository.setBudget(trip, { organizerDailyMinor: 250000, members: [] });
+    supabase.rpc.mockResolvedValueOnce({ data: null, error: { message: 'not allowed to change this trip budget', code: '42501' }, status: 403 });
     await repository.syncBudgets();
-    await expect(local.budgetChange(trip.id)).resolves.toEqual(expect.objectContaining({ syncStatus: 'failed', syncError: 'trip-not-found' }));
+    await expect(local.budgetChange(trip.id)).resolves.toEqual(
+      expect.objectContaining({ syncStatus: 'failed', syncError: 'not allowed to change this trip budget' }),
+    );
   });
 
   it('tells when to retry: after the backoff delay from the last attempt', async () => {
     const { supabase, repository, trip } = await withCurrent();
-    await repository.setBudget(trip, 250000);
-    supabase.respond('trips', { error: { message: 'boom' }, status: 500 }, { error: { message: 'boom' }, status: 500 });
+    await repository.setBudget(trip, { organizerDailyMinor: 250000, members: [] });
+    supabase.rpc.mockResolvedValue({ data: null, error: { message: 'boom' }, status: 500 });
     await expect(repository.syncBudgets()).resolves.toEqual({ nextAttemptAt: new Date(NOW.getTime() + 1000) });
     await expect(repository.syncBudgets()).resolves.toEqual({ nextAttemptAt: new Date(NOW.getTime() + 2000) });
   });
 
   it('nothing to retry once everything is synced', async () => {
-    const { supabase, repository, trip } = await withCurrent();
-    await repository.setBudget(trip, 250000);
-    supabase.respond('trips', { data: [{ id: trip.id }] });
+    const { repository, trip } = await withCurrent();
+    await repository.setBudget(trip, { organizerDailyMinor: 250000, members: [] });
     await expect(repository.syncBudgets()).resolves.toEqual({ nextAttemptAt: null });
   });
 
   it('a newer server budget wins over an older change on the device, and shows as synced', async () => {
     const { supabase, repository, trip } = await withCurrent();
-    await repository.setBudget(trip, 250000);
-    supabase.respond('trips', { data: serverTrip({ budget_per_person_minor: 999900, budget_updated_at: '2026-10-07T00:00:00+00:00' }).row });
+    await repository.setBudget(trip, { organizerDailyMinor: 250000, members: [] });
+    supabase.respond('trips', { data: serverTrip({ daily_budget_minor: 999900, budget_updated_at: '2026-10-07T00:00:00+00:00' }).row });
     const current = await repository.current();
-    expect(current?.overview.trip.budgetPerPerson.amountMinor).toBe(999900);
+    expect(current?.overview.trip.dailyBudget.amountMinor).toBe(999900);
     expect(current?.budgetSyncStatus).toBe('synced');
   });
 
   it('after a successful sync, going offline shows the new amount from the copy, as synced', async () => {
     const { supabase, repository, trip } = await withCurrent();
-    await repository.setBudget(trip, 250000);
-    supabase.respond('trips', { data: [{ id: trip.id }] });
+    await repository.setBudget(trip, { organizerDailyMinor: 250000, members: [] });
     await repository.syncBudgets();
     supabase.respond('trips', NETWORK_FAILURE);
     const current = await repository.current();
     expect(current).toEqual(expect.objectContaining({ fromCache: true, budgetSyncStatus: 'synced' }));
-    expect(current?.overview.trip.budgetPerPerson.amountMinor).toBe(250000);
+    expect(current?.overview.trip.dailyBudget.amountMinor).toBe(250000);
   });
 
   it('runs one sync at a time, so a change is never sent twice in parallel', async () => {
     const { supabase, repository, trip } = await withCurrent();
-    await repository.setBudget(trip, 250000);
-    supabase.respond('trips', { data: [{ id: trip.id }] });
+    await repository.setBudget(trip, { organizerDailyMinor: 250000, members: [] });
     await Promise.all([repository.syncBudgets(), repository.syncBudgets()]);
-    expect(supabase.queries.filter((q) => q.ops[0]?.[0] === 'update')).toHaveLength(1);
+    expect(supabase.rpc).toHaveBeenCalledTimes(1);
   });
 });
 
@@ -1791,7 +1812,7 @@ describe('hasUnsentChanges (profile-screen D5)', () => {
 
   it('true for a pending budget change (saved offline, not sent yet), without touching the network', async () => {
     const { repository, supabase, trip } = await withTrip();
-    await repository.setBudget(trip, 250000);
+    await repository.setBudget(trip, { organizerDailyMinor: 250000, members: [] });
     const queriesBefore = supabase.queries.length;
     await expect(repository.hasUnsentChanges()).resolves.toBe(true);
     expect(supabase.queries).toHaveLength(queriesBefore);
@@ -1799,8 +1820,8 @@ describe('hasUnsentChanges (profile-screen D5)', () => {
 
   it('true for a change the server refused (failed stays visible, so it is unsent too)', async () => {
     const { repository, supabase, local, trip } = await withTrip();
-    await repository.setBudget(trip, 250000);
-    supabase.respond('trips', { error: { message: 'new row violates check constraint' }, status: 400 });
+    await repository.setBudget(trip, { organizerDailyMinor: 250000, members: [] });
+    supabase.rpc.mockResolvedValueOnce({ data: null, error: { message: 'new row violates check constraint' }, status: 400 });
     await repository.syncBudgets();
     await expect(local.budgetChange(trip.id)).resolves.toEqual(expect.objectContaining({ syncStatus: 'failed' }));
     await expect(repository.hasUnsentChanges()).resolves.toBe(true);
@@ -1808,8 +1829,8 @@ describe('hasUnsentChanges (profile-screen D5)', () => {
 
   it('true when the server could not be reached on the retry (still pending)', async () => {
     const { repository, supabase, trip } = await withTrip();
-    await repository.setBudget(trip, 250000);
-    supabase.respond('trips', NETWORK_FAILURE);
+    await repository.setBudget(trip, { organizerDailyMinor: 250000, members: [] });
+    supabase.rpc.mockResolvedValueOnce(NETWORK_FAILURE);
     await repository.syncBudgets();
     await expect(repository.hasUnsentChanges()).resolves.toBe(true);
   });
@@ -1855,20 +1876,19 @@ describe('hasUnsentChanges (profile-screen D5)', () => {
   });
 
   it('false again once the change reached the server', async () => {
-    const { repository, supabase, trip } = await withTrip();
-    await repository.setBudget(trip, 250000);
-    supabase.respond('trips', { data: [{ id: trip.id }] });
+    const { repository, trip } = await withTrip();
+    await repository.setBudget(trip, { organizerDailyMinor: 250000, members: [] });
     await repository.syncBudgets();
     await expect(repository.hasUnsentChanges()).resolves.toBe(false);
   });
 
   it('true while any one of several trips still has a change', async () => {
     const { repository, supabase, setNow, trip } = await withTrip();
-    await repository.setBudget(trip, 250000);
+    await repository.setBudget(trip, { organizerDailyMinor: 250000, members: [] });
     setNow(new Date(NOW.getTime() + 1000));
-    await repository.setBudget({ id: '00000000-0000-4000-8000-0000000000aa', baseCurrency: 'THB' }, 300000);
+    await repository.setBudget({ id: '00000000-0000-4000-8000-0000000000aa', baseCurrency: 'THB' }, { organizerDailyMinor: 300000, members: [] });
     // The older change is sent first (by time) and reaches the server; the newer one does not.
-    supabase.respond('trips', { data: [{ id: trip.id }] }, NETWORK_FAILURE);
+    supabase.rpc.mockResolvedValueOnce({ data: null, error: null, status: 204 }).mockResolvedValueOnce(NETWORK_FAILURE);
     await repository.syncBudgets();
     await expect(repository.hasUnsentChanges()).resolves.toBe(true);
   });
@@ -1941,7 +1961,7 @@ describe('a request that never answers (real Supabase client with the 20 s timeo
     const { repository, local, requests } = await setupStalled([json([row]), 'never', json([{ id: trip.id }])]);
     await repository.select(trip.id);
     await repository.current();
-    await repository.setBudget(trip, 250000);
+    await repository.setBudget(trip, { organizerDailyMinor: 250000, members: [] });
     const recordAttempt = jest.spyOn(local, 'recordBudgetAttempt');
 
     const first = repository.syncBudgets();
@@ -1952,7 +1972,7 @@ describe('a request that never answers (real Supabase client with the 20 s timeo
     expect(recordAttempt).toHaveBeenCalledTimes(1);
     expect(recordAttempt).toHaveBeenCalledWith(expect.objectContaining({ tripId: trip.id }), { syncStatus: 'pending', at: NOW.toISOString() });
     await expect(second).resolves.toEqual({ nextAttemptAt: null });
-    expect(requests.filter((r) => r === 'PATCH /rest/v1/trips')).toHaveLength(2);
+    expect(requests.filter((r) => r === 'POST /rest/v1/rpc/set_trip_budget')).toHaveLength(2);
     await expect(local.budgetChange(trip.id)).resolves.toBeNull();
   });
 });
