@@ -23,7 +23,7 @@ Taken on an Android emulator with test data. The app is shown in Polish.
     <td align="center"><img src="docs/screenshots/trip-menu.png" width="220" alt="Trip menu with rename, budget and delete"><br><sub><b>Trip menu</b><br>rename, budget, delete</sub></td>
   </tr>
   <tr>
-    <td align="center"><img src="docs/screenshots/wizard-budget.png" width="220" alt="Create-trip wizard, budget step"><br><sub><b>New trip: budget</b><br>per person, with a daily figure</sub></td>
+    <td align="center"><img src="docs/screenshots/wizard-budget.png" width="220" alt="Create-trip wizard, budget step"><br><sub><b>New trip: budget</b><br>daily, together or per person</sub></td>
     <td align="center"><img src="docs/screenshots/wizard-summary.png" width="220" alt="Create-trip wizard, summary step"><br><sub><b>New trip: summary</b><br>name, cover, flights</sub></td>
     <td></td>
   </tr>
