@@ -166,7 +166,7 @@ The original plan was a monorepo (`apps/mobile/`, `packages/schemas/`, `supabase
 
 `provider-profile-source` (`readProviderProfile(auth)`: the stored session's `app_metadata.provider` + `user_metadata` through `providerProfile`; never rejects — `getSession()` may refresh an expiring token, and without it there is no suggestion), `avatar-download` (`downloadAvatar(url)`: re-checks the URL with `ProviderProfileSchema`, then `File.downloadFileAsync` into `Paths.cache` as `avatar-<uuid>` with a 20 s abort timeout; returns a `file://` URI), `app-provider-profile` (the app's wiring of both; mocked globally in `jest.setup.ts`).
 
-`local-db` (expo-sqlite + versioned migrations, v1–v5); `app-local-store` (one shared store); `local-store`:
+`local-db` (expo-sqlite + versioned migrations, v1–v6); `app-local-store` (one shared store); `local-store`:
   - list copy, a copy per opened trip, the chosen trip, budget changes, a photo-list copy per trip, the own-profile copy;
   - `forgetTrip`, `clearUserData`;
   - a serial queue and the user epoch.

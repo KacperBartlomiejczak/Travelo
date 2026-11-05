@@ -96,6 +96,20 @@ CodeRabbit zgłosił 15 uwag (9 w liniach, 1 „follow-up”, 5 drobnych do test
 - R5 tester (emulator, Metro 8084, lokalny Supabase): PASS — kreator: Osobno 100/80/50 → Razem → Osobno zachowane, Razem 120 → wszyscy 120, wyczyszczone pole dostaje kwotę; arkusz: zapis Osobno, ponowne otwarcie w Osobno, te same przejścia, zapis Razem → karta „120 EUR dziennie na osobę”, „Razem 1 440 EUR na podróż”; karta solo „910 EUR na podróż” bez „Razem”. Osobno → Razem pokazuje kwotę organizatora (istniejące zachowanie, opisane w flow). Niesprawdzone: tapnięcie aktywnego segmentu na urządzeniu (pokryte testem R1), jasny motyw, EN. Dane: podróż 10–13 lis ma teraz 120 EUR/os.
 Uwaga: lokalna baza w Dockerze ma już migrację z `feature/member-order` (`create_trip` wymaga `position`), więc tworzenie podróży ze znajomymi z tej gałęzi na lokalnej bazie pada (23502). Dla testera R5: przełącznik testować bez zapisu nowej podróży albo na podróży solo / istniejących podróżach; reset bazy tylko za zgodą Kacpra.
 
+## Druga runda review PR #28 (2026-11-05) — zaakceptowane przez Kacpra 2026-11-05
+Przegląd stanu PR po R6:
+- Wątki CodeRabbita w PR: 6 rozwiązanych, 3 otwarte, ale zaakceptowane przez CodeRabbita jako świadome ograniczenia (R-D2 `ExpensesScreen.tsx:139`, R-D3 `local-store.ts:339`, R-D4 `expense-budget.ts:42`) — bez zmian.
+- Nowa uwaga poza diffem: `docs/architecture/overview.md:169` podaje migracje SQLite „v1–v5”, a `MIGRATIONS` w `src/data/local-db.ts` ma 6 wpisów (v6 doszła w kroku 4); `shared.md:147` ma już „v1–v6”. **Uwaga prawdziwa.**
+- CodeRabbit CLI lokalnie: `review --base main --committed` — 0 znalezisk (74 pliki, `review_completed`); `review --uncommitted` — 0 znalezisk (tylko `CLAUDE.md`).
+- Pełny zestaw 3663 testy ✓, typecheck ✓, lint ✓ (przed poprawką).
+
+Kroki:
+- [x] R7. [docs] — orkiestrator, skill: brak, bez testów (sama dokumentacja): `overview.md:169` „v1–v5” → „v1–v6”. Weryfikacja: `grep "v1–v5" docs/` pusty; pełny zestaw, typecheck, lint dalej zielone.
+- [x] R8. Commit `docs(overview): SQLite migrations v1–v6`, push do PR #28, odpowiedź na komentarz CodeRabbita w PR (co poprawione).
+- R7 dziennik: `grep "v1–v5" docs/` pusty · 3663 testy ✓, typecheck ✓, lint ✓.
+
+Poza tym planem (osobna gałąź wg „jedna gałąź na zadanie”): skille `coderabbitai/skills` (`code-review`, `autofix`) zainstalowane 2026-11-05 w `.agents/skills/` + kopia w `.claude/skills/`, wpis w `docs/agents/skills.md`, `skills-lock.json` — niezacommitowane na tej gałęzi; do przeniesienia na `chore/coderabbit-skills`.
+
 ## Dziennik postępu
 - Krok 1: testy schematów napisane (red ✓, 37 porażek) · `dailyBudget` na podróży, `dailyBudgetMinor` na członku, nowy `BudgetStepInputSchema` (`mode`, `organizerDailyMinor`, `friendDailyMinor[]`), `TripBudgetChange` z listą członków, klucz `validation.budgetSharedMismatch` · warstwa danych tylko zmostkowana (TODO kroki 2 i 4) · green dla schematów ✓; typecheck/testy UI i test parzystości czerwone do czasu kroków 2, 3 i poprawek UI · użyty skill: TDD · **odstępstwo:** zmiana nazwy pola psuje UI, więc kroki 1–3 + minimalne poprawki UI (frontend) weryfikuję razem jako jedną całość; dopiero wtedy pełny zestaw jest zielony.
 - Krok 3: testy napisane (red ✓, 14 porażek) · `ExpenseBudgetInput` z `organizerDailyMinor` i `members[].dailyBudgetMinor`, pula = dzienna × dni, D7 bez zmian · nowe testy: różne kwoty osób, dłuższa podróż zwiększa pulę, nie kwotę dzienną · green ✓ (`src/lib`, lint) · użyty skill: TDD · weryfikacja razem z krokami 1–2.
