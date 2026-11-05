@@ -20,7 +20,7 @@ const { tabs, focusRing } = tokens.components;
 const { styles } = tokens.typography;
 
 const metrics = { frame: { x: 0, y: 0, width: 360, height: 812 }, insets: { top: 47, left: 0, right: 0, bottom: 34 } };
-const PL = ['Podróż', 'Wydatki', 'Miejsca', 'Plan', 'Profil'];
+const PL = ['Podróż', 'Wydatki', 'Plan', 'Profil'];
 
 function items() {
   return NAV_TABS.map(({ key, labelKey, Icon }) => ({ key, label: i18n.t(labelKey), Icon }));
@@ -61,7 +61,7 @@ afterEach(() => {
 
 describe('PillNav (design-context §8.14, pill-nav-and-dialog D1, D2, D4)', () => {
   describe('items', () => {
-    it('shows five buttons in order with Polish labels', async () => {
+    it('shows four buttons in order with Polish labels', async () => {
       await render(ui());
       expect(screen.getAllByRole('button').map((item) => item.props.accessibilityLabel)).toEqual(PL);
       PL.forEach((label) => expect(screen.getByText(label)).toBeTruthy());
@@ -73,7 +73,6 @@ describe('PillNav (design-context §8.14, pill-nav-and-dialog D1, D2, D4)', () =
       expect(screen.getAllByRole('button').map((item) => item.props.accessibilityLabel)).toEqual([
         'Trip',
         'Expenses',
-        'Places',
         'Plan',
         'Profile',
       ]);
@@ -88,9 +87,9 @@ describe('PillNav (design-context §8.14, pill-nav-and-dialog D1, D2, D4)', () =
     it('calls onSelect with the key of the pressed item', async () => {
       const onSelect = jest.fn();
       await render(ui('index', onSelect));
-      await fireEvent.press(navButton('Miejsca'));
+      await fireEvent.press(navButton('Plan'));
       expect(onSelect).toHaveBeenCalledTimes(1);
-      expect(onSelect).toHaveBeenCalledWith('places');
+      expect(onSelect).toHaveBeenCalledWith('plan');
     });
 
     it('still calls onSelect when the active item is pressed (the router decides)', async () => {
@@ -142,10 +141,10 @@ describe('PillNav (design-context §8.14, pill-nav-and-dialog D1, D2, D4)', () =
       expect(screen.getByText('Wydatki')).toHaveStyle({ color: lightTheme.text.brand, ...styles.labelSM });
       expect(icon('expenses').props.stroke).toBe(lightTheme.text.brand);
       expect(capsule('expenses')).toHaveStyle({ backgroundColor: lightTheme.brand.tint, borderRadius: tokens.radii.pill });
-      ['Podróż', 'Miejsca', 'Plan', 'Profil'].forEach((label) => {
+      ['Podróż', 'Plan', 'Profil'].forEach((label) => {
         expect(screen.getByText(label)).toHaveStyle({ color: lightTheme.text.tertiary, ...styles.labelSM });
       });
-      ['index', 'places', 'plan', 'profile'].forEach((key) => {
+      ['index', 'plan', 'profile'].forEach((key) => {
         expect(icon(key).props.stroke).toBe(lightTheme.icon.secondary);
         // The capsule is the selection's container shape: only the selected item has it.
         expect(hasCapsule(key)).toBe(false);
@@ -259,7 +258,7 @@ describe('PillNav (design-context §8.14, pill-nav-and-dialog D1, D2, D4)', () =
       mockFontScale = 2;
       await render(ui('expenses'));
       expect(screen.getByText('Wydatki')).toBeTruthy();
-      ['Podróż', 'Miejsca', 'Plan', 'Profil'].forEach((label) => {
+      ['Podróż', 'Plan', 'Profil'].forEach((label) => {
         expect(screen.queryByText(label)).toBeNull();
         expect(navButton(label)).toBeTruthy();
       });
