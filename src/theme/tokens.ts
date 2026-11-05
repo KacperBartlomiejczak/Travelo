@@ -566,12 +566,10 @@ export const components = {
     backdropOpacity: 0.48,
   },
   tabs: {
-    height: 64,
-    horizontalPadding: 8,
-    itemMinWidth: 56,
+    height: 48,
+    horizontalPadding: 16,
+    gap: 8,
     iconSize: 22,
-    labelGap: 3,
-    radius: radii.pill,
   },
   segmentedControl: {
     height: 44,

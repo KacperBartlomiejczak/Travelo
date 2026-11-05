@@ -1,6 +1,6 @@
 import type { LucideIcon } from 'lucide-react-native';
 import { useLayoutEffect, useRef, useState } from 'react';
-import { Animated, Easing, Pressable, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
+import { Animated, Easing, LayoutAnimation, Pressable, useWindowDimensions, View } from 'react-native';
 
 import { usePillBottomOffset } from '@/features/nav/usePillClearance';
 import { useReduceMotion } from '@/hooks/useReduceMotion';
@@ -17,20 +17,27 @@ type Props = {
 
 const { tabs, focusRing } = tokens.components;
 
-// R1 (pill-nav-and-dialog): above this font scale five labels no longer fit, so inactive items keep only their icon.
-const MAX_FONT_SCALE_WITH_LABELS = 1.3;
-
-// Floating pill tabs (design-context §8.14, pill-nav-and-dialog D1, D2, D4): a capsule detached from the bottom edge on
-// the elevated surface at elevation level 2 (a border in dark mode, §5.2). The selected item sits in a `brand.tint`
-// capsule with `text.brand` icon and label, so selection is colour and shape. The capsule fades in over `duration.standard`
-// (§7.3 selected-tab indicator; instantly with reduce motion, §7.4). The wrapper lets touches through everywhere except the pill.
+// Floating tabs (design-context §8.14, places-legal-navbar A2): a centred row of separate elements with no shared
+// background. The selected tab is a `brand.primary` capsule with icon and label; the others are 48 dp icon-only circles on
+// the elevated surface. Each element has its own elevation level 2 (a border in dark mode, §5.2). The container is taller
+// than the items so the shadow is not cut, and lets touches through everywhere except the items.
 export function PillNav({ items, activeKey, onSelect }: Props) {
-  const theme = useTheme();
   const bottomOffset = usePillBottomOffset();
-  const { width, fontScale } = useWindowDimensions();
+  const { width } = useWindowDimensions();
   const animate = useReduceMotion() === false;
+  // The capsule's width change animates natively (new architecture: no experimental flag needed); skipped with reduce motion.
+  const lastKey = useRef(activeKey);
+  useLayoutEffect(() => {
+    const changed = lastKey.current !== activeKey;
+    lastKey.current = activeKey;
+    if (changed && animate) {
+      LayoutAnimation.configureNext({
+        duration: tokens.motion.duration.standard,
+        update: { type: LayoutAnimation.Types.easeInEaseOut },
+      });
+    }
+  }, [activeKey, animate]);
 
-  const labelsForAll = fontScale <= MAX_FONT_SCALE_WITH_LABELS;
   return (
     <View
       testID="pill-nav-container"
@@ -39,35 +46,23 @@ export function PillNav({ items, activeKey, onSelect }: Props) {
         position: 'absolute',
         left: 0,
         right: 0,
-        bottom: bottomOffset,
+        // The extra vertical padding is the room for the shadow; subtracting it keeps the items at the usual offset.
+        bottom: bottomOffset - tokens.spacing[2],
+        paddingVertical: tokens.spacing[2],
         alignItems: 'center',
       }}
     >
       <View
         testID="pill-nav"
-        style={[
-          {
-            width: Math.min(width - 2 * tokens.spacing[4], tokens.layout.maxContentWidth),
-            height: tabs.height,
-            flexDirection: 'row',
-            alignItems: 'center',
-            paddingHorizontal: tabs.horizontalPadding,
-            borderRadius: tabs.radius,
-            backgroundColor: theme.surface.elevated,
-          },
-          theme.elevation.level2,
-        ]}
+        style={{
+          flexDirection: 'row',
+          alignItems: 'center',
+          gap: tokens.spacing[2],
+          maxWidth: Math.min(width - 2 * tokens.spacing[4], tokens.layout.maxContentWidth),
+        }}
       >
         {items.map((item) => (
-          <PillNavTab
-            key={item.key}
-            item={item}
-            selected={item.key === activeKey}
-            showLabel={labelsForAll || item.key === activeKey}
-            animate={animate}
-            minWidth={width < tokens.layout.compactBreakpoint ? tokens.layout.touchTarget : tabs.itemMinWidth}
-            onPress={() => onSelect(item.key)}
-          />
+          <PillNavTab key={item.key} item={item} selected={item.key === activeKey} animate={animate} onPress={() => onSelect(item.key)} />
         ))}
       </View>
     </View>
@@ -77,17 +72,15 @@ export function PillNav({ items, activeKey, onSelect }: Props) {
 type TabProps = {
   item: PillNavItem;
   selected: boolean;
-  showLabel: boolean;
   animate: boolean;
-  minWidth: number;
   onPress: () => void;
 };
 
-function PillNavTab({ item, selected, showLabel, animate, minWidth, onPress }: TabProps) {
+function PillNavTab({ item, selected, animate, onPress }: TabProps) {
   const { Icon, label, key } = item;
   const theme = useTheme();
   const [focused, setFocused] = useState(false);
-  // Opacity of the selected capsule behind icon and label: when this item becomes the selected one, it fades from 0 to 1.
+  // Opacity of the label: when this item becomes the selected one, the label fades in from 0 to 1.
   const [fade] = useState(() => new Animated.Value(1));
   const wasSelected = useRef(selected);
   useLayoutEffect(() => {
@@ -100,7 +93,7 @@ function PillNavTab({ item, selected, showLabel, animate, minWidth, onPress }: T
     }
     if (!changed || !selected) return;
     fade.setValue(0);
-    // JS driver: only an opacity moves, for 180 ms, and the native driver does not update the rendered style under Jest.
+    // JS driver: only an opacity moves, and the native driver does not update the rendered style under Jest.
     const fadeIn = Animated.timing(fade, {
       toValue: 1,
       duration: tokens.motion.duration.standard,
@@ -111,8 +104,7 @@ function PillNavTab({ item, selected, showLabel, animate, minWidth, onPress }: T
     return () => fadeIn.stop();
   }, [selected, animate, fade]);
 
-  const iconColor = selected ? theme.text.brand : theme.icon.secondary;
-  const labelColor = selected ? theme.text.brand : theme.text.tertiary;
+  const color = selected ? theme.brand.onBrand : theme.icon.secondary;
   return (
     <Pressable
       accessibilityRole="button"
@@ -123,53 +115,38 @@ function PillNavTab({ item, selected, showLabel, animate, minWidth, onPress }: T
       onBlur={() => setFocused(false)}
       style={({ pressed }) => [
         {
-          flex: 1,
-          minWidth,
-          minHeight: tokens.layout.touchTarget,
+          height: tabs.height,
+          borderRadius: tokens.radii.pill,
+          alignItems: 'center',
           justifyContent: 'center',
-          paddingVertical: tokens.spacing[1],
-          borderRadius: tabs.radius,
-          backgroundColor: pressed ? theme.background.sunken : undefined,
         },
+        selected
+          ? {
+              flexShrink: 1,
+              paddingHorizontal: tabs.horizontalPadding,
+              backgroundColor: pressed ? theme.brand.pressed : theme.brand.primary,
+            }
+          : {
+              width: tabs.height,
+              backgroundColor: pressed ? theme.background.sunken : theme.surface.elevated,
+            },
+        theme.elevation.level2,
         focused && {
           outlineStyle: 'solid',
           outlineWidth: focusRing.width,
           outlineColor: theme.border.focus,
-          outlineOffset: -focusRing.width,
+          outlineOffset: focusRing.offset,
         },
       ]}
     >
-      {({ pressed }) => (
-        <View
-          testID={`pill-nav-content-${key}`}
-          style={{
-            alignItems: 'center',
-            gap: tabs.labelGap,
-            paddingVertical: tokens.spacing[1],
-          }}
-        >
-          {selected && (
-            <Animated.View
-              testID={`pill-nav-capsule-${key}`}
-              pointerEvents="none"
-              style={[
-                StyleSheet.absoluteFill,
-                {
-                  borderRadius: tabs.radius,
-                  backgroundColor: pressed ? theme.background.sunken : theme.brand.tint,
-                  opacity: fade,
-                },
-              ]}
-            />
-          )}
-          <Icon testID={`pill-nav-icon-${key}`} size={tabs.iconSize} strokeWidth={tokens.iconography.strokeWidth} color={iconColor} />
-          {showLabel && (
-            <Text numberOfLines={1} style={[tokens.typography.styles.labelSM, { color: labelColor }]}>
-              {label}
-            </Text>
-          )}
-        </View>
-      )}
+      <View testID={`pill-nav-content-${key}`} style={{ flexDirection: 'row', alignItems: 'center', gap: tabs.gap, minWidth: 0 }}>
+        <Icon testID={`pill-nav-icon-${key}`} size={tabs.iconSize} strokeWidth={tokens.iconography.strokeWidth} color={color} />
+        {selected && (
+          <Animated.Text numberOfLines={1} style={[tokens.typography.styles.labelSM, { color, opacity: fade, flexShrink: 1 }]}>
+            {label}
+          </Animated.Text>
+        )}
+      </View>
     </Pressable>
   );
 }

@@ -18,6 +18,7 @@ import { HomeSkeleton } from '@/features/home/HomeSkeleton';
 import { useCurrentTrip } from '@/hooks/useTrips';
 import { usePillClearance } from '@/features/nav/usePillClearance';
 import { useIsOffline } from '@/providers/BudgetSync';
+import { tokens } from '@/theme/tokens';
 import { useTheme } from '@/theme/legacy/useTheme';
 
 // Home screen: loading, error, empty, or the current trip (trip-flight-tabs-name-cover D4, trips-drawer).
@@ -65,7 +66,7 @@ export default function HomeScreen() {
     <Snackbar
       message={snackbar}
       onHide={() => setSnackbar(null)}
-      bottomOffset={theme.size.navPill + spacing[4] + (aboveButton ? theme.size.buttonPrimary + spacing[3] : 0)}
+      bottomOffset={tokens.components.tabs.height + spacing[4] + (aboveButton ? theme.size.buttonPrimary + spacing[3] : 0)}
     />
   );
 
