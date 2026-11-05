@@ -83,4 +83,4 @@
   - **Device evidence:** the 180 ms photo fade and the app-loading chrome colours are checked by unit tests only (D28).
 - `README.md` is the unmodified Expo template (mentions npm).
 - Template images in `assets/images/` (React/Expo logos, `tabIcons/`, `tutorial-web.png`) are not referenced by any code.
-- **Stale pill heights (places-legal-navbar, 2026-11-05):** the pill is now 48 dp (`components.tabs.height`), but legacy `size.navPill` (64, `src/theme/legacy/tokens.ts`, asserted in its own theme test) and `layout.navPillHeight` (64, `src/theme/tokens.ts`, no reader) remain. Remove them in a cleanup step.
+- **Duplicate pill heights (places-legal-navbar, 2026-11-05):** the pill height is `PILL_HEIGHT` in `src/features/nav/usePillClearance.ts` (64, from `components.tabs`). Legacy `size.navPill` (`src/theme/legacy/tokens.ts`, asserted in its own theme test) and `layout.navPillHeight` (`src/theme/tokens.ts`, no reader) hold the same 64 as separate literals. Remove them in a cleanup step. In dark mode the pill is 66 dp (1 dp border each side) while the clearance reserves 64; the screens' extra spacing covers it.

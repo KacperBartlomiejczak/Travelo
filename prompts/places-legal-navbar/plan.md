@@ -1,5 +1,5 @@
 # Zadanie: Naprawa navbara + polityka prywatności i regulamin + Google Places i „Odkryj miejsca” z AI
-Status: strumień A (navbar) zaakceptowany 2026-11-05, w realizacji; B i C czekają na P2–P8
+Status: strumień A — A5 zaakceptowany 2026-11-05 („Akceptuję”), w realizacji; B i C czekają na P2–P8
 Gałąź: `feature/places-legal-navbar` (od `origin/main`, 2026-11-04)
 
 ## Zrozumienie i założenia
@@ -44,6 +44,12 @@ Założenia:
 - **Błąd ucięcia (P1a = a):** pigułka ma stałą szerokość `min(width − 32, 720)`, a jej dzieci nie mogą jej przycinać (brak `overflow: hidden`) — więc ucięcie robi **rodzic**: kontener paska zakładek z `expo-router/js-tabs` albo `width` z `useWindowDimensions()` większy niż realny obszar (Android edge-to-edge). To hipoteza, nie pewnik. Kolejność: tester odtwarza błąd na emulatorze (zrzut + pomiar), frontend pisze test odtwarzający przyczynę (np. szerokość pigułki liczona z wymiaru kontenera, a nie okna), potem poprawka w `PillNav.tsx` — w praktyce razem z przebudową (D4); tester sprawdza nowy wygląd na urządzeniu.
 - Jeśli po usunięciu „Miejsc” i poprawce wciąż jest ciasno — wracam do Ciebie, zanim ruszę tokeny.
 - Przy okazji poprawka rozjazdu 12 vs 16 dp w `docs/architecture/frontend.md` i `overview.md` (kod wygrywa).
+
+### A5 — Tło i przesuwana kapsuła (D6, D7)
+- **Tło (D6, zastępuje „bez wspólnego tła” z D5):** jedna pigułka pod całym rzędem: `surface.elevated`, `radius.pill`, `elevation.level2` (w ciemnym obramowanie, §5.2), padding 8 dookoła → wysokość 64 (48 + 2×8). Kółka nieaktywnych w środku dostają `background.sunken` (żeby były widoczne na białym tle), bez własnych cieni. Kontener dalej ma zapas w pionie na cień pigułki (wniosek z A0).
+- **Animacja (D7):** zamiast kapsuły w każdym elemencie — **jeden wskaźnik** (koralowy `brand.primary`) pod rzędem, pozycja i szerokość brane z `onLayout` aktywnego elementu; przy zmianie zakładki wskaźnik przesuwa się (`left`) i zmienia szerokość (`width`) przez `Animated.timing` (`duration.standard`, `easing.standard`, JS driver — działa w Jest), etykieta dalej się pojawia, elementy dalej zmieniają szerokość przez `LayoutAnimation`. Przy „ogranicz ruch” wszystko natychmiast. Bez nowej zależności.
+- Tokeny: `components.tabs` dostaje `containerPadding: 8`; `usePillClearance` liczy wysokość pigułki 64 (48 + 2×8) — odstęp od dołu bez zmian.
+- Testy najpierw (`PillNav.test.tsx`): wspólne tło z kolorem, cieniem i obramowaniem w ciemnym; nieaktywne kółka `background.sunken`; wskaźnik po `onLayout` ma pozycję/szerokość aktywnego elementu; zmiana zakładki animuje `left`/`width` do nowego elementu w 180 ms; „ogranicz ruch” → od razu; clearance = inset + 12 + 64.
 
 ### B — Prawo
 - Teksty w `docs/legal/privacy-policy.{pl,en}.md` i `docs/legal/terms.{pl,en}.md` (piszę ja, orkiestrator — `docs/` to moja działka). Treść polityki wynika z tego, co aplikacja faktycznie robi: konto (Google/Discord/e-mail), profil i zainteresowania, imiona znajomych bez konta, zdjęcia bez EXIF/GPS, wydatki, przetwarzanie w Supabase (UE?), Google Places i Gemini jako odbiorcy zapytań (tylko miasto i zainteresowania, bez danych osobowych), okres przechowywania, prawa z RODO, usuwanie konta, kontakt.
@@ -145,6 +151,8 @@ Ja jestem managerem. Po akceptacji każdy strumień dostaje **osobną sesję (te
 - [x] A0. [tester] Odtworzenie ucięcia na emulatorze (zrzut, szerokość pigułki vs ekran) — potwierdza lub obala hipotezę.
 - [x] A1. [frontend] Usunięcie zakładki „Miejsca” (testy najpierw: `tabs.test.ts`, `tabs.test.tsx`) → verifier.
 - [x] A2. [frontend] Nowy wygląd pigułki (D4): testy najpierw w `PillNav.test.tsx` (aktywna kapsuła z etykietą i kolorem `brand.primary`, nieaktywne kółka bez etykiety z `accessibilityLabel`, cele ≥ 44, ogranicz ruch) + test na ucięcie (szerokość rzędu ≤ szerokość kontenera) → `PillNav.tsx`, `tokens.ts` → verifier.
+- [x] A5. [frontend] Wspólne tło pigułki + przesuwana kapsuła (D6, D7) → verifier.
+- [x] A6. [orkiestrator] Docs dla A5 (`frontend.md`, `design-context.md` §8.14).
 - [ ] A3. [tester] Sprawdzenie na urządzeniu (Android, jasny/ciemny, pl/en, duża czcionka).
 - [x] A4. [orkiestrator] Docs: `frontend.md`, `overview.md`, `context/app-context.md`, `context/design-context.md` §8.14.
 - [ ] B1. [orkiestrator] Teksty polityki i regulaminu PL/EN w `docs/legal/` → przegląd Kacpra.
@@ -182,6 +190,8 @@ Scenariusze ręczne C7: brak podróży → „Odkryj miejsca” → wybór miast
 2026-11-05:
 - **D3 — Usuwamy zakładkę „Miejsca”** z pigułki; cztery pozostałe dostają więcej miejsca. Strumień A robimy teraz, przed B i C.
 - **D5 — P9 = (a): osobne kółka bez wspólnego tła**, kapsuła zmienia szerokość z animacją (bez animacji przy „ogranicz ruch”). Plan A zaakceptowany („Osobne kółka, akceptuję”).
+- **D6 — Wspólne tło pigułki** pod rzędem (zmiana D5), kółka w środku. **D7 — Kapsuła przesuwa się** z poprzedniej zakładki do nowej (nie przejście między ekranami). (Kacper, 2026-11-05, odpowiedzi na pytania.)
+- **D8 — Wciśnięcie nieaktywnego kółka:** zostaje `background.sunken` + zmniejszenie do `motion.press.scale` (98%), jak inne przyciski (Kacper, 2026-11-05).
 - **D4 — Nowy wygląd pigułki** wg wzoru: aktywna = wypełniona kapsuła ikona + etykieta, nieaktywne = okrągłe przyciski z ikoną; w kolorach Sunline.
 
 ## Dziennik
@@ -192,3 +202,8 @@ Scenariusze ręczne C7: brak podróży → „Odkryj miejsca” → wybór miast
 - 2026-11-05 — A1 (frontend): zakładka „Miejsca” usunięta (`tabs.ts`, `places.tsx`, `nav.places`, testy, atrapy tras w testach ustawień/profilu). Test „dokładnie cztery zakładki” widziany jako padający przed zmianą. Verifier: PASS (180 zestawów / 3662 testy, typecheck, lint).
 - 2026-11-05 — A2 (frontend): nowy wygląd pigułki — kapsuła `brand.primary` 48 dp z ikoną i etykietą, kółka 48×48 `surface.elevated`, każdy element z własnym cieniem, kontener z zapasem na cień (`paddingVertical: spacing[2]`), animacja szerokości przez `LayoutAnimation` + zanik etykiety (oba wyłączone przy „ogranicz ruch”). Tokeny `components.tabs` = `{ height: 48, horizontalPadding: 16, gap: 8, iconSize: 22 }`. Snackbar na ekranie głównym liczy odstęp z `tabs.height`. Verifier: FAIL (obwódka fokusu do środka) → poprawka → PASS (180/3661, typecheck, lint). Do sprawdzenia w A3: animacja szerokości i cień na Androidzie. Do A4: nieużywane `layout.navPillHeight` i legacy `size.navPill` (64).
 - 2026-11-05 — A4: docs zaktualizowane (`frontend.md` — PillNav, `usePillClearance` 12 dp + 48; `overview.md`, `app-context.md`, `design-context.md` §8.14, `known-limitations.md` — stare wysokości 64). A3 (tester): **zablokowane** — Metro (8084 i 8082) ma nieaktualną mapę plików i próbuje kompilować usunięty `places.tsx` (ENOENT), więc Expo Go pokazuje stary pakiet. Potrzebny restart Metro z `--clear` przez Kacpra.
+- 2026-11-05 — Kacper: dodać animację przejścia i tło nawigacji → D6 (wspólna pigułka), D7 (przesuwana kapsuła). Dopisany krok A5/A6; czeka na akceptację. A3 (tester) trwa na obecnym wyglądzie.
+- 2026-11-05 — Kacper zaakceptował A5/A6 („Akceptuję”).
+- 2026-11-05 — A3 (tester) na wyglądzie A2: PASS — 4 zakładki, kapsuła 48 dp, kółka 48 dp, brak ucięcia z prawej i u dołu (jasny i ciemny), etykiety EN, font 2.0 mieści się w ekranie. Animacja nieobserwowalna zrzutami. „FAIL” testera dotyczył wersji roboczej A5 (wspólne tło), która jest zgodna z D6 — nie jest błędem. Poza zakresem (do osobnego planu): nick w „Profil” wchodzi pod przycisk ustawień; w „Ustawieniach” przy foncie 2.0 „Systemowy”/„Angielski” wychodzą poza segmenty; lista podróży na emulatorze nie wczytuje się (błąd sieci/backendu, przyczyna nieznana); przy foncie 2.0 ostatni wiersz statystyk profilu chowa się pod pigułką w spoczynku. A3 do powtórki na A5.
+- 2026-11-05 — Verifier A5: FAIL — (1) w ciemnym motywie wskaźnik 1 dp za wysoko (`top` odejmuje obramowanie), bez testu; (2) frontend sam wybrał `border.default` na wciśnięcie (kontrast ikony 2,7:1) → pytanie do Kacpra → D8. Poprawki w toku.
+- 2026-11-05 — A5 poprawki: wskaźnik `top` bez kompensacji obramowania (test w ciemnym motywie — orkiestrator potwierdził, że pada na starym kodzie), wciśnięcie = `usePressScale` na każdej zakładce + `background.sunken` (D8). Verifier: PASS (180/3665, typecheck, lint). A6: docs (`frontend.md`, `overview.md`, `flows/features/pill-navigation.md`, `known-limitations.md`, `design-context.md` §8.14). Dalej: A3 na A5.

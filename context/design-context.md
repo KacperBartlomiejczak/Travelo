@@ -1218,19 +1218,20 @@ Sticky footer action region
 
 ### Geometry
 
-- A centered row of separate elements, no shared background; gap `8`; row max width viewport − 32 (up to `maxContentWidth`).
-- Selected item: capsule, height `48`, radius pill, horizontal padding `16`, icon 22 dp + `labelSM` label in a row, gap `8`; only the capsule shrinks, the label truncates.
-- Unselected items: `48 × 48` circles, icon 22 dp only (the label stays as the accessibility label).
-- Each element has its own `elevation.level2` in Light, 1 dp border in Dark; the container leaves vertical room for the shadow.
-- Position: 12 dp above bottom safe-area inset; screen content reserves at least the clearance (inset + 12 + 48).
+- One shared pill: `surface.elevated`, radius pill, `elevation.level2` in Light, 1 dp border in Dark; padding `8` → height `64`; max width viewport − 32 (up to `maxContentWidth`). The container leaves vertical room for the shadow.
+- Items in a row inside the pill, gap `8`.
+- Unselected items: `48 × 48` circles in `background.sunken`, icon 22 dp only (the label stays as the accessibility label).
+- Selected item: height `48`, horizontal padding `16`, icon 22 dp + `labelSM` label in a row, gap `8`; only it shrinks, the label truncates.
+- Selected indicator: one `brand.primary` capsule behind the selected item.
+- Position: 12 dp above bottom safe-area inset; screen content reserves at least the clearance (inset + 12 + 64).
 
 ### States
 
-- Default: `surface.elevated` circle, `icon.secondary`.
-- Selected: `brand.primary` capsule, icon and label in `brand.onBrand`; selection is colour, shape and the visible label.
-- Pressed: selected capsule `brand.pressed`; default circle `background.sunken`.
+- Default: `background.sunken` circle, `icon.secondary`.
+- Selected: `brand.primary` indicator, icon and label in `brand.onBrand`; selection is colour, shape and the visible label.
+- Pressed: every item scales to `motion.press.scale`; the selected indicator also turns `brand.pressed`; the default circle keeps `background.sunken`.
 - Focused: 2 dp `border.focus` at the standard focus offset.
-- Motion: on selection change the capsule width animates and the label fades in over `duration.standard`; instant with reduce motion.
+- Motion: on selection change the indicator slides to the new item and resizes, the items resize and the label fades in, over `duration.standard`; instant with reduce motion.
 - Disabled: only permitted for a genuinely inaccessible route; do not disable placeholder tabs—open their placeholder state as current product specifies.
 - Loading/error are screen states, never represented by spinning/erroring tab icons.
 
