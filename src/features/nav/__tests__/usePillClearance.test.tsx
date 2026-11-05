@@ -25,12 +25,12 @@ describe('usePillClearance (pill-nav-and-dialog, sunline-redesign D23)', () => {
 
   it('is the bottom inset + 12 + the pill height', async () => {
     const { result } = await renderHook(() => usePillClearance(), { wrapper: withInsets(34) });
-    expect(result.current).toBe(34 + tokens.spacing[3] + tabs.height);
-    expect(result.current).toBe(34 + 12 + 48);
+    expect(result.current).toBe(34 + tokens.spacing[3] + tabs.height + 2 * tabs.containerPadding);
+    expect(result.current).toBe(34 + 12 + 64);
   });
 
   it('has no inset part on a device without a bottom inset', async () => {
     const { result } = await renderHook(() => usePillClearance(), { wrapper: withInsets(0) });
-    expect(result.current).toBe(12 + 48);
+    expect(result.current).toBe(12 + 64);
   });
 });

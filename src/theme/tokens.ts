@@ -570,6 +570,7 @@ export const components = {
     horizontalPadding: 16,
     gap: 8,
     iconSize: 22,
+    containerPadding: 8, // places-legal-navbar D6: padding of the shared pill around the items (pill height = height + 2 x this)
   },
   segmentedControl: {
     height: 44,

@@ -88,7 +88,7 @@ describe('AppLoading (app-loading-skeleton step 4, D2, A3, A4)', () => {
     const pill = screen.getByTestId('app-loading-pill', hidden);
     expect(style(pill)).toMatchObject({
       width: Math.min(mockWidth - 2 * tokens.spacing[4], tokens.layout.maxContentWidth),
-      height: tokens.components.tabs.height,
+      height: tokens.components.tabs.height + 2 * tokens.components.tabs.containerPadding,
       borderRadius: tokens.radii.pill,
     });
     expect(style(pill.parent!)).toMatchObject({

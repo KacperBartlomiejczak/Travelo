@@ -1,11 +1,21 @@
-import type { LucideIcon } from 'lucide-react-native';
-import { useLayoutEffect, useRef, useState } from 'react';
-import { Animated, Easing, LayoutAnimation, Pressable, useWindowDimensions, View } from 'react-native';
+import type { LucideIcon } from "lucide-react-native";
+import { useLayoutEffect, useRef, useState } from "react";
+import {
+  Animated,
+  Easing,
+  LayoutAnimation,
+  Pressable,
+  StyleSheet,
+  useWindowDimensions,
+  View,
+} from "react-native";
+import ReAnimated from "react-native-reanimated";
 
-import { usePillBottomOffset } from '@/features/nav/usePillClearance';
-import { useReduceMotion } from '@/hooks/useReduceMotion';
-import { tokens } from '@/theme/tokens';
-import { useTheme } from '@/theme/useTheme';
+import { usePressScale } from "@/components/usePressScale";
+import { usePillBottomOffset } from "@/features/nav/usePillClearance";
+import { useReduceMotion } from "@/hooks/useReduceMotion";
+import { tokens } from "@/theme/tokens";
+import { useTheme } from "@/theme/useTheme";
 
 export type PillNavItem = { key: string; label: string; Icon: LucideIcon };
 
@@ -17,13 +27,14 @@ type Props = {
 
 const { tabs, focusRing } = tokens.components;
 
-// Floating tabs (design-context §8.14, places-legal-navbar A2): a centred row of separate elements with no shared
-// background. The selected tab is a `brand.primary` capsule with icon and label; the others are 48 dp icon-only circles on
-// the elevated surface. Each element has its own elevation level 2 (a border in dark mode, §5.2). The container is taller
-// than the items so the shadow is not cut, and lets touches through everywhere except the items.
+// Floating tabs (design-context §8.14, places-legal-navbar A5): one shared pill (`surface.elevated`, level 2 elevation, a
+// border in dark mode §5.2, 8 dp padding) under the whole row. Inside, one `brand.primary` indicator slides behind the
+// items to the selected one; the selected item shows icon and label, the others are 48 dp icon-only `background.sunken`
+// circles. The container is taller than the pill so its shadow is not cut, and lets touches through except on the pill.
 export function PillNav({ items, activeKey, onSelect }: Props) {
   const bottomOffset = usePillBottomOffset();
   const { width } = useWindowDimensions();
+  const theme = useTheme();
   const animate = useReduceMotion() === false;
   // The capsule's width change animates natively (new architecture: no experimental flag needed); skipped with reduce motion.
   const lastKey = useRef(activeKey);
@@ -38,31 +49,95 @@ export function PillNav({ items, activeKey, onSelect }: Props) {
     }
   }, [activeKey, animate]);
 
+  // The sliding indicator follows the active item's onLayout (x, width). The first layout and reduce motion set it at once.
+  const [left] = useState(() => new Animated.Value(0));
+  const [indicatorWidth] = useState(() => new Animated.Value(0));
+  const placed = useRef(false);
+  const running = useRef<Animated.CompositeAnimation | null>(null);
+  const activeRef = useRef(activeKey);
+  const animateRef = useRef(animate);
+  useLayoutEffect(() => {
+    activeRef.current = activeKey;
+    animateRef.current = animate;
+  }, [activeKey, animate]);
+  useLayoutEffect(() => () => running.current?.stop(), []);
+  // Absolute `left` is measured inside the border, a layout x from the outside of it (dark mode has a 1 dp border).
+  const border = StyleSheet.flatten(theme.elevation.level2).borderWidth ?? 0;
+  const place = (key: string, x: number, w: number) => {
+    if (key !== activeRef.current) return;
+    running.current?.stop();
+    if (!placed.current || !animateRef.current) {
+      placed.current = true;
+      left.setValue(x - border);
+      indicatorWidth.setValue(w);
+      return;
+    }
+    const timing = (value: Animated.Value, toValue: number) =>
+      Animated.timing(value, {
+        toValue,
+        duration: tokens.motion.duration.standard,
+        easing: Easing.bezier(...tokens.motion.easing.standard),
+        useNativeDriver: false, // left/width are layout props, never native-driven
+      });
+    running.current = Animated.parallel([
+      timing(left, x - border),
+      timing(indicatorWidth, w),
+    ]);
+    running.current.start();
+  };
+
   return (
     <View
       testID="pill-nav-container"
       pointerEvents="box-none"
       style={{
-        position: 'absolute',
+        position: "absolute",
         left: 0,
         right: 0,
         // The extra vertical padding is the room for the shadow; subtracting it keeps the items at the usual offset.
         bottom: bottomOffset - tokens.spacing[2],
         paddingVertical: tokens.spacing[2],
-        alignItems: 'center',
+        alignItems: "center",
       }}
     >
       <View
         testID="pill-nav"
         style={{
-          flexDirection: 'row',
-          alignItems: 'center',
+          flexDirection: "row",
+          alignItems: "center",
           gap: tokens.spacing[2],
-          maxWidth: Math.min(width - 2 * tokens.spacing[4], tokens.layout.maxContentWidth),
+          padding: tabs.containerPadding,
+          borderRadius: tokens.radii.pill,
+          backgroundColor: theme.surface.elevated,
+          maxWidth: Math.min(
+            width - 2 * tokens.spacing[4],
+            tokens.layout.maxContentWidth,
+          ),
+          ...theme.elevation.level2,
         }}
       >
+        <Animated.View
+          testID="pill-nav-indicator"
+          pointerEvents="none"
+          style={{
+            position: "absolute",
+            top: tabs.containerPadding, // layout y includes the border, absolute top is inside it, so no compensation
+            left,
+            width: indicatorWidth,
+            height: tabs.height,
+            borderRadius: tokens.radii.pill,
+            backgroundColor: theme.brand.primary,
+          }}
+        />
         {items.map((item) => (
-          <PillNavTab key={item.key} item={item} selected={item.key === activeKey} animate={animate} onPress={() => onSelect(item.key)} />
+          <PillNavTab
+            key={item.key}
+            item={item}
+            selected={item.key === activeKey}
+            animate={animate}
+            onPress={() => onSelect(item.key)}
+            onLayout={(x, w) => place(item.key, x, w)}
+          />
         ))}
       </View>
     </View>
@@ -74,9 +149,10 @@ type TabProps = {
   selected: boolean;
   animate: boolean;
   onPress: () => void;
+  onLayout: (x: number, width: number) => void;
 };
 
-function PillNavTab({ item, selected, animate, onPress }: TabProps) {
+function PillNavTab({ item, selected, animate, onPress, onLayout }: TabProps) {
   const { Icon, label, key } = item;
   const theme = useTheme();
   const [focused, setFocused] = useState(false);
@@ -104,49 +180,79 @@ function PillNavTab({ item, selected, animate, onPress }: TabProps) {
     return () => fadeIn.stop();
   }, [selected, animate, fade]);
 
+  const { style: motionStyle, ...pressHandlers } = usePressScale();
   const color = selected ? theme.brand.onBrand : theme.icon.secondary;
+  // The wrapper carries the press scale (like every button) and the layout the indicator follows.
   return (
-    <Pressable
-      accessibilityRole="button"
-      accessibilityLabel={label}
-      accessibilityState={{ selected }}
-      onPress={onPress}
-      onFocus={() => setFocused(true)}
-      onBlur={() => setFocused(false)}
-      style={({ pressed }) => [
-        {
-          height: tabs.height,
-          borderRadius: tokens.radii.pill,
-          alignItems: 'center',
-          justifyContent: 'center',
-        },
-        selected
-          ? {
-              flexShrink: 1,
-              paddingHorizontal: tabs.horizontalPadding,
-              backgroundColor: pressed ? theme.brand.pressed : theme.brand.primary,
-            }
-          : {
-              width: tabs.height,
-              backgroundColor: pressed ? theme.background.sunken : theme.surface.elevated,
-            },
-        theme.elevation.level2,
-        focused && {
-          outlineStyle: 'solid',
-          outlineWidth: focusRing.width,
-          outlineColor: theme.border.focus,
-          outlineOffset: focusRing.offset,
-        },
-      ]}
+    <ReAnimated.View
+      testID={`pill-nav-motion-${key}`}
+      style={[motionStyle, selected && { flexShrink: 1 }]}
+      onLayout={(event) =>
+        onLayout(event.nativeEvent.layout.x, event.nativeEvent.layout.width)
+      }
     >
-      <View testID={`pill-nav-content-${key}`} style={{ flexDirection: 'row', alignItems: 'center', gap: tabs.gap, minWidth: 0 }}>
-        <Icon testID={`pill-nav-icon-${key}`} size={tabs.iconSize} strokeWidth={tokens.iconography.strokeWidth} color={color} />
-        {selected && (
-          <Animated.Text numberOfLines={1} style={[tokens.typography.styles.labelSM, { color, opacity: fade, flexShrink: 1 }]}>
-            {label}
-          </Animated.Text>
-        )}
-      </View>
-    </Pressable>
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel={label}
+        accessibilityState={{ selected }}
+        onPress={onPress}
+        {...pressHandlers}
+        onFocus={() => setFocused(true)}
+        onBlur={() => setFocused(false)}
+        style={({ pressed }) => [
+          {
+            height: tabs.height,
+            borderRadius: tokens.radii.pill,
+            alignItems: "center",
+            justifyContent: "center",
+          },
+          selected
+            ? {
+                flexShrink: 1,
+                paddingHorizontal: tabs.horizontalPadding,
+                // The brand.primary indicator is behind; pressing paints the item itself with brand.pressed.
+                backgroundColor: pressed ? theme.brand.pressed : undefined,
+              }
+            : {
+                width: tabs.height,
+                backgroundColor: theme.background.sunken,
+              },
+          focused && {
+            outlineStyle: "solid",
+            outlineWidth: focusRing.width,
+            outlineColor: theme.border.focus,
+            outlineOffset: focusRing.offset,
+          },
+        ]}
+      >
+        <View
+          testID={`pill-nav-content-${key}`}
+          style={{
+            flexDirection: "row",
+            alignItems: "center",
+            gap: tabs.gap,
+            minWidth: 0,
+          }}
+        >
+          <Icon
+            testID={`pill-nav-icon-${key}`}
+            size={tabs.iconSize}
+            strokeWidth={tokens.iconography.strokeWidth}
+            color={color}
+          />
+          {selected && (
+            <Animated.Text
+              numberOfLines={1}
+              style={[
+                tokens.typography.styles.labelSM,
+                { color, opacity: fade, flexShrink: 1 },
+              ]}
+            >
+              {label}
+            </Animated.Text>
+          )}
+        </View>
+      </Pressable>
+    </ReAnimated.View>
   );
 }

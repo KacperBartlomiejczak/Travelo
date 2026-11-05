@@ -4,7 +4,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { SkeletonBlock } from '@/components/SkeletonBlock';
 import { HomeSkeleton } from '@/features/home/HomeSkeleton';
-import { usePillBottomOffset } from '@/features/nav/usePillClearance';
+import { PILL_HEIGHT, usePillBottomOffset } from '@/features/nav/usePillClearance';
 import { tokens } from '@/theme/tokens';
 import { useTheme } from '@/theme/useTheme';
 
@@ -42,7 +42,7 @@ export function AppLoading() {
         <SkeletonBlock
           testID="app-loading-pill"
           width={Math.min(width - 2 * spacing[4], layout.maxContentWidth)}
-          height={components.tabs.height}
+          height={PILL_HEIGHT}
           radius={radii.pill}
           color={chrome}
         />
