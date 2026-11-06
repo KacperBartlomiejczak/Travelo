@@ -712,7 +712,7 @@ describe('updateDetails (trip-edit-menu D5)', () => {
 
     const rejected = repository.updateDetails(PAST_ID, { name: 'Lisbon 2026', coverImageUri: STORED_COVER });
     await expect(rejected).rejects.toThrow('Network request failed');
-    await expect(rejected).rejects.toMatchObject({ constructor: expect.objectContaining({ name: 'ServerUnreachableError' }) });
+    await expect(rejected).rejects.toHaveProperty('constructor.name', 'ServerUnreachableError');
     await expect(local.cachedList()).resolves.toEqual(listCopy);
     await expect(local.cachedOverview(PAST_ID)).resolves.toEqual(overviewCopy);
   });
@@ -722,7 +722,7 @@ describe('updateDetails (trip-edit-menu D5)', () => {
     const { AuthRetryableFetchError } = jest.requireActual('@supabase/supabase-js');
     supabase.auth.getSession.mockResolvedValueOnce({ data: { session: null as never }, error: new AuthRetryableFetchError('Network request failed', 0) });
     const rejected = repository.updateDetails(PAST_ID, { name: 'Lisbon', coverImageUri: STORED_COVER });
-    await expect(rejected).rejects.toMatchObject({ constructor: expect.objectContaining({ name: 'ServerUnreachableError' }) });
+    await expect(rejected).rejects.toHaveProperty('constructor.name', 'ServerUnreachableError');
     expect(supabase.queries).toHaveLength(0);
   });
 });
@@ -805,7 +805,7 @@ describe('delete (trip-edit-menu D8, A5)', () => {
 
     const rejected = repository.delete(PAST_ID);
     await expect(rejected).rejects.toThrow('Network request failed');
-    await expect(rejected).rejects.toMatchObject({ constructor: expect.objectContaining({ name: 'ServerUnreachableError' }) });
+    await expect(rejected).rejects.toHaveProperty('constructor.name', 'ServerUnreachableError');
 
     await expect(local.cachedOverview(PAST_ID)).resolves.not.toBeNull();
     await expect(local.selectedTripId()).resolves.toBe(PAST_ID);
@@ -862,7 +862,7 @@ describe('delete (trip-edit-menu D8, A5)', () => {
 
       const rejected = repository.delete(PAST_ID);
       await expect(rejected).rejects.toThrow('Network request failed');
-      await expect(rejected).rejects.toMatchObject({ constructor: expect.objectContaining({ name: 'ServerUnreachableError' }) });
+      await expect(rejected).rejects.toHaveProperty('constructor.name', 'ServerUnreachableError');
 
       await expect(local.cachedOverview(PAST_ID)).resolves.not.toBeNull();
       await expect(local.selectedTripId()).resolves.toBe(PAST_ID);
@@ -985,7 +985,7 @@ describe('delete (trip-edit-menu D8, A5)', () => {
       const rejected = ctx.repository.delete(PAST_ID);
 
       await expect(rejected).rejects.toThrow(message);
-      await expect(rejected).rejects.toMatchObject({ constructor: expect.objectContaining({ name: errorName }) });
+      await expect(rejected).rejects.toHaveProperty('constructor.name', errorName);
       expect(tripDeletes(ctx.supabase)).toEqual([]);
       await expectCopiesKept(ctx);
     });
@@ -1464,7 +1464,7 @@ describe('addPhoto (trip-photos A5, D2, D7, D14)', () => {
 
     const rejected = repository.addPhoto(PAST_ID, photoUuid(1), PICKED);
     await expect(rejected).rejects.toThrow('Network request failed');
-    await expect(rejected).rejects.toMatchObject({ constructor: expect.objectContaining({ name: 'ServerUnreachableError' }) });
+    await expect(rejected).rejects.toHaveProperty('constructor.name', 'ServerUnreachableError');
     expect(supabase.queries).toEqual([]);
   });
 
@@ -1473,9 +1473,7 @@ describe('addPhoto (trip-photos A5, D2, D7, D14)', () => {
     const { AuthRetryableFetchError } = jest.requireActual('@supabase/supabase-js');
     supabase.auth.getSession.mockResolvedValueOnce({ data: { session: null as never }, error: new AuthRetryableFetchError('Network request failed', 0) });
 
-    await expect(repository.addPhoto(PAST_ID, photoUuid(1), PICKED)).rejects.toMatchObject({
-      constructor: expect.objectContaining({ name: 'ServerUnreachableError' }),
-    });
+    await expect(repository.addPhoto(PAST_ID, photoUuid(1), PICKED)).rejects.toHaveProperty('constructor.name', 'ServerUnreachableError');
     expect(prepare).not.toHaveBeenCalled();
     expect(supabase.storageCalls).toEqual([]);
   });
@@ -1484,9 +1482,7 @@ describe('addPhoto (trip-photos A5, D2, D7, D14)', () => {
     const { supabase, repository, seed } = await setupAdd();
     supabase.respond('trip_photos', NETWORK_FAILURE);
 
-    await expect(repository.addPhoto(PAST_ID, photoUuid(1), PICKED)).rejects.toMatchObject({
-      constructor: expect.objectContaining({ name: 'ServerUnreachableError' }),
-    });
+    await expect(repository.addPhoto(PAST_ID, photoUuid(1), PICKED)).rejects.toHaveProperty('constructor.name', 'ServerUnreachableError');
     expect(seed).not.toHaveBeenCalled();
   });
 
@@ -1583,7 +1579,7 @@ describe('deletePhoto (trip-photos R6)', () => {
     const { supabase, repository } = await setup();
     supabase.respond('trip_photos', { data: [] }, NETWORK_FAILURE);
 
-    await expect(repository.deletePhoto(photo)).rejects.toMatchObject({ constructor: expect.objectContaining({ name: 'ServerUnreachableError' }) });
+    await expect(repository.deletePhoto(photo)).rejects.toHaveProperty('constructor.name', 'ServerUnreachableError');
     expect(removeCalls(supabase)).toEqual([]);
   });
 
@@ -1596,7 +1592,7 @@ describe('deletePhoto (trip-photos R6)', () => {
 
     const rejected = repository.deletePhoto(photo);
     await expect(rejected).rejects.toThrow(message);
-    await expect(rejected).rejects.toMatchObject({ constructor: expect.objectContaining({ name: errorName }) });
+    await expect(rejected).rejects.toHaveProperty('constructor.name', errorName);
     expect(removeCalls(supabase)).toEqual([]);
   });
 
@@ -2195,9 +2191,7 @@ describe('covers (trip-covers D1, D4, D5)', () => {
       it('reading the stored cover offline rejects as unreachable', async () => {
         const { supabase, repository } = await setupCovers();
         supabase.respond('trips', NETWORK_FAILURE);
-        await expect(repository.updateDetails(PAST_ID, input(OLD_COVER))).rejects.toMatchObject({
-          constructor: expect.objectContaining({ name: 'ServerUnreachableError' }),
-        });
+        await expect(repository.updateDetails(PAST_ID, input(OLD_COVER))).rejects.toHaveProperty('constructor.name', 'ServerUnreachableError');
       });
     });
 
@@ -2258,9 +2252,7 @@ describe('covers (trip-covers D1, D4, D5)', () => {
       const { supabase, repository } = await setupCovers();
       supabase.respond('trips', oldCoverRow('preset:auckland'));
       supabase.respondStorage('upload', STORAGE_NETWORK_FAILURE);
-      await expect(repository.updateDetails(PAST_ID, input(PICKED_URI))).rejects.toMatchObject({
-        constructor: expect.objectContaining({ name: 'ServerUnreachableError' }),
-      });
+      await expect(repository.updateDetails(PAST_ID, input(PICKED_URI))).rejects.toHaveProperty('constructor.name', 'ServerUnreachableError');
     });
 
     it('a photo that cannot be prepared rejects and sends nothing', async () => {
@@ -2287,9 +2279,7 @@ describe('covers (trip-covers D1, D4, D5)', () => {
       const { supabase, repository } = await setupCovers();
       supabase.respond('trips', oldCoverRow(OLD_COVER), NETWORK_FAILURE);
 
-      await expect(repository.updateDetails(PAST_ID, input(PICKED_URI))).rejects.toMatchObject({
-        constructor: expect.objectContaining({ name: 'ServerUnreachableError' }),
-      });
+      await expect(repository.updateDetails(PAST_ID, input(PICKED_URI))).rejects.toHaveProperty('constructor.name', 'ServerUnreachableError');
 
       expect(calls(supabase, 'remove')).toEqual([]);
     });
@@ -2315,9 +2305,7 @@ describe('covers (trip-covers D1, D4, D5)', () => {
     it('reading the old cover offline rejects as unreachable', async () => {
       const { repository, supabase } = await setupCovers();
       supabase.respond('trips', NETWORK_FAILURE);
-      await expect(repository.updateDetails(PAST_ID, input('preset:bali'))).rejects.toMatchObject({
-        constructor: expect.objectContaining({ name: 'ServerUnreachableError' }),
-      });
+      await expect(repository.updateDetails(PAST_ID, input('preset:bali'))).rejects.toHaveProperty('constructor.name', 'ServerUnreachableError');
     });
 
     it('a trip id that is not a lowercase UUID is refused before any network call (it becomes a folder)', async () => {

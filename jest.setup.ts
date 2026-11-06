@@ -54,8 +54,7 @@ jest.mock('@/data/app-provider-profile', () => ({
 // Route tests wait for the gate to leave its loading view after rendering (src/test/settle-gate.ts).
 jest.mock('expo-router/testing-library', () => {
   const testingLibrary = jest.requireActual('expo-router/testing-library');
-  jest.requireActual('@/test/settle-gate').settleGateAfterRender(testingLibrary);
-  return testingLibrary;
+  return jest.requireActual('@/test/settle-gate').settleGateAfterRender(testingLibrary);
 });
 jest.mock('expo-network', () => jest.requireActual('@/test/mock-network').expoNetworkMock);
 

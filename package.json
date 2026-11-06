@@ -73,6 +73,7 @@
   "private": true,
   "jest": {
     "preset": "jest-expo",
+    "resolver": "react-native-reanimated/jest/resolver",
     "moduleNameMapper": {
       "^lucide-react-native$": "<rootDir>/node_modules/lucide-react-native/dist/cjs/lucide-react-native.js"
     },
