@@ -1,0 +1,18 @@
+{
+  "_note": "Hand-written from the documented generateContent shape. Replace with a recorded response after the first live call.",
+  "candidates": [
+    {
+      "content": {
+        "role": "model",
+        "parts": [
+          {
+            "text": "{\"picks\":[{\"placeId\":\"ChIJ-lisbon-castle\",\"reason\":\"Zamek z widokiem na miasto.\"},{\"placeId\":\"ChIJ-lisbon-museum\",\"reason\":\"Klasyk dla fanów historii.\"}]}"
+          }
+        ]
+      },
+      "finishReason": "STOP",
+      "index": 0
+    }
+  ],
+  "usageMetadata": { "promptTokenCount": 400, "candidatesTokenCount": 60, "totalTokenCount": 460 }
+}

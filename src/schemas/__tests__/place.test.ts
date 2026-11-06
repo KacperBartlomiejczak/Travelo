@@ -5,6 +5,7 @@ import {
   GoogleNearbySearchResponseSchema,
   GooglePlaceSchema,
   PlaceRecommendationSchema,
+  PLACE_REQUESTS_PER_DAY,
   PlaceSchema,
   RecommendPlacesErrorSchema,
   RecommendPlacesRequestSchema,
@@ -160,5 +161,11 @@ describe('RecommendPlacesErrorSchema', () => {
   });
   it('rejects unknown errors', () => {
     expect(RecommendPlacesErrorSchema.safeParse({ error: 'boom' }).success).toBe(false);
+  });
+});
+
+describe('PLACE_REQUESTS_PER_DAY', () => {
+  it('is 5 (D17)', () => {
+    expect(PLACE_REQUESTS_PER_DAY).toBe(5);
   });
 });

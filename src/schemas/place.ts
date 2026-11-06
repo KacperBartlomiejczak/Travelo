@@ -68,3 +68,6 @@ export const RecommendPlacesErrorSchema = z.object({
   error: z.enum(['invalid_input', 'unauthorized', 'limit_reached', 'upstream_failed']),
 });
 export type RecommendPlacesError = z.infer<typeof RecommendPlacesErrorSchema>;
+
+// Place recommendation requests per user per UTC day (D17); the limit is passed to the database, not stored in SQL.
+export const PLACE_REQUESTS_PER_DAY = 5;
