@@ -1,0 +1,53 @@
+{
+  "places": [
+    {
+      "id": "ChIJ-lisbon-castle",
+      "types": ["tourist_attraction", "castle", "point_of_interest", "establishment"],
+      "formattedAddress": "R. de Santa Cruz do Castelo, 1100-129 Lisboa, Portugal",
+      "location": { "latitude": 38.7139, "longitude": -9.1334 },
+      "googleMapsUri": "https://maps.google.com/?cid=1111111111111111111",
+      "displayName": { "text": "Castelo de S. Jorge", "languageCode": "pl" },
+      "primaryTypeDisplayName": { "text": "Zamek", "languageCode": "pl" },
+      "primaryType": "castle",
+      "businessStatus": "OPERATIONAL"
+    },
+    {
+      "id": "ChIJ-lisbon-museum",
+      "types": ["museum", "tourist_attraction", "point_of_interest", "establishment"],
+      "formattedAddress": "Praça do Império 1400-206 Lisboa, Portugal",
+      "location": { "latitude": 38.6979, "longitude": -9.2064 },
+      "googleMapsUri": "https://maps.google.com/?cid=2222222222222222222",
+      "displayName": { "text": "Mosteiro dos Jerónimos", "languageCode": "pl" },
+      "primaryTypeDisplayName": { "text": "Muzeum", "languageCode": "pl" },
+      "primaryType": "museum"
+    },
+    {
+      "id": "ChIJ-lisbon-park",
+      "types": ["park", "tourist_attraction", "point_of_interest", "establishment"],
+      "formattedAddress": "Alameda Edgar Cardoso, 1990-233 Lisboa, Portugal",
+      "location": { "latitude": 38.7634, "longitude": -9.0953 },
+      "googleMapsUri": "https://maps.google.com/?cid=3333333333333333333",
+      "displayName": { "text": "Parque das Nações", "languageCode": "pl" },
+      "primaryType": "park"
+    },
+    {
+      "id": "ChIJ-lisbon-cafe",
+      "types": ["cafe", "bakery", "food", "point_of_interest", "establishment"],
+      "location": { "latitude": 38.7071, "longitude": -9.1362 },
+      "googleMapsUri": "https://maps.google.com/?cid=4444444444444444444",
+      "displayName": { "text": "Pastelaria Alfama", "languageCode": "pt" },
+      "primaryTypeDisplayName": { "text": "Kawiarnia", "languageCode": "pl" },
+      "primaryType": "cafe"
+    },
+    {
+      "id": "ChIJ-lisbon-viewpoint",
+      "types": ["observation_deck", "tourist_attraction", "point_of_interest", "establishment"],
+      "formattedAddress": "Largo das Portas do Sol, 1100-411 Lisboa, Portugal",
+      "location": { "latitude": 38.7118, "longitude": -9.1294 },
+      "googleMapsUri": "https://maps.google.com/?cid=5555555555555555555",
+      "displayName": { "text": "Miradouro das Portas do Sol", "languageCode": "pt" },
+      "primaryTypeDisplayName": { "text": "Punkt widokowy", "languageCode": "pl" },
+      "primaryType": "observation_deck"
+    }
+  ]
+}
