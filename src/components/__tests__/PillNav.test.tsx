@@ -1,5 +1,7 @@
 import { act, fireEvent, render, screen } from '@testing-library/react-native';
-import { AccessibilityInfo, Animated, LayoutAnimation, StyleSheet } from 'react-native';
+import { useRef } from 'react';
+import { AccessibilityInfo, LayoutAnimation, StyleSheet } from 'react-native';
+import * as Reanimated from 'react-native-reanimated';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import { PillNav } from '@/components/PillNav';
@@ -11,6 +13,8 @@ import { DarkThemeScope } from '@/theme/useTheme';
 
 let mockFontScale = 1;
 let mockWindowWidth = 360;
+let mockScheme: 'light' | 'dark' = 'light';
+jest.mock('react-native/Libraries/Utilities/useColorScheme', () => ({ __esModule: true, default: () => mockScheme }));
 jest.mock('react-native/Libraries/Utilities/useWindowDimensions', () => ({
   __esModule: true,
   default: () => ({ width: mockWindowWidth, height: 812, scale: 2, fontScale: mockFontScale }),
@@ -43,6 +47,8 @@ const scaleOf = (key: string) => {
   const transform = style(screen.getByTestId(`pill-nav-motion-${key}`)).transform as { scale: number }[] | undefined;
   return transform?.[0]?.scale;
 };
+// Only the PillNav motions run for duration.standard (the press scale uses duration.pressIn).
+const standardTimings = (spy: jest.SpyInstance) => spy.mock.calls.filter(([, config]) => config?.duration === tokens.motion.duration.standard);
 const pass = async (ms: number) => {
   await act(async () => {
     jest.advanceTimersByTime(ms);
@@ -53,7 +59,10 @@ beforeEach(async () => {
   jest.useFakeTimers();
   mockFontScale = 1;
   mockWindowWidth = 360;
+  mockScheme = 'light';
   await i18n.changeLanguage('pl');
+  // The Reanimated mock creates a new shared value on every render; a stable one lets values survive re-renders like on a device.
+  jest.spyOn(Reanimated, 'useSharedValue').mockImplementation(<T,>(init: T) => useRef({ value: init }).current as never);
 });
 
 afterEach(() => {
@@ -182,7 +191,7 @@ describe('PillNav (design-context §8.14, places-legal-navbar A2)', () => {
       mockWindowWidth = 320;
       mockFontScale = 2;
       await render(ui('expenses'));
-      expect(style(screen.getByTestId('pill-nav')).maxWidth).toBe(320 - 2 * tokens.spacing[4]);
+      expect(style(screen.getByTestId('pill-nav')).width).toBe(320 - 2 * tokens.spacing[4]);
       expect(screen.getByText('Wydatki').props.numberOfLines).toBe(1);
       expect(navButton('Wydatki')).toHaveStyle({ flexShrink: 1 });
       const fixed = 3 * tabs.height + 3 * tokens.spacing[2] + 2 * tabs.containerPadding + 2 * tabs.horizontalPadding + tabs.iconSize + tabs.gap;
@@ -192,7 +201,35 @@ describe('PillNav (design-context §8.14, places-legal-navbar A2)', () => {
     it('is capped at the maximum content width on a wide screen', async () => {
       mockWindowWidth = 1000;
       await render(ui());
-      expect(style(screen.getByTestId('pill-nav')).maxWidth).toBe(tokens.layout.maxContentWidth);
+      expect(style(screen.getByTestId('pill-nav')).width).toBe(tokens.layout.maxContentWidth);
+    });
+
+    it('has a fixed width of min(window - 2 * spacing[4], maxContentWidth), items spread evenly, unchanged by a selection change (D9)', async () => {
+      mockWindowWidth = 411;
+      const view = await render(ui('index'));
+      const pill = () => style(screen.getByTestId('pill-nav'));
+      expect(pill()).toMatchObject({ width: 411 - 2 * tokens.spacing[4], justifyContent: 'space-between' });
+      await view.rerender(ui('expenses'));
+      expect(pill().width).toBe(411 - 2 * tokens.spacing[4]);
+      expect(pill().maxWidth).toBeUndefined();
+    });
+
+    it('keeps the view with the elevation on the same view as the radius and background (rounded shadow)', async () => {
+      await render(ui('index'));
+      const pill = style(screen.getByTestId('pill-nav'));
+      expect(pill.elevation).toBeGreaterThan(0);
+      expect(pill).toMatchObject({ borderRadius: tokens.radii.pill, backgroundColor: lightTheme.surface.elevated });
+    });
+
+    it('mounts a new pill view when the colour scheme changes (Android keeps a stale square shadow outline otherwise)', async () => {
+      mockScheme = 'dark';
+      const view = await render(ui());
+      const hostOf = () => (screen.getByTestId('pill-nav') as unknown as { instance: unknown }).instance;
+      const before = hostOf();
+      mockScheme = 'light';
+      await view.rerender(ui());
+      expect(style(screen.getByTestId('pill-nav')).borderWidth).toBeUndefined();
+      expect(hostOf()).not.toBe(before);
     });
 
     it('lets touches through everywhere except the items (box-none)', async () => {
@@ -230,32 +267,35 @@ describe('PillNav (design-context §8.14, places-legal-navbar A2)', () => {
     const indicator = () => style(screen.getByTestId('pill-nav-indicator'));
     const layout = (name: string, x: number, width: number) =>
       fireEvent(navButton(name), 'layout', { nativeEvent: { layout: { x, y: 8, width, height: tabs.height } } });
+    // The Reanimated mock re-evaluates animated styles only on render, so a re-render stands in for the UI thread.
+    const flush = (view: Awaited<ReturnType<typeof render>>, key: string) => view.rerender(ui(key));
 
     it('takes the active item x and width after onLayout, without animating the first time', async () => {
-      const timing = jest.spyOn(Animated, 'timing');
-      await render(ui('index'));
+      const timing = jest.spyOn(Reanimated, 'withTiming');
+      const view = await render(ui('index'));
       await layout('Podróż', 8, 120);
+      await flush(view, 'index');
       expect(indicator()).toMatchObject({ position: 'absolute', left: 8, width: 120, height: tabs.height, top: tabs.containerPadding, borderRadius: tokens.radii.pill });
-      expect(timing).not.toHaveBeenCalled();
+      expect(standardTimings(timing)).toHaveLength(0);
     });
 
     it('animates left and width to the new item over duration.standard when the selection changes', async () => {
       jest.spyOn(AccessibilityInfo, 'isReduceMotionEnabled').mockResolvedValue(false);
       const view = await render(ui('index'));
       await layout('Podróż', 8, 120);
-      const timing = jest.spyOn(Animated, 'timing');
+      const timing = jest.spyOn(Reanimated, 'withTiming');
       await view.rerender(ui('expenses'));
       await layout('Wydatki', 184, 140);
-      expect(timing).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({ toValue: 184, duration: tokens.motion.duration.standard, useNativeDriver: false }));
-      expect(timing).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({ toValue: 140, duration: tokens.motion.duration.standard }));
-      expect(indicator().left).toBe(8);
-      await pass(tokens.motion.duration.standard + 50);
+      await flush(view, 'expenses');
+      expect(timing).toHaveBeenCalledWith(184, expect.objectContaining({ duration: tokens.motion.duration.standard }));
+      expect(timing).toHaveBeenCalledWith(140, expect.objectContaining({ duration: tokens.motion.duration.standard }));
       expect(indicator()).toMatchObject({ left: 184, width: 140 });
     });
 
     it('in dark mode lines up with the active item: left compensates the 1 dp border, top does not', async () => {
-      await render(ui('index'), { wrapper: DarkThemeScope });
+      const view = await render(ui('index'), { wrapper: DarkThemeScope });
       await layout('Podróż', 9, 120);
+      await flush(view, 'index');
       expect(indicator()).toMatchObject({ left: 8, top: tabs.containerPadding });
     });
 
@@ -263,10 +303,11 @@ describe('PillNav (design-context §8.14, places-legal-navbar A2)', () => {
       jest.spyOn(AccessibilityInfo, 'isReduceMotionEnabled').mockResolvedValue(true);
       const view = await render(ui('index'));
       await layout('Podróż', 8, 120);
-      const timing = jest.spyOn(Animated, 'timing');
+      const timing = jest.spyOn(Reanimated, 'withTiming');
       await view.rerender(ui('expenses'));
       await layout('Wydatki', 184, 140);
-      expect(timing).not.toHaveBeenCalled();
+      await flush(view, 'expenses');
+      expect(standardTimings(timing)).toHaveLength(0);
       expect(indicator()).toMatchObject({ left: 184, width: 140 });
     });
   });
@@ -275,25 +316,37 @@ describe('PillNav (design-context §8.14, places-legal-navbar A2)', () => {
     const labelOpacity = () => style(screen.getByText('Wydatki')).opacity as number;
 
     it('does not animate on first render', async () => {
-      const timing = jest.spyOn(Animated, 'timing');
+      const timing = jest.spyOn(Reanimated, 'withTiming');
       await render(ui('index'));
-      expect(timing).not.toHaveBeenCalled();
+      expect(standardTimings(timing)).toHaveLength(0);
       expect(style(screen.getByText('Podróż')).opacity).toBe(1);
     });
 
     it('fades the new selected label in over duration.standard (180 ms)', async () => {
       jest.spyOn(AccessibilityInfo, 'isReduceMotionEnabled').mockResolvedValue(false);
-      const timing = jest.spyOn(Animated, 'timing');
+      const timing = jest.spyOn(Reanimated, 'withTiming');
       const view = await render(ui('index'));
       await view.rerender(ui('expenses'));
-      expect(timing).toHaveBeenCalledWith(
-        expect.anything(),
-        expect.objectContaining({ toValue: 1, duration: tokens.motion.duration.standard, useNativeDriver: false }),
-      );
+      expect(timing).toHaveBeenCalledWith(1, expect.objectContaining({ duration: tokens.motion.duration.standard }));
       expect(tokens.motion.duration.standard).toBe(180);
-      expect(labelOpacity()).toBe(0);
       await pass(tokens.motion.duration.standard + 50);
       expect(labelOpacity()).toBe(1);
+    });
+
+    it('starts the fade of the new selected label at 0, then times it to 1', async () => {
+      jest.spyOn(AccessibilityInfo, 'isReduceMotionEnabled').mockResolvedValue(false);
+      const assigned: number[] = [];
+      jest.spyOn(Reanimated, 'useSharedValue').mockImplementation(<T,>(init: T) => {
+        const value = useRef({ current: init, set(next: T) { this.current = next; if (init === 1) assigned.push(next as number); } }).current;
+        return useRef({ get value() { return value.current; }, set value(next: T) { value.set(next); } }).current as never;
+      });
+      const view = await render(ui('index'));
+      await pass(0);
+      assigned.length = 0;
+      await view.rerender(ui('expenses'));
+      const zero = assigned.indexOf(0);
+      expect(zero).toBeGreaterThanOrEqual(0);
+      expect(assigned[zero + 1]).toBe(1);
     });
 
     it('animates the capsule width change with LayoutAnimation over duration.standard, once per selection change', async () => {
@@ -319,28 +372,43 @@ describe('PillNav (design-context §8.14, places-legal-navbar A2)', () => {
     it('switches at once, with no animation, when the system asks to reduce motion', async () => {
       jest.spyOn(AccessibilityInfo, 'isReduceMotionEnabled').mockResolvedValue(true);
       const view = await render(ui('index'));
-      const timing = jest.spyOn(Animated, 'timing');
+      const timing = jest.spyOn(Reanimated, 'withTiming');
       await view.rerender(ui('expenses'));
-      expect(timing).not.toHaveBeenCalled();
+      expect(standardTimings(timing)).toHaveLength(0);
       expect(labelOpacity()).toBe(1);
     });
 
     it('when the system cannot say whether to reduce motion, it shows without animation', async () => {
       jest.spyOn(AccessibilityInfo, 'isReduceMotionEnabled').mockRejectedValue(new Error('no native module'));
       const view = await render(ui('index'));
-      const timing = jest.spyOn(Animated, 'timing');
+      const timing = jest.spyOn(Reanimated, 'withTiming');
       await view.rerender(ui('expenses'));
-      expect(timing).not.toHaveBeenCalled();
+      expect(standardTimings(timing)).toHaveLength(0);
       expect(labelOpacity()).toBe(1);
     });
 
     it('does not animate while the answer is still unknown', async () => {
       jest.spyOn(AccessibilityInfo, 'isReduceMotionEnabled').mockReturnValue(new Promise(() => {}));
       const view = await render(ui('index'));
-      const timing = jest.spyOn(Animated, 'timing');
+      const timing = jest.spyOn(Reanimated, 'withTiming');
       await view.rerender(ui('expenses'));
-      expect(timing).not.toHaveBeenCalled();
+      expect(standardTimings(timing)).toHaveLength(0);
       expect(labelOpacity()).toBe(1);
+    });
+
+    it('ends with the selected label at opacity 1 after fast successive switches', async () => {
+      jest.spyOn(AccessibilityInfo, 'isReduceMotionEnabled').mockResolvedValue(false);
+      const view = await render(ui('index'));
+      await pass(0);
+      await view.rerender(ui('expenses'));
+      await pass(90);
+      await view.rerender(ui('plan'));
+      await pass(60);
+      await view.rerender(ui('expenses'));
+      await pass(40);
+      await view.rerender(ui('plan'));
+      await pass(tokens.motion.duration.standard + 50);
+      expect(style(screen.getByText('Plan')).opacity).toBe(1);
     });
 
     it('settles the label at full opacity when reduce motion switches on while the fade runs', async () => {
@@ -354,7 +422,6 @@ describe('PillNav (design-context §8.14, places-legal-navbar A2)', () => {
       jest.spyOn(AccessibilityInfo, 'addEventListener').mockImplementation(addListener as unknown as typeof AccessibilityInfo.addEventListener);
       const view = await render(ui('index'));
       await view.rerender(ui('expenses'));
-      expect(labelOpacity()).toBeLessThan(1);
       await act(async () => {
         setReduceMotion(true);
       });

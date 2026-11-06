@@ -1,19 +1,23 @@
 import type { LucideIcon } from "lucide-react-native";
 import { useLayoutEffect, useRef, useState } from "react";
 import {
-  Animated,
-  Easing,
   LayoutAnimation,
   Pressable,
   StyleSheet,
   useWindowDimensions,
   View,
 } from "react-native";
-import ReAnimated from "react-native-reanimated";
+import ReAnimated, {
+  Easing,
+  useAnimatedStyle,
+  useSharedValue,
+  withTiming,
+} from "react-native-reanimated";
 
 import { usePressScale } from "@/components/usePressScale";
 import { usePillBottomOffset } from "@/features/nav/usePillClearance";
 import { useReduceMotion } from "@/hooks/useReduceMotion";
+import { darkTheme } from "@/theme/theme";
 import { tokens } from "@/theme/tokens";
 import { useTheme } from "@/theme/useTheme";
 
@@ -50,41 +54,37 @@ export function PillNav({ items, activeKey, onSelect }: Props) {
   }, [activeKey, animate]);
 
   // The sliding indicator follows the active item's onLayout (x, width). The first layout and reduce motion set it at once.
-  const [left] = useState(() => new Animated.Value(0));
-  const [indicatorWidth] = useState(() => new Animated.Value(0));
+  const left = useSharedValue(0);
+  const indicatorWidth = useSharedValue(0);
   const placed = useRef(false);
-  const running = useRef<Animated.CompositeAnimation | null>(null);
   const activeRef = useRef(activeKey);
   const animateRef = useRef(animate);
   useLayoutEffect(() => {
     activeRef.current = activeKey;
     animateRef.current = animate;
   }, [activeKey, animate]);
-  useLayoutEffect(() => () => running.current?.stop(), []);
   // Absolute `left` is measured inside the border, a layout x from the outside of it (dark mode has a 1 dp border).
   const border = StyleSheet.flatten(theme.elevation.level2).borderWidth ?? 0;
   const place = (key: string, x: number, w: number) => {
     if (key !== activeRef.current) return;
-    running.current?.stop();
     if (!placed.current || !animateRef.current) {
       placed.current = true;
-      left.setValue(x - border);
-      indicatorWidth.setValue(w);
+      left.value = x - border;
+      indicatorWidth.value = w;
       return;
     }
-    const timing = (value: Animated.Value, toValue: number) =>
-      Animated.timing(value, {
-        toValue,
-        duration: tokens.motion.duration.standard,
-        easing: Easing.bezier(...tokens.motion.easing.standard),
-        useNativeDriver: false, // left/width are layout props, never native-driven
-      });
-    running.current = Animated.parallel([
-      timing(left, x - border),
-      timing(indicatorWidth, w),
-    ]);
-    running.current.start();
+    const config = {
+      duration: tokens.motion.duration.standard,
+      easing: Easing.bezier(...tokens.motion.easing.standard),
+    };
+    left.value = withTiming(x - border, config);
+    indicatorWidth.value = withTiming(w, config);
   };
+  // Reanimated runs on the UI thread: a later React commit cannot re-apply stale left/width/opacity (Fabric).
+  const indicatorStyle = useAnimatedStyle(() => ({
+    left: left.value,
+    width: indicatorWidth.value,
+  }));
 
   return (
     <View
@@ -102,32 +102,37 @@ export function PillNav({ items, activeKey, onSelect }: Props) {
     >
       <View
         testID="pill-nav"
+        // Remount on a scheme change: Android keeps a stale square shadow outline when elevation/border change in place.
+        key={theme === darkTheme ? "dark" : "light"}
         style={{
           flexDirection: "row",
           alignItems: "center",
+          justifyContent: "space-between",
           gap: tokens.spacing[2],
           padding: tabs.containerPadding,
           borderRadius: tokens.radii.pill,
           backgroundColor: theme.surface.elevated,
-          maxWidth: Math.min(
+          // Fixed width (D9): the row never resizes on a tab switch, only the indicator slides.
+          width: Math.min(
             width - 2 * tokens.spacing[4],
             tokens.layout.maxContentWidth,
           ),
           ...theme.elevation.level2,
         }}
       >
-        <Animated.View
+        <ReAnimated.View
           testID="pill-nav-indicator"
           pointerEvents="none"
-          style={{
-            position: "absolute",
-            top: tabs.containerPadding, // layout y includes the border, absolute top is inside it, so no compensation
-            left,
-            width: indicatorWidth,
-            height: tabs.height,
-            borderRadius: tokens.radii.pill,
-            backgroundColor: theme.brand.primary,
-          }}
+          style={[
+            {
+              position: "absolute",
+              top: tabs.containerPadding, // layout y includes the border, absolute top is inside it, so no compensation
+              height: tabs.height,
+              borderRadius: tokens.radii.pill,
+              backgroundColor: theme.brand.primary,
+            },
+            indicatorStyle,
+          ]}
         />
         {items.map((item) => (
           <PillNavTab
@@ -157,28 +162,22 @@ function PillNavTab({ item, selected, animate, onPress, onLayout }: TabProps) {
   const theme = useTheme();
   const [focused, setFocused] = useState(false);
   // Opacity of the label: when this item becomes the selected one, the label fades in from 0 to 1.
-  const [fade] = useState(() => new Animated.Value(1));
+  const fade = useSharedValue(1);
   const wasSelected = useRef(selected);
   useLayoutEffect(() => {
     const changed = wasSelected.current !== selected;
     wasSelected.current = selected;
-    // Also settles a fade that was running when reduce motion came on (its cleanup stopped it mid-way).
-    if (!animate) {
-      fade.setValue(1);
+    if (!animate || !changed || !selected) {
+      fade.value = 1; // never leave a label part-transparent
       return;
     }
-    if (!changed || !selected) return;
-    fade.setValue(0);
-    // JS driver: only an opacity moves, and the native driver does not update the rendered style under Jest.
-    const fadeIn = Animated.timing(fade, {
-      toValue: 1,
+    fade.value = 0;
+    fade.value = withTiming(1, {
       duration: tokens.motion.duration.standard,
       easing: Easing.bezier(...tokens.motion.easing.standard),
-      useNativeDriver: false,
     });
-    fadeIn.start();
-    return () => fadeIn.stop();
   }, [selected, animate, fade]);
+  const labelStyle = useAnimatedStyle(() => ({ opacity: fade.value }));
 
   const { style: motionStyle, ...pressHandlers } = usePressScale();
   const color = selected ? theme.brand.onBrand : theme.icon.secondary;
@@ -241,15 +240,16 @@ function PillNavTab({ item, selected, animate, onPress, onLayout }: TabProps) {
             color={color}
           />
           {selected && (
-            <Animated.Text
+            <ReAnimated.Text
               numberOfLines={1}
               style={[
                 tokens.typography.styles.labelSM,
-                { color, opacity: fade, flexShrink: 1 },
+                { color, flexShrink: 1 },
+                labelStyle,
               ]}
             >
               {label}
-            </Animated.Text>
+            </ReAnimated.Text>
           )}
         </View>
       </Pressable>

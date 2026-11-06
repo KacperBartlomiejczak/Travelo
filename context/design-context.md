@@ -1218,8 +1218,8 @@ Sticky footer action region
 
 ### Geometry
 
-- One shared pill: `surface.elevated`, radius pill, `elevation.level2` in Light, 1 dp border in Dark; padding `8` → height `64`; max width viewport − 32 (up to `maxContentWidth`). The container leaves vertical room for the shadow.
-- Items in a row inside the pill, gap `8`.
+- One shared pill: `surface.elevated`, radius pill, `elevation.level2` in Light, 1 dp border in Dark; padding `8` → height `64`; fixed width viewport − 32 (up to `maxContentWidth`), so it never resizes on a tab switch. The container leaves vertical room for the shadow.
+- Items spread evenly in a row inside the pill (min gap `8`).
 - Unselected items: `48 × 48` circles in `background.sunken`, icon 22 dp only (the label stays as the accessibility label).
 - Selected item: height `48`, horizontal padding `16`, icon 22 dp + `labelSM` label in a row, gap `8`; only it shrinks, the label truncates.
 - Selected indicator: one `brand.primary` capsule behind the selected item.
