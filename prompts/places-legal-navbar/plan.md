@@ -160,7 +160,7 @@ Ja jestem managerem. Po akceptacji każdy strumień dostaje **osobną sesję (te
 - [x] A3. [tester] Sprawdzenie na urządzeniu (Android, jasny/ciemny, pl/en, duża czcionka).
 - [x] A4. [orkiestrator] Docs: `frontend.md`, `overview.md`, `context/app-context.md`, `context/design-context.md` §8.14.
 - [x] B1. [sesja B] Teksty polityki i regulaminu PL/EN w `docs/legal/` → przegląd Kacpra.
-- [ ] B2. [frontend] Ekran `/legal/[doc]` + klucze i18n + linki w Ustawieniach i arkuszu logowania → verifier.
+- [x] B2. [frontend] Ekran `/legal/[doc]` + klucze i18n + linki w Ustawieniach i arkuszu logowania → verifier.
 - [ ] B5. [orkiestrator] Publikacja dokumentów pod publicznym URL (P3).
 - [ ] C1. [backend] `src/schemas/place.ts` + testy schematów → verifier.
 - [ ] C2. [backend] `place-types.ts` (mapowanie) i `place-picks.ts` (filtr odpowiedzi Gemini) z testami → verifier.
@@ -227,3 +227,4 @@ Scenariusze ręczne C7: brak podróży → „Odkryj miejsca” → wybór miast
 - 2026-11-06 — Kacper odpowiedział na P2–P8 → D12–D17. Plan B i C przedstawiony do akceptacji.
 - 2026-11-06 — Kacper zaakceptował plan B i C („Akceptuje”) i poprosił o realizację w podsesjach. Kroki B3/B4 wykreślone (zrobione w `profile-settings`). Startują sesje B i C.
 - 2026-11-06 — Sesja B (gałąź `claude/legal-b-c00ba7`): Kacper zaakceptował teksty B1 (64b9732), workflow GitHub Pages dla B5 (7a02746), B2 w toku. Sesja C (gałąź `claude/places-c-4a8a42`): C1 gotowe (42 testy), miasto w C5 wybierane z listy z bazy lotnisk (decyzja Kacpra w sesji C), C2 w toku. Gałęzie jeszcze nie scalone.
+- 2026-11-06 — Strumień B scalony do `feature/places-legal-navbar` (7c6e384, za zgodą Kacpra): B1 64b9732, B5 workflow 7a02746, B2 9993ed7 (verifier PASS za trzecim razem: przyciski 44 dp zamiast linków w tekście, zawijanie przy dużej czcionce). Po scaleniu: 182/3688 testów, typecheck i lint zielone (wcześniej typecheck padał na nieaktualnym `.expo/types/router.d.ts` — przegenerowany restartem Metro). B5 otwarte: Kacper włącza Pages w ustawieniach repo; do uzupełnienia region Supabase w polityce; przegląd prawnika; ekran `/legal` niesprawdzony na urządzeniu.
