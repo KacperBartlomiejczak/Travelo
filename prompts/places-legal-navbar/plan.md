@@ -1,5 +1,5 @@
 # Zadanie: Naprawa navbara + polityka prywatności i regulamin + Google Places i „Odkryj miejsca” z AI
-Status: strumień A gotowy (2026-11-06); P2–P8 odpowiedziane (D12–D17), plan B i C czeka na akceptację
+Status: strumień A gotowy (2026-11-06); P2–P8 odpowiedziane (D12–D17), plan B i C zaakceptowany 2026-11-06 („Akceptuje”), realizacja w podsesjach B i C
 Gałąź: `feature/places-legal-navbar` (od `origin/main`, 2026-11-04)
 
 ## Zrozumienie i założenia
@@ -142,12 +142,13 @@ Prawo: bez nowych schematów danych (tekst w i18n). Usuwanie konta: `DeleteAccou
 ## Organizacja pracy (Twoje „podsesje”)
 Ja jestem managerem. Po akceptacji każdy strumień dostaje **osobną sesję (team leader)** z własnym briefem; team leader deleguje kroki do subagentów `backend` / `frontend` (pracownicy), każdy krok przechodzi przez `verifier`, a A i C na koniec przez `tester`. Ja zbieram wyniki, sprawdzam diffy i scalam.
 - Strumień A (navbar) — robię w tej sesji, bez podsesji (mały zakres), na gałęzi `feature/places-legal-navbar`.
-- Sesja B (prawo) — rusza po P2–P4; teksty dokumentów piszę ja (docs), sesja robi ekrany i usuwanie konta.
-- Sesja C (Places + AI) — rusza po P5–P8.
+- Sesja B (prawo) — rusza 2026-11-06; na prośbę Kacpra teksty dokumentów (B1, `docs/legal/`) pisze team leader sesji B, potem ekran (B2) i publikacja (B5). Usuwanie konta już zrobione.
+- Sesja C (Places + AI) — rusza 2026-11-06, kroki C1–C7.
+- Team leaderzy nie edytują `prompts/places-legal-navbar/plan.md` — raportują mnie, ja aktualizuję plan.
 - Gałęzie: każda sesja ma swoją gałąź robotniczą, scalam je do `feature/places-legal-navbar` (jedna gałąź zadania). Ryzyko konfliktów: B i C dotykają `pl.json`/`en.json` — rozwiązuję przy scalaniu.
 
 ## Kroki
-- [ ] 0. [orkiestrator] Odpowiedzi P1–P8 zapisane w „Decyzje”, plan zaakceptowany.
+- [x] 0. [orkiestrator] Odpowiedzi P1–P8 zapisane w „Decyzje”, plan zaakceptowany.
 - [x] A0. [tester] Odtworzenie ucięcia na emulatorze (zrzut, szerokość pigułki vs ekran) — potwierdza lub obala hipotezę.
 - [x] A1. [frontend] Usunięcie zakładki „Miejsca” (testy najpierw: `tabs.test.ts`, `tabs.test.tsx`) → verifier.
 - [x] A2. [frontend] Nowy wygląd pigułki (D4): testy najpierw w `PillNav.test.tsx` (aktywna kapsuła z etykietą i kolorem `brand.primary`, nieaktywne kółka bez etykiety z `accessibilityLabel`, cele ≥ 44, ogranicz ruch) + test na ucięcie (szerokość rzędu ≤ szerokość kontenera) → `PillNav.tsx`, `tokens.ts` → verifier.
@@ -160,8 +161,6 @@ Ja jestem managerem. Po akceptacji każdy strumień dostaje **osobną sesję (te
 - [x] A4. [orkiestrator] Docs: `frontend.md`, `overview.md`, `context/app-context.md`, `context/design-context.md` §8.14.
 - [ ] B1. [orkiestrator] Teksty polityki i regulaminu PL/EN w `docs/legal/` → przegląd Kacpra.
 - [ ] B2. [frontend] Ekran `/legal/[doc]` + klucze i18n + linki w Ustawieniach i arkuszu logowania → verifier.
-- [x] B3. ~~Edge Function `delete-account`~~ — już zrobione w `profile-settings` (2026-11-05: do usunięcia z planu po akceptacji).
-- [x] B4. ~~„Usuń konto” w Ustawieniach~~ — już zrobione w `profile-settings`.
 - [ ] B5. [orkiestrator] Publikacja dokumentów pod publicznym URL (P3).
 - [ ] C1. [backend] `src/schemas/place.ts` + testy schematów → verifier.
 - [ ] C2. [backend] `place-types.ts` (mapowanie) i `place-picks.ts` (filtr odpowiedzi Gemini) z testami → verifier.
@@ -226,3 +225,4 @@ Scenariusze ręczne C7: brak podróży → „Odkryj miejsca” → wybór miast
 - 2026-11-06 — Tester (emulator 411 dp, świeży bundle z Metro 8086): A8 — pigułka 300 dp, wyśrodkowana, stała szerokość na każdej zakładce: PASS. A7 — brak prostokątnego cienia po 4 zmianach motywu (2× w każdą stronę): PASS. Etykieta bez wyblaknięcia po 10 przełączeniach (PL i EN): PASS. FAIL: przy czcionce 1.0 po angielsku „Expenses” skraca się do „Expens…” (na etykietę zostaje ~53 dp), po polsku „Wydatki” się mieści. Przy czcionce 2.0 „Exp..”/„Wy…” (obserwacja). Poza zakresem: „Podróż”/„Wydatki” pokazują błąd wczytywania podróży na emulatorze (znane z A3). Pytanie do Kacpra o szerokość (P10).
 - 2026-11-06 — A9 (frontend): `pillWidth` 300 → 320 (D11), testy na 320 padały przed zmianą. Verifier: PASS (180/3670, typecheck, lint). Tester (Metro 8086 zrestartowane bez `CI=1`, bo wyłącza obserwowanie plików): pigułka 840 px = 320 dp, wyśrodkowana, stała na 4 zakładkach w jasnym i ciemnym; EN „Trip/Expenses/Plan/Profile” i PL „Podróż/Wydatki” w całości przy 1.0 — PASS. Przy czcionce 2.0 „Expe…” (zgodnie z zasadą skracania z A2). W ciemnym pigułka ~2 dp wyższa przez obramowanie 1 dp (§5.2, zamierzone). A3 zamknięty: jasny/ciemny, pl/en, duża czcionka sprawdzone na A5–A9. Strumień A gotowy.
 - 2026-11-06 — Kacper odpowiedział na P2–P8 → D12–D17. Plan B i C przedstawiony do akceptacji.
+- 2026-11-06 — Kacper zaakceptował plan B i C („Akceptuje”) i poprosił o realizację w podsesjach. Kroki B3/B4 wykreślone (zrobione w `profile-settings`). Startują sesje B i C.
