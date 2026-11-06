@@ -7,7 +7,7 @@ import { AccessibilityInfo, StyleSheet, Text } from 'react-native';
 
 import DrawerLayout from '@/app/(drawer)/_layout';
 import TabsLayout from '@/app/(drawer)/(tabs)/_layout';
-import AuthLayout from '@/app/(auth)/_layout';
+import * as AuthLayout from '@/app/(auth)/_layout';
 import CodeScreen from '@/app/(auth)/code';
 import EmailScreen from '@/app/(auth)/email';
 import WelcomeScreen from '@/app/(auth)/welcome';
@@ -67,9 +67,8 @@ function routes(overrides: Record<string, () => React.JSX.Element | null> = {}) 
 }
 
 async function open(initialUrl?: string, overrides?: Record<string, () => React.JSX.Element | null>) {
-  const rendered = renderRouter(routes(overrides), initialUrl ? { initialUrl } : undefined);
-  const { container } = await rendered;
-  // renderRouter attaches getPathname to the returned promise, not to the awaited result.
+  const rendered = await renderRouter(routes(overrides), initialUrl ? { initialUrl } : undefined);
+  const { container } = rendered;
   return { getPathname: () => rendered.getPathname(), container };
 }
 

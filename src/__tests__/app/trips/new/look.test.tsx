@@ -68,7 +68,7 @@ function Seed() {
 }
 
 async function open(step: 'flights' | Step) {
-  const rendered = renderRouter(
+  const rendered = await renderRouter(
     {
       _layout: RootLayout,
       '(drawer)/_layout': DrawerLayout,
@@ -89,7 +89,7 @@ async function open(step: 'flights' | Step) {
   return { container };
 }
 
-const flat = (element: { props: { style?: unknown } }): ViewStyle => StyleSheet.flatten(element.props.style as ViewStyle);
+const flat = (element: { props: { style?: unknown } }): ViewStyle => StyleSheet.flatten(element.props.style as ViewStyle) ?? {};
 
 beforeEach(async () => {
   mockScheme = 'light';

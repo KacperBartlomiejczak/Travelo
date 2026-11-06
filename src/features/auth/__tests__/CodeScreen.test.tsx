@@ -502,8 +502,7 @@ describe('CodeScreen (auth-onboarding D6, P3, P5, D17)', () => {
 
   describe('no address (D17)', () => {
     it('opened directly, e.g. by a deep link: redirects to the e-mail screen', async () => {
-      const rendered = renderEmailFlow('/code');
-      await rendered;
+      const rendered = await renderEmailFlow('/code');
 
       await waitFor(() => expect(rendered.getPathname()).toBe('/email'));
       expect(screen.getByTestId('email-screen')).toBeTruthy();

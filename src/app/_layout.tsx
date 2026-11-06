@@ -89,15 +89,18 @@ function GateContent({ view, retry }: ReturnType<typeof useGateView>) {
     return <FullScreenError testID="profile-error" message={t("auth.profileLoadError")} retryLabel={t("auth.retry")} onRetry={retry} />;
   }
 
+  // Where a failed guard sends the user (expo-router 58): the screen of the current state. Its default, the first unguarded route, can
+  // be a pathless group that shares the URL "/" with the guarded home, which leaves "Unmatched Route".
+  const redirectTo = view === "signedOut" ? "/welcome" : view === "onboarding" ? "/onboarding" : "/";
   return (
     <Stack>
-      <Stack.Protected guard={view === "signedOut"}>
+      <Stack.Protected guard={view === "signedOut"} redirectTo={redirectTo}>
         <Stack.Screen name="(auth)" options={{ headerShown: false }} />
       </Stack.Protected>
-      <Stack.Protected guard={view === "onboarding"}>
+      <Stack.Protected guard={view === "onboarding"} redirectTo={redirectTo}>
         <Stack.Screen name="onboarding" options={{ headerShown: false }} />
       </Stack.Protected>
-      <Stack.Protected guard={view === "app"}>
+      <Stack.Protected guard={view === "app"} redirectTo={redirectTo}>
         <Stack.Screen name="(drawer)" options={{ headerShown: false }} />
         <Stack.Screen name="trips/new" options={{ headerShown: false }} />
         {/* Settings above the drawer, so without the pill (profile-screen A4); its back button returns to the profile. */}

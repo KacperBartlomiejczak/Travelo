@@ -32,7 +32,7 @@ jest.mock('@expo/ui/community/datetime-picker', () => {
 });
 
 async function openFlights() {
-  const rendered = renderRouter(
+  const rendered = await renderRouter(
     {
       _layout: RootLayout,
       '(drawer)/_layout': DrawerLayout,
@@ -46,7 +46,6 @@ async function openFlights() {
     },
     { initialUrl: '/' },
   );
-  await rendered;
   await fireEvent.press(await screen.findByText('Utwórz podróż'));
   return { getPathname: () => rendered.getPathname() };
 }

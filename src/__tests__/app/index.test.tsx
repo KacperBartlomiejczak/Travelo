@@ -27,10 +27,9 @@ jest.mock('react-native/Libraries/Utilities/useWindowDimensions', () => ({
 jest.mock('expo-font', () => ({ ...jest.requireActual('expo-font'), useFonts: jest.fn() }));
 jest.mocked(useFonts).mockReturnValue([true, null]);
 
-// Waits until the trips have loaded (the screen shows a loading state first); the promise still
-// carries getPathname from renderRouter.
-function renderTrips() {
-  const rendered = renderRouter({
+// Waits until the trips have loaded (the screen shows a loading state first).
+async function renderTrips() {
+  const rendered = await renderRouter({
     _layout: RootLayout,
     '(drawer)/_layout': DrawerLayout,
     '(drawer)/(tabs)/_layout': TabsLayout,
@@ -38,11 +37,8 @@ function renderTrips() {
     'trips/new/_layout': NewTripLayout,
     'trips/new/index': FlightsStep,
   });
-  const loaded = rendered.then(async (result) => {
-    await waitFor(() => expect(screen.queryByTestId('trips-loading')).toBeNull());
-    return result;
-  });
-  return Object.assign(loaded, { getPathname: () => rendered.getPathname() });
+  await waitFor(() => expect(screen.queryByTestId('trips-loading')).toBeNull());
+  return rendered;
 }
 
 beforeEach(async () => {
@@ -77,9 +73,7 @@ describe('Trips screen — empty state', () => {
   });
 
   it('opens the new trip screen when the button is pressed', async () => {
-    // renderRouter attaches getPathname to the returned promise, not to the awaited result.
-    const rendered = renderTrips();
-    await rendered;
+    const rendered = await renderTrips();
     expect(rendered.getPathname()).toBe('/');
     await fireEvent.press(screen.getByRole('button', { name: 'Utwórz podróż' }));
     expect(rendered.getPathname()).toBe('/trips/new');

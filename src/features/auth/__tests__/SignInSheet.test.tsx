@@ -37,12 +37,11 @@ function Layout() {
 
 async function setup() {
   const onClose = jest.fn();
-  const rendered = renderRouter({
+  const rendered = await renderRouter({
     _layout: Layout,
     index: () => <SignInSheet onClose={onClose} />,
     email: () => <Text>email screen</Text>,
   });
-  await rendered;
   return { onClose, getPathname: () => rendered.getPathname() };
 }
 

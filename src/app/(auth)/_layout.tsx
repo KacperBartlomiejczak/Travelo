@@ -8,6 +8,9 @@ import { useTheme } from '@/theme/useTheme';
 // welcome screen is declared first so it is the one a signed-out user lands on; without it the first screen would be "code",
 // the first by name. It has no header (it is always dark, full screen); the e-mail and code screens have the wizard's native one
 // with only a back button, labelled "Wstecz". The address typed on the e-mail screen is kept here, for the code screen (D17).
+// expo-router 58 no longer takes the first declared screen as the first one; the anchor does.
+export const unstable_settings = { anchor: 'welcome' };
+
 export default function AuthLayout() {
   const { t } = useTranslation();
   const theme = useTheme();

@@ -14,7 +14,7 @@ import i18n from '@/i18n';
 jest.mock('expo-font', () => ({ ...jest.requireActual('expo-font'), useFonts: jest.fn() }));
 jest.mocked(useFonts).mockReturnValue([true, null]);
 
-jest.mock('expo-status-bar', () => ({ StatusBar: () => null }));
+jest.mock('expo-status-bar', () => ({ ...jest.requireActual('expo-status-bar'), StatusBar: () => null }));
 
 // The real Drawer, wrapped only to see which options the layout gave it: the edge swipe itself needs a device.
 let mockSwipeEnabled: unknown;
@@ -23,10 +23,14 @@ jest.mock('expo-router/drawer', () => {
   const RealDrawer = actual.Drawer;
   return {
     ...actual,
-    Drawer: (props: { screenOptions?: { swipeEnabled?: boolean } }) => {
-      mockSwipeEnabled = props.screenOptions?.swipeEnabled;
-      return <RealDrawer {...props} />;
-    },
+    // The layout declares its screen (`Drawer.Screen`), so the wrapper keeps the real one.
+    Drawer: Object.assign(
+      (props: { screenOptions?: { swipeEnabled?: boolean } }) => {
+        mockSwipeEnabled = props.screenOptions?.swipeEnabled;
+        return <RealDrawer {...props} />;
+      },
+      { Screen: RealDrawer.Screen },
+    ),
   };
 });
 
@@ -49,22 +53,19 @@ beforeEach(async () => {
 
 describe('Side panel only on the home screen (pill-nav-and-dialog R3)', () => {
   it('lets the edge swipe open the panel on "/"', async () => {
-    const app = renderRouter(ROUTES);
-    await app;
+    const app = await renderRouter(ROUTES);
     expect(app.getPathname()).toBe('/');
     expect(mockSwipeEnabled).toBe(true);
   });
 
   it.each(['/expenses', '/places', '/plan', '/profile'])('turns the edge swipe off on %s', async (path) => {
-    const app = renderRouter(ROUTES, { initialUrl: path });
-    await app;
+    const app = await renderRouter(ROUTES, { initialUrl: path });
     expect(app.getPathname()).toBe(path);
     expect(mockSwipeEnabled).toBe(false);
   });
 
   it('follows the pill: off after leaving the home screen, on again after coming back', async () => {
-    const app = renderRouter(ROUTES);
-    await app;
+    const app = await renderRouter(ROUTES);
     await screen.findByTestId('trips-screen');
     await fireEvent.press(screen.getByRole('button', { name: 'Wydatki' }));
     await waitFor(() => expect(app.getPathname()).toBe('/expenses'));

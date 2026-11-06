@@ -139,8 +139,7 @@ describe('RootLayout', () => {
 
   it('shows the home screen at / inside the side panel navigator, closed at start (trips-drawer)', async () => {
     mockedUseFonts.mockReturnValue([true, null]);
-    const rendered = renderApp();
-    await rendered;
+    const rendered = await renderApp();
     expect(rendered.getPathname()).toBe('/');
     expect(rendered.getSegments()).toEqual(['(drawer)', '(tabs)']);
     expect(screen.getByText('home screen')).toBeTruthy();

@@ -1,6 +1,6 @@
 import { useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { AccessibilityInfo, Text, View, type ScrollView } from 'react-native';
+import { AccessibilityInfo, Text, View, type ScrollViewInstance } from 'react-native';
 
 import { hasUnresolvedCode } from '@/features/trip-create/draft';
 import { fieldErrors } from '@/features/trip-create/field-errors';
@@ -20,7 +20,7 @@ export default function FriendsStep() {
   const [submitted, setSubmitted] = useState(false);
   const input = { friends: draft.friends };
   const errors = submitted ? fieldErrors(FriendsStepInputSchema.safeParse(input)) : {};
-  const scrollRef = useRef<ScrollView>(null);
+  const scrollRef = useRef<ScrollViewInstance>(null);
   const cardY = useRef<Record<number, number>>({});
 
   function next() {

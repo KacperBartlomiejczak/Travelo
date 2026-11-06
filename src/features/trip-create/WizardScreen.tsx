@@ -12,6 +12,7 @@ import {
   TextInput,
   useWindowDimensions,
   View,
+  type ScrollViewInstance,
   type ScrollViewProps,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -30,13 +31,13 @@ type Props = {
   /** Bottom action, pinned in the thumb zone. */
   action?: { label: string; onPress: () => void; loading?: boolean; icon?: LucideIcon; error?: string };
   /** Lets the step scroll, e.g. to the first error (D29). */
-  scrollRef?: RefObject<ScrollView | null>;
+  scrollRef?: RefObject<ScrollViewInstance | null>;
 };
 
 // iOS only (wizard-keyboard Q5, D6): the frame's padding already makes room for the keyboard, so the scroll view must not
 // adjust by itself too (`automaticallyAdjustKeyboardInsets`). Once the keyboard is shown, a focused field still below the
 // visible part is scrolled up to sit `gap` above "Dalej". Returns the scroll view props it needs; Android gets none (D4).
-function useScrollFocusedFieldIntoView(scroll: RefObject<ScrollView | null>, gap: number): ScrollViewProps {
+function useScrollFocusedFieldIntoView(scroll: RefObject<ScrollViewInstance | null>, gap: number): ScrollViewProps {
   const ios = Platform.OS === 'ios';
   // `scrollTo` wants an absolute offset, so the current one is tracked.
   const scrolledY = useRef(0);
@@ -77,7 +78,7 @@ export function WizardScreen({ step, children, action, scrollRef }: Props) {
   const steps = wizardSteps(draft.companionCount);
   const { spacing } = tokens;
   const horizontal = width < tokens.layout.compactBreakpoint ? spacing[4] : spacing[5];
-  const ownScrollRef = useRef<ScrollView>(null);
+  const ownScrollRef = useRef<ScrollViewInstance>(null);
   const scroll = scrollRef ?? ownScrollRef;
   const keyboardScrollProps = useScrollFocusedFieldIntoView(scroll, spacing[4]);
 

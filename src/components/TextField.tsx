@@ -1,5 +1,5 @@
 import { useState, type Ref } from 'react';
-import { TextInput, type TextInputProps } from 'react-native';
+import { TextInput, type TextInputInstance, type TextInputProps } from 'react-native';
 
 import { useTheme } from '@/theme/useTheme';
 
@@ -27,7 +27,7 @@ type Props = Pick<
   hint?: string;
   error?: string;
   /** Lets a screen focus the input, e.g. to correct a wrong code. */
-  inputRef?: Ref<TextInput>;
+  inputRef?: Ref<TextInputInstance>;
 };
 
 export function TextField({ label, value, onChangeText, optional, hint, error, inputRef, ...inputProps }: Props) {

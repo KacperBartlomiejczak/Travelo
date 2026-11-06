@@ -19,15 +19,15 @@ export default function TabsLayout() {
 }
 
 // Same press handling as the default bar: `tabPress` listeners can prevent the switch, and the focused item does nothing.
-function PillTabBar({ state, navigation }: BottomTabBarProps) {
+function PillTabBar({ state, emitter, navigateToTab }: BottomTabBarProps) {
   const { t } = useTranslation();
   const items = NAV_TABS.map(({ key, labelKey, Icon }) => ({ key, label: t(labelKey), Icon }));
   const select = (key: string) => {
     const route = state.routes.find((candidate) => candidate.name === key);
     if (!route) return;
     const focused = state.routes[state.index].key === route.key;
-    const event = navigation.emit({ type: 'tabPress', target: route.key, canPreventDefault: true });
-    if (!focused && !event.defaultPrevented) navigation.navigate(route.name, route.params);
+    const event = emitter.emit({ type: 'tabPress', target: route.key, canPreventDefault: true });
+    if (!focused && !event.defaultPrevented) navigateToTab(route.key);
   };
   return <PillNav items={items} activeKey={state.routes[state.index].name} onSelect={select} />;
 }

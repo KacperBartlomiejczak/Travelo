@@ -21,7 +21,7 @@ import { colors } from '@/theme/tokens';
 
 jest.mock('expo-font', () => ({ ...jest.requireActual('expo-font'), useFonts: jest.fn() }));
 jest.mocked(useFonts).mockReturnValue([true, null]);
-jest.mock('expo-status-bar', () => ({ StatusBar: () => null }));
+jest.mock('expo-status-bar', () => ({ ...jest.requireActual('expo-status-bar'), StatusBar: () => null }));
 // Sunline's press scale also calls withTiming; the pulse tests below must count only the skeleton's calls.
 jest.mock('@/components/usePressScale', () => ({ usePressScale: () => ({ style: {}, onPressIn: () => undefined, onPressOut: () => undefined }) }));
 
@@ -78,17 +78,16 @@ const ROUTES = {
   settings: SettingsStub,
 };
 
-// renderRouter attaches getPathname to the promise it returns, so the helper hands the promise on. By default it also
+// By default the helper also
 // waits until the profile and the trips have arrived, so no state update lands after the test; `settle: false` is for
 // the tests that look at the screen while the trips are still loading.
-function renderProfile({ settle = true }: { settle?: boolean } = {}) {
-  const rendered = renderRouter(ROUTES, { initialUrl: '/profile' });
-  const done = rendered.then(async () => {
-    if (!settle) return;
+async function renderProfile({ settle = true }: { settle?: boolean } = {}) {
+  const rendered = await renderRouter(ROUTES, { initialUrl: '/profile' });
+  if (settle) {
     await screen.findByText('kacper');
     await waitFor(() => expect(screen.queryAllByTestId('stat-skeleton', { includeHiddenElements: true })).toHaveLength(0));
-  });
-  return Object.assign(done, { getPathname: () => rendered.getPathname() });
+  }
+  return rendered;
 }
 
 const style = (element: ReturnType<typeof screen.getByTestId>) => StyleSheet.flatten(element.props.style);
@@ -152,8 +151,7 @@ describe('Profile screen — header (profile-screen D6, D10)', () => {
   });
 
   it('has a gear button labelled "Ustawienia", at least 44dp, that opens /settings', async () => {
-    const rendered = renderProfile();
-    await rendered;
+    const rendered = await renderProfile();
     const gear = screen.getByRole('button', { name: 'Ustawienia' });
     expect(gear).toHaveStyle({ width: lightTheme.size.touchTarget, height: lightTheme.size.touchTarget });
     await fireEvent.press(gear);
@@ -624,8 +622,7 @@ describe('Profile screen — photo and nick (A3)', () => {
             return { profile: { ...first.profile, avatarUrl: `${first.profile.avatarUrl}?v=${version}` }, fromCache: false };
           }),
         );
-        const rendered = renderProfile();
-        await rendered;
+        const rendered = await renderProfile();
         const gear = () => screen.getByRole('button', { name: 'Ustawienia' });
         const readOnceMore = async (next: string) => {
           version = next;
