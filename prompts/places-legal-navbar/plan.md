@@ -161,7 +161,7 @@ Ja jestem managerem. Po akceptacji każdy strumień dostaje **osobną sesję (te
 - [x] A4. [orkiestrator] Docs: `frontend.md`, `overview.md`, `context/app-context.md`, `context/design-context.md` §8.14.
 - [x] B1. [sesja B] Teksty polityki i regulaminu PL/EN w `docs/legal/` → przegląd Kacpra.
 - [x] B2. [frontend] Ekran `/legal/[doc]` + klucze i18n + linki w Ustawieniach i arkuszu logowania → verifier.
-- [ ] A10. [sesja A10] Bez tła kółek + mniejsze odstępy (D18) → verifier → tester.
+- [x] A10. [sesja A10] Bez tła kółek + mniejsze odstępy (D18) → verifier → tester.
 - [ ] B5. [orkiestrator] Publikacja dokumentów pod publicznym URL (P3).
 - [ ] C1. [backend] `src/schemas/place.ts` + testy schematów → verifier.
 - [ ] C2. [backend] `place-types.ts` (mapowanie) i `place-picks.ts` (filtr odpowiedzi Gemini) z testami → verifier.
@@ -203,7 +203,7 @@ Scenariusze ręczne C7: brak podróży → „Odkryj miejsca” → wybór miast
 - **D15 — P6 = (a): lista kart** (nazwa, typ, adres, „dlaczego dla Ciebie” od AI, „Otwórz w Mapach Google”), bez ocen, zdjęć i mapy (Kacper, 2026-11-06).
 - **D16 — P7 = (a): wejście tylko z pustego stanu „Podróż”** — przycisk „Odkryj miejsca” → ekran `/discover`; bez linku w szufladzie (Kacper, 2026-11-06).
 - **D17 — P8:** limit **5 zapytań dziennie** na użytkownika (licznik w tabeli `ai_usage`); Gemini na darmowym poziomie tylko w developmencie, **płatny przed wydaniem**; model `gemini-2.5-flash` (Kacper, 2026-11-06).
-- **D18 — Bez tła kółek, ikony bliżej siebie:** nieaktywne zakładki bez `background.sunken` (samo tło pigułki), mniejsze odstępy, węższa pigułka — wzór: `prompts/places-legal-navbar/ref/1–4.png` (Kacper, 2026-11-06: „ten background daje dziwne złudzenie”). Krok A10, osobna sesja.
+- **D18 — Bez tła kółek, ikony bliżej siebie:** nieaktywne zakładki bez `background.sunken` (samo tło pigułki), mniejsze odstępy, węższa pigułka — wzór: `prompts/places-legal-navbar/ref/1–4.png` (Kacper, 2026-11-06: „ten background daje dziwne złudzenie”). Krok A10, osobna sesja. Odpowiedzi Kacpra (sesja A10): (a) szerokość stała, węższa — `pillWidth` 296 (zastępuje 320 z D11; 288 odrzucone, bo „Expenses” skracałoby się przy 1.0); (b) odstęp min. 4 dp (`spacing[1]`), dalej `space-between`; (c) cel dotyku nieaktywnych 48×48 zostaje; (d) wciśnięcie nieaktywnej = tylko skala 98%, bez tła (zastępuje D8 dla nieaktywnych; aktywna dalej `brand.pressed`).
 - **D9 — Pigułka na pełną szerokość:** `min(szerokość − 32, maxContentWidth)`, elementy rozłożone równo w środku; pigułka się nie rusza, przesuwa się tylko kapsuła (Kacper, 2026-11-05).
 - **D4 — Nowy wygląd pigułki** wg wzoru: aktywna = wypełniona kapsuła ikona + etykieta, nieaktywne = okrągłe przyciski z ikoną; w kolorach Sunline.
 
@@ -230,3 +230,5 @@ Scenariusze ręczne C7: brak podróży → „Odkryj miejsca” → wybór miast
 - 2026-11-06 — Kacper zaakceptował plan B i C („Akceptuje”) i poprosił o realizację w podsesjach. Kroki B3/B4 wykreślone (zrobione w `profile-settings`). Startują sesje B i C.
 - 2026-11-06 — Sesja B (gałąź `claude/legal-b-c00ba7`): Kacper zaakceptował teksty B1 (64b9732), workflow GitHub Pages dla B5 (7a02746), B2 w toku. Sesja C (gałąź `claude/places-c-4a8a42`): C1 gotowe (42 testy), miasto w C5 wybierane z listy z bazy lotnisk (decyzja Kacpra w sesji C), C2 w toku. Gałęzie jeszcze nie scalone.
 - 2026-11-06 — Strumień B scalony do `feature/places-legal-navbar` (7c6e384, za zgodą Kacpra): B1 64b9732, B5 workflow 7a02746, B2 9993ed7 (verifier PASS za trzecim razem: przyciski 44 dp zamiast linków w tekście, zawijanie przy dużej czcionce). Po scaleniu: 182/3688 testów, typecheck i lint zielone (wcześniej typecheck padał na nieaktualnym `.expo/types/router.d.ts` — przegenerowany restartem Metro). B5 otwarte: Kacper włącza Pages w ustawieniach repo; do uzupełnienia region Supabase w polityce; przegląd prawnika; ekran `/legal` niesprawdzony na urządzeniu.
+- 2026-11-06 — A10 scalony (sesja A10, gałąź `claude/pill-a10-f2dc73`, d253faf): bez kółek, odstęp 4 dp, pigułka 296 dp. Verifier PASS, tester 6/6 (jasny/ciemny, PL/EN, czcionka 2.0: „Expe…”). Po scaleniu 182/3688, typecheck, lint zielone. Docs: `design-context.md` §8.14, `frontend.md`. Uwaga: sesja C nazwała swoją decyzję o wyborze miasta „D18” — w planie trafi pod D19.
+- 2026-11-06 — Podróże nie wczytywały się, bo baza Supabase nie miała migracji `20261104120000_daily_budget` (z innego zadania). Kacper zgodził się — nałożona w jednej transakcji z tą samą wersją; ekran „Podróż” wczytuje się na emulatorze.
