@@ -7,6 +7,7 @@ export * from './expense';
 export * from './create-trip-form';
 export * from './flight';
 export * from './interests';
+export * from './place';
 export * from './member';
 export * from './preferences';
 export * from './profile';
