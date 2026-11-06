@@ -283,6 +283,9 @@
       "google": "Kontynuuj z Google",
       "discord": "Kontynuuj z Discordem",
       "email": "Kontynuuj z e-mailem",
+      "legal": "Kontynuując, akceptujesz Regulamin i Politykę prywatności.",
+      "legalTerms": "Regulamin",
+      "legalPrivacy": "Polityka prywatności",
       "error": {
         "google": "Nie udało się zalogować przez Google. Spróbuj ponownie.",
         "discord": "Nie udało się zalogować przez Discorda. Spróbuj ponownie."
@@ -369,6 +372,8 @@
     "english": "Angielski",
     "about": "O aplikacji",
     "version": "Wersja",
+    "privacyPolicy": "Polityka prywatności",
+    "terms": "Regulamin",
     "signOut": "Wyloguj się",
     "signOutOffline": "Połącz się z internetem, żeby się wylogować.",
     "deleteAccount": "Usuń konto",
@@ -452,5 +457,282 @@
   },
   "a11y": {
     "addExpense": "Dodaj wydatek"
+  },
+  "legal": {
+    "privacy": {
+      "title": "Polityka prywatności aplikacji Travelo",
+      "updated": "Wersja z 6 listopada 2026 r.",
+      "sections": [
+        {
+          "heading": "",
+          "paragraphs": [
+            "Ta polityka wyjaśnia, jakie dane osobowe przetwarza aplikacja mobilna Travelo („Aplikacja”), po co, jak długo i jakie masz prawa."
+          ]
+        },
+        {
+          "heading": "1. Administrator danych",
+          "paragraphs": [
+            "Administratorem Twoich danych osobowych jest Kacper Bartłomiejczak, osoba fizyczna, Polska („my”, „Administrator”).",
+            "We wszystkich sprawach dotyczących danych osobowych napisz na: kacperbartlomiejczak@proton.me.",
+            "Nie wyznaczyliśmy inspektora ochrony danych — nie mamy takiego obowiązku."
+          ]
+        },
+        {
+          "heading": "2. Jakie dane przetwarzamy",
+          "paragraphs": []
+        },
+        {
+          "heading": "2.1 Konto i logowanie",
+          "paragraphs": [
+            "• Logowanie przez Google: adres e-mail i identyfikator konta Google, które Google przekazuje nam po Twojej zgodzie na ekranie logowania.",
+            "• Logowanie przez Discord: adres e-mail i identyfikator konta Discord.",
+            "• Logowanie e-mailem: adres e-mail, na który wysyłamy 6-cyfrowy kod.",
+            "• Dane techniczne logowania: data i godzina logowania, adres IP i informacje o urządzeniu zapisywane w logach serwera.",
+            "Nie znamy i nie przechowujemy Twojego hasła do Google ani Discorda."
+          ]
+        },
+        {
+          "heading": "2.2 Profil",
+          "paragraphs": [
+            "• Nick (unikalny), wybrane zainteresowania, opcjonalne zdjęcie profilowe.",
+            "• Kod znajomego (6 znaków), nadawany automatycznie. Osoba, która zna Twój kod, może zobaczyć Twój nick i zainteresowania i dodać Cię do swojej podróży jako znajomego z kontem."
+          ]
+        },
+        {
+          "heading": "2.3 Podróże",
+          "paragraphs": [
+            "• Nazwa podróży, zdjęcie okładki, loty (lotniska, daty i godziny, opcjonalnie numer lotu), dzienny budżet i waluta.",
+            "• Znajomi bez konta: imię (lub inne oznaczenie) i zainteresowania osób, które dodajesz do podróży. Te osoby nie mają konta w Aplikacji. Dodawaj je tylko wtedy, gdy wiedzą, że korzystasz z ich danych do zaplanowania wspólnej podróży.",
+            "• Znajomi z kontem: jeśli dodasz osobę po jej kodzie znajomego, widzi ona podróż (bez możliwości jej zmiany) i może dodawać własne wydatki. Ty widzisz jej nick i zainteresowania."
+          ]
+        },
+        {
+          "heading": "2.4 Zdjęcia",
+          "paragraphs": [
+            "• Zdjęcia, które dodajesz do podróży, oraz zdjęcie profilowe.",
+            "• Przed wysłaniem Aplikacja zmniejsza zdjęcie i zapisuje je ponownie bez metadanych EXIF, więc bez lokalizacji GPS, modelu aparatu itp. Zachowujemy tylko datę wykonania zdjęcia (do ułożenia zdjęć w kolejności).",
+            "• Zdjęcia są w prywatnym magazynie plików; widzą je tylko osoby z dostępem do danej podróży (zdjęcie profilowe — tylko Ty)."
+          ]
+        },
+        {
+          "heading": "2.5 Wydatki",
+          "paragraphs": [
+            "• Nazwa, kwota, waluta, kategoria i dzień wydatku oraz osoba, która go poniosła (Ty albo znajomy z podróży)."
+          ]
+        },
+        {
+          "heading": "2.6 Odkrywanie miejsc (AI)",
+          "paragraphs": [
+            "• Gdy korzystasz z „Odkryj miejsca”, wysyłamy do Google tylko nazwę miasta i listę zainteresowań. Nie wysyłamy Twojego nicku, e-maila, zdjęć, imion znajomych ani lokalizacji urządzenia.",
+            "• Zapisujemy licznik zapytań w danym dniu (limit 5 dziennie na konto), żeby chronić usługę przed nadużyciem."
+          ]
+        },
+        {
+          "heading": "2.7 Dane tylko na telefonie",
+          "paragraphs": [
+            "Aplikacja trzyma na telefonie kopię Twoich podróży, profilu i wydatków, żeby działała bez internetu, a także wybór motywu i języka. Przy wylogowaniu i usunięciu konta kopia danych jest kasowana z telefonu (motyw i język zostają).",
+            "Aplikacja nie używa narzędzi reklamowych ani analitycznych i nie śledzi Twojej lokalizacji."
+          ]
+        },
+        {
+          "heading": "3. Cele i podstawy prawne",
+          "paragraphs": [
+            "Założenie i prowadzenie konta, logowanie, profil — art. 6 ust. 1 lit. b — wykonanie umowy (regulaminu)",
+            "Planowanie podróży, zdjęcia, wydatki, synchronizacja między telefonem a serwerem — art. 6 ust. 1 lit. b — wykonanie umowy",
+            "Przetwarzanie danych znajomych bez konta, które wpisujesz — art. 6 ust. 1 lit. f — prawnie uzasadniony interes: umożliwienie Ci zaplanowania wspólnej podróży",
+            "Odkrywanie miejsc (miasto + zainteresowania) — art. 6 ust. 1 lit. b — wykonanie umowy",
+            "Bezpieczeństwo, logi, limit zapytań AI, zapobieganie nadużyciom — art. 6 ust. 1 lit. f — prawnie uzasadniony interes: bezpieczeństwo usługi",
+            "Odpowiedzi na wiadomości, reklamacje, obrona przed roszczeniami — art. 6 ust. 1 lit. f oraz art. 6 ust. 1 lit. c (obowiązki z prawa konsumenckiego)",
+            "Podanie danych jest dobrowolne, ale bez adresu e-mail (lub konta Google/Discord) i nicku nie da się założyć konta.",
+            "Nie podejmujemy wobec Ciebie decyzji opartych wyłącznie na zautomatyzowanym przetwarzaniu, które wywołują skutki prawne lub podobnie istotnie na Ciebie wpływają. Rekomendacje miejsc od AI to tylko propozycje."
+          ]
+        },
+        {
+          "heading": "4. Komu przekazujemy dane",
+          "paragraphs": [
+            "• Supabase Inc. — hosting bazy danych, logowania, plików i funkcji serwerowych (podmiot przetwarzający na podstawie umowy powierzenia). Dane są przechowywane w regionie [DO UZUPEŁNIENIA: region projektu Supabase].",
+            "• Google — (a) jeśli logujesz się przez Google: Google jako osobny administrator uwierzytelnia Cię i przekazuje nam e-mail; (b) Google Places API i Gemini API dostają tylko miasto i zainteresowania z zapytania „Odkryj miejsca”. Zapytanie wysyła nasz serwer, nie Twój telefon. Używamy płatnej wersji Gemini API, w której Google nie wykorzystuje zapytań do trenowania modeli.",
+            "• Discord Inc. — jeśli logujesz się przez Discord, jako osobny administrator.",
+            "• Znajomi z kontem, których dodasz do podróży lub którzy dodali Ciebie — widzą dane tej podróży (patrz 2.3).",
+            "• Organy publiczne — tylko gdy wymaga tego prawo.",
+            "Nie sprzedajemy danych i nie udostępniamy ich do celów marketingowych."
+          ]
+        },
+        {
+          "heading": "5. Przekazywanie poza Europejski Obszar Gospodarczy",
+          "paragraphs": [
+            "Supabase, Google i Discord to firmy z USA. Jeśli dane trafiają poza EOG, odbywa się to na podstawie decyzji Komisji Europejskiej o odpowiednim stopniu ochrony (EU-US Data Privacy Framework) albo standardowych klauzul umownych (art. 46 RODO). Kopię zabezpieczeń możesz otrzymać, pisząc na adres z punktu 1."
+          ]
+        },
+        {
+          "heading": "6. Jak długo przechowujemy dane",
+          "paragraphs": [
+            "• Dane konta, profilu, podróży, zdjęć i wydatków — do usunięcia konta (albo wcześniejszego usunięcia przez Ciebie danej podróży, zdjęcia czy wydatku).",
+            "• Po usunięciu konta dane są kasowane od razu z bazy i magazynu plików. Kopie zapasowe dostawcy mogą je zawierać jeszcze przez ograniczony czas wynikający z cyklu kopii, po czym są nadpisywane.",
+            "• Wyjątek: w cudzych podróżach, do których należysz, Twój nick i Twoje wydatki zostają jako „znajomy bez konta”, bo są częścią podróży innej osoby.",
+            "• Licznik zapytań AI — przez dobę, której dotyczy, i krótko potem.",
+            "• Logi techniczne — przez okres ustawiony przez dostawcę hostingu, zwykle kilka dni.",
+            "• Korespondencja z nami — do czasu załatwienia sprawy, a jeśli dotyczy reklamacji lub roszczeń — do upływu terminu przedawnienia."
+          ]
+        },
+        {
+          "heading": "7. Twoje prawa",
+          "paragraphs": [
+            "Masz prawo do:",
+            "• dostępu do swoich danych i otrzymania ich kopii,",
+            "• sprostowania danych (nick i zainteresowania zmienisz sam w „Edytuj profil”),",
+            "• usunięcia danych,",
+            "• ograniczenia przetwarzania,",
+            "• przenoszenia danych,",
+            "• sprzeciwu wobec przetwarzania opartego na prawnie uzasadnionym interesie,",
+            "• wniesienia skargi do Prezesa Urzędu Ochrony Danych Osobowych (ul. Stawki 2, 00-193 Warszawa, uodo.gov.pl).",
+            "Aby skorzystać z praw, napisz na adres z punktu 1. Odpowiemy w ciągu miesiąca.",
+            "Jeśli jesteś osobą dodaną do czyjejś podróży bez konta i chcesz usunięcia swoich danych, napisz do nas albo poproś organizatora, żeby Cię usunął."
+          ]
+        },
+        {
+          "heading": "8. Usunięcie konta",
+          "paragraphs": [
+            "Konto usuniesz sam w Aplikacji: Profil → Ustawienia → Usuń konto (wymaga internetu). Usunięcie kasuje konto, profil, zdjęcie profilowe i wszystkie podróże, których jesteś organizatorem, razem z ich wydatkami i zdjęciami — także dla dodanych znajomych. Możesz też poprosić o usunięcie konta e-mailem."
+          ]
+        },
+        {
+          "heading": "9. Bezpieczeństwo",
+          "paragraphs": [
+            "Połączenia są szyfrowane (HTTPS). Dostęp do danych w bazie ograniczają reguły bezpieczeństwa na poziomie wierszy — każdy widzi tylko swoje dane i podróże, do których należy. Zdjęcia są w prywatnym magazynie i pokazywane przez linki ważne godzinę. Klucze do usług zewnętrznych są tylko na serwerze."
+          ]
+        },
+        {
+          "heading": "10. Wiek",
+          "paragraphs": [
+            "Aplikacja jest przeznaczona dla osób, które ukończyły 16 lat."
+          ]
+        },
+        {
+          "heading": "11. Zmiany polityki",
+          "paragraphs": [
+            "O istotnych zmianach poinformujemy w Aplikacji przed ich wejściem w życie. Aktualna wersja jest zawsze dostępna w Aplikacji i pod adresem publicznym tej polityki."
+          ]
+        }
+      ]
+    },
+    "terms": {
+      "title": "Regulamin aplikacji Travelo",
+      "updated": "Wersja z 6 listopada 2026 r.",
+      "sections": [
+        {
+          "heading": "1. Postanowienia ogólne",
+          "paragraphs": [
+            "1. Regulamin określa zasady korzystania z aplikacji mobilnej Travelo („Aplikacja”) i jest regulaminem świadczenia usług drogą elektroniczną.",
+            "2. Usługodawcą jest Kacper Bartłomiejczak, osoba fizyczna, Polska, e-mail: kacperbartlomiejczak@proton.me („Usługodawca”, „my”).",
+            "3. Aplikacja pomaga organizatorowi zaplanować wspólną podróż ze znajomymi: zapisać loty, znajomych i budżet, dodawać zdjęcia i wydatki oraz odkrywać miejsca z pomocą sztucznej inteligencji (AI).",
+            "4. Korzystanie z Aplikacji jest bezpłatne.",
+            "5. Zasady przetwarzania danych osobowych opisuje Polityka prywatności."
+          ]
+        },
+        {
+          "heading": "2. Wymagania techniczne",
+          "paragraphs": [
+            "Potrzebujesz smartfona z aktualnym systemem iOS lub Android, dostępu do internetu (część funkcji działa też bez niego) oraz konta Google, konta Discord albo adresu e-mail."
+          ]
+        },
+        {
+          "heading": "3. Konto",
+          "paragraphs": [
+            "1. Do korzystania z Aplikacji potrzebne jest konto. Zakładasz je, logując się przez Google, Discord albo e-mail i tworząc profil (nick i zainteresowania).",
+            "2. Umowa o świadczenie usług zostaje zawarta z chwilą założenia konta, na czas nieoznaczony.",
+            "3. Możesz w każdej chwili usunąć konto w Aplikacji (Profil → Ustawienia → Usuń konto) albo prosząc nas e-mailem. To rozwiązuje umowę.",
+            "4. Dbaj o bezpieczeństwo swojego konta Google, Discord lub skrzynki e-mail, przez które się logujesz.",
+            "5. Aplikacja jest przeznaczona dla osób, które ukończyły 16 lat."
+          ]
+        },
+        {
+          "heading": "4. Zasady korzystania",
+          "paragraphs": [
+            "1. Korzystaj z Aplikacji zgodnie z prawem i tym regulaminem.",
+            "2. Nie wolno:",
+            "• dodawać treści bezprawnych, obraźliwych lub naruszających prawa innych osób (w tym cudzych zdjęć bez zgody),",
+            "• wpisywać danych innych osób bez ich wiedzy,",
+            "• próbować obejść zabezpieczeń, limitów (np. limitu zapytań AI) ani zakłócać działania usługi,",
+            "• wybierać nicku, który podszywa się pod inną osobę lub jest obraźliwy.",
+            "3. Za naruszenie tych zasad możemy, po wcześniejszym wezwaniu do zaprzestania (chyba że naruszenie jest rażące), zablokować lub usunąć konto. Zawiadomimy Cię o tym e-mailem z podaniem przyczyny."
+          ]
+        },
+        {
+          "heading": "5. Treści użytkownika",
+          "paragraphs": [
+            "1. Zdjęcia, nazwy, wydatki i inne dane, które dodajesz, pozostają Twoje.",
+            "2. Udzielasz nam niewyłącznej, bezpłatnej licencji na przechowywanie, przetwarzanie technicznie (np. zmniejszenie zdjęcia) i wyświetlanie tych treści Tobie i osobom, z którymi dzielisz podróż — wyłącznie w zakresie potrzebnym do działania Aplikacji, na czas istnienia tych treści w Aplikacji.",
+            "3. Odpowiadasz za to, że masz prawo do dodawanych treści, a osoby, których dane wpisujesz (np. imiona i zainteresowania znajomych), wiedzą o tym."
+          ]
+        },
+        {
+          "heading": "6. Rekomendacje AI i dane o miejscach",
+          "paragraphs": [
+            "1. Funkcja „Odkryj miejsca” proponuje miejsca na podstawie danych Google Places i odpowiedzi modelu AI (Google Gemini).",
+            "2. Rekomendacje mają wyłącznie charakter informacyjny. Mogą być nieaktualne, niepełne lub nietrafione. Przed wizytą sam sprawdź godziny otwarcia, ceny, dostępność i bezpieczeństwo miejsca, np. na jego stronie albo w Mapach Google.",
+            "3. Rekomendacje nie są poradą zawodową (np. medyczną, prawną, finansową ani dotyczącą bezpieczeństwa). Decyzje o tym, dokąd pójść i co robić, podejmujesz samodzielnie.",
+            "4. Dane o miejscach pochodzą z Google Maps Platform („Google Maps”) i podlegają Warunkom korzystania z Map Google (https://maps.google.com/help/terms_maps/) oraz Polityce prywatności Google (https://policies.google.com/privacy). Google nie jest stroną tego regulaminu.",
+            "5. Liczba zapytań AI jest ograniczona (obecnie 5 dziennie na konto)."
+          ]
+        },
+        {
+          "heading": "7. Wydatki i budżet",
+          "paragraphs": [
+            "Funkcje budżetu i wydatków służą do prywatnej ewidencji. Kwoty, sumy i salda są wyliczane z wpisanych przez Ciebie danych i nie są poradą finansową ani dokumentem rozliczeniowym."
+          ]
+        },
+        {
+          "heading": "8. Dostępność usługi",
+          "paragraphs": [
+            "1. Dokładamy starań, żeby Aplikacja działała poprawnie i bez przerw, ale nie gwarantujemy nieprzerwanej dostępności. Mogą zdarzać się przerwy techniczne, awarie dostawców (np. hostingu, Google) i błędy.",
+            "2. Możemy rozwijać, zmieniać lub wycofywać funkcje Aplikacji. O wycofaniu istotnej funkcji albo zakończeniu działania Aplikacji poinformujemy z co najmniej 30-dniowym wyprzedzeniem, żebyś mógł zachować potrzebne informacje.",
+            "3. Dbaj o własne kopie ważnych informacji (np. potwierdzeń lotów) — Aplikacja nie zastępuje dokumentów podróży."
+          ]
+        },
+        {
+          "heading": "9. Odpowiedzialność",
+          "paragraphs": [
+            "1. Aplikacja jest udostępniana bezpłatnie, w stanie, w jakim jest. W granicach dopuszczalnych przez prawo nie udzielamy gwarancji, że będzie spełniać wszystkie Twoje oczekiwania.",
+            "2. Nie odpowiadamy za:",
+            "• skutki decyzji podjętych na podstawie rekomendacji AI lub danych o miejscach (pkt 6),",
+            "• treści dodane przez użytkowników,",
+            "• przerwy i błędy po stronie dostawców zewnętrznych, na które nie mamy wpływu.",
+            "3. Postanowienia tego punktu nie wyłączają ani nie ograniczają odpowiedzialności, której wobec konsumenta nie można wyłączyć lub ograniczyć zgodnie z obowiązującym prawem, w szczególności za szkodę wyrządzoną umyślnie oraz za zgodność usługi cyfrowej z umową na zasadach ustawy o prawach konsumenta."
+          ]
+        },
+        {
+          "heading": "10. Reklamacje",
+          "paragraphs": [
+            "1. Reklamację (np. dotyczącą niezgodności usługi z umową) wyślij na kacperbartlomiejczak@proton.me. Opisz problem i podaj e-mail lub nick konta.",
+            "2. Odpowiemy w ciągu 14 dni od otrzymania reklamacji.",
+            "3. Jako konsument możesz też skorzystać z pozasądowych sposobów rozwiązywania sporów, np. pomocy miejskiego lub powiatowego rzecznika konsumentów albo wojewódzkiego inspektoratu Inspekcji Handlowej."
+          ]
+        },
+        {
+          "heading": "11. Zmiany regulaminu",
+          "paragraphs": [
+            "1. Możemy zmienić regulamin z ważnych przyczyn: zmiany prawa, zmiany funkcji Aplikacji, zmiany dostawców usług lub względów bezpieczeństwa.",
+            "2. O zmianie poinformujemy w Aplikacji co najmniej 14 dni przed jej wejściem w życie.",
+            "3. Jeśli nie akceptujesz zmian, możesz przed ich wejściem w życie usunąć konto. Dalsze korzystanie z Aplikacji po tej dacie oznacza akceptację nowej wersji."
+          ]
+        },
+        {
+          "heading": "12. Prawo właściwe",
+          "paragraphs": [
+            "1. Regulamin podlega prawu polskiemu. Jeśli jesteś konsumentem mieszkającym w innym państwie, wybór prawa polskiego nie pozbawia Cię ochrony, jaką dają Ci bezwzględnie obowiązujące przepisy prawa Twojego kraju.",
+            "2. Spory rozstrzygają sądy właściwe według przepisów ogólnych."
+          ]
+        },
+        {
+          "heading": "13. Kontakt",
+          "paragraphs": [
+            "Pytania o Aplikację i ten regulamin: kacperbartlomiejczak@proton.me."
+          ]
+        }
+      ]
+    },
+    "error": "Nie udało się wczytać dokumentu.",
+    "back": "Wstecz"
   }
 }

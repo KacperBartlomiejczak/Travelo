@@ -17,6 +17,7 @@ import { useMyProfile } from '@/hooks/useProfile';
 import { useSignOut } from '@/hooks/useSignOut';
 import { useTripRepository } from '@/providers/AppProviders';
 import { useIsOffline } from '@/providers/BudgetSync';
+import type { LegalDoc } from '@/schemas/legal';
 import { tokens } from '@/theme/tokens';
 import { useTheme } from '@/theme/useTheme';
 
@@ -31,6 +32,29 @@ function Section({ title, children }: { title: string; children: ReactNode }) {
       </Text>
       <Card>{children}</Card>
     </View>
+  );
+}
+
+function LegalRow({ label, doc }: { label: string; doc: LegalDoc }) {
+  const theme = useTheme();
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={label}
+      onPress={() => router.push(`/legal/${doc}`)}
+      style={({ pressed }) => ({
+        minHeight: layout.touchTarget,
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        gap: spacing[2],
+        borderRadius: tokens.radii.xs,
+        backgroundColor: pressed ? theme.background.sunken : undefined,
+      })}
+    >
+      <Text style={[typography.styles.bodyMD, { color: theme.text.primary, flexShrink: 1 }]}>{label}</Text>
+      <ChevronRight aria-hidden size={iconography.size.sm} strokeWidth={iconography.strokeWidth} color={theme.icon.secondary} />
+    </Pressable>
   );
 }
 
@@ -137,6 +161,8 @@ export function SettingsScreen() {
             <Text style={[typography.styles.bodyMD, { color: theme.text.primary }]}>{t('settings.version')}</Text>
             <Text style={[typography.styles.bodyMD, { color: theme.text.secondary }]}>{Constants.expoConfig?.version}</Text>
           </View>
+          <LegalRow label={t('settings.privacyPolicy')} doc="privacy" />
+          <LegalRow label={t('settings.terms')} doc="terms" />
         </Section>
         {offline && <OfflineBanner text={t('settings.offline')} />}
         {offline && (
