@@ -1218,20 +1218,20 @@ Sticky footer action region
 
 ### Geometry
 
-- Container height `64`.
-- Radius pill.
-- Horizontal padding `8`.
-- 5 equal flex items, each minimum interactive width `56`.
-- Icon 22 dp.
-- Label gap 3 dp; label uses `labelSM`.
-- Position: 12 dp above bottom safe-area inset; screen content reserves at least `tripOverview.bottomContentInset = 92`.
+- One shared pill: `surface.elevated`, radius pill, `elevation.level2` in Light, 1 dp border in Dark; padding `8` → height `64`; fixed width `components.tabs.pillWidth` (296), at most viewport − 32, centred, so it never resizes on a tab switch. The container leaves vertical room for the shadow.
+- Items spread evenly in a row inside the pill (min gap `4`).
+- Unselected items: icon 22 dp only, straight on the pill background, no circle of their own; touch target stays `48 × 48` (the label stays as the accessibility label).
+- Selected item: height `48`, horizontal padding `16`, icon 22 dp + `labelSM` label in a row, gap `8`; only it shrinks, the label truncates.
+- Selected indicator: one `brand.primary` capsule behind the selected item.
+- Position: 12 dp above bottom safe-area inset; screen content reserves at least the clearance (inset + 12 + 64).
 
 ### States
 
-- Default: `icon.secondary`, `text.tertiary`.
-- Selected: `brand.tint` capsule inside item + `text.brand` + icon; selection includes both color and container shape.
-- Pressed: selected or default item gains `background.sunken` underlay.
-- Focused: 2 dp `border.focus`.
+- Default: icon in `icon.secondary` on the pill background.
+- Selected: `brand.primary` indicator, icon and label in `brand.onBrand`; selection is colour, shape and the visible label.
+- Pressed: every item scales to `motion.press.scale`; the selected indicator also turns `brand.pressed`; unselected items get no background.
+- Focused: 2 dp `border.focus` at the standard focus offset.
+- Motion: on selection change the indicator slides to the new item and resizes, the items resize and the label fades in, over `duration.standard`; instant with reduce motion.
 - Disabled: only permitted for a genuinely inaccessible route; do not disable placeholder tabs—open their placeholder state as current product specifies.
 - Loading/error are screen states, never represented by spinning/erroring tab icons.
 

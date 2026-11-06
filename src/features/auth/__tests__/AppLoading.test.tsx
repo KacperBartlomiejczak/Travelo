@@ -87,8 +87,8 @@ describe('AppLoading (app-loading-skeleton step 4, D2, A3, A4)', () => {
     await render(ui());
     const pill = screen.getByTestId('app-loading-pill', hidden);
     expect(style(pill)).toMatchObject({
-      width: Math.min(mockWidth - 2 * tokens.spacing[4], tokens.layout.maxContentWidth),
-      height: tokens.components.tabs.height,
+      width: Math.min(tokens.components.tabs.pillWidth, mockWidth - 2 * tokens.spacing[4]),
+      height: tokens.components.tabs.height + 2 * tokens.components.tabs.containerPadding,
       borderRadius: tokens.radii.pill,
     });
     expect(style(pill.parent!)).toMatchObject({
@@ -100,10 +100,10 @@ describe('AppLoading (app-loading-skeleton step 4, D2, A3, A4)', () => {
     });
   });
 
-  it('caps the pill placeholder at the max content width on a wide screen', async () => {
+  it('caps the pill placeholder at the fixed pill width on a wide screen', async () => {
     mockWidth = 1024;
     await render(ui());
-    expect(style(screen.getByTestId('app-loading-pill', hidden)).width).toBe(tokens.layout.maxContentWidth);
+    expect(style(screen.getByTestId('app-loading-pill', hidden)).width).toBe(296);
   });
 
   it.each(['light', 'dark'] as const)('draws the chrome blocks in border.default, which shows over the hero skeleton and the canvas in %s (D1)', async (scheme) => {

@@ -40,10 +40,10 @@ Platforms: iOS and Android (Expo / React Native). Languages: Polish (`pl`) and E
 7. **Trip photos** — photo strip under the hero, full-screen viewer, upload to private Supabase Storage.
 8. **Offline budget** — the daily budgets can be changed without internet and syncs later.
 9. **Offline reading** — the trip list and every trip opened on the phone are kept in SQLite.
-10. **Pill navigation** — a floating bottom pill with five screens (two of them are placeholders).
+10. **Pill navigation** — a floating bottom pill with four screens (one placeholder); „Miejsca” removed (places-legal-navbar D3).
 11. **Confirm dialog** — in-app dialog used when leaving the wizard with entered data.
 12. **Trip covers** (`prompts/trip-covers/`) — every trip has a cover: one of five bundled photos (Auckland by default) or a photo from the gallery, uploaded to Storage.
-13. **Profile tab** (`prompts/profile-tab/`) — the fifth pill item is "Profil" (route `/profile`, title "Profil użytkownika", `CircleUser` icon); since profile-screen it is the profile screen (title "Profil").
+13. **Profile tab** (`prompts/profile-tab/`) — the last pill item is "Profil" (route `/profile`, title "Profil użytkownika", `CircleUser` icon); since profile-screen it is the profile screen (title "Profil").
 14. **Sign-in and profile** (`prompts/auth-onboarding/`) — a required account: Google, Discord or e-mail with a 6-digit code; on first sign-in a profile with a unique nick, interests and an optional photo; a server-generated friend code, not shown yet. The device run (step 9) is partly done.
 15. **Friend invite** (`prompts/friend-invite/`) — in the wizard's friends step a friend can be added by their 6-character friend code: the card fills with their nick and interests and the account is linked to the trip at once, read-only except their own expenses, which they add and edit (`prompts/expenses/plan.md` D15). The linked friend sees the rest of the trip without edit controls. Layover labels line up with the flight lines on the home screen and the summary. On the hosted Supabase; device check passed.
 16. **Profile screen and sign-out** (`prompts/profile-screen/`) — "Profil" shows the photo, the nick and five numbers of the past trips (trips, countries, days travelled, flights, km flown), also offline; the gear opens Settings with "Wyloguj się" (a confirmation, disabled offline). The device run is done except the stats of a past trip (scenario 7).
@@ -54,7 +54,7 @@ Platforms: iOS and Android (Expo / React Native). Languages: Polish (`pl`) and E
 - None.
 
 ### Not started (MVP)
-- **AI day plans** — per-day schedule from real places, cost ranges, group splits (the "Plan" and "Miejsca" screens).
+- **AI day plans** — per-day schedule from real places, cost ranges, group splits (the "Plan" screen).
 - **Expenses, later parts** — other currencies with FX rates, split a bill equally between people, receipt photo, quick-add from every screen.
 - **Plan vs reality** — the daily budget comes with Expenses; still to do: plan ↔ expense link and the end-of-trip summary shareable as an image.
 
@@ -84,16 +84,15 @@ Root Stack (a gate decides which group exists)
 ├── /avatar                Full-screen avatar preview, always dark
 ├── /auth/callback         OAuth redirect landing (redirects by state)
 ├── (drawer)               Signed in with a profile. Side panel with all trips (swipe from the left edge only on "Podróż")
-│   └── (tabs)             Floating pill with five screens
+│   └── (tabs)             Floating pill with four screens
 │       ├── /              Podróż    — the current trip (home screen)
 │       ├── /expenses      Wydatki   — budget, who spent what, timeline, add expense
-│       ├── /places        Miejsca   — placeholder
 │       ├── /plan          Plan      — placeholder
 │       └── /profile       Profil    — photo, nick, travel stats; gear → /settings
 ├── /trips/new/*           Create-trip wizard (nested Stack, 4 steps)
 └── /trips/[tripId]/photos Full-screen photo viewer
 ```
-The pill is not shown in the wizard or in the photo viewer. The two placeholder screens ("Miejsca", "Plan") show only a title and "Ten ekran pojawi się wkrótce." (a deliberate exception to design-context §10.13, §10.19 and §12 until their features exist).
+The pill is not shown in the wizard or in the photo viewer. The placeholder screen "Plan" shows only a title and "Ten ekran pojawi się wkrótce." (a deliberate exception to design-context §10.13, §10.19 and §12 until their features exist).
 
 ### 3.2 Home screen — "Podróż" (`/`)
 Shows the **current trip**: the one chosen in the side panel (remembered on the phone), else the **default trip** (the soonest upcoming or ongoing one, else the most recently ended). Always dark.
@@ -158,7 +157,7 @@ Changes the daily budgets with the same „Razem / Osobno” switch as the wizar
   - They come from the trip list, so they show offline too. Loading: pulsing blocks; no list and no copy: "–"; no past trips: "0".
   - The photo: a pulsing circle until it is shown (also offline), a person placeholder without a photo; after an offline start it loads when the phone is back online.
   - Tapping the photo opens a full-screen dark preview (close, three dots → "Zmień zdjęcie" / "Usuń zdjęcie"). Without a photo it opens the gallery directly. After a change the preview stays with the new photo; a removal needs no confirmation and closes it. Offline the preview works, but the dots are disabled with the reason; without a photo the circle is disabled.
-- **Ustawienia:** one scrolling list: Konto ("Edytuj profil"), Wygląd ("Motyw" and "Język": Systemowy plus two options, applied at once and kept on the phone), O aplikacji (version only; privacy policy and terms come when their addresses exist), then the two buttons below.
+- **Ustawienia:** one scrolling list: Konto ("Edytuj profil"), Wygląd ("Motyw" and "Język": Systemowy plus two options, applied at once and kept on the phone), O aplikacji (version, "Polityka prywatności" and "Regulamin", which open `/legal/privacy` and `/legal/terms`), then the two buttons below.
 - **Edytuj profil:** nick and interests as in the profile setup; save is disabled without a change, offline and with an invalid nick; no limit on nick changes.
 - **Usuń konto:** disabled offline with "Połącz się z internetem, żeby usunąć konto.". A dialog warns what disappears and enables the button only after the user types their own nick. It erases the account, profile, photo and every trip the user organizes with its plans, expenses and photos, also for linked friends. In other people's trips the user's nick and expenses stay as a friend without an account. Afterwards the welcome screen says "Konto usunięte.". A failure says photos may already be gone and allows a retry; a nick changed on another phone asks for the current one and erases nothing.
 - **Wyloguj się:** at the bottom. It asks "Wylogować się?" first; the message warns when budget changes were not sent yet (they are lost). Disabled offline with "Połącz się z internetem, żeby się wylogować.". Signing out ends the session on this phone only.
@@ -291,7 +290,7 @@ Open decision: the exact Gemini model ID (it comes from config, never hardcoded)
 ## 9. Known gaps (short list)
 
 The full list is in `docs/architecture/known-limitations.md`. The ones that matter for product decisions:
-- Two of five pill screens are placeholders.
+- One of four pill screens ("Plan") is a placeholder.
 - Photos not yet sent are lost if the app closes.
 - Sign-in:
   - Sign in with Apple is needed before an iOS release;

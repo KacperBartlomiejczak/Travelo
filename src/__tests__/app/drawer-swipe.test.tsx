@@ -4,7 +4,6 @@ import { fireEvent, renderRouter, screen, waitFor } from 'expo-router/testing-li
 import TabsLayout from '@/app/(drawer)/(tabs)/_layout';
 import ExpensesScreen from '@/app/(drawer)/(tabs)/expenses';
 import HomeScreen from '@/app/(drawer)/(tabs)/index';
-import PlacesScreen from '@/app/(drawer)/(tabs)/places';
 import PlanScreen from '@/app/(drawer)/(tabs)/plan';
 import ProfileScreen from '@/app/(drawer)/(tabs)/profile';
 import DrawerLayout from '@/app/(drawer)/_layout';
@@ -36,7 +35,6 @@ const ROUTES = {
   '(drawer)/(tabs)/_layout': TabsLayout,
   '(drawer)/(tabs)/index': HomeScreen,
   '(drawer)/(tabs)/expenses': ExpensesScreen,
-  '(drawer)/(tabs)/places': PlacesScreen,
   '(drawer)/(tabs)/plan': PlanScreen,
   '(drawer)/(tabs)/profile': ProfileScreen,
   'trips/new/index': () => null,
@@ -55,7 +53,7 @@ describe('Side panel only on the home screen (pill-nav-and-dialog R3)', () => {
     expect(mockSwipeEnabled).toBe(true);
   });
 
-  it.each(['/expenses', '/places', '/plan', '/profile'])('turns the edge swipe off on %s', async (path) => {
+  it.each(['/expenses', '/plan', '/profile'])('turns the edge swipe off on %s', async (path) => {
     const app = renderRouter(ROUTES, { initialUrl: path });
     await app;
     expect(app.getPathname()).toBe(path);

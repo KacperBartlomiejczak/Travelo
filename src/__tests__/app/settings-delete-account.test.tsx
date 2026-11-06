@@ -40,7 +40,6 @@ const ROUTES = {
   '(drawer)/(tabs)/_layout': TabsLayout,
   '(drawer)/(tabs)/index': () => <Text>home</Text>,
   '(drawer)/(tabs)/expenses': () => <Text>expenses</Text>,
-  '(drawer)/(tabs)/places': () => <Text>places</Text>,
   '(drawer)/(tabs)/plan': () => <Text>plan</Text>,
   '(drawer)/(tabs)/profile': () => <Text>profile</Text>,
   'edit-profile': () => <Text>edit-profile-screen</Text>,

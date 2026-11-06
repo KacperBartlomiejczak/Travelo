@@ -566,12 +566,12 @@ export const components = {
     backdropOpacity: 0.48,
   },
   tabs: {
-    height: 64,
-    horizontalPadding: 8,
-    itemMinWidth: 56,
+    height: 48,
+    horizontalPadding: 16,
+    gap: 8,
     iconSize: 22,
-    labelGap: 3,
-    radius: radii.pill,
+    containerPadding: 8, // places-legal-navbar D6: padding of the shared pill around the items (pill height = height + 2 x this)
+    pillWidth: 296, // places-legal-navbar D18: fixed pill width narrowed with 4 dp gaps; still fits "Expenses" at font scale 1.0, capped by window - 2 x spacing[4]
   },
   segmentedControl: {
     height: 44,

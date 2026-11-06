@@ -36,7 +36,6 @@ const ROUTES = {
   '(drawer)/(tabs)/_layout': TabsLayout,
   '(drawer)/(tabs)/index': () => <Text>home</Text>,
   '(drawer)/(tabs)/expenses': () => <Text>expenses</Text>,
-  '(drawer)/(tabs)/places': () => <Text>places</Text>,
   '(drawer)/(tabs)/plan': () => <Text>plan</Text>,
   '(drawer)/(tabs)/profile': () => <Text>profile</Text>,
   'edit-profile': () => <Text>edit-profile-screen</Text>,
@@ -122,14 +121,14 @@ describe('Settings list (profile-settings step 8)', () => {
     expect(group('Language').getByRole('radio', { name: 'English' })).toBeChecked();
   });
 
-  it('shows the app version from expo-constants and no links to documents (D5)', async () => {
+  it('shows the app version from expo-constants and the links to the legal documents (legal step B2, supersedes D5)', async () => {
     await openSettings();
     const version = Constants.expoConfig?.version;
     expect(version).toBeTruthy();
     expect(screen.getByText('Wersja')).toBeTruthy();
     expect(screen.getByText(version as string)).toBeTruthy();
-    expect(screen.queryByText(/polityk|regulamin/i)).toBeNull();
-    expect(screen.queryByRole('link')).toBeNull();
+    expect(screen.getByRole('button', { name: 'Polityka prywatności' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Regulamin' })).toBeTruthy();
   });
 
   it('keeps "Wyloguj się" below every section, with "Usuń konto" as the very last button under it (D7)', async () => {

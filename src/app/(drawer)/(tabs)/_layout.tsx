@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { PillNav } from '@/components/PillNav';
 import { NAV_TABS } from '@/features/nav/tabs';
 
-// The five main screens, switched by the floating pill (pill-nav-and-dialog). The bar is absolutely positioned, so it
+// The four main screens, switched by the floating pill (pill-nav-and-dialog). The bar is absolutely positioned, so it
 // takes no layout space: the screens fill the whole height and the pill floats over them. Screens stay mounted when
 // blurred (the home screen's photo upload queue relies on it); each is created the first time it is opened (`lazy`).
 // The Drawer is the parent, so the side panel slides over the pill.
