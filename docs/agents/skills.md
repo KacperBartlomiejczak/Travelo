@@ -17,6 +17,8 @@ If instructions conflict, this order wins: **Kacper's current message → `CLAUD
 | `find-skills` | You think a skill might exist for the job but none of the above fits. | orchestrator |
 | `supabase` | Any task that touches Supabase: Auth, Storage, Edge Functions, RLS, `supabase-js`, the CLI. | planner, backend |
 | `supabase-postgres-best-practices` | Before writing or changing anything in Postgres: tables, columns, indexes, RLS policies, SQL functions, migrations. | backend |
+| `expo-upgrade` | Upgrading the Expo SDK or fixing dependency mismatches (`expo install --fix`, `expo-doctor`, deprecated packages). Its cache-clearing steps (`rm -rf node_modules`, `watchman`) and its `@expo/agent-cli feedback` command run only with Kacper's OK; the app uses CNG, so its prebuild / bare-workflow sections do not apply. | orchestrator, planner |
+| `migrate-to-strict-api` | Fixing React Native Strict TypeScript API errors (RN 0.87+): `*Instance` ref types, deep `react-native/Libraries/*` imports, removed `*Static` / `*Properties` types. Its `@ts-expect-error` advice for untyped deep imports still needs a written reason (see `CLAUDE.md`), and its bail-out (`react-native-legacy-deep-imports`) is Kacper's call. | frontend, backend |
 
 ### Engineering workflow skills (`addyosmani/agent-skills`, installed 2026-10-08)
 
@@ -71,4 +73,6 @@ If instructions conflict, this order wins: **Kacper's current message → `CLAUD
 | 25 engineering workflow skills (`interview-me`, `spec-driven-development`, `planning-and-task-breakdown`, `incremental-implementation`, `test-driven-development`, `source-driven-development`, `frontend-ui-engineering`, `code-review-and-quality`, `security-and-hardening`, …) | addyosmani/agent-skills | Workflow per development phase; when each one is used and its limits are listed in "Engineering workflow skills" above. Copied straight into `.claude/skills/` (not symlinked from `.agents/skills/` like the others) |
 | `supabase`, `supabase-postgres-best-practices` | supabase/agent-skills | Supabase products and CLI; Postgres schema, RLS and query practices |
 | `javascript-typescript-jest` | github/awesome-copilot (installed 2026-11-03, `pnpm dlx skills add`) | Jest testing practices |
+| `expo-upgrade` | expo/skills (installed 2026-11-06, `npx skills add expo/skills -s expo-upgrade`, copied) | Expo SDK upgrade guidelines |
+| `migrate-to-strict-api` | react-native-community/skills (installed 2026-11-06, `npx skills add react-native-community/skills -s migrate-to-strict-api`, copied) | React Native Strict TypeScript API migration |
 
