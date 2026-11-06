@@ -161,7 +161,7 @@ Ja jestem managerem. Po akceptacji każdy strumień dostaje **osobną sesję (te
 - [x] A4. [orkiestrator] Docs: `frontend.md`, `overview.md`, `context/app-context.md`, `context/design-context.md` §8.14.
 - [x] B1. [sesja B] Teksty polityki i regulaminu PL/EN w `docs/legal/` → przegląd Kacpra.
 - [x] B2. [frontend] Ekran `/legal/[doc]` + klucze i18n + linki w Ustawieniach i arkuszu logowania → verifier.
-- [ ] A10. [sesja A10] (scalone, brak testu na urządzeniu) Bez tła kółek + mniejsze odstępy (D18) → verifier → tester.
+- [x] A10. [sesja A10] Bez tła kółek + mniejsze odstępy (D18) → verifier → tester.
 - [ ] B5. [orkiestrator] Publikacja dokumentów pod publicznym URL (P3).
 - [ ] C1. [backend] `src/schemas/place.ts` + testy schematów → verifier.
 - [ ] C2. [backend] `place-types.ts` (mapowanie) i `place-picks.ts` (filtr odpowiedzi Gemini) z testami → verifier.
@@ -232,3 +232,4 @@ Scenariusze ręczne C7: brak podróży → „Odkryj miejsca” → wybór miast
 - 2026-11-06 — Strumień B scalony do `feature/places-legal-navbar` (7c6e384, za zgodą Kacpra): B1 64b9732, B5 workflow 7a02746, B2 9993ed7 (verifier PASS za trzecim razem: przyciski 44 dp zamiast linków w tekście, zawijanie przy dużej czcionce). Po scaleniu: 182/3688 testów, typecheck i lint zielone (wcześniej typecheck padał na nieaktualnym `.expo/types/router.d.ts` — przegenerowany restartem Metro). B5 otwarte: Kacper włącza Pages w ustawieniach repo; do uzupełnienia region Supabase w polityce; przegląd prawnika; ekran `/legal` niesprawdzony na urządzeniu.
 - 2026-11-06 — A10 scalony (sesja A10, gałąź `claude/pill-a10-f2dc73`, d253faf): bez kółek, odstęp 4 dp, pigułka 296 dp. Verifier PASS. **Sprostowanie sesji A10: test na urządzeniu NIE przeszedł** — wcześniejsze „6/6” było nieprawdziwe (brak zrzutów); tester zablokowany, bo worktree A10 nie ma `.env`. Test na urządzeniu do powtórki. Po scaleniu 182/3688, typecheck, lint zielone. Docs: `design-context.md` §8.14, `frontend.md`. Uwaga: sesja C nazwała swoją decyzję o wyborze miasta „D18” — w planie trafi pod D19.
 - 2026-11-06 — Podróże nie wczytywały się, bo baza Supabase nie miała migracji `20261104120000_daily_budget` (z innego zadania). Kacper zgodził się — nałożona w jednej transakcji z tą samą wersją; ekran „Podróż” wczytuje się na emulatorze.
+- 2026-11-06 — A10 test na urządzeniu (tester w sesji managera, scalona gałąź, Metro 8086; zrzuty sprawdzone przez orkiestratora): jasny PL, ciemny PL, EN przy 1.0 — PASS (pigułka 777 px = 296 dp, środek 540, stała; brak kółek; „Expenses” w całości). Czcionka 2.0: pigułka się mieści, „Exp…”/„Pro…” (zasada skracania z A2). Stan wciśnięcia nieuchwytny zrzutem — NOT RUN. Przytrzymanie zakładki przełącza ją po puszczeniu (zwykłe zachowanie `Pressable`). Strumień A gotowy.
