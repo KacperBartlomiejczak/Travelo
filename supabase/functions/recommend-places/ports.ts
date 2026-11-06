@@ -29,7 +29,7 @@ export function createPorts({ admin, fetch, env }: PortsConfig): RecommendPorts 
     async consumeQuota(userId, limit) {
       const { data, error } = await admin.rpc('consume_ai_quota', { p_user_id: userId, p_limit: limit });
       if (error) throw error;
-      return data;
+      return z.number().int().nonnegative().nullable().parse(data); // invalid result throws -> upstream failure
     },
     async nearbySearch(body) {
       const res = await fetch('https://places.googleapis.com/v1/places:searchNearby', {

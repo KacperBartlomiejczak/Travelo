@@ -17,7 +17,7 @@ create function public.consume_ai_quota(p_user_id uuid, p_limit int) returns int
 language sql security invoker set search_path = ''
 as $$
   insert into public.ai_usage as u (user_id, day, count)
-  values (p_user_id, (now() at time zone 'utc')::date, 1)
+  select p_user_id, (now() at time zone 'utc')::date, 1 where p_limit > 0
   on conflict (user_id, day) do update set count = u.count + 1 where u.count < p_limit
   returning p_limit - u.count
 $$;

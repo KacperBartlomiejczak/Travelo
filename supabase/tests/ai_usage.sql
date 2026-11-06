@@ -28,7 +28,8 @@ grant execute on all functions in schema test_helpers to anon, authenticated;
 
 insert into auth.users (id) values
   ('00000000-0000-4000-a000-00000000000a'),
-  ('00000000-0000-4000-a000-00000000000b');
+  ('00000000-0000-4000-a000-00000000000b'),
+  ('00000000-0000-4000-a000-00000000000c');
 
 select test_helpers.ok(
   (select relrowsecurity from pg_class where oid = 'public.ai_usage'::regclass),
@@ -51,6 +52,15 @@ select test_helpers.ok(
 select test_helpers.ok(
   (select day from public.ai_usage where user_id = '00000000-0000-4000-a000-00000000000b') = (now() at time zone 'utc')::date,
   'the day is the UTC date');
+
+-- A non-positive limit refuses every call and writes no row.
+select test_helpers.ok(
+  public.consume_ai_quota('00000000-0000-4000-a000-00000000000c', 0) is null
+    and public.consume_ai_quota('00000000-0000-4000-a000-00000000000c', -1) is null,
+  'a limit of 0 or less returns null');
+select test_helpers.ok(
+  not exists (select 1 from public.ai_usage where user_id = '00000000-0000-4000-a000-00000000000c'),
+  'a limit of 0 or less writes no row');
 
 -- Clients: no table access, no function access.
 select test_helpers.ok(

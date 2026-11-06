@@ -50,6 +50,13 @@ describe('recommend-places ports', () => {
     });
   });
 
+  describe('consumeQuota validation', () => {
+    it.each([['3'], [-1], [1.5], [{}]])('rejects an invalid rpc result %p', async (data) => {
+      const bad = setup(ok({}), async () => ({ data, error: null }));
+      await expect(bad.ports.consumeQuota('u', 5)).rejects.toBeDefined();
+    });
+  });
+
   describe('nearbySearch', () => {
     it('posts to Places with key, field mask and body', async () => {
       const { ports, fetchMock } = setup(ok({ places: [] }));

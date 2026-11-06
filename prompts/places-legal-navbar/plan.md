@@ -164,7 +164,7 @@ Ja jestem managerem. Po akceptacji każdy strumień dostaje **osobną sesję (te
 - [ ] B5. [orkiestrator] Publikacja dokumentów pod publicznym URL (P3).
 - [ ] C1. [backend] `src/schemas/place.ts` + testy schematów → verifier.
 - [ ] C2. [backend] `place-types.ts` (mapowanie) i `place-picks.ts` (filtr odpowiedzi Gemini) z testami → verifier.
-- [ ] C3. [backend] Migracja `ai_usage` + Edge Function `recommend-places` (Places + Gemini + limit) na fixturach → verifier. Kacper ustawia sekrety; potem jedno ręczne wywołanie na żywo.
+- [x] C3. [backend] Migracja `ai_usage` + Edge Function `recommend-places` (Places + Gemini + limit) na fixturach → verifier. Kacper ustawia sekrety; potem jedno ręczne wywołanie na żywo.
 - [ ] C4. [backend] `src/data/places.ts` + `usePlaceRecommendations` → verifier.
 - [ ] C5. [frontend] Ekran `/discover` (miasto, zainteresowania, lista, wszystkie stany, atrybucja) → verifier.
 - [ ] C6. [frontend] Przycisk „Odkryj miejsca” w pustym stanie „Podróż” → verifier.
@@ -226,3 +226,4 @@ Scenariusze ręczne C7: brak podróży → „Odkryj miejsca” → wybór miast
 - 2026-11-06 — A9 (frontend): `pillWidth` 300 → 320 (D11), testy na 320 padały przed zmianą. Verifier: PASS (180/3670, typecheck, lint). Tester (Metro 8086 zrestartowane bez `CI=1`, bo wyłącza obserwowanie plików): pigułka 840 px = 320 dp, wyśrodkowana, stała na 4 zakładkach w jasnym i ciemnym; EN „Trip/Expenses/Plan/Profile” i PL „Podróż/Wydatki” w całości przy 1.0 — PASS. Przy czcionce 2.0 „Expe…” (zgodnie z zasadą skracania z A2). W ciemnym pigułka ~2 dp wyższa przez obramowanie 1 dp (§5.2, zamierzone). A3 zamknięty: jasny/ciemny, pl/en, duża czcionka sprawdzone na A5–A9. Strumień A gotowy.
 - 2026-11-06 — Kacper odpowiedział na P2–P8 → D12–D17. Plan B i C przedstawiony do akceptacji.
 - 2026-11-06 — Kacper zaakceptował plan B i C („Akceptuje”) i poprosił o realizację w podsesjach. Kroki B3/B4 wykreślone (zrobione w `profile-settings`). Startują sesje B i C.
+- 2026-11-07 — Sesja C zacommitowała C1 (1e88a61), C2 (93f706b) i C4 (2ef816d); werdykty verifiera dla nich nie są zapisane w tym planie, więc zostają `[ ]` do potwierdzenia. C3: pierwszy verifier FAIL — `consume_ai_quota` przepuszczał pierwsze wywołanie przy `p_limit <= 0`; `consumeQuota` bez walidacji Zod. Poprawka (backend): insert tylko gdy `p_limit > 0`, `z.number().int().nonnegative().nullable()` na wyniku RPC; test SQL (limit 0 i -1 → null, bez wiersza) pada na starej migracji, przechodzi na nowej (lokalny Supabase w Dockerze, transakcja wycofana). Verifier PASS (188/3796, typecheck, lint). Gałąź `feature/discover-places`, draft PR #30 (na `feature/places-legal-navbar`). Niesprawdzone: Deno, wywołanie na żywo (sekrety Kacpra).
