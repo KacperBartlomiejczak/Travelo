@@ -161,6 +161,7 @@ Ja jestem managerem. Po akceptacji każdy strumień dostaje **osobną sesję (te
 - [x] A4. [orkiestrator] Docs: `frontend.md`, `overview.md`, `context/app-context.md`, `context/design-context.md` §8.14.
 - [x] B1. [sesja B] Teksty polityki i regulaminu PL/EN w `docs/legal/` → przegląd Kacpra.
 - [x] B2. [frontend] Ekran `/legal/[doc]` + klucze i18n + linki w Ustawieniach i arkuszu logowania → verifier.
+- [ ] A10. [sesja A10] Bez tła kółek + mniejsze odstępy (D18) → verifier → tester.
 - [ ] B5. [orkiestrator] Publikacja dokumentów pod publicznym URL (P3).
 - [ ] C1. [backend] `src/schemas/place.ts` + testy schematów → verifier.
 - [ ] C2. [backend] `place-types.ts` (mapowanie) i `place-picks.ts` (filtr odpowiedzi Gemini) z testami → verifier.
@@ -202,6 +203,7 @@ Scenariusze ręczne C7: brak podróży → „Odkryj miejsca” → wybór miast
 - **D15 — P6 = (a): lista kart** (nazwa, typ, adres, „dlaczego dla Ciebie” od AI, „Otwórz w Mapach Google”), bez ocen, zdjęć i mapy (Kacper, 2026-11-06).
 - **D16 — P7 = (a): wejście tylko z pustego stanu „Podróż”** — przycisk „Odkryj miejsca” → ekran `/discover`; bez linku w szufladzie (Kacper, 2026-11-06).
 - **D17 — P8:** limit **5 zapytań dziennie** na użytkownika (licznik w tabeli `ai_usage`); Gemini na darmowym poziomie tylko w developmencie, **płatny przed wydaniem**; model `gemini-2.5-flash` (Kacper, 2026-11-06).
+- **D18 — Bez tła kółek, ikony bliżej siebie:** nieaktywne zakładki bez `background.sunken` (samo tło pigułki), mniejsze odstępy, węższa pigułka — wzór: `prompts/places-legal-navbar/ref/1–4.png` (Kacper, 2026-11-06: „ten background daje dziwne złudzenie”). Krok A10, osobna sesja.
 - **D9 — Pigułka na pełną szerokość:** `min(szerokość − 32, maxContentWidth)`, elementy rozłożone równo w środku; pigułka się nie rusza, przesuwa się tylko kapsuła (Kacper, 2026-11-05).
 - **D4 — Nowy wygląd pigułki** wg wzoru: aktywna = wypełniona kapsuła ikona + etykieta, nieaktywne = okrągłe przyciski z ikoną; w kolorach Sunline.
 
