@@ -198,19 +198,20 @@ describe('PillNav (design-context §8.14, places-legal-navbar A2)', () => {
       expect(fixed).toBeLessThan(320 - 2 * tokens.spacing[4]);
     });
 
-    it('is capped at the maximum content width on a wide screen', async () => {
+    it('is capped at the fixed pill width on a wide screen (D10)', async () => {
       mockWindowWidth = 1000;
       await render(ui());
-      expect(style(screen.getByTestId('pill-nav')).width).toBe(tokens.layout.maxContentWidth);
+      expect(tabs.pillWidth).toBe(300);
+      expect(style(screen.getByTestId('pill-nav')).width).toBe(300);
     });
 
-    it('has a fixed width of min(window - 2 * spacing[4], maxContentWidth), items spread evenly, unchanged by a selection change (D9)', async () => {
+    it('has a fixed width of min(pillWidth, window - 2 * spacing[4]), items spread evenly, unchanged by a selection change (D10)', async () => {
       mockWindowWidth = 411;
       const view = await render(ui('index'));
       const pill = () => style(screen.getByTestId('pill-nav'));
-      expect(pill()).toMatchObject({ width: 411 - 2 * tokens.spacing[4], justifyContent: 'space-between' });
+      expect(pill()).toMatchObject({ width: 300, justifyContent: 'space-between' });
       await view.rerender(ui('expenses'));
-      expect(pill().width).toBe(411 - 2 * tokens.spacing[4]);
+      expect(pill().width).toBe(300);
       expect(pill().maxWidth).toBeUndefined();
     });
 

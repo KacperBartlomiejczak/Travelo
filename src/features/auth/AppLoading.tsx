@@ -41,7 +41,7 @@ export function AppLoading() {
       <View pointerEvents="none" style={{ position: 'absolute', left: 0, right: 0, bottom: pillBottom, alignItems: 'center' }}>
         <SkeletonBlock
           testID="app-loading-pill"
-          width={Math.min(width - 2 * spacing[4], layout.maxContentWidth)}
+          width={Math.min(components.tabs.pillWidth, width - 2 * spacing[4])}
           height={PILL_HEIGHT}
           radius={radii.pill}
           color={chrome}

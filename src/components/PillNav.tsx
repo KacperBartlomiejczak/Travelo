@@ -112,11 +112,8 @@ export function PillNav({ items, activeKey, onSelect }: Props) {
           padding: tabs.containerPadding,
           borderRadius: tokens.radii.pill,
           backgroundColor: theme.surface.elevated,
-          // Fixed width (D9): the row never resizes on a tab switch, only the indicator slides.
-          width: Math.min(
-            width - 2 * tokens.spacing[4],
-            tokens.layout.maxContentWidth,
-          ),
+          // Fixed width (D10): the row never resizes on a tab switch, only the indicator slides.
+          width: Math.min(tabs.pillWidth, width - 2 * tokens.spacing[4]),
           ...theme.elevation.level2,
         }}
       >
