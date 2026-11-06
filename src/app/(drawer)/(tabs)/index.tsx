@@ -58,14 +58,15 @@ export default function HomeScreen() {
 
   // The owner clears the message in `onHide`, so the same text can show again after a later delete.
   // `aboveButton`: the empty and error states pin "Utwórz podróż" at the bottom; the snackbar sits above it, not over it
-  // (§10.16 "above bottom navigation if present", D21): the button's height and a spacing[3] gap.
+  // (§10.16 "above bottom navigation if present", D21): each pinned button's height and a spacing[3] gap (the empty state
+  // pins two: create and Discover; the error state one).
   // The floating pill sits at the bottom of every state. The snackbar adds the inset and spacing[4] itself, so its offset
   // starts with the pill's height: the usual place is spacing[4] above the pill, level with the pinned button's bottom edge.
-  const toast = (aboveButton = false) => (
+  const toast = (pinnedButtons = 0) => (
     <Snackbar
       message={snackbar}
       onHide={() => setSnackbar(null)}
-      bottomOffset={PILL_HEIGHT + spacing[4] + (aboveButton ? theme.size.buttonPrimary + spacing[3] : 0)}
+      bottomOffset={PILL_HEIGHT + spacing[4] + pinnedButtons * (theme.size.buttonPrimary + spacing[3])}
     />
   );
 
@@ -156,8 +157,14 @@ export default function HomeScreen() {
           </View>
         )}
         <PrimaryButton label={t('trips.create')} icon={Plus} onPress={create} />
+        {/* Discover's only entry (places-legal-navbar D16): the empty Trip tab, not the error state. */}
+        {!trips.isError && (
+          <View style={{ marginTop: spacing[3] }}>
+            <TextButton variant="secondary" label={t('trips.empty.discover')} onPress={() => router.push('/discover')} />
+          </View>
+        )}
       </View>
-      {toast(true)}
+      {toast(trips.isError ? 1 : 2)}
     </View>
   );
 }

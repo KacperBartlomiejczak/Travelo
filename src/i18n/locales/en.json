@@ -6,7 +6,8 @@
     "title": "Your trips",
     "empty": {
       "heading": "You don't have any trips yet.",
-      "description": "Plan your first one and invite your friends."
+      "description": "Plan your first one and invite your friends.",
+      "discover": "Discover places"
     },
     "create": "Create trip",
     "loadError": "Couldn't load your trips.",

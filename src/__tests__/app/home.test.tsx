@@ -168,6 +168,7 @@ describe('Home screen — current trip (D4)', () => {
     expect(await screen.findByRole('header', { name: 'Warsaw → Bangkok' })).toBeTruthy();
     expect(within(screen.getByTestId('trip-hero')).getByText('3 lis – 15 lis 2026 · 13 dni')).toBeTruthy();
     expect(screen.queryByText('Nie masz jeszcze żadnej podróży.')).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Odkryj miejsca' })).toBeNull();
   });
 
   it('aligns the layover label with the flight lines, no left inset (friend-invite D8)', async () => {
@@ -904,9 +905,9 @@ describe('Home screen — deleting the trip (trip-edit-menu D7, D8, D9, D11, D19
     await confirm();
     expect(await screen.findByText('Nie masz jeszcze żadnej podróży.')).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Utwórz podróż' })).toBeTruthy();
-    // Clear of the button: its height and a spacing[3] gap above the usual place.
+    // Clear of the whole pinned block: the create and Discover buttons (both default height), each with a spacing[3] gap.
     const emptyBottom = StyleSheet.flatten(screen.getByTestId('snackbar-container').props.style).bottom;
-    expect(emptyBottom - tripBottom).toBe(lightTheme.size.buttonPrimary + lightTheme.spacing[3]);
+    expect(emptyBottom - tripBottom).toBe(2 * (lightTheme.size.buttonPrimary + lightTheme.spacing[3]));
   });
 
   it('draws the snackbar in the theme of the screen behind it: the system theme over both the trip view and the empty state (D11, theme-split D1)', async () => {

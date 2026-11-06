@@ -6,7 +6,8 @@
     "title": "Twoje podróże",
     "empty": {
       "heading": "Nie masz jeszcze żadnej podróży.",
-      "description": "Zaplanuj pierwszą i zaproś znajomych."
+      "description": "Zaplanuj pierwszą i zaproś znajomych.",
+      "discover": "Odkryj miejsca"
     },
     "create": "Utwórz podróż",
     "loadError": "Nie udało się wczytać podróży.",
