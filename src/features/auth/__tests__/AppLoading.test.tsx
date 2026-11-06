@@ -103,7 +103,7 @@ describe('AppLoading (app-loading-skeleton step 4, D2, A3, A4)', () => {
   it('caps the pill placeholder at the fixed pill width on a wide screen', async () => {
     mockWidth = 1024;
     await render(ui());
-    expect(style(screen.getByTestId('app-loading-pill', hidden)).width).toBe(tokens.components.tabs.pillWidth);
+    expect(style(screen.getByTestId('app-loading-pill', hidden)).width).toBe(296);
   });
 
   it.each(['light', 'dark'] as const)('draws the chrome blocks in border.default, which shows over the hero skeleton and the canvas in %s (D1)', async (scheme) => {
