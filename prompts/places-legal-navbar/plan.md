@@ -159,7 +159,7 @@ Ja jestem managerem. Po akceptacji każdy strumień dostaje **osobną sesję (te
 - [x] A9. [frontend] `pillWidth` 320 (D11) → verifier → tester (EN „Expenses” bez skrótu przy 1.0).
 - [x] A3. [tester] Sprawdzenie na urządzeniu (Android, jasny/ciemny, pl/en, duża czcionka).
 - [x] A4. [orkiestrator] Docs: `frontend.md`, `overview.md`, `context/app-context.md`, `context/design-context.md` §8.14.
-- [ ] B1. [orkiestrator] Teksty polityki i regulaminu PL/EN w `docs/legal/` → przegląd Kacpra.
+- [x] B1. [sesja B] Teksty polityki i regulaminu PL/EN w `docs/legal/` → przegląd Kacpra.
 - [ ] B2. [frontend] Ekran `/legal/[doc]` + klucze i18n + linki w Ustawieniach i arkuszu logowania → verifier.
 - [ ] B5. [orkiestrator] Publikacja dokumentów pod publicznym URL (P3).
 - [ ] C1. [backend] `src/schemas/place.ts` + testy schematów → verifier.
@@ -226,3 +226,4 @@ Scenariusze ręczne C7: brak podróży → „Odkryj miejsca” → wybór miast
 - 2026-11-06 — A9 (frontend): `pillWidth` 300 → 320 (D11), testy na 320 padały przed zmianą. Verifier: PASS (180/3670, typecheck, lint). Tester (Metro 8086 zrestartowane bez `CI=1`, bo wyłącza obserwowanie plików): pigułka 840 px = 320 dp, wyśrodkowana, stała na 4 zakładkach w jasnym i ciemnym; EN „Trip/Expenses/Plan/Profile” i PL „Podróż/Wydatki” w całości przy 1.0 — PASS. Przy czcionce 2.0 „Expe…” (zgodnie z zasadą skracania z A2). W ciemnym pigułka ~2 dp wyższa przez obramowanie 1 dp (§5.2, zamierzone). A3 zamknięty: jasny/ciemny, pl/en, duża czcionka sprawdzone na A5–A9. Strumień A gotowy.
 - 2026-11-06 — Kacper odpowiedział na P2–P8 → D12–D17. Plan B i C przedstawiony do akceptacji.
 - 2026-11-06 — Kacper zaakceptował plan B i C („Akceptuje”) i poprosił o realizację w podsesjach. Kroki B3/B4 wykreślone (zrobione w `profile-settings`). Startują sesje B i C.
+- 2026-11-06 — Sesja B (gałąź `claude/legal-b-c00ba7`): Kacper zaakceptował teksty B1 (64b9732), workflow GitHub Pages dla B5 (7a02746), B2 w toku. Sesja C (gałąź `claude/places-c-4a8a42`): C1 gotowe (42 testy), miasto w C5 wybierane z listy z bazy lotnisk (decyzja Kacpra w sesji C), C2 w toku. Gałęzie jeszcze nie scalone.
