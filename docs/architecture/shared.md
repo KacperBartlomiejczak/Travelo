@@ -110,6 +110,7 @@ Zod schemas in `src/schemas/` (constants `XSchema`, types `X = z.infer<typeof XS
   - `ProfileSetupInputSchema`: the form. The nick is trimmed and lowercased; an empty one gives `validation.usernameRequired`. Interests ≥ 1 (`validation.interestsRequired`). `avatarUri` is a `file://` path or null.
 - `provider-profile.ts` — `ProviderMetadataSchema` (the `user_metadata` fields read after a Google / Discord sign-in, parsed leniently: a wrong type counts as absent), `ProviderProfileSchema` (`suggestedUsername` nullable, `avatarUrl` nullable, https only on the provider's own avatar host), `providerProfile()` (never throws) — pre-fills the profile setup.
 - `account.ts` (profile-settings) — `delete-account` contract: `DeleteAccountInputSchema` (`confirmUsername`, 1–64 chars), `DeleteAccountResultSchema` (`{ deleted: true }`), `DeleteAccountErrorSchema` (`invalid_input | unauthorized | username_mismatch | storage_failed | auth_failed`). The Edge Function imports this file by path.
+- `legal.ts` (places-legal-navbar B2) — `LegalDocSchema` (`privacy` | `terms`, the `/legal/[doc]` route param) and `LegalDocumentSchema` (`title`, `updated`, `sections[{heading, paragraphs[]}]`), the shape of the i18n objects `legal.privacy` / `legal.terms`. Not stored anywhere: no table or migration.
 - `preferences.ts` (profile-settings) — `ThemePreferenceSchema` (`system | light | dark`), `LanguagePreferenceSchema` (`system | pl | en`); stored on the phone only.
 - `index.ts` — re-exports the schemas.
 - `auth.ts`:
