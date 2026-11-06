@@ -1,0 +1,5 @@
+# GitHub Pages (Jekyll) config for the public legal pages; built by .github/workflows/legal-pages.yml.
+title: Travelo
+theme: jekyll-theme-primer
+exclude:
+  - README.md
