@@ -450,6 +450,23 @@
     "expenseSaved": "Wydatek zapisany",
     "expenseSavedPending": "Wydatek zapisany. Czeka na wysłanie."
   },
+  "discover": {
+    "title": "Odkrywaj miejsca",
+    "hint": "Podpowiemy miejsca w mieście pasujące do zainteresowań.",
+    "city": "Miasto",
+    "interests": "Zainteresowania",
+    "search": "Szukaj miejsc",
+    "loading": "Szukamy miejsc",
+    "remaining": "Zostało dziś wyszukiwań: {{count}}",
+    "empty": "Nie znaleźliśmy miejsc dla tych zainteresowań. Spróbuj zmienić wybór.",
+    "error": "Nie udało się wczytać miejsc.",
+    "retry": "Spróbuj ponownie",
+    "limit": "Wykorzystano dzisiejszy limit wyszukiwań. Wróć jutro.",
+    "offline": "Jesteś offline. Szukanie miejsc wymaga internetu.",
+    "attribution": "Dane: Google",
+    "openMaps": "Otwórz w Mapach Google",
+    "back": "Wróć"
+  },
   "a11y": {
     "addExpense": "Dodaj wydatek"
   }

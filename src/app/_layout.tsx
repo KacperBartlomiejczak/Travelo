@@ -154,6 +154,28 @@ function GateContent({ view, retry }: ReturnType<typeof useGateView>) {
             ),
           }}
         />
+        {/* Discover places above the drawer (places step C5); its back button returns to where it was opened. */}
+        <Stack.Screen
+          name="discover"
+          options={{
+            title: "",
+            headerStyle: { backgroundColor: theme.background.canvas },
+            headerTintColor: theme.text.primary,
+            headerShadowVisible: false,
+            headerLeft: ({ tintColor }) => (
+              <HeaderBackButton
+                accessibilityLabel={t("discover.back")}
+                tintColor={tintColor}
+                style={
+                  Platform.OS === "ios"
+                    ? { minWidth: tokens.layout.touchTarget, minHeight: tokens.layout.touchTarget }
+                    : { minHeight: tokens.layout.touchTarget }
+                }
+                onPress={() => router.back()}
+              />
+            ),
+          }}
+        />
         {/* The profile photo full screen over the profile screen (profile-settings D13). */}
         <Stack.Screen name="avatar" options={{ headerShown: false, presentation: 'fullScreenModal' }} />
         {/* The trip's photos full screen over the home screen (trip-photos D6, P4). */}

@@ -166,7 +166,7 @@ Ja jestem managerem. Po akceptacji każdy strumień dostaje **osobną sesję (te
 - [ ] C2. [backend] `place-types.ts` (mapowanie) i `place-picks.ts` (filtr odpowiedzi Gemini) z testami → verifier.
 - [x] C3. [backend] Migracja `ai_usage` + Edge Function `recommend-places` (Places + Gemini + limit) na fixturach → verifier. Kacper ustawia sekrety; potem jedno ręczne wywołanie na żywo.
 - [ ] C4. [backend] `src/data/places.ts` + `usePlaceRecommendations` → verifier.
-- [ ] C5. [frontend] Ekran `/discover` (miasto, zainteresowania, lista, wszystkie stany, atrybucja) → verifier.
+- [x] C5. [frontend] Ekran `/discover` (miasto, zainteresowania, lista, wszystkie stany, atrybucja) → verifier.
 - [ ] C6. [frontend] Przycisk „Odkryj miejsca” w pustym stanie „Podróż” → verifier.
 - [ ] C7. [tester] Przejście scenariuszy na urządzeniu.
 - [ ] D1. [orkiestrator] Aktualizacja `docs/architecture/` i `context/app-context.md`, pełny zestaw testów + typecheck + lint.
@@ -203,6 +203,7 @@ Scenariusze ręczne C7: brak podróży → „Odkryj miejsca” → wybór miast
 - **D16 — P7 = (a): wejście tylko z pustego stanu „Podróż”** — przycisk „Odkryj miejsca” → ekran `/discover`; bez linku w szufladzie (Kacper, 2026-11-06).
 - **D17 — P8:** limit **5 zapytań dziennie** na użytkownika (licznik w tabeli `ai_usage`); Gemini na darmowym poziomie tylko w developmencie, **płatny przed wydaniem**; model `gemini-2.5-flash` (Kacper, 2026-11-06).
 - **D9 — Pigułka na pełną szerokość:** `min(szerokość − 32, maxContentWidth)`, elementy rozłożone równo w środku; pigułka się nie rusza, przesuwa się tylko kapsuła (Kacper, 2026-11-05).
+- **D19 — Wybór miasta na `/discover`:** wyszukiwarka lotnisk (`AirportField`) — miasto i współrzędne z lotniska, działa offline; zainteresowania z profilu jako `InterestChips` do zmiany na ekranie (Kacper, 2026-11-07: „Airport search”; zainteresowania — propozycja bez sprzeciwu).
 - **D4 — Nowy wygląd pigułki** wg wzoru: aktywna = wypełniona kapsuła ikona + etykieta, nieaktywne = okrągłe przyciski z ikoną; w kolorach Sunline.
 
 ## Dziennik
@@ -227,3 +228,4 @@ Scenariusze ręczne C7: brak podróży → „Odkryj miejsca” → wybór miast
 - 2026-11-06 — Kacper odpowiedział na P2–P8 → D12–D17. Plan B i C przedstawiony do akceptacji.
 - 2026-11-06 — Kacper zaakceptował plan B i C („Akceptuje”) i poprosił o realizację w podsesjach. Kroki B3/B4 wykreślone (zrobione w `profile-settings`). Startują sesje B i C.
 - 2026-11-07 — Sesja C zacommitowała C1 (1e88a61), C2 (93f706b) i C4 (2ef816d); werdykty verifiera dla nich nie są zapisane w tym planie, więc zostają `[ ]` do potwierdzenia. C3: pierwszy verifier FAIL — `consume_ai_quota` przepuszczał pierwsze wywołanie przy `p_limit <= 0`; `consumeQuota` bez walidacji Zod. Poprawka (backend): insert tylko gdy `p_limit > 0`, `z.number().int().nonnegative().nullable()` na wyniku RPC; test SQL (limit 0 i -1 → null, bez wiersza) pada na starej migracji, przechodzi na nowej (lokalny Supabase w Dockerze, transakcja wycofana). Verifier PASS (188/3796, typecheck, lint). Gałąź `feature/discover-places`, draft PR #30 (na `feature/places-legal-navbar`). Niesprawdzone: Deno, wywołanie na żywo (sekrety Kacpra).
+- 2026-11-07 — Kacper: miasto na `/discover` z wyszukiwarki lotnisk → D19. C5 (frontend): `src/app/discover.tsx`, `src/features/discover/DiscoverScreen.tsx` (na `AuthFormScreen`), `Stack.Screen` w `src/app/_layout.tsx`, klucze `discover.*` pl/en; 11 testów (czerwone: brak modułu). Verifier PASS (189/3807, typecheck, lint). Uwagi bez blokady: błąd `Linking.openURL` jest połykany bez komunikatu; widok ładowania bez `accessibilityRole`; nieużywany `jest.mock('@/data/app-places')` w teście. Niesprawdzone na urządzeniu (C7).
