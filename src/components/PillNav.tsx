@@ -33,8 +33,9 @@ const { tabs, focusRing } = tokens.components;
 
 // Floating tabs (design-context §8.14, places-legal-navbar A5): one shared pill (`surface.elevated`, level 2 elevation, a
 // border in dark mode §5.2, 8 dp padding) under the whole row. Inside, one `brand.primary` indicator slides behind the
-// items to the selected one; the selected item shows icon and label, the others are 48 dp icon-only `background.sunken`
-// circles. The container is taller than the pill so its shadow is not cut, and lets touches through except on the pill.
+// items to the selected one; the selected item shows icon and label, the others are icon-only 48 dp tabs with no
+// background of their own (D18). The container is taller than the pill so its shadow is not cut, and lets touches
+// through except on the pill.
 export function PillNav({ items, activeKey, onSelect }: Props) {
   const bottomOffset = usePillBottomOffset();
   const { width } = useWindowDimensions();
@@ -108,11 +109,11 @@ export function PillNav({ items, activeKey, onSelect }: Props) {
           flexDirection: "row",
           alignItems: "center",
           justifyContent: "space-between",
-          gap: tokens.spacing[2],
+          gap: tokens.spacing[1],
           padding: tabs.containerPadding,
           borderRadius: tokens.radii.pill,
           backgroundColor: theme.surface.elevated,
-          // Fixed width (D10): the row never resizes on a tab switch, only the indicator slides.
+          // Fixed width (D10, D18): the row never resizes on a tab switch, only the indicator slides.
           width: Math.min(tabs.pillWidth, width - 2 * tokens.spacing[4]),
           ...theme.elevation.level2,
         }}
@@ -211,7 +212,6 @@ function PillNavTab({ item, selected, animate, onPress, onLayout }: TabProps) {
               }
             : {
                 width: tabs.height,
-                backgroundColor: theme.background.sunken,
               },
           focused && {
             outlineStyle: "solid",

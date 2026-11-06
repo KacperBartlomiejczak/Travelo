@@ -9,6 +9,7 @@ import { TextButton } from '@/components/TextButton';
 import type { OAuthProvider } from '@/data/auth';
 import { useSignIn } from '@/hooks/useSignIn';
 import { useIsOffline } from '@/providers/BudgetSync';
+import type { LegalDoc } from '@/schemas/legal';
 import { tokens } from '@/theme/tokens';
 import { useTheme } from '@/theme/useTheme';
 
@@ -45,6 +46,12 @@ export function SignInSheet({ onClose }: Props) {
     router.push('/email');
   }
 
+  // The sheet is a native modal: it closes first, or the document would open behind it.
+  function openLegal(doc: LegalDoc) {
+    onClose();
+    router.push(`/legal/${doc}`);
+  }
+
   return (
     <BottomSheet visible title={t('auth.signIn.title')} onClose={onClose} dismissible={!pending}>
       {offline && <OfflineBanner />}
@@ -62,6 +69,13 @@ export function SignInSheet({ onClose }: Props) {
           disabled={offline || (pending && tapped !== 'discord')}
         />
         <TextButton variant="secondary" label={t('auth.signIn.email')} icon={Mail} onPress={chooseEmail} disabled={offline || pending} />
+      </View>
+      <Text style={[tokens.typography.styles.bodySM, { color: theme.text.secondary }]}>
+        {t('auth.signIn.legal')}
+      </Text>
+      <View testID="sign-in-legal-links" style={{ flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', gap: tokens.spacing[2] }}>
+        <TextButton variant="ghost" label={t('auth.signIn.legalTerms')} onPress={() => openLegal('terms')} />
+        <TextButton variant="ghost" label={t('auth.signIn.legalPrivacy')} onPress={() => openLegal('privacy')} />
       </View>
       {signIn.isError && tapped && (
         // Announced by the call in `start`; a live region as well would read it twice.

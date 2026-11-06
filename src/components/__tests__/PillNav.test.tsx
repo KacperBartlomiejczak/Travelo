@@ -112,10 +112,10 @@ describe('PillNav (design-context §8.14, places-legal-navbar A2)', () => {
       expect(screen.getAllByRole('button', { selected: true })).toHaveLength(1);
     });
 
-    it('unselected items are 48x48 circles (>= 44dp touch target); the selected one is a 48dp high capsule with 16dp side padding', async () => {
+    it('unselected items keep a 48x48 touch target (>= 44dp, D18); the selected one is a 48dp high capsule with 16dp side padding', async () => {
       await render(ui('expenses'));
       UNSELECTED.forEach((label) => {
-        expect(navButton(label)).toHaveStyle({ width: tabs.height, height: tabs.height, borderRadius: tokens.radii.pill });
+        expect(navButton(label)).toHaveStyle({ width: 48, height: 48, borderRadius: tokens.radii.pill });
       });
       expect(tabs.height).toBe(48);
       expect(tabs.height).toBeGreaterThanOrEqual(tokens.layout.touchTarget);
@@ -125,14 +125,14 @@ describe('PillNav (design-context §8.14, places-legal-navbar A2)', () => {
   });
 
   describe('look (§8.14)', () => {
-    it('selected: label and icon in brand.onBrand over the sliding brand.primary indicator; the others icon-only circles on background.sunken (light)', async () => {
+    it('selected: label and icon in brand.onBrand over the sliding brand.primary indicator; the others icon-only with no background of their own (light, D18)', async () => {
       await render(ui('expenses'));
       expect(style(screen.getByTestId('pill-nav-indicator')).backgroundColor).toBe(lightTheme.brand.primary);
       expect(screen.getByText('Wydatki')).toHaveStyle({ color: lightTheme.brand.onBrand, ...styles.labelSM });
       expect(icon('expenses').props.stroke).toBe(lightTheme.brand.onBrand);
       UNSELECTED.forEach((label) => {
         expect(screen.queryByText(label)).toBeNull();
-        expect(navButton(label)).toHaveStyle({ backgroundColor: lightTheme.background.sunken });
+        expect(style(navButton(label)).backgroundColor).toBeUndefined();
       });
       ['index', 'plan', 'profile'].forEach((key) => expect(icon(key).props.stroke).toBe(lightTheme.icon.secondary));
     });
@@ -156,19 +156,19 @@ describe('PillNav (design-context §8.14, places-legal-navbar A2)', () => {
       await render(ui('expenses'), { wrapper: DarkThemeScope });
       expect(style(screen.getByTestId('pill-nav-indicator')).backgroundColor).toBe(darkTheme.brand.primary);
       expect(screen.getByText('Wydatki')).toHaveStyle({ color: darkTheme.brand.onBrand });
-      expect(navButton('Plan')).toHaveStyle({ backgroundColor: darkTheme.background.sunken });
+      expect(style(navButton('Plan')).backgroundColor).toBeUndefined();
       expect(style(screen.getByTestId('pill-nav'))).toMatchObject({ backgroundColor: darkTheme.surface.elevated, borderWidth: 1, shadowOpacity: 0, elevation: 0 });
       screen.getAllByRole('button').forEach((item) => expect(style(item).borderWidth).toBeUndefined());
     });
 
-    it('draws one shared pill under the row: surface.elevated, radius.pill, level 2 shadow, 8dp padding -> 64dp high; items have no own shadow', async () => {
+    it('draws one shared pill under the row: surface.elevated, radius.pill, level 2 shadow, 8dp padding, 4dp gap (D18) -> 64dp high; items have no own shadow', async () => {
       await render(ui('expenses'));
       expect(style(screen.getByTestId('pill-nav'))).toMatchObject({
         ...lightTheme.elevation.level2,
         backgroundColor: lightTheme.surface.elevated,
         borderRadius: tokens.radii.pill,
         padding: tabs.containerPadding,
-        gap: tokens.spacing[2],
+        gap: tokens.spacing[1],
       });
       expect(style(screen.getByTestId('pill-nav')).shadowOpacity).toBeGreaterThan(0);
       expect(tabs.containerPadding).toBe(8);
@@ -194,24 +194,24 @@ describe('PillNav (design-context §8.14, places-legal-navbar A2)', () => {
       expect(style(screen.getByTestId('pill-nav')).width).toBe(320 - 2 * tokens.spacing[4]);
       expect(screen.getByText('Wydatki').props.numberOfLines).toBe(1);
       expect(navButton('Wydatki')).toHaveStyle({ flexShrink: 1 });
-      const fixed = 3 * tabs.height + 3 * tokens.spacing[2] + 2 * tabs.containerPadding + 2 * tabs.horizontalPadding + tabs.iconSize + tabs.gap;
+      const fixed = 3 * tabs.height + 3 * tokens.spacing[1] + 2 * tabs.containerPadding + 2 * tabs.horizontalPadding + tabs.iconSize + tabs.gap;
       expect(fixed).toBeLessThan(320 - 2 * tokens.spacing[4]);
     });
 
     it('is capped at the fixed pill width on a wide screen (D10)', async () => {
       mockWindowWidth = 1000;
       await render(ui());
-      expect(tabs.pillWidth).toBe(320);
-      expect(style(screen.getByTestId('pill-nav')).width).toBe(320);
+      expect(tabs.pillWidth).toBe(296);
+      expect(style(screen.getByTestId('pill-nav')).width).toBe(296);
     });
 
-    it('has a fixed width of min(pillWidth, window - 2 * spacing[4]), items spread evenly, unchanged by a selection change (D10)', async () => {
+    it('has a fixed width of min(pillWidth, window - 2 * spacing[4]), items spread evenly, unchanged by a selection change (D10, D18: 296)', async () => {
       mockWindowWidth = 411;
       const view = await render(ui('index'));
       const pill = () => style(screen.getByTestId('pill-nav'));
-      expect(pill()).toMatchObject({ width: 320, justifyContent: 'space-between' });
+      expect(pill()).toMatchObject({ width: 296, justifyContent: 'space-between' });
       await view.rerender(ui('expenses'));
-      expect(pill().width).toBe(320);
+      expect(pill().width).toBe(296);
       expect(pill().maxWidth).toBeUndefined();
     });
 
@@ -238,11 +238,11 @@ describe('PillNav (design-context §8.14, places-legal-navbar A2)', () => {
       expect(screen.getByTestId('pill-nav-container').props.pointerEvents).toBe('box-none');
     });
 
-    it('shows a pressed selected item with brand.pressed and a pressed unselected one with background.sunken, scaled like every button (D8)', async () => {
+    it('shows a pressed selected item with brand.pressed and a pressed unselected one only scaled, with no background (D18), scaled like every button (D8)', async () => {
       await render(ui('expenses'));
       // currentTarget is what Pressability remembers as its responder; without it a later release is ignored.
       await fireEvent(navButton('Plan'), 'responderGrant', { nativeEvent: { timestamp: Date.now() }, currentTarget: 1, persist: jest.fn() });
-      expect(navButton('Plan')).toHaveStyle({ backgroundColor: lightTheme.background.sunken });
+      expect(style(navButton('Plan')).backgroundColor).toBeUndefined();
       expect(scaleOf('plan')).toBe(tokens.motion.press.scale);
       await fireEvent(navButton('Plan'), 'responderRelease', { nativeEvent: { timestamp: Date.now() }, persist: jest.fn() });
       await pass(500);

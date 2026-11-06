@@ -10,6 +10,7 @@ import { router, Stack } from "expo-router";
 import { HeaderBackButton } from "expo-router/react-navigation";
 import * as SplashScreen from "expo-splash-screen";
 import { useEffect, useState } from "react";
+import type { TFunction } from "i18next";
 import { useTranslation } from "react-i18next";
 import { Platform } from "react-native";
 
@@ -20,9 +21,16 @@ import { AnimatedSplash } from "@/components/AnimatedSplash";
 import { AppLoading } from "@/features/auth/AppLoading";
 import { FullScreenError } from "@/features/auth/FullScreenError";
 import { useGateView } from "@/features/auth/useGateView";
+import { LegalDocSchema } from "@/schemas/legal";
 import { AppProviders } from "@/providers/AppProviders";
 import { tokens } from "@/theme/tokens";
 import { useTheme } from "@/theme/useTheme";
+
+// The header title of a legal document; empty for an unknown one (the screen itself shows the error).
+function legalTitle(t: TFunction, doc: string | undefined) {
+  const name = LegalDocSchema.safeParse(doc);
+  return name.success ? t(`legal.${name.data}.title`) : "";
+}
 
 SplashScreen.preventAutoHideAsync();
 // Before the first render, so the first frame already has the chosen theme (profile-settings D8).
@@ -183,6 +191,30 @@ function GateContent({ view, retry }: ReturnType<typeof useGateView>) {
       </Stack.Protected>
       {/* The OAuth redirect can open the app here in any state; the screen only redirects to /. */}
       <Stack.Screen name="auth/callback" options={{ headerShown: false }} />
+      {/* The legal documents open signed out (from the sign-in sheet) and signed in (from Settings), so outside every guard. */}
+      <Stack.Screen
+        name="legal/[doc]"
+        options={({ route }) => ({
+          title: legalTitle(t, (route.params as { doc?: string } | undefined)?.doc),
+          headerStyle: { backgroundColor: theme.background.canvas },
+          headerTintColor: theme.text.primary,
+          headerTitleStyle: tokens.typography.styles.headingSM,
+          headerShadowVisible: false,
+          headerLeft: ({ tintColor }) => (
+            <HeaderBackButton
+              label={t("legal.back")}
+              accessibilityLabel={t("legal.back")}
+              tintColor={tintColor}
+              style={
+                Platform.OS === "ios"
+                  ? { minWidth: tokens.layout.touchTarget, minHeight: tokens.layout.touchTarget }
+                  : { minHeight: tokens.layout.touchTarget }
+              }
+              onPress={() => router.back()}
+            />
+          ),
+        })}
+      />
     </Stack>
   );
 }
