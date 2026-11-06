@@ -64,6 +64,10 @@ export function PillNav({ items, activeKey, onSelect }: Props) {
     activeRef.current = activeKey;
     animateRef.current = animate;
   }, [activeKey, animate]);
+  // The pill remounts on a theme change (border shifts item x): the next placement snaps instead of animating.
+  useLayoutEffect(() => {
+    placed.current = false;
+  }, [theme]);
   // Absolute `left` is measured inside the border, a layout x from the outside of it (dark mode has a 1 dp border).
   const border = StyleSheet.flatten(theme.elevation.level2).borderWidth ?? 0;
   const place = (key: string, x: number, w: number) => {

@@ -300,6 +300,19 @@ describe('PillNav (design-context §8.14, places-legal-navbar A2)', () => {
       expect(indicator()).toMatchObject({ left: 8, top: tabs.containerPadding });
     });
 
+    it('snaps, not animates, to the first layout after a theme switch remounts the pill', async () => {
+      jest.spyOn(AccessibilityInfo, 'isReduceMotionEnabled').mockResolvedValue(false);
+      const view = await render(ui('index'));
+      await layout('Podróż', 8, 120);
+      mockScheme = 'dark';
+      await view.rerender(ui('index'));
+      const timing = jest.spyOn(Reanimated, 'withTiming');
+      await layout('Podróż', 9, 120);
+      await flush(view, 'index');
+      expect(standardTimings(timing)).toHaveLength(0);
+      expect(indicator()).toMatchObject({ left: 8, width: 120 });
+    });
+
     it('moves at once with reduce motion', async () => {
       jest.spyOn(AccessibilityInfo, 'isReduceMotionEnabled').mockResolvedValue(true);
       const view = await render(ui('index'));
