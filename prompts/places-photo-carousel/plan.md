@@ -65,7 +65,7 @@ Kacper (bezpośrednio): „Problem w karuzeli jest taki że aktualnie te zdjęci
 
 ### Kroki (szkic)
 - [x] 6. [backend] Zod + maska + mapowanie oceny — najpierw testy schematu i `parseNearbySearch` — verifier
-- [ ] 7. [frontend] Ocena na karcie — najpierw testy `PlaceCard` — verifier
+- [x] 7. [frontend] Ocena na karcie — najpierw testy `PlaceCard` — verifier
 - [ ] 8. Wdrożenie funkcji (Kacper) → tester na emulatorze (po sygnale menedżera, 1 wyszukiwanie) → docs → verifier końca planu z CodeRabbit → PR #32
 
 ### Pytania
@@ -93,6 +93,7 @@ Kacper (bezpośrednio): „Problem w karuzeli jest taki że aktualnie te zdjęci
 - 2026-11-07 — Krok 5: verifier końca planu (Sonnet 5.5) + CodeRabbit (`--base feature/discover-places --committed`, 27 plików): **PASS**, CodeRabbit 0 uwag; 192/3879, typecheck, lint 0; docs zgodne z kodem. Zostaje: sprawdzenie da705bd i ciemnego motywu na urządzeniu (krok 4).
 - 2026-11-07 — Krok 4, powtórka na buildzie z da705bd (emulator-5554, Expo Go → Metro 8083, 1 wyszukiwanie: Lizbona, zostało 2): **scenariusz 1 PASS** — karta x=53–1028, ramka zdjęcia x=56–1026 (970×727, 4:3) w obrysie karty, licznik i podpis w środku, bez skoku; przewijanie PASS; **ciemny motyw PASS** (licznik i „Fot. …” czytelne, wyniki z pamięci podręcznej — licznik wyszukiwań bez zmian), motyw przywrócony na „Jasny”. Angielski niesprawdzony (nowe wyszukiwanie). Emulator zwolniony 15:08 CEST; `adb reverse` usunięty, Metro 8083 zatrzymane. Uwagi poza zakresem: „Otwórz w Mapach Google” → Madryt (Explore); zainteresowania na `/discover` zmieniały się między uruchomieniami (inne sesje?).
 - 2026-11-07 — Krok 6: red ✓ (11 failed / 114 passed; 3 testy-strażnicy zielone od początku) · `RatingSchema` 1–5, `RatingCountSchema` int ≥ 0; `GooglePlaceSchema.rating/userRatingCount` `.optional().catch(undefined)` (zła wartość usuwa tylko pole); `PlaceSchema.rating?/ratingCount?`; maska + `places.rating,places.userRatingCount` (Enterprise, D7), dalej bez `openingHours/reviews/priceLevel`; test: ocena nie trafia do Gemini. Verifier **PASS** (192/3891, typecheck, lint 0).
+- 2026-11-07 — Krok 7: red ✓ (11 failed per asercja / 16 passed; potem 3 failed przy poprawkach a11y) · `TypeRow` w `PlaceCard`: „Klub nocny · ★ 4,6 (1234)” (caption, `text.secondary`, wypełniona `Star` xs, `Intl.NumberFormat` wg języka, 1 cyfra po przecinku; „·” tylko z typem i ukryta przed czytnikiem); etykieta „Ocena 4,6 na 5, 1234 opinie” / „Rated 4.6 out of 5, 1,234 reviews” (`discover.ratingLabel`, `ratingLabelCount_one/few/many/other`, liczba w etykiecie sformatowana, odmiana z surowej liczby). Odstępstwo: polski zapis nie grupuje liczb 4-cyfrowych („1234”, „12 345” — reguła CLDR); przykład „1 234” w D7 był nieścisły. Verifier **PASS** (192/3908, typecheck, lint 0).
 
 ## Decyzje
 - **D1 — Q1 = (a): Edge Function rozwiązuje `photoUri`** (`skipHttpRedirect=true`, klucz w nagłówku) dla miejsc wybranych przez Gemini i zwraca aplikacji gotowe adresy bez klucza; bez drugiej funkcji (Kacper, 2026-11-07).

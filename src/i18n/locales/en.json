@@ -474,6 +474,11 @@
     "photoLabel": "Photo {{index}} of {{count}}, {{name}}",
     "photoCounter": "{{index}}/{{count}}",
     "photoCredit": "Photo: {{names}}",
+    "ratingLabel": "Rated {{rating}} out of 5",
+    "ratingLabelCount_one": "Rated {{rating}} out of 5, {{n}} review",
+    "ratingLabelCount_few": "Rated {{rating}} out of 5, {{n}} reviews",
+    "ratingLabelCount_many": "Rated {{rating}} out of 5, {{n}} reviews",
+    "ratingLabelCount_other": "Rated {{rating}} out of 5, {{n}} reviews",
     "photoCreditLabel": "Open photo author page, {{names}}",
     "back": "Back"
   },

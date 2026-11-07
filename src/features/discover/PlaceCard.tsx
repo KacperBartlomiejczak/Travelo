@@ -1,5 +1,6 @@
 import { Image } from 'expo-image';
-import { useState } from 'react';
+import { Star } from 'lucide-react-native';
+import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   FlatList,
@@ -38,7 +39,7 @@ export function PlaceCard({ place }: { place: PlaceRecommendation }) {
       {place.photos.length > 0 && <Carousel photos={place.photos} placeName={place.name} />}
       <View style={{ gap: spacing[1] }}>
         <Text style={[typography.styles.labelLG, { color: theme.text.primary }]}>{place.name}</Text>
-        {place.typeLabel && <Text style={[typography.styles.caption, { color: theme.text.secondary }]}>{place.typeLabel}</Text>}
+        <TypeRow typeLabel={place.typeLabel} rating={place.rating} ratingCount={place.ratingCount} />
         {place.address && <Text style={[typography.styles.bodySM, { color: theme.text.secondary }]}>{place.address}</Text>}
       </View>
       {place.reason && <Text style={[typography.styles.bodyMD, { color: theme.text.primary }]}>{place.reason}</Text>}
@@ -49,6 +50,49 @@ export function PlaceCard({ place }: { place: PlaceRecommendation }) {
         onPress={() => void Linking.openURL(place.googleMapsUri).catch(() => {})}
       />
     </Card>
+  );
+}
+
+type TypeRowProps = Pick<PlaceRecommendation, 'typeLabel' | 'rating' | 'ratingCount'>;
+
+// "Type · ★ 4,6 (1 234)" (D7): the numbers follow the app language; the rating part is one screen-reader element with plurals.
+function TypeRow({ typeLabel, rating, ratingCount }: TypeRowProps) {
+  const { t, i18n } = useTranslation();
+  const theme = useTheme();
+  const formats = useMemo(
+    () => ({
+      rating: new Intl.NumberFormat(i18n.language, { minimumFractionDigits: 1, maximumFractionDigits: 1 }),
+      count: new Intl.NumberFormat(i18n.language),
+    }),
+    [i18n.language],
+  );
+  const caption = [typography.styles.caption, { color: theme.text.secondary }];
+  if (rating === undefined) return typeLabel ? <Text style={caption}>{typeLabel}</Text> : null;
+  const value = formats.rating.format(rating);
+  const label =
+    ratingCount === undefined ? t('discover.ratingLabel', { rating: value }) : t('discover.ratingLabelCount', { rating: value, count: ratingCount, n: formats.count.format(ratingCount) });
+  return (
+    <View testID="place-card-type-row" style={{ flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: spacing[1] }}>
+      {typeLabel && (
+        <>
+          <Text style={caption}>{typeLabel}</Text>
+          <Text style={caption} importantForAccessibility="no" accessibilityElementsHidden>
+            ·
+          </Text>
+        </>
+      )}
+      <View accessible accessibilityLabel={label} style={{ flexDirection: 'row', alignItems: 'center', gap: spacing[1] }}>
+        <Star
+          testID="place-card-rating-star"
+          size={tokens.iconography.size.xs}
+          strokeWidth={tokens.iconography.strokeWidth}
+          color={theme.text.secondary}
+          fill={theme.text.secondary}
+          aria-hidden
+        />
+        <Text style={caption}>{ratingCount === undefined ? value : `${value} (${formats.count.format(ratingCount)})`}</Text>
+      </View>
+    </View>
   );
 }
 

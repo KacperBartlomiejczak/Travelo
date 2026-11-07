@@ -110,6 +110,96 @@ describe('PlaceCard photos', () => {
   });
 });
 
+describe('PlaceCard rating', () => {
+  const rated = (extra: Partial<PlaceRecommendation>) => render(<PlaceCard place={{ ...place(), ...extra }} />);
+  // The row is "type", "·" and the rating part, as separate texts so the rating part can carry its own label.
+  const ratingPart = (name: string | RegExp) => screen.getByLabelText(name);
+
+  it('shows type, separator and rating with count in Polish', async () => {
+    await rated({ rating: 4.6, ratingCount: 12345 });
+    expect(screen.getByText('Muzeum')).toBeTruthy();
+    expect(screen.getByText('·', { includeHiddenElements: true })).toBeTruthy();
+    expect(screen.getByText(/^4,6 \(12\s345\)$/)).toBeTruthy();
+    expect(screen.getByTestId('place-card-rating-star', { includeHiddenElements: true })).toBeTruthy();
+  });
+
+  it('formats the numbers by the language in English', async () => {
+    await i18n.changeLanguage('en');
+    await rated({ rating: 4.6, ratingCount: 1234 });
+    expect(screen.getByText('4.6 (1,234)')).toBeTruthy();
+  });
+
+  it('always shows one fraction digit', async () => {
+    await rated({ rating: 4, ratingCount: 2 });
+    expect(screen.getByText('4,0 (2)')).toBeTruthy();
+  });
+
+  it('shows the rating alone without a count', async () => {
+    await rated({ rating: 4.6 });
+    expect(screen.getByText('4,6')).toBeTruthy();
+    expect(screen.queryByText(/\(/)).toBeNull();
+  });
+
+  it('leaves the row as it was without a rating', async () => {
+    await rated({ ratingCount: 10 });
+    expect(screen.getByText('Muzeum')).toBeTruthy();
+    expect(screen.queryByText('·', { includeHiddenElements: true })).toBeNull();
+    expect(screen.queryByTestId('place-card-rating-star', { includeHiddenElements: true })).toBeNull();
+  });
+
+  it('shows only the rating without a type, and no separator', async () => {
+    await rated({ typeLabel: undefined, rating: 4.6, ratingCount: 3 });
+    expect(screen.queryByText('·', { includeHiddenElements: true })).toBeNull();
+    expect(screen.getByText('4,6 (3)')).toBeTruthy();
+  });
+
+  it('shows no row at all without a type and a rating', async () => {
+    await rated({ typeLabel: undefined });
+    expect(screen.queryByTestId('place-card-type-row')).toBeNull();
+  });
+
+  it.each([
+    [1, 'Ocena 4,6 na 5, 1 opinia'],
+    [3, 'Ocena 4,6 na 5, 3 opinie'],
+    [5, 'Ocena 4,6 na 5, 5 opinii'],
+    [1234, 'Ocena 4,6 na 5, 1234 opinie'],
+  ])('reads %i reviews in Polish with the right plural', async (ratingCount, label) => {
+    await rated({ rating: 4.6, ratingCount });
+    expect(ratingPart(label)).toBeTruthy();
+  });
+
+  it.each([
+    [1, 'Rated 4.6 out of 5, 1 review'],
+    [1234, 'Rated 4.6 out of 5, 1,234 reviews'],
+  ])('reads %i reviews in English with the right plural', async (ratingCount, label) => {
+    await i18n.changeLanguage('en');
+    await rated({ rating: 4.6, ratingCount });
+    expect(ratingPart(label)).toBeTruthy();
+  });
+
+  it('formats a large count in the Polish label as Intl does', async () => {
+    await rated({ rating: 4.6, ratingCount: 12345 });
+    expect(ratingPart(/^Ocena 4,6 na 5, 12\s345 opinii$/)).toBeTruthy();
+  });
+
+  it('hides the separator from screen readers', async () => {
+    await rated({ rating: 4.6, ratingCount: 3 });
+    expect(screen.queryByText('·')).toBeNull();
+    expect(screen.getByText('·', { includeHiddenElements: true }).props.accessibilityElementsHidden).toBe(true);
+  });
+
+  it('reads the rating without a count in Polish', async () => {
+    await rated({ rating: 4.6 });
+    expect(ratingPart('Ocena 4,6 na 5')).toBeTruthy();
+  });
+
+  it('reads the rating without a count in English', async () => {
+    await i18n.changeLanguage('en');
+    await rated({ rating: 4.6 });
+    expect(ratingPart('Rated 4.6 out of 5')).toBeTruthy();
+  });
+});
+
 describe('PlaceCard author caption', () => {
   it('credits the authors in Polish and opens the first one', async () => {
     await show([photo(1, [{ name: 'Ala', uri: 'https://maps.google.com/a' }, { name: 'Ola', uri: 'https://maps.google.com/o' }])]);
