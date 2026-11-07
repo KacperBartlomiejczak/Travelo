@@ -1,5 +1,5 @@
 # Zadanie: Karuzela zdjęć na kartach miejsc (Discover)
-Status: zaakceptowany 2026-11-07 („Tak, rekomendacje”, przekazane przez sesję-menedżera), w trakcie
+Status: zrobione 2026-11-07 (zaakceptowany „Tak, rekomendacje”, przekazane przez sesję-menedżera)
 
 ## Zrozumienie i założenia
 - Kacper chce, żeby każda karta miejsca na `/discover` miała przesuwaną karuzelę zdjęć miejsca — żeby było widać, jak wygląda.
@@ -45,8 +45,8 @@ Status: zaakceptowany 2026-11-07 („Tak, rekomendacje”, przekazane przez sesj
 - [x] 1. [backend] Zod + mapowanie: sprawdzić u źródła pola/SKU/ceny; schematy zdjęć, `photoRefs` kandydata, `places.photos` w masce — skill: source-driven-development, test-driven-development — najpierw testy: schemat, `parseNearbySearch` — weryfikacja: verifier
 - [x] 2. [backend] Edge Function: port `resolvePhoto`, pobieranie ≤ N zdjęć dla wybranych miejsc, równolegle, z limitem czasu, błędy pomijane — skill: test-driven-development, supabase — najpierw testy: handler + port na fake'ach — weryfikacja: verifier; **wdrożenie funkcji na hostowany projekt tylko za zgodą Kacpra**
 - [x] 3. [frontend] `PlaceCard` z karuzelą, wskaźnikiem, podpisem autora, stanem bez zdjęcia i błędu, i18n PL/EN, tokeny — skill: frontend-ui-engineering, ui-taste, test-driven-development — najpierw testy: `PlaceCard.test.tsx` — weryfikacja: verifier
-- [ ] 4. [tester] Na urządzeniu: wyszukiwanie z kartami ze zdjęciami, przesuwanie, miejsce bez zdjęć, offline, EN + ciemny motyw — weryfikacja: zrzuty
-- [ ] 5. Docs (orkiestrator) + verifier końca planu z CodeRabbit
+- [x] 4. [tester] Na urządzeniu: wyszukiwanie z kartami ze zdjęciami, przesuwanie, miejsce bez zdjęć, offline, EN + ciemny motyw — weryfikacja: zrzuty
+- [x] 5. Docs (orkiestrator) + verifier końca planu z CodeRabbit
 
 ## Dziennik postępu
 - 2026-11-07 — plan napisany; czeka na odpowiedzi Q1–Q6 i akceptację.
@@ -66,6 +66,7 @@ Status: zaakceptowany 2026-11-07 („Tak, rekomendacje”, przekazane przez sesj
 - 2026-11-07 — Krok 5 (orkiestrator): docs — `backend.md` (`recommend-places`: zdjęcia, v6), `shared.md` (`place.ts`), `frontend.md` (`PlaceCard`), `flows/features/discover-places.md`, `decisions.md` (zastępuje „bez zdjęć” z D15), `known-limitations.md`, `overview.md`, `context/app-context.md` (pkt 18).
 - 2026-11-07 — Kacper: „Tak, szukaj” (drugie wyszukiwanie). Tester: Metro 8083 tego worktree zatrzymane przez aplikację (~13:48 UTC), więc nowego bundla nie dało się wczytać; wyszukiwań 0, emulator zwolniony 14:58 CEST dla sesji przełącznika. Sprawdzenie da705bd na urządzeniu i ciemnego motywu dalej czeka.
 - 2026-11-07 — Krok 5: verifier końca planu (Sonnet 5.5) + CodeRabbit (`--base feature/discover-places --committed`, 27 plików): **PASS**, CodeRabbit 0 uwag; 192/3879, typecheck, lint 0; docs zgodne z kodem. Zostaje: sprawdzenie da705bd i ciemnego motywu na urządzeniu (krok 4).
+- 2026-11-07 — Krok 4, powtórka na buildzie z da705bd (emulator-5554, Expo Go → Metro 8083, 1 wyszukiwanie: Lizbona, zostało 2): **scenariusz 1 PASS** — karta x=53–1028, ramka zdjęcia x=56–1026 (970×727, 4:3) w obrysie karty, licznik i podpis w środku, bez skoku; przewijanie PASS; **ciemny motyw PASS** (licznik i „Fot. …” czytelne, wyniki z pamięci podręcznej — licznik wyszukiwań bez zmian), motyw przywrócony na „Jasny”. Angielski niesprawdzony (nowe wyszukiwanie). Emulator zwolniony 15:08 CEST; `adb reverse` usunięty, Metro 8083 zatrzymane. Uwagi poza zakresem: „Otwórz w Mapach Google” → Madryt (Explore); zainteresowania na `/discover` zmieniały się między uruchomieniami (inne sesje?).
 
 ## Decyzje
 - **D1 — Q1 = (a): Edge Function rozwiązuje `photoUri`** (`skipHttpRedirect=true`, klucz w nagłówku) dla miejsc wybranych przez Gemini i zwraca aplikacji gotowe adresy bez klucza; bez drugiej funkcji (Kacper, 2026-11-07).
