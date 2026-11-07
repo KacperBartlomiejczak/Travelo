@@ -16,7 +16,7 @@ Założenia (do potwierdzenia przy akceptacji):
 - **Z2** — przełącznik zawsze startuje na „Plan”; wybór nie jest zapamiętywany między uruchomieniami (bez AsyncStorage). Przełączenie innej zakładki pigułki i powrót zachowuje wybór (ekrany zakładek zostają zamontowane).
 - **Z3** — nie dotykam karty miejsca, `src/schemas/place.ts` ani `recommend-places` (inna sesja przerabia kartę na karuzelę zdjęć). Cel: `DiscoverScreen.tsx` bez zmian albo z jedną minimalną zmianą (patrz R1).
 - **Z4** — bez nowych zależności, bez zmian w Zod, Supabase i danych.
-- **Z5** (dodane z D3, do potwierdzenia przez Kacpra) — bez danych bieżącej podróży (ładowanie, błąd przed pierwszymi danymi, brak podróży) ekran Plan wygląda jak dziś, bez przełącznika; nieudane odświeżenie zostawia wczytaną podróż i przełącznik.
+- **Z5** (dodane z D3; przyjęte domyślnie, D9) — bez danych bieżącej podróży (ładowanie, błąd przed pierwszymi danymi, brak podróży) ekran Plan wygląda jak dziś, bez przełącznika; nieudane odświeżenie zostawia wczytaną podróż i przełącznik.
 
 ### Pytania do Kacpra (jedno po drugim; rekomendacja pierwsza)
 - **P1 — Gdzie stoi przełącznik?**
@@ -46,6 +46,8 @@ Założenia (do potwierdzenia przy akceptacji):
 - **D5 — P5 = (a):** etykiety „Plan” / „Odkryj” (en „Plan” / „Discover”).
 - **D6 — P6 = (a):** bez animacji — treść podmienia się od razu.
 - **D7 — Akceptacja:** plan zaakceptowany razem z założeniami Z1–Z4 (w tym zmiana D16: drugie wejście do Discover). Słowa Kacpra: „Tak, rekomendacje” (przekazane przez sesję-menedżera, 2026-11-07; menedżer uprzedził, że traktuje to jako akceptację planu).
+- **D8 — P7 = (a):** zmiana podróży może wyczyścić formularz i wyniki „Odkryj”; kod bez zmian. Słowa Kacpra: „Zostaw jak jest” (przekazane przez sesję-menedżera, 2026-11-07).
+- **D9 — Z5 przyjęte domyślnie, nie decyzja Kacpra:** Kacper nie odpowiedział wprost; menedżer uprzedził go, że brak odpowiedzi traktuje jako zgodę (2026-11-07).
 
 ## Podejście
 Przy rekomendacjach (P1a, P2a, P3a, P4a, P5a, P6a):
@@ -94,11 +96,12 @@ Każdy krok: `pnpm test`, `pnpm typecheck`, `pnpm lint` zielone, verifier PASS p
 - 2026-11-07 — odpowiedzi P1–P6 (D1–D6), plan zaakceptowany (D7).
 - 2026-11-07 — krok 1 gotowy (`626d789`): `src/features/plan/PlanScreen.tsx`, trasa `plan.tsx` tylko renderuje ekran; opcjonalny `bottomInset` w `AuthFormScreen` i `DiscoverScreen` (w `DiscoverScreen.tsx` tylko sygnatura, `PlaceCard` bez zmian); klucze `nav.discover`, `nav.planView`; `jest.mock('@/data/app-places')` w `tabs.test.tsx` i `drawer-swipe.test.tsx` (trasa Plan importuje teraz warstwę danych Discover; asercje bez zmian). Testy: najpierw czerwone (brak modułu; potem 3 testy D3 — przełącznik widoczny bez podróży), potem zielone; cały pakiet 3850/3850, typecheck, lint zielone. Verifier: PASS.
 - 2026-11-07 — krok 2: docs (`overview.md`, `frontend.md`, `discover-places.md`, `decisions.md`, `app-context.md`); verifier najpierw FAIL (nieaktualny `overview.md`, brak Z5/P7 w planie), po poprawkach PASS. Czeka: P7, Z5, krok 3 (tester), krok 4.
-- 2026-11-07 — krok 3 wstrzymany (emulator zajęty przez sesję karuzeli). Przegląd gałęzi (verifier Sonnet + CodeRabbit): PASS; CodeRabbit — 2× minor, oba = R4/P7. Draft PR otwarty przed krokiem 3.
+- 2026-11-07 — krok 3 wstrzymany (emulator zajęty przez sesję karuzeli). Przegląd gałęzi (verifier Sonnet + CodeRabbit): PASS; CodeRabbit — 2× minor, oba = R4/P7. Draft PR otwarty przed krokiem 3 (#31).
+- 2026-11-07 — P7 = (a) (D8), Z5 przyjęte domyślnie (D9). Czeka tylko krok 3 (emulator).
 
 ## Ryzyka i otwarte pytania
 - **R1 — Discover pod pigułką.** `DiscoverScreen` stoi na `AuthFormScreen` i był projektowany jako ekran bez pigułki; w zakładce dół listy wyników i stopka („Dane: Google”, limit dzienny) mogą schować się pod pigułką. Może wymagać jednej zmiany w `DiscoverScreen.tsx` (dolny odstęp) — ten sam plik, w którym inna sesja przerabia `PlaceCard`, więc grozi konflikt przy merge'u. Ograniczam zmianę do propsa/odstępu poza `PlaceCard`; przy konflikcie scalam ręcznie.
 - **R2 — Podwójny nagłówek / „wstecz”.** `/discover` ma nagłówek z „wstecz” z root stacku; w zakładce go nie będzie (i nie powinno być). Do sprawdzenia, czy `DiscoverScreen` sam w sobie nie zakłada nagłówka (np. odstęp od góry / safe area).
 - **R3 — Zmiana D16** (Z1) — wymaga Twojego potwierdzenia.
-- **R4 — Zmiana podróży czyści formularz Discover** (verifier, krok 1): `useSelectTrip` robi `resetQueries` bieżącej podróży, więc na chwilę `trips.data` znika, `PlanScreen` pokazuje placeholder i odmontowuje Discover — wpisane miasto i wyniki giną (tryb „Odkryj” zostaje). Pytanie do Kacpra — **P7:** (a) zostawić tak (rzadkie; zmiana podróży i tak zmienia kontekst); (b) przy zmianie podróży trzymać przełącznik i formularz, placeholder tylko przed pierwszym wczytaniem podróży (rekomendacja — mała zmiana w `PlanScreen` + test).
+- **R4 — Zmiana podróży czyści formularz Discover** (verifier, krok 1): `useSelectTrip` robi `resetQueries` bieżącej podróży, więc na chwilę `trips.data` znika, `PlanScreen` pokazuje placeholder i odmontowuje Discover — wpisane miasto i wyniki giną (tryb „Odkryj” zostaje). Rozstrzygnięte w D8 (zostaje). Pytanie było — **P7:** (a) zostawić tak (rzadkie; zmiana podróży i tak zmienia kontekst); (b) przy zmianie podróży trzymać przełącznik i formularz, placeholder tylko przed pierwszym wczytaniem podróży (rekomendacja — mała zmiana w `PlanScreen` + test).
 - Pytania P1–P6 wyżej (rozstrzygnięte).
