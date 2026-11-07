@@ -73,6 +73,12 @@ describe('recommend-places ports', () => {
       expect(JSON.parse(init?.body as string)).toEqual(body);
       expect(init?.signal).toBeDefined();
     });
+    it('keeps the 10 s timeout for Nearby Search', async () => {
+      const timeout = jest.spyOn(AbortSignal, 'timeout');
+      await setup(ok({ places: [] })).ports.nearbySearch({});
+      expect(timeout).toHaveBeenCalledWith(10_000);
+      timeout.mockRestore();
+    });
     it('throws on non-2xx', async () => {
       await expect(setup(bad(403)).ports.nearbySearch({})).rejects.toBeDefined();
     });
@@ -92,6 +98,25 @@ describe('recommend-places ports', () => {
       expect(sent.generationConfig.responseJsonSchema).toMatchObject({ type: 'object' });
       expect(sent.generationConfig.responseJsonSchema).not.toHaveProperty('$schema');
       expect(init?.signal).toBeDefined();
+    });
+    it('asks for low thinking and gives Gemini a 20 s timeout, without thinkingBudget', async () => {
+      const timeout = jest.spyOn(AbortSignal, 'timeout');
+      const { ports, fetchMock } = setup(ok(gemini));
+      await ports.pickWithGemini('p');
+      const sent = JSON.parse(fetchMock.mock.calls[0]![1]?.body as string);
+      expect(sent.generationConfig.thinkingConfig).toEqual({ thinkingLevel: 'low' });
+      expect(timeout).toHaveBeenCalledWith(20_000);
+      timeout.mockRestore();
+    });
+    it('puts the status and the Google error message in the error, never the key', async () => {
+      const body = { error: { code: 400, status: 'INVALID_ARGUMENT', message: 'Unknown name "maxLength"' } };
+      const res = { ok: false, status: 400, json: async () => body } as Response;
+      const err = (await setup(res).ports.pickWithGemini('secret prompt').catch((e: Error) => e)) as Error;
+      expect(err.message).toContain('400');
+      expect(err.message).toContain('INVALID_ARGUMENT');
+      expect(err.message).toContain('Unknown name "maxLength"');
+      expect(err.message).not.toContain('gemini-key');
+      expect(err.message).not.toContain('secret prompt');
     });
     it('throws on non-2xx and on a response without text', async () => {
       await expect(setup(bad(500)).ports.pickWithGemini('p')).rejects.toBeDefined();

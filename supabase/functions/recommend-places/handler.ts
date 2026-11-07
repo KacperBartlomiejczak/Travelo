@@ -86,12 +86,14 @@ export async function handleRecommendPlaces(
   let output: string | undefined;
   try {
     output = await ports.pickWithGemini(buildPicksPrompt(candidates, input.data.interests, input.data.locale));
-  } catch {
+  } catch (error) {
+    console.error('gemini_fallback', error instanceof Error ? error.message : 'unknown');
     output = undefined; // pickPlaces falls back to the candidates without a reason.
   }
-  const response = RecommendPlacesResponseSchema.safeParse({
-    places: pickPlaces(candidates, output),
-    remainingToday,
-  });
+  const places = pickPlaces(candidates, output);
+  if (output !== undefined && places.every((place) => place.reason === null)) {
+    console.warn('gemini_picks_empty', { candidates: candidates.length }); // output arrived but no pick survived
+  }
+  const response = RecommendPlacesResponseSchema.safeParse({ places, remainingToday });
   return response.success ? { status: 200, body: response.data } : fail(502, 'upstream_failed');
 }

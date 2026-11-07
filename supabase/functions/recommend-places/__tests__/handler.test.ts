@@ -43,6 +43,8 @@ const req = (over: Partial<Parameters<typeof handleRecommendPlaces>[0]> = {}) =>
 });
 
 describe('handleRecommendPlaces', () => {
+  afterEach(() => jest.restoreAllMocks());
+
   it('rejects non-POST with 405', async () => {
     const { ports, calls } = makePorts();
     const res = await handleRecommendPlaces(req({ method: 'GET' }), ports);
@@ -140,6 +142,26 @@ describe('handleRecommendPlaces', () => {
     expect(res.status).toBe(200);
     expect(body.places.length).toBeGreaterThan(0);
     expect(body.places.every((p) => p.reason === null)).toBe(true);
+  });
+
+  it('logs gemini_fallback when Gemini throws, without leaking the prompt', async () => {
+    const spy = jest.spyOn(console, 'error').mockImplementation(() => undefined);
+    const { ports } = makePorts({
+      pickWithGemini: async () => {
+        throw new Error('Gemini failed: 400 INVALID_ARGUMENT bad schema');
+      },
+    });
+    const res = await handleRecommendPlaces(req(), ports);
+    expect(spy).toHaveBeenCalledWith('gemini_fallback', 'Gemini failed: 400 INVALID_ARGUMENT bad schema');
+    expect(res.status).toBe(200);
+  });
+
+  it('warns gemini_picks_empty when the output yields no valid pick', async () => {
+    const spy = jest.spyOn(console, 'warn').mockImplementation(() => undefined);
+    const out = JSON.stringify({ picks: [{ placeId: 'ChIJ-invented', reason: 'x' }] });
+    const { ports } = makePorts({ pickWithGemini: async () => out });
+    await handleRecommendPlaces(req(), ports);
+    expect(spy).toHaveBeenCalledWith('gemini_picks_empty', { candidates: expect.any(Number) });
   });
 
   it('drops a placeId outside the candidate set', async () => {
