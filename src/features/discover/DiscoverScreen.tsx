@@ -52,7 +52,13 @@ function PlaceCard({ place }: { place: PlaceRecommendation }) {
  * Discover places (places step C5): pick a city (airport list, D19), confirm the interests (from the profile, editable), and get
  * Google places with a short AI reason (D15). Google and AI text is shown as plain text only. Searching needs internet.
  */
-export function DiscoverScreen({ fetcher }: { fetcher?: (request: RecommendPlacesRequest) => Promise<RecommendPlacesResponse> }) {
+export function DiscoverScreen({
+  fetcher,
+  bottomInset,
+}: {
+  fetcher?: (request: RecommendPlacesRequest) => Promise<RecommendPlacesResponse>;
+  bottomInset?: number;
+}) {
   const { t, i18n } = useTranslation();
   const theme = useTheme();
   const offline = useIsOffline();
@@ -114,6 +120,7 @@ export function DiscoverScreen({ fetcher }: { fetcher?: (request: RecommendPlace
       title={t('discover.title')}
       hint={t('discover.hint')}
       offlineText={t('discover.offline')}
+      bottomInset={bottomInset}
       footer={
         <>
           {remainingToday !== undefined && note(t('discover.remaining', { count: remainingToday }))}
