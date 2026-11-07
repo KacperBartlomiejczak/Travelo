@@ -49,7 +49,7 @@ Platforms: iOS and Android (Expo / React Native). Languages: Polish (`pl`) and E
 16. **Profile screen and sign-out** (`prompts/profile-screen/`) — "Profil" shows the photo, the nick and five numbers of the past trips (trips, countries, days travelled, flights, km flown), also offline; the gear opens Settings with "Wyloguj się" (a confirmation, disabled offline). The device run is done except the stats of a past trip (scenario 7).
 17. **Avatar and settings** (`prompts/profile-settings/`) — a full-screen avatar preview with change and remove, theme and language, profile editing, and account deletion. Done: the `delete-account` function is deployed and the device run partly passed on Android (iOS and a few deletion cases are not checked yet, see the plan).
 17. **Expenses** (`prompts/expenses/`, done 2026-11-02). The "Wydatki" screen has a trip bar (opens the side panel), budget left for the group or "Ja" with today's amount and carryover from earlier days, a bar per person split by category, a timeline by day, and adding by the button in the empty state, then a floating button. One person per expense, the trip's base currency only, offline. The organizer edits anyone's expenses; a linked friend adds and edits only their own.
-18. **Discover places** (`prompts/places-legal-navbar/`, stream C, 2026-11-07) — from the home screen's empty state, "Odkryj miejsca" opens `/discover`: pick a city (airport search) and interests, get up to 10 real places from Google Places with a short AI reason why they fit, open each in Google Maps. 5 searches per user per day; needs internet.
+18. **Discover places** (`prompts/places-legal-navbar/`, stream C, 2026-11-07) — from the home screen's empty state, "Odkryj miejsca" opens `/discover`, and with a trip the Plan tab's „Odkryj” switch shows it inside the tab (`prompts/plan-discover-switch/`): pick a city (airport search) and interests, get up to 10 real places from Google Places with a short AI reason why they fit, open each in Google Maps. 5 searches per user per day; needs internet.
 
 ### In progress (plans in `prompts/`)
 - None.
@@ -88,12 +88,12 @@ Root Stack (a gate decides which group exists)
 │   └── (tabs)             Floating pill with four screens
 │       ├── /              Podróż    — the current trip (home screen)
 │       ├── /expenses      Wydatki   — budget, who spent what, timeline, add expense
-│       ├── /plan          Plan      — placeholder
+│       ├── /plan          Plan      — placeholder; with a trip a „Plan” / „Odkryj” switch (Discover inside the tab)
 │       └── /profile       Profil    — photo, nick, travel stats; gear → /settings
 ├── /trips/new/*           Create-trip wizard (nested Stack, 4 steps)
 └── /trips/[tripId]/photos Full-screen photo viewer
 ```
-The pill is not shown in the wizard or in the photo viewer. The placeholder screen "Plan" shows only a title and "Ten ekran pojawi się wkrótce." (a deliberate exception to design-context §10.13, §10.19 and §12 until their features exist).
+The pill is not shown in the wizard or in the photo viewer. The placeholder screen "Plan" shows only a title and "Ten ekran pojawi się wkrótce."; when there is a current trip, the title is replaced by a „Plan” / „Odkryj” switch and „Odkryj” shows Discover places inside the tab (`prompts/plan-discover-switch/`) (a deliberate exception to design-context §10.13, §10.19 and §12 until their features exist).
 
 ### 3.2 Home screen — "Podróż" (`/`)
 Shows the **current trip**: the one chosen in the side panel (remembered on the phone), else the **default trip** (the soonest upcoming or ongoing one, else the most recently ended). Always dark.

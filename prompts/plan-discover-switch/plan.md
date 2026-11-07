@@ -16,6 +16,7 @@ Założenia (do potwierdzenia przy akceptacji):
 - **Z2** — przełącznik zawsze startuje na „Plan”; wybór nie jest zapamiętywany między uruchomieniami (bez AsyncStorage). Przełączenie innej zakładki pigułki i powrót zachowuje wybór (ekrany zakładek zostają zamontowane).
 - **Z3** — nie dotykam karty miejsca, `src/schemas/place.ts` ani `recommend-places` (inna sesja przerabia kartę na karuzelę zdjęć). Cel: `DiscoverScreen.tsx` bez zmian albo z jedną minimalną zmianą (patrz R1).
 - **Z4** — bez nowych zależności, bez zmian w Zod, Supabase i danych.
+- **Z5** (dodane z D3, do potwierdzenia przez Kacpra) — bez danych bieżącej podróży (ładowanie, błąd przed pierwszymi danymi, brak podróży) ekran Plan wygląda jak dziś, bez przełącznika; nieudane odświeżenie zostawia wczytaną podróż i przełącznik.
 
 ### Pytania do Kacpra (jedno po drugim; rekomendacja pierwsza)
 - **P1 — Gdzie stoi przełącznik?**
@@ -40,7 +41,7 @@ Założenia (do potwierdzenia przy akceptacji):
 ### Decyzje (Kacper)
 - **D1 — P1 = (a):** przełącznik na górze treści ekranu Plan, zamiast tytułu (Kacper, 2026-11-07).
 - **D2 — P2 = (a):** Discover renderowany w zakładce Plan pod przełącznikiem, bez przechodzenia na inny ekran; pigułka zostaje (Kacper, 2026-11-07).
-- **D3 — P3 = (a):** przełącznik widoczny zawsze.
+- **D3 — P3 = przełącznik tylko gdy jest podróż** (Kacper, 2026-11-07, bezpośrednio: najpierw „Tylko z planem”, po wyjaśnieniu, że planów jeszcze nie ma — „Gdy jest podróż”; zastępuje przekazane P3a). Widoczny, gdy `useCurrentTrip()` zwraca bieżącą podróż; bez podróży (pusta lista) oraz w trakcie ładowania i przy błędzie ekran wygląda jak dziś (`EmptyScreen`: tytuł „Plan” + „Ten ekran pojawi się wkrótce.”) — założenie Z5, do potwierdzenia.
 - **D4 — P4 = (a):** istniejący `SegmentedControl` z dwiema opcjami, bez zmian w komponencie.
 - **D5 — P5 = (a):** etykiety „Plan” / „Odkryj” (en „Plan” / „Discover”).
 - **D6 — P6 = (a):** bez animacji — treść podmienia się od razu.
@@ -80,9 +81,9 @@ Brak. Wybór trybu to lokalny stan UI (`'plan' | 'discover'`), nie przekracza ż
 - Inne: brak.
 
 ## Kroki
-- [ ] **1. [frontend]** Przełącznik „Plan” / „Odkryj” w `PlanScreen` + Discover w zakładce (testy najpierw) → verifier.
-- [ ] **2. [orchestrator]** Docs (lista w „Pliki”) + ten plan → verifier.
-- [ ] **3. [tester]** Na telefonie/emulatorze: przełączanie w obie strony; Discover w zakładce — wyszukanie miasta, wyniki, przewinięcie do końca nad pigułką, offline; zmiana zakładki pigułki i powrót zachowuje tryb; jasny i ciemny motyw; duża czcionka (etykiety w jednej linii); TalkBack czyta „Plan, wybrane / Odkryj”.
+- [x] **1. [frontend]** Przełącznik „Plan” / „Odkryj” w `PlanScreen` + Discover w zakładce (testy najpierw) → verifier.
+- [x] **2. [orchestrator]** Docs (lista w „Pliki”) + ten plan → verifier.
+- [ ] **3. [tester]** Na telefonie/emulatorze: przełączanie w obie strony; Discover w zakładce — wyszukanie miasta, wyniki, przewinięcie do końca nad pigułką, offline; zmiana zakładki pigułki i powrót zachowuje tryb; bez podróży / przy ładowaniu — stary placeholder bez przełącznika; klawiatura w polu miasta nie zasłania stopki (R2, offset `useHeaderHeight()` w zakładce); jasny i ciemny motyw; duża czcionka (etykiety w jednej linii); TalkBack czyta „Plan, wybrane / Odkryj”.
 - [ ] **4.** Verifier całej gałęzi (CodeRabbit), commit, PR do `feature/discover-places`.
 
 ## Weryfikacja
@@ -91,9 +92,12 @@ Każdy krok: `pnpm test`, `pnpm typecheck`, `pnpm lint` zielone, verifier PASS p
 ## Dziennik postępu
 - 2026-11-07 — szkic planu, pytania P1–P6.
 - 2026-11-07 — odpowiedzi P1–P6 (D1–D6), plan zaakceptowany (D7).
+- 2026-11-07 — krok 1 gotowy (`626d789`): `src/features/plan/PlanScreen.tsx`, trasa `plan.tsx` tylko renderuje ekran; opcjonalny `bottomInset` w `AuthFormScreen` i `DiscoverScreen` (w `DiscoverScreen.tsx` tylko sygnatura, `PlaceCard` bez zmian); klucze `nav.discover`, `nav.planView`; `jest.mock('@/data/app-places')` w `tabs.test.tsx` i `drawer-swipe.test.tsx` (trasa Plan importuje teraz warstwę danych Discover; asercje bez zmian). Testy: najpierw czerwone (brak modułu; potem 3 testy D3 — przełącznik widoczny bez podróży), potem zielone; cały pakiet 3850/3850, typecheck, lint zielone. Verifier: PASS.
+- 2026-11-07 — krok 2: docs (`overview.md`, `frontend.md`, `discover-places.md`, `decisions.md`, `app-context.md`); verifier najpierw FAIL (nieaktualny `overview.md`, brak Z5/P7 w planie), po poprawkach PASS. Czeka: P7, Z5, krok 3 (tester), krok 4.
 
 ## Ryzyka i otwarte pytania
 - **R1 — Discover pod pigułką.** `DiscoverScreen` stoi na `AuthFormScreen` i był projektowany jako ekran bez pigułki; w zakładce dół listy wyników i stopka („Dane: Google”, limit dzienny) mogą schować się pod pigułką. Może wymagać jednej zmiany w `DiscoverScreen.tsx` (dolny odstęp) — ten sam plik, w którym inna sesja przerabia `PlaceCard`, więc grozi konflikt przy merge'u. Ograniczam zmianę do propsa/odstępu poza `PlaceCard`; przy konflikcie scalam ręcznie.
 - **R2 — Podwójny nagłówek / „wstecz”.** `/discover` ma nagłówek z „wstecz” z root stacku; w zakładce go nie będzie (i nie powinno być). Do sprawdzenia, czy `DiscoverScreen` sam w sobie nie zakłada nagłówka (np. odstęp od góry / safe area).
 - **R3 — Zmiana D16** (Z1) — wymaga Twojego potwierdzenia.
-- Pytania P1–P6 wyżej.
+- **R4 — Zmiana podróży czyści formularz Discover** (verifier, krok 1): `useSelectTrip` robi `resetQueries` bieżącej podróży, więc na chwilę `trips.data` znika, `PlanScreen` pokazuje placeholder i odmontowuje Discover — wpisane miasto i wyniki giną (tryb „Odkryj” zostaje). Pytanie do Kacpra — **P7:** (a) zostawić tak (rzadkie; zmiana podróży i tak zmienia kontekst); (b) przy zmianie podróży trzymać przełącznik i formularz, placeholder tylko przed pierwszym wczytaniem podróży (rekomendacja — mała zmiana w `PlanScreen` + test).
+- Pytania P1–P6 wyżej (rozstrzygnięte).
