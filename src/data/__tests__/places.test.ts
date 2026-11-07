@@ -12,6 +12,7 @@ const PLACE = {
   location: { latitude: 38.7, longitude: -9.1 },
   googleMapsUri: 'https://maps.google.com/?cid=1',
   reason: 'Great art',
+  photos: [],
 };
 
 function setup() {

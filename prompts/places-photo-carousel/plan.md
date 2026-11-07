@@ -42,7 +42,7 @@ Status: zaakceptowany 2026-11-07 („Tak, rekomendacje”, przekazane przez sesj
 - code-review — krok 5 — przegląd całej gałęzi (CodeRabbit)
 
 ## Kroki
-- [ ] 1. [backend] Zod + mapowanie: sprawdzić u źródła pola/SKU/ceny; schematy zdjęć, `photoRefs` kandydata, `places.photos` w masce — skill: source-driven-development, test-driven-development — najpierw testy: schemat, `parseNearbySearch` — weryfikacja: verifier
+- [x] 1. [backend] Zod + mapowanie: sprawdzić u źródła pola/SKU/ceny; schematy zdjęć, `photoRefs` kandydata, `places.photos` w masce — skill: source-driven-development, test-driven-development — najpierw testy: schemat, `parseNearbySearch` — weryfikacja: verifier
 - [ ] 2. [backend] Edge Function: port `resolvePhoto`, pobieranie ≤ N zdjęć dla wybranych miejsc, równolegle, z limitem czasu, błędy pomijane — skill: test-driven-development, supabase — najpierw testy: handler + port na fake'ach — weryfikacja: verifier; **wdrożenie funkcji na hostowany projekt tylko za zgodą Kacpra**
 - [ ] 3. [frontend] `PlaceCard` z karuzelą, wskaźnikiem, podpisem autora, stanem bez zdjęcia i błędu, i18n PL/EN, tokeny — skill: frontend-ui-engineering, ui-taste, test-driven-development — najpierw testy: `PlaceCard.test.tsx` — weryfikacja: verifier
 - [ ] 4. [tester] Na urządzeniu: wyszukiwanie z kartami ze zdjęciami, przesuwanie, miejsce bez zdjęć, offline, EN + ciemny motyw — weryfikacja: zrzuty
@@ -52,6 +52,8 @@ Status: zaakceptowany 2026-11-07 („Tak, rekomendacje”, przekazane przez sesj
 - 2026-11-07 — plan napisany; czeka na odpowiedzi Q1–Q6 i akceptację.
 - 2026-11-07 — Kacper: Q1 = (a) → D1.
 - 2026-11-07 — Kacper (przez sesję-menedżera): „Tak, rekomendacje” → Q2–Q6 = (a) → D2–D6; menedżer uprzedził, że to też akceptacja planu → plan zaakceptowany. N = 3.
+- 2026-11-07 — Krok 1, sprawdzenie u źródła (developers.google.com/maps/documentation/places/web-service/nearby-search i …/place-photos): `places.photos` wywołuje **Nearby Search Pro** (ten sam SKU co dziś, bez podwyżki); Place Photos: `GET /v1/{name}/media?maxWidthPx|maxHeightPx (1–4800)&skipHttpRedirect=true` → `{ name, photoUri }`; nazw zdjęć nie wolno cache'ować (wygasają); `authorAttributions` zawsze obecne, może być puste, niepuste trzeba pokazać przy zdjęciu. Docs pokazują klucz tylko jako `?key=` — nagłówek `X-Goog-Api-Key` do potwierdzenia w kroku 2/4 (klucz w URL tylko po stronie serwera). Ceny SKU Place Photos strona nie podaje — do sprawdzenia przez Kacpra w konsoli Google Cloud.
+- 2026-11-07 — Krok 1: backend napisał kod przed testami (odstępstwo od TDD); red potwierdzony wstecz przez orkiestratora (stary kod produkcyjny + nowe testy: 10 failed / 63 passed). Verifier: FAIL — tylko przeformatowanie niezwiązanego kodu (prettier z zgadniętymi opcjami); cofnięte. Ponownie verifier: **PASS** (191/3847, typecheck, lint exit 0). Schematy: `PhotoAuthorSchema`, `GooglePlacePhotoSchema`, `PlacePhotoSchema`, `PlacePhotoRefSchema`, `MAX_PLACE_PHOTOS = 3`; `PlaceSchema.photoRefs` (wewnętrzne), `PlaceRecommendationSchema` bez `photoRefs`, `photos` ≤ 3 (na razie `[]`). Maska + `places.photos`. Uwaga bez blokady: `void photoRefs;` jako obejście lintu.
 
 ## Decyzje
 - **D1 — Q1 = (a): Edge Function rozwiązuje `photoUri`** (`skipHttpRedirect=true`, klucz w nagłówku) dla miejsc wybranych przez Gemini i zwraca aplikacji gotowe adresy bez klucza; bez drugiej funkcji (Kacper, 2026-11-07).

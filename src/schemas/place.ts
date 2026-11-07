@@ -4,12 +4,35 @@ import { z } from 'zod';
 import { InterestTagSchema } from './interests.ts';
 
 // Google Places + Gemini recommendations (places-legal-navbar plan, step C1). Imported by the Deno Edge Function too.
-// Only Nearby Search Pro SKU fields: no rating, no photos (D15).
+// Only Nearby Search Pro SKU fields: no rating. `places.photos` is Pro too (photos carousel plan, D1).
 
 const LatitudeSchema = z.number().min(-90).max(90);
 const LongitudeSchema = z.number().min(-180).max(180);
 const LocationSchema = z.object({ latitude: LatitudeSchema, longitude: LongitudeSchema });
 const LocalizedTextSchema = z.object({ text: z.string().min(1), languageCode: z.string().optional() });
+
+// D2: photos per place shown in the carousel.
+export const MAX_PLACE_PHOTOS = 3;
+
+const PhotoAuthorSchema = z.object({ name: z.string().min(1), uri: z.url().optional() });
+
+// Photo names must not be stored and can expire: resolve them to a photoUri in the same request.
+export const GooglePlacePhotoSchema = z.object({
+  name: z.string().min(1),
+  widthPx: z.int().positive(),
+  heightPx: z.int().positive(),
+  authorAttributions: z.array(z.object({ displayName: z.string().min(1), uri: z.url().optional() })).default([]),
+});
+export type GooglePlacePhoto = z.infer<typeof GooglePlacePhotoSchema>;
+
+// What the app receives: a Google-hosted photoUri (no API key).
+export const PlacePhotoSchema = z.object({
+  uri: z.url(),
+  width: z.int().positive(),
+  height: z.int().positive(),
+  authors: z.array(PhotoAuthorSchema),
+});
+export type PlacePhoto = z.infer<typeof PlacePhotoSchema>;
 
 // Raw Nearby Search (New) place; unknown keys are stripped.
 export const GooglePlaceSchema = z.object({
@@ -21,12 +44,20 @@ export const GooglePlaceSchema = z.object({
   googleMapsUri: z.url(),
   primaryType: z.string().optional(),
   primaryTypeDisplayName: LocalizedTextSchema.optional(),
+  photos: z.array(GooglePlacePhotoSchema).default([]),
 });
 export type GooglePlace = z.infer<typeof GooglePlaceSchema>;
 
 // Google returns `{}` when nothing matches.
 export const GoogleNearbySearchResponseSchema = z.object({ places: z.array(GooglePlaceSchema).default([]) });
 export type GoogleNearbySearchResponse = z.infer<typeof GoogleNearbySearchResponseSchema>;
+
+const PlacePhotoRefSchema = z.object({
+  name: z.string().min(1),
+  width: z.int().positive(),
+  height: z.int().positive(),
+  authors: z.array(PhotoAuthorSchema),
+});
 
 export const PlaceSchema = z.object({
   placeId: z.string().min(1),
@@ -36,6 +67,8 @@ export const PlaceSchema = z.object({
   types: z.array(z.string()),
   location: LocationSchema,
   googleMapsUri: z.url(),
+  // Internal: never sent to Gemini or the app; resolved to `photos` by the Edge Function.
+  photoRefs: z.array(PlacePhotoRefSchema),
 });
 export type Place = z.infer<typeof PlaceSchema>;
 
@@ -49,7 +82,10 @@ export const RecommendPlacesRequestSchema = z.object({
 export type RecommendPlacesRequest = z.infer<typeof RecommendPlacesRequestSchema>;
 
 // `reason` is null when Gemini failed.
-export const PlaceRecommendationSchema = PlaceSchema.extend({ reason: z.string().max(200).nullable() });
+export const PlaceRecommendationSchema = PlaceSchema.omit({ photoRefs: true }).extend({
+  reason: z.string().max(200).nullable(),
+  photos: z.array(PlacePhotoSchema).max(MAX_PLACE_PHOTOS),
+});
 export type PlaceRecommendation = z.infer<typeof PlaceRecommendationSchema>;
 
 export const RecommendPlacesResponseSchema = z.object({

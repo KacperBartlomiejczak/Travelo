@@ -4,6 +4,9 @@ import {
   GeminiPlacePicksSchema,
   GoogleNearbySearchResponseSchema,
   GooglePlaceSchema,
+  GooglePlacePhotoSchema,
+  MAX_PLACE_PHOTOS,
+  PlacePhotoSchema,
   PlaceRecommendationSchema,
   PLACE_REQUESTS_PER_DAY,
   PlaceSchema,
@@ -32,10 +35,14 @@ const place = {
   types: ['church'],
   location,
   googleMapsUri: 'https://maps.google.com/?cid=1',
+  photoRefs: [],
 };
 const request = { city: 'Barcelona', latitude: 41.39, longitude: 2.17, interests: ['beaches'], locale: 'pl' };
 
-const places = (n: number) => Array.from({ length: n }, () => ({ ...place, reason: 'Nice' }));
+const { photoRefs, ...recommended } = place;
+void photoRefs;
+const photo = { uri: 'https://lh3.googleusercontent.com/p/abc', width: 800, height: 600, authors: [{ name: 'Ann' }] };
+const places = (n: number) => Array.from({ length: n }, () => ({ ...recommended, reason: 'Nice', photos: [] }));
 const picks = (n: number) => Array.from({ length: n }, () => ({ placeId: 'a', reason: 'Nice' }));
 
 describe('GooglePlaceSchema', () => {
@@ -112,14 +119,60 @@ describe('RecommendPlacesRequestSchema', () => {
   });
 });
 
+describe('GooglePlacePhotoSchema', () => {
+  const raw = { name: 'places/a/photos/b', widthPx: 800, heightPx: 600, extra: 1 };
+  it('defaults authorAttributions to [] and strips unknown keys (incl. author photoUri)', () => {
+    expect(GooglePlacePhotoSchema.parse(raw)).toEqual({
+      name: 'places/a/photos/b',
+      widthPx: 800,
+      heightPx: 600,
+      authorAttributions: [],
+    });
+    const [author] = GooglePlacePhotoSchema.parse({
+      ...raw,
+      authorAttributions: [{ displayName: 'Ann', uri: 'https://x.com/a', photoUri: 'https://x.com/p' }],
+    }).authorAttributions;
+    expect(author).toEqual({ displayName: 'Ann', uri: 'https://x.com/a' });
+  });
+  it.each([{ name: '' }, { widthPx: 0 }, { heightPx: 1.5 }])('rejects %j', (patch) => {
+    expect(GooglePlacePhotoSchema.safeParse({ ...raw, ...patch }).success).toBe(false);
+  });
+  it('is optional on GooglePlaceSchema and defaults to []', () => {
+    expect(GooglePlaceSchema.parse(googlePlace).photos).toEqual([]);
+  });
+});
+
+describe('PlacePhotoSchema', () => {
+  it('accepts a photo and rejects a bad uri', () => {
+    expect(PlacePhotoSchema.safeParse(photo).success).toBe(true);
+    expect(PlacePhotoSchema.safeParse({ ...photo, uri: 'nope' }).success).toBe(false);
+    expect(PlacePhotoSchema.safeParse({ ...photo, authors: [{ name: 'A', uri: 'nope' }] }).success).toBe(false);
+  });
+});
+
 describe('PlaceRecommendationSchema', () => {
+  const rec = { ...recommended, reason: null, photos: [] };
   it('accepts null and short reasons', () => {
-    expect(PlaceRecommendationSchema.safeParse({ ...place, reason: null }).success).toBe(true);
-    expect(PlaceRecommendationSchema.safeParse({ ...place, reason: 'a'.repeat(200) }).success).toBe(true);
+    expect(PlaceRecommendationSchema.safeParse({ ...rec, reason: null }).success).toBe(true);
+    expect(PlaceRecommendationSchema.safeParse({ ...rec, reason: 'a'.repeat(200) }).success).toBe(true);
   });
   it('rejects a reason over 200 chars or a missing reason', () => {
-    expect(PlaceRecommendationSchema.safeParse({ ...place, reason: 'a'.repeat(201) }).success).toBe(false);
-    expect(PlaceRecommendationSchema.safeParse(place).success).toBe(false);
+    expect(PlaceRecommendationSchema.safeParse({ ...rec, reason: 'a'.repeat(201) }).success).toBe(false);
+    const { reason, ...noReason } = rec;
+    void reason;
+    expect(PlaceRecommendationSchema.safeParse(noReason).success).toBe(false);
+  });
+  it('requires photos, at most MAX_PLACE_PHOTOS', () => {
+    expect(MAX_PLACE_PHOTOS).toBe(3);
+    const { photos, ...noPhotos } = rec;
+    void photos;
+    expect(PlaceRecommendationSchema.safeParse(noPhotos).success).toBe(false);
+    expect(PlaceRecommendationSchema.safeParse({ ...rec, photos: [photo, photo, photo] }).success).toBe(true);
+    expect(PlaceRecommendationSchema.safeParse({ ...rec, photos: [photo, photo, photo, photo] }).success).toBe(false);
+  });
+  it('does not carry photoRefs', () => {
+    const withRefs = { ...rec, photoRefs: [{ name: 'n', width: 1, height: 1, authors: [] }] };
+    expect(PlaceRecommendationSchema.parse(withRefs)).not.toHaveProperty('photoRefs');
   });
 });
 
