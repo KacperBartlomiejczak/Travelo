@@ -1,6 +1,6 @@
 # Discover places
 
-Entry: "Odkryj miejsca" under "Utwórz podróż" in the home screen's empty state (the only entry, places-legal-navbar D16) → `/discover`. Needs internet; offline the screen shows a banner and search is disabled.
+Entries: (1) "Odkryj miejsca" under "Utwórz podróż" in the home screen's empty state (places-legal-navbar D16) → `/discover`; (2) the „Odkryj” side of the „Plan” / „Odkryj” switch in the Plan tab, shown only with a current trip — `DiscoverScreen` renders inside the tab, above the pill (`prompts/plan-discover-switch/plan.md` D1–D7). Needs internet; offline the screen shows a banner and search is disabled.
 
 Plan and decisions: `prompts/places-legal-navbar/plan.md` (stream C, D14–D21).
 

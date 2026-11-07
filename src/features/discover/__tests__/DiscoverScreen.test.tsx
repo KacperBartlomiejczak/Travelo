@@ -1,6 +1,6 @@
 import { Stack } from 'expo-router';
 import { fireEvent, renderRouter, screen, waitFor } from 'expo-router/testing-library';
-import { Linking } from 'react-native';
+import { Linking, StyleSheet } from 'react-native';
 
 import { PlacesError } from '@/data/places';
 import i18n from '@/i18n';
@@ -8,6 +8,7 @@ import { AppProviders } from '@/providers/AppProviders';
 import type { RecommendPlacesRequest, RecommendPlacesResponse } from '@/schemas';
 import { setAppProfileRepository, repositoryWithProfile } from '@/test/fake-profile-repository';
 import { setNetwork } from '@/test/mock-network';
+import { tokens } from '@/theme/tokens';
 
 import { DiscoverScreen } from '../DiscoverScreen';
 
@@ -160,5 +161,12 @@ describe('DiscoverScreen', () => {
     expect(searchButton()).toBeDisabled();
     await fireEvent.press(searchButton());
     expect(fetcher).not.toHaveBeenCalled();
+  });
+});
+
+describe('DiscoverScreen footer', () => {
+  it('keeps the safe-area bottom padding when no bottomInset is given', async () => {
+    await open(jest.fn());
+    expect(StyleSheet.flatten(screen.getByTestId('discover-screen-footer').props.style).paddingBottom).toBe(34 + tokens.spacing[4]);
   });
 });

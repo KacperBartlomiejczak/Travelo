@@ -1,8 +1,3 @@
-import { useTranslation } from 'react-i18next';
+import { PlanScreen } from '@/features/plan/PlanScreen';
 
-import { EmptyScreen } from '@/features/nav/EmptyScreen';
-
-export default function PlanScreen() {
-  const { t } = useTranslation();
-  return <EmptyScreen title={t('nav.plan')} message={t('nav.comingSoon')} />;
-}
+export default PlanScreen;
