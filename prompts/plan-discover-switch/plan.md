@@ -39,7 +39,8 @@ Założenia (do potwierdzenia przy akceptacji):
 
 ### Decyzje (Kacper)
 - **D1 — P1 = (a):** przełącznik na górze treści ekranu Plan, zamiast tytułu (Kacper, 2026-11-07).
-- (czeka na odpowiedzi P2–P6)
+- **D2 — P2 = (a):** Discover renderowany w zakładce Plan pod przełącznikiem, bez przechodzenia na inny ekran; pigułka zostaje (Kacper, 2026-11-07).
+- (czeka na odpowiedzi P3–P6)
 
 ## Podejście
 Przy rekomendacjach (P1a, P2a, P3a, P4a, P5a, P6a):
