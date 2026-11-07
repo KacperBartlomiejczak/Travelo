@@ -84,3 +84,11 @@
 - `README.md` is the unmodified Expo template (mentions npm).
 - Template images in `assets/images/` (React/Expo logos, `tabIcons/`, `tutorial-web.png`) are not referenced by any code.
 - **Duplicate pill heights (places-legal-navbar, 2026-11-05):** the pill height is `PILL_HEIGHT` in `src/features/nav/usePillClearance.ts` (64, from `components.tabs`). Legacy `size.navPill` (`src/theme/legacy/tokens.ts`, asserted in its own theme test) and `layout.navPillHeight` (`src/theme/tokens.ts`, no reader) hold the same 64 as separate literals. Remove them in a cleanup step. In dark mode the pill is 66 dp (1 dp border each side) while the clearance reserves 64; the screens' extra spacing covers it.
+- **Discover places (places-legal-navbar, 2026-11-07):**
+  - The daily quota is spent before Google is called and is not refunded when Google or the response check fails; the day is UTC, so in Poland it resets at 1:00 / 2:00.
+  - Gemini reasons take ~8 s server-side (low thinking); without them (Gemini failure) the cards show no "why for you". `thinkingLevel` works only with Gemini 3 models — a 2.5 model in `GEMINI_MODEL` would fail with 400 and fall back silently (logged as `gemini_fallback`).
+  - `gemini_fallback` logs Google's error message verbatim (no key or prompt, but a 400 message could echo part of the request).
+  - The city search is the airport list: only cities with an airport, matched from the start of the name or IATA code ("Lizb" finds nothing, "Lisbon" does).
+  - A failed `Linking.openURL` (no maps app or browser) is ignored without a message.
+  - Not checked on a device: the "Odkryj miejsca" button in the empty home state (the test account has a trip) and the daily-limit message (covered by tests).
+- **Android dev build on Windows (2026-11-07):** a dev APK does not build from a deep worktree path (`.claude/worktrees/…`, CMake path length), with Android Studio's JDK 25 (CMake configure fails), or with pnpm's isolated `node_modules` (ninja "build.ninja still dirty"). It builds from a short path (e.g. `C:\td`) with JDK 17 and `pnpm install --config.node-linker=hoisted`. Typed routes in `.expo/types/router.d.ts` can also go stale in a worktree, breaking `pnpm typecheck` until Metro regenerates them.
