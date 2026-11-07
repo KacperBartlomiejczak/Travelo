@@ -55,9 +55,12 @@ describe('buildNearbySearchBody', () => {
 });
 
 describe('NEARBY_FIELD_MASK', () => {
-  it('asks only for Pro SKU fields', () => {
-    expect(NEARBY_FIELD_MASK).not.toMatch(/rating|openingHours|photos|reviews|priceLevel/);
+  it('asks for rating (Enterprise SKU) but no other Enterprise fields', () => {
+    expect(NEARBY_FIELD_MASK).not.toMatch(/openingHours|reviews|priceLevel/);
+    expect(NEARBY_FIELD_MASK).toContain('places.rating');
+    expect(NEARBY_FIELD_MASK).toContain('places.userRatingCount');
     expect(NEARBY_FIELD_MASK).toContain('places.id');
+    expect(NEARBY_FIELD_MASK).toContain('places.photos');
   });
 });
 
@@ -75,6 +78,52 @@ describe('parseNearbySearch', () => {
       typeLabel: 'Zamek',
       address: 'R. de Santa Cruz do Castelo, 1100-129 Lisboa, Portugal',
     });
+  });
+
+  it('maps photos to photoRefs (first 3 only, authors renamed) and [] when missing', () => {
+    const photo = (n: number, authorAttributions: unknown[] = []) => ({
+      name: `places/x/photos/${n}`,
+      widthPx: 800,
+      heightPx: 600,
+      authorAttributions,
+    });
+    const [withPhotos, without] = parseNearbySearch({
+      places: [
+        {
+          ...fixture.places[0],
+          photos: [
+            photo(1, [{ displayName: 'Ann', uri: 'https://maps.google.com/ann', photoUri: 'https://x/p.jpg' }]),
+            photo(2),
+            photo(3),
+            photo(4),
+          ],
+        },
+        fixture.places[1],
+      ],
+    });
+    expect(withPhotos.photoRefs).toHaveLength(3);
+    expect(withPhotos.photoRefs[0]).toEqual({
+      name: 'places/x/photos/1',
+      width: 800,
+      height: 600,
+      authors: [{ name: 'Ann', uri: 'https://maps.google.com/ann' }],
+    });
+    expect(without.photoRefs).toEqual([]);
+  });
+
+  it('maps rating and userRatingCount to rating and ratingCount; absent stays absent', () => {
+    const [rated, unrated] = parseNearbySearch({
+      places: [{ ...fixture.places[0], rating: 4.6, userRatingCount: 1200 }, fixture.places[1]],
+    });
+    expect(rated).toMatchObject({ rating: 4.6, ratingCount: 1200 });
+    expect(unrated.rating).toBeUndefined();
+    expect(unrated.ratingCount).toBeUndefined();
+  });
+
+  it('keeps a place whose rating from Google is invalid', () => {
+    const [place] = parseNearbySearch({ places: [{ ...fixture.places[0], rating: 7, userRatingCount: -1 }] });
+    expect(place.rating).toBeUndefined();
+    expect(place.ratingCount).toBeUndefined();
   });
 
   it('dedupes by placeId', () => {

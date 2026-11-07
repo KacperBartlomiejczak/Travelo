@@ -553,6 +553,7 @@ export const components = {
     tripImageHeight: 156,
     activityImageHeight: 128,
     flightConnectorWidth: 24,
+    photoAspectRatio: 4 / 3, // places-photo-carousel D3: width / height of a place photo
   },
   bottomSheet: {
     radius: radii.sheet,

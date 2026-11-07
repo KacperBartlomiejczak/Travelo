@@ -84,6 +84,31 @@ describe('recommend-places ports', () => {
     });
   });
 
+  describe('resolvePhoto', () => {
+    const media = { name: 'places/p/photos/x/media', photoUri: 'https://lh3.googleusercontent.com/abc' };
+    it('requests the media URL with the key in a header, not the URL, and returns the photoUri', async () => {
+      const { ports, fetchMock } = setup(ok(media));
+      expect(await ports.resolvePhoto('places/p/photos/x')).toBe(media.photoUri);
+      const [url, init] = fetchMock.mock.calls[0]!;
+      expect(url).toBe('https://places.googleapis.com/v1/places/p/photos/x/media?maxWidthPx=1200&skipHttpRedirect=true');
+      expect(url).not.toContain('places-key');
+      expect(init?.headers).toEqual({ 'X-Goog-Api-Key': 'places-key' });
+    });
+    it('uses a 5 s timeout signal', async () => {
+      const timeout = jest.spyOn(AbortSignal, 'timeout');
+      const { ports, fetchMock } = setup(ok(media));
+      await ports.resolvePhoto('places/p/photos/x');
+      expect(timeout).toHaveBeenCalledWith(5_000);
+      expect(fetchMock.mock.calls[0]![1]?.signal).toBeDefined();
+      timeout.mockRestore();
+    });
+    it('throws on non-2xx and on an invalid body', async () => {
+      await expect(setup(bad(404)).ports.resolvePhoto('n')).rejects.toBeDefined();
+      await expect(setup(ok({ photoUri: 'not a url' })).ports.resolvePhoto('n')).rejects.toBeDefined();
+      await expect(setup(ok({})).ports.resolvePhoto('n')).rejects.toBeDefined();
+    });
+  });
+
   describe('pickWithGemini', () => {
     it('posts the prompt with the JSON schema (no $schema) and returns the text', async () => {
       const { ports, fetchMock } = setup(ok(gemini));

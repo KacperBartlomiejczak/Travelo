@@ -3,7 +3,11 @@ import { z } from 'zod';
 import {
   GeminiPlacePicksSchema,
   GoogleNearbySearchResponseSchema,
+  GooglePhotoMediaSchema,
   GooglePlaceSchema,
+  GooglePlacePhotoSchema,
+  MAX_PLACE_PHOTOS,
+  PlacePhotoSchema,
   PlaceRecommendationSchema,
   PLACE_REQUESTS_PER_DAY,
   PlaceSchema,
@@ -32,17 +36,39 @@ const place = {
   types: ['church'],
   location,
   googleMapsUri: 'https://maps.google.com/?cid=1',
+  photoRefs: [],
 };
 const request = { city: 'Barcelona', latitude: 41.39, longitude: 2.17, interests: ['beaches'], locale: 'pl' };
 
-const places = (n: number) => Array.from({ length: n }, () => ({ ...place, reason: 'Nice' }));
+const { photoRefs, ...recommended } = place;
+void photoRefs;
+const photo = { uri: 'https://lh3.googleusercontent.com/p/abc', width: 800, height: 600, authors: [{ name: 'Ann' }] };
+const places = (n: number) => Array.from({ length: n }, () => ({ ...recommended, reason: 'Nice', photos: [] }));
 const picks = (n: number) => Array.from({ length: n }, () => ({ placeId: 'a', reason: 'Nice' }));
 
 describe('GooglePlaceSchema', () => {
   it('accepts a full place and strips unknown keys', () => {
     const parsed = GooglePlaceSchema.parse(googlePlace);
-    expect(parsed).not.toHaveProperty('rating');
+    expect(parsed).not.toHaveProperty('businessStatus');
     expect(parsed.id).toBe('ChIJabc');
+    expect(parsed.rating).toBe(4.8);
+  });
+
+  it('keeps the place and drops only an invalid rating or userRatingCount', () => {
+    for (const patch of [{ rating: 7 }, { rating: 0.5 }, { userRatingCount: -1 }, { userRatingCount: 1.5 }, { rating: 'x' }]) {
+      const parsed = GooglePlaceSchema.parse({ ...googlePlace, userRatingCount: 10, ...patch });
+      expect(parsed.id).toBe('ChIJabc');
+      expect(Object.keys(patch)[0] === 'rating' ? parsed.rating : parsed.userRatingCount).toBeUndefined();
+    }
+    expect(GooglePlaceSchema.parse({ ...googlePlace, rating: 7, userRatingCount: 10 }).userRatingCount).toBe(10);
+  });
+
+  it('allows a missing rating and userRatingCount', () => {
+    const { rating, ...noRating } = googlePlace;
+    void rating;
+    const parsed = GooglePlaceSchema.parse(noRating);
+    expect(parsed.rating).toBeUndefined();
+    expect(parsed.userRatingCount).toBeUndefined();
   });
 
   it('defaults types to [] and allows missing optional fields', () => {
@@ -85,8 +111,11 @@ describe('PlaceSchema', () => {
   it.each([{ placeId: '' }, { name: '' }, { googleMapsUri: 'x' }])('rejects %j', (patch) => {
     expect(PlaceSchema.safeParse({ ...place, ...patch }).success).toBe(false);
   });
-  it('has no rating', () => {
-    expect(PlaceSchema.parse({ ...place, rating: 5 })).not.toHaveProperty('rating');
+  it.each([1, 4.5, 5])('accepts rating %d', (rating) => {
+    expect(PlaceSchema.parse({ ...place, rating, ratingCount: 0 })).toMatchObject({ rating, ratingCount: 0 });
+  });
+  it.each([{ rating: 0 }, { rating: 5.1 }, { ratingCount: -1 }, { ratingCount: 1.5 }])('rejects %j', (patch) => {
+    expect(PlaceSchema.safeParse({ ...place, ...patch }).success).toBe(false);
   });
 });
 
@@ -112,14 +141,81 @@ describe('RecommendPlacesRequestSchema', () => {
   });
 });
 
+describe('GooglePlacePhotoSchema', () => {
+  const raw = { name: 'places/a/photos/b', widthPx: 800, heightPx: 600, extra: 1 };
+  it('defaults authorAttributions to [] and strips unknown keys (incl. author photoUri)', () => {
+    expect(GooglePlacePhotoSchema.parse(raw)).toEqual({
+      name: 'places/a/photos/b',
+      widthPx: 800,
+      heightPx: 600,
+      authorAttributions: [],
+    });
+    const [author] = GooglePlacePhotoSchema.parse({
+      ...raw,
+      authorAttributions: [{ displayName: 'Ann', uri: 'https://x.com/a', photoUri: 'https://x.com/p' }],
+    }).authorAttributions;
+    expect(author).toEqual({ displayName: 'Ann', uri: 'https://x.com/a' });
+  });
+  it.each([{ name: '' }, { widthPx: 0 }, { heightPx: 1.5 }])('rejects %j', (patch) => {
+    expect(GooglePlacePhotoSchema.safeParse({ ...raw, ...patch }).success).toBe(false);
+  });
+  it.each(['places/x/photos/y?key=1', 'places/x/photos/../../z', 'https://evil/x', 'places/x/photos/y/z', 'places/%2e%2e/photos/x'])(
+    'rejects the unsafe name %s',
+    (name) => {
+      expect(GooglePlacePhotoSchema.safeParse({ ...raw, name }).success).toBe(false);
+    },
+  );
+  it('drops only the photo with a bad name, keeping the place and the other photos', () => {
+    const good = { ...raw, name: 'places/x/photos/ok' };
+    const parsed = GooglePlaceSchema.parse({ ...googlePlace, photos: [{ ...raw, name: 'places/x/photos/../z' }, good] });
+    expect(parsed.photos.map((p) => p.name)).toEqual(['places/x/photos/ok']);
+  });
+  it('warns photo_invalid with a count only when photos were dropped', () => {
+    const warn = jest.spyOn(console, 'warn').mockImplementation(() => undefined);
+    const bad = { ...raw, name: 'places/x/photos/../secret' };
+    GooglePlaceSchema.parse({ ...googlePlace, photos: [{ ...raw, name: 'places/x/photos/ok' }] });
+    expect(warn).not.toHaveBeenCalled();
+    GooglePlaceSchema.parse({ ...googlePlace, photos: [bad, bad] });
+    expect(warn).toHaveBeenCalledTimes(1);
+    expect(warn).toHaveBeenCalledWith('photo_invalid', { count: 2 });
+    warn.mockRestore();
+  });
+  it('is optional on GooglePlaceSchema and defaults to []', () => {
+    expect(GooglePlaceSchema.parse(googlePlace).photos).toEqual([]);
+  });
+});
+
+describe('PlacePhotoSchema', () => {
+  it('accepts a photo and rejects a bad uri', () => {
+    expect(PlacePhotoSchema.safeParse(photo).success).toBe(true);
+    expect(PlacePhotoSchema.safeParse({ ...photo, uri: 'nope' }).success).toBe(false);
+    expect(PlacePhotoSchema.safeParse({ ...photo, authors: [{ name: 'A', uri: 'nope' }] }).success).toBe(false);
+  });
+});
+
 describe('PlaceRecommendationSchema', () => {
+  const rec = { ...recommended, reason: null, photos: [] };
   it('accepts null and short reasons', () => {
-    expect(PlaceRecommendationSchema.safeParse({ ...place, reason: null }).success).toBe(true);
-    expect(PlaceRecommendationSchema.safeParse({ ...place, reason: 'a'.repeat(200) }).success).toBe(true);
+    expect(PlaceRecommendationSchema.safeParse({ ...rec, reason: null }).success).toBe(true);
+    expect(PlaceRecommendationSchema.safeParse({ ...rec, reason: 'a'.repeat(200) }).success).toBe(true);
   });
   it('rejects a reason over 200 chars or a missing reason', () => {
-    expect(PlaceRecommendationSchema.safeParse({ ...place, reason: 'a'.repeat(201) }).success).toBe(false);
-    expect(PlaceRecommendationSchema.safeParse(place).success).toBe(false);
+    expect(PlaceRecommendationSchema.safeParse({ ...rec, reason: 'a'.repeat(201) }).success).toBe(false);
+    const { reason, ...noReason } = rec;
+    void reason;
+    expect(PlaceRecommendationSchema.safeParse(noReason).success).toBe(false);
+  });
+  it('requires photos, at most MAX_PLACE_PHOTOS', () => {
+    expect(MAX_PLACE_PHOTOS).toBe(3);
+    const { photos, ...noPhotos } = rec;
+    void photos;
+    expect(PlaceRecommendationSchema.safeParse(noPhotos).success).toBe(false);
+    expect(PlaceRecommendationSchema.safeParse({ ...rec, photos: [photo, photo, photo] }).success).toBe(true);
+    expect(PlaceRecommendationSchema.safeParse({ ...rec, photos: [photo, photo, photo, photo] }).success).toBe(false);
+  });
+  it('does not carry photoRefs', () => {
+    const withRefs = { ...rec, photoRefs: [{ name: 'n', width: 1, height: 1, authors: [] }] };
+    expect(PlaceRecommendationSchema.parse(withRefs)).not.toHaveProperty('photoRefs');
   });
 });
 
@@ -167,5 +263,16 @@ describe('RecommendPlacesErrorSchema', () => {
 describe('PLACE_REQUESTS_PER_DAY', () => {
   it('is 5 (D17)', () => {
     expect(PLACE_REQUESTS_PER_DAY).toBe(5);
+  });
+});
+
+describe('GooglePhotoMediaSchema', () => {
+  it('keeps photoUri and strips the rest', () => {
+    expect(GooglePhotoMediaSchema.parse({ name: 'n', photoUri: 'https://lh3.googleusercontent.com/a' })).toEqual({
+      photoUri: 'https://lh3.googleusercontent.com/a',
+    });
+  });
+  it.each([{}, { photoUri: 'nope' }])('rejects %p', (value) => {
+    expect(GooglePhotoMediaSchema.safeParse(value).success).toBe(false);
   });
 });

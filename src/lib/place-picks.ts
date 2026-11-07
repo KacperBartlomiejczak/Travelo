@@ -6,8 +6,14 @@ export const MAX_PICKS = 10;
 
 const PickSchema = GeminiPlacePicksSchema.shape.picks.element;
 
+// Photos are filled in by the Edge Function after picking; photoRefs never leave it.
+const recommend = ({ photoRefs, ...place }: Place, reason: string | null): PlaceRecommendation => {
+  void photoRefs;
+  return { ...place, reason, photos: [] };
+};
+
 const fallback = (candidates: Place[]): PlaceRecommendation[] =>
-  candidates.slice(0, MAX_PICKS).map((place) => ({ ...place, reason: null }));
+  candidates.slice(0, MAX_PICKS).map((place) => recommend(place, null));
 
 // `geminiOutput`: parsed object, JSON text, or undefined when the call failed.
 export const pickPlaces = (candidates: Place[], geminiOutput: unknown): PlaceRecommendation[] => {
@@ -34,7 +40,7 @@ export const pickPlaces = (candidates: Place[], geminiOutput: unknown): PlaceRec
     const place = byId.get(placeId);
     if (!place || seen.has(placeId)) continue;
     seen.add(placeId);
-    result.push({ ...place, reason });
+    result.push(recommend(place, reason));
   }
   return result.length > 0 ? result.slice(0, MAX_PICKS) : fallback(candidates);
 };

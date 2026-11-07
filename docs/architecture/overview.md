@@ -86,7 +86,7 @@ Travelo/
 │   ├── components/             Shared UI components (+ `__tests__/`)
 │   ├── data/                   airports.json (+ typed export), trip and profile repositories (in-memory, Supabase), rows ↔ entities, generated DB types, auth and session source, SQLite store, budget sync, photo files (+ `__tests__/`)
 │   ├── features/auth/          Welcome, sign-in sheet, brand buttons, e-mail and code screens, profile setup, gate view (+ `__tests__/`)
-│   ├── features/discover/      `DiscoverScreen` — Discover places (city, interests, result cards) (+ `__tests__/`)
+│   ├── features/discover/      `DiscoverScreen` — Discover places (city, interests, result cards), `PlaceCard` (photo carousel) (+ `__tests__/`)
 │   ├── features/drawer/        `TripsDrawer` — the side panel's content
 │   ├── features/nav/           `NAV_TABS` (the four tabs), `usePillClearance` / `usePillBottomOffset`, `EmptyScreen` (+ `__tests__/`)
 │   ├── features/home/          `CurrentTrip` — the home screen's trip view; `HeroMenuButton`, `TripMenuButton`; sheets `TripMenuSheet`, `TripDetailsSheet`, `BudgetSheet`, `DeleteTripSheet` (+ `__tests__/`)

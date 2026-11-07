@@ -7,6 +7,7 @@ const place = (n: number): Place => ({
   types: ['museum'],
   location: { latitude: 38.7, longitude: -9.1 },
   googleMapsUri: `https://maps.google.com/?cid=${n}`,
+  photoRefs: [{ name: `places/p${n}/photos/r`, width: 400, height: 300, authors: [] }],
 });
 const candidates = Array.from({ length: 15 }, (_, i) => place(i + 1));
 const pick = (n: number, reason = `reason ${n}`) => ({ placeId: `p${n}`, reason });
@@ -23,6 +24,20 @@ describe('pickPlaces', () => {
     expect(ids(result)).toEqual(['p3', 'p1', 'p2']);
     expect(result[0].reason).toBe('reason 3');
     result.forEach((p) => PlaceRecommendationSchema.parse(p));
+  });
+
+  it('drops photoRefs and returns empty photos (filled later by the function)', () => {
+    for (const result of [pickPlaces(candidates, { picks: [pick(1)] }), pickPlaces(candidates, undefined)]) {
+      expect(result[0]).not.toHaveProperty('photoRefs');
+      expect(result[0].photos).toEqual([]);
+    }
+  });
+
+  it('carries rating and ratingCount through to the recommendation', () => {
+    const rated = [{ ...place(1), rating: 4.5, ratingCount: 321 }];
+    for (const result of [pickPlaces(rated, { picks: [pick(1)] }), pickPlaces(rated, undefined)]) {
+      expect(result[0]).toMatchObject({ rating: 4.5, ratingCount: 321 });
+    }
   });
 
   it('drops placeIds outside the candidate set', () => {

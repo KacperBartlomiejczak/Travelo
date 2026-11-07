@@ -1,6 +1,6 @@
 // Shared with the Deno Edge Function: import only zod and schema files with explicit .ts extensions.
 import type { InterestTag } from '../schemas/interests.ts';
-import { GoogleNearbySearchResponseSchema, type Place } from '../schemas/place.ts';
+import { GoogleNearbySearchResponseSchema, MAX_PLACE_PHOTOS, type Place } from '../schemas/place.ts';
 
 // Google Places (New) Table A types, verified 2026-11-06.
 export const INTEREST_PLACE_TYPES: Record<InterestTag, readonly string[]> = {
@@ -26,9 +26,10 @@ export const INTEREST_PLACE_TYPES: Record<InterestTag, readonly string[]> = {
 // City coordinates come from the city's airport, which can be far from the centre.
 export const SEARCH_RADIUS_METERS = 20000;
 
-// Nearby Search Pro SKU only: no rating / opening hours (Enterprise).
+// rating + userRatingCount make this Nearby Search Enterprise SKU (D7, verified 2026-11-07); photos is Pro.
+// No other Enterprise fields (opening hours, reviews, price level).
 export const NEARBY_FIELD_MASK =
-  'places.id,places.displayName,places.formattedAddress,places.location,places.types,places.googleMapsUri,places.primaryType,places.primaryTypeDisplayName';
+  'places.id,places.displayName,places.formattedAddress,places.location,places.types,places.googleMapsUri,places.primaryType,places.primaryTypeDisplayName,places.photos,places.rating,places.userRatingCount';
 
 // Google caps includedTypes at 50.
 export const placeTypesFor = (interests: InterestTag[]): string[] =>
@@ -62,6 +63,14 @@ export const parseNearbySearch = (raw: unknown): Place[] => {
       types: g.types,
       location: g.location,
       googleMapsUri: g.googleMapsUri,
+      rating: g.rating,
+      ratingCount: g.userRatingCount,
+      photoRefs: g.photos.slice(0, MAX_PLACE_PHOTOS).map((photo) => ({
+        name: photo.name,
+        width: photo.widthPx,
+        height: photo.heightPx,
+        authors: photo.authorAttributions.map((a) => ({ name: a.displayName, uri: a.uri })),
+      })),
     });
   }
   return [...byId.values()];
