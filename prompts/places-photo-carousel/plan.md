@@ -1,5 +1,5 @@
 # Zadanie: Karuzela zdjęć na kartach miejsc (Discover)
-Status: iteracja 1 zrobiona (PR #32); iteracja 2 — szkic, czeka na odpowiedzi Q7–Q8 i akceptację
+Status: iteracja 1 zrobiona (PR #32); iteracja 2 — szkic, Q7 zamknięte, czeka na Q8 i akceptację
 
 ## Zrozumienie i założenia
 - Kacper chce, żeby każda karta miejsca na `/discover` miała przesuwaną karuzelę zdjęć miejsca — żeby było widać, jak wygląda.
@@ -61,11 +61,11 @@ Kacper (bezpośrednio): „Problem w karuzeli jest taki że aktualnie te zdjęci
 
 ### Kroki (szkic)
 - [ ] 6. [backend] Zod + maska + mapowanie oceny — najpierw testy schematu i `parseNearbySearch` — verifier
-- [ ] 7. [frontend] Ocena na karcie (+ zmiana przycinania wg Q7) — najpierw testy `PlaceCard` — verifier
+- [ ] 7. [frontend] Ocena na karcie — najpierw testy `PlaceCard` — verifier
 - [ ] 8. Wdrożenie funkcji (Kacper) → tester na emulatorze (po sygnale menedżera, 1 wyszukiwanie) → docs → verifier końca planu z CodeRabbit → PR #32
 
 ### Pytania
-- **Q7a** → emulator (Kacper). Odczyt 15:22 (adb, tylko zrzut i dump): na emulatorze działa teraz Expo Go z Metro 8084 sesji `plan-discover-switch` (jej worktree nie ma `PlaceCard` — bez zdjęć). Przepełnienie widziane przez Kacpra to najpewniej build sprzed da705bd (emulator 14:10–15:00); po da705bd (15:08) ramka 970 px w karcie 975 px. Do potwierdzenia przez Kacpra na zrzucie po poprawce. **Q7a — Gdzie to widać:** na emulatorze po da705bd ramka była w obrysie (970 px w karcie 975 px). Potrzebne: urządzenie (telefon / emulator, Android / iOS), czy aplikacja była przeładowana po 15:00, zrzut ekranu.
+- **Q7a** → emulator (Kacper). Odczyt 15:22 (adb, tylko zrzut i dump): na emulatorze działa teraz Expo Go z Metro 8084 sesji `plan-discover-switch` (jej worktree nie ma `PlaceCard` — bez zdjęć). Przepełnienie widziane przez Kacpra to najpewniej build sprzed da705bd (emulator 14:10–15:00); po da705bd (15:08) ramka 970 px w karcie 975 px. Kacper potwierdził zrzut po poprawce: „Tak, jest OK” → przycinanie bez zmian w kodzie (krok 7 tylko ocena). **Q7a — Gdzie to widać:** na emulatorze po da705bd ramka była w obrysie (970 px w karcie 975 px). Potrzebne: urządzenie (telefon / emulator, Android / iOS), czy aplikacja była przeładowana po 15:00, zrzut ekranu.
 - ✅ **Q7** → (c): Kacper, 2026-11-07: „zdjęcia wychodzą poza kartę”. **Q7 — Co znaczy „zdjęcia nie są ucięte”?** (a) zdjęcie ma być zaokrąglone na wszystkich rogach i odsunięte od krawędzi karty (z marginesem, jak „miniatura” w karcie), zamiast iść od krawędzi do krawędzi; (b) dolne rogi zdjęcia też zaokrąglone; (c) przy przesuwaniu widać sąsiednie zdjęcie / wychodzi poza kartę na Twoim telefonie (wtedy to stary build — sprawdzić wersję); (d) inne — opisz albo wyślij zrzut. Rekomendacja: zrzut ekranu rozstrzygnie najszybciej.
 - **Q8 — Ocena:** (a) „★ 4,6 (1 234)” w wierszu z typem miejsca, pole Enterprise w Nearby Search (droższe wyszukiwanie, jak wyżej) — rekomendacja; (b) sama gwiazdka z liczbą „★ 4,6” bez liczby opinii; (c) ocena na zdjęciu (lewy górny róg, pigułka jak licznik).
 
