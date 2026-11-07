@@ -568,7 +568,7 @@
         {
           "heading": "4. Komu przekazujemy dane",
           "paragraphs": [
-            "• Supabase Inc. — hosting bazy danych, logowania, plików i funkcji serwerowych (podmiot przetwarzający na podstawie umowy powierzenia). Dane są przechowywane w regionie [DO UZUPEŁNIENIA: region projektu Supabase].",
+            "• Supabase Inc. — hosting bazy danych, logowania, plików i funkcji serwerowych (podmiot przetwarzający na podstawie umowy powierzenia). Dane są przechowywane w regionie Irlandia (AWS eu-west-1).",
             "• Google — (a) jeśli logujesz się przez Google: Google jako osobny administrator uwierzytelnia Cię i przekazuje nam e-mail; (b) Google Places API i Gemini API dostają tylko miasto i zainteresowania z zapytania „Odkryj miejsca”. Zapytanie wysyła nasz serwer, nie Twój telefon. Używamy płatnej wersji Gemini API, w której Google nie wykorzystuje zapytań do trenowania modeli.",
             "• Discord Inc. — jeśli logujesz się przez Discord, jako osobny administrator.",
             "• Znajomi z kontem, których dodasz do podróży lub którzy dodali Ciebie — widzą dane tej podróży (patrz 2.3).",

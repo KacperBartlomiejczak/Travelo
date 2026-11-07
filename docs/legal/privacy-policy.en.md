@@ -65,7 +65,7 @@ We do not make decisions about you based solely on automated processing that pro
 
 ## 4. Who receives your data
 
-- **Supabase Inc.** — hosting of the database, sign-in, files and server functions (a processor under a data processing agreement). Data is stored in the **[TO BE FILLED IN: Supabase project region]** region.
+- **Supabase Inc.** — hosting of the database, sign-in, files and server functions (a processor under a data processing agreement). Data is stored in **Ireland (AWS eu-west-1)**.
 - **Google** — (a) if you sign in with Google: Google, as a separate controller, authenticates you and passes us your e-mail; (b) the Google Places API and the Gemini API receive **only the city and interests** from a "Discover places" request. The request is sent by our server, not by your phone. We use the paid tier of the Gemini API, where Google does not use requests to train its models.
 - **Discord Inc.** — if you sign in with Discord, as a separate controller.
 - **Friends with an account** whom you add to a trip, or who added you — they see that trip's data (see 2.3).

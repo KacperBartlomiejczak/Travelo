@@ -1,4 +1,5 @@
 import { useFonts } from 'expo-font';
+import { router } from 'expo-router';
 import { fireEvent, renderRouter, screen, waitFor } from 'expo-router/testing-library';
 import { AccessibilityInfo, Text } from 'react-native';
 
@@ -68,6 +69,24 @@ describe('Legal screen', () => {
     await renderRouter(ROUTES, { initialUrl: '/legal/terms' });
     expect(await screen.findByTestId('legal-screen')).toBeTruthy();
     expect(screen.queryByText('Witaj w Travelo')).toBeNull();
+  });
+});
+
+describe('Legal header back button', () => {
+  afterEach(() => jest.restoreAllMocks());
+
+  it.each([
+    [false, 'replace', 'back'],
+    [true, 'back', 'replace'],
+  ] as const)('canGoBack=%s calls router.%s and not router.%s', async (canGoBack, called, notCalled) => {
+    await renderRouter(ROUTES, { initialUrl: '/legal/terms' });
+    await screen.findByTestId('legal-screen');
+    jest.spyOn(router, 'canGoBack').mockReturnValue(canGoBack);
+    const spies = { back: jest.spyOn(router, 'back').mockImplementation(), replace: jest.spyOn(router, 'replace').mockImplementation() };
+    await fireEvent.press(screen.getByRole('button', { name: pl.legal.back }));
+    // HeaderBackButton calls onPress inside requestAnimationFrame.
+    await waitFor(() => expect(spies[called]).toHaveBeenCalledWith(...(called === 'replace' ? ['/'] : [])));
+    expect(spies[notCalled]).not.toHaveBeenCalled();
   });
 });
 

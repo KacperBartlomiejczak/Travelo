@@ -210,7 +210,7 @@ function GateContent({ view, retry }: ReturnType<typeof useGateView>) {
                   ? { minWidth: tokens.layout.touchTarget, minHeight: tokens.layout.touchTarget }
                   : { minHeight: tokens.layout.touchTarget }
               }
-              onPress={() => router.back()}
+              onPress={() => (router.canGoBack() ? router.back() : router.replace("/"))}
             />
           ),
         })}
