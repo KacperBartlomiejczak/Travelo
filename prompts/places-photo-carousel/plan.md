@@ -1,5 +1,5 @@
 # Zadanie: Karuzela zdjęć na kartach miejsc (Discover)
-Status: zrobione 2026-11-07 (zaakceptowany „Tak, rekomendacje”, przekazane przez sesję-menedżera)
+Status: iteracja 1 zrobiona (PR #32); iteracja 2 — szkic, czeka na odpowiedzi Q7–Q8 i akceptację
 
 ## Zrozumienie i założenia
 - Kacper chce, żeby każda karta miejsca na `/discover` miała przesuwaną karuzelę zdjęć miejsca — żeby było widać, jak wygląda.
@@ -47,6 +47,26 @@ Status: zrobione 2026-11-07 (zaakceptowany „Tak, rekomendacje”, przekazane p
 - [x] 3. [frontend] `PlaceCard` z karuzelą, wskaźnikiem, podpisem autora, stanem bez zdjęcia i błędu, i18n PL/EN, tokeny — skill: frontend-ui-engineering, ui-taste, test-driven-development — najpierw testy: `PlaceCard.test.tsx` — weryfikacja: verifier
 - [x] 4. [tester] Na urządzeniu: wyszukiwanie z kartami ze zdjęciami, przesuwanie, miejsce bez zdjęć, offline, EN + ciemny motyw — weryfikacja: zrzuty
 - [x] 5. Docs (orkiestrator) + verifier końca planu z CodeRabbit
+
+## Iteracja 2 (2026-11-07, prośba Kacpra)
+Kacper (bezpośrednio): „Problem w karuzeli jest taki że aktualnie te zdjęcia w karcie nie są ucięte, chciałbym abyś to zmienił; dodatkowo dodaj ocenę też do tego miejsca”.
+
+### Zrozumienie
+- **Zdjęcia „nie są ucięte”** — niejasne, co dokładnie (Q7). Stan obecny (emulator, da705bd): ramka 4:3 w obrysie karty, górne rogi zaokrąglone `card.radius - borderWidth`, `contentFit="cover"` (zdjęcie wypełnia ramkę i jest przycinane), `overflow: hidden`.
+- **Ocena miejsca** — zmienia D15 („bez ocen”). Sprawdzone u źródła (developers.google.com, 2026-11-07): `places.rating` i `places.userRatingCount` wywołują **Nearby Search Enterprise** zamiast Pro — każde wyszukiwanie droższe: Pro $32 / 1000 (5000 darmowych / mies.) → Enterprise $35 / 1000 (1000 darmowych / mies.). Dla porównania Place Photos: $7 / 1000 (1000 darmowych).
+
+### Podejście (szkic, po Q7–Q8)
+- Ocena: `places.rating` + `places.userRatingCount` w masce Nearby Search (jedno zapytanie, bez dodatkowych wywołań) → `GooglePlaceSchema` → `PlaceSchema` / `PlaceRecommendationSchema` (`rating?: 1–5`, `ratingCount?: int ≥ 0`) → karta. Brak oceny w Google → brak wiersza oceny.
+- Przycinanie zdjęć: zależnie od Q7.
+
+### Kroki (szkic)
+- [ ] 6. [backend] Zod + maska + mapowanie oceny — najpierw testy schematu i `parseNearbySearch` — verifier
+- [ ] 7. [frontend] Ocena na karcie (+ zmiana przycinania wg Q7) — najpierw testy `PlaceCard` — verifier
+- [ ] 8. Wdrożenie funkcji (Kacper) → tester na emulatorze (po sygnale menedżera, 1 wyszukiwanie) → docs → verifier końca planu z CodeRabbit → PR #32
+
+### Pytania
+- **Q7 — Co znaczy „zdjęcia nie są ucięte”?** (a) zdjęcie ma być zaokrąglone na wszystkich rogach i odsunięte od krawędzi karty (z marginesem, jak „miniatura” w karcie), zamiast iść od krawędzi do krawędzi; (b) dolne rogi zdjęcia też zaokrąglone; (c) przy przesuwaniu widać sąsiednie zdjęcie / wychodzi poza kartę na Twoim telefonie (wtedy to stary build — sprawdzić wersję); (d) inne — opisz albo wyślij zrzut. Rekomendacja: zrzut ekranu rozstrzygnie najszybciej.
+- **Q8 — Ocena:** (a) „★ 4,6 (1 234)” w wierszu z typem miejsca, pole Enterprise w Nearby Search (droższe wyszukiwanie, jak wyżej) — rekomendacja; (b) sama gwiazdka z liczbą „★ 4,6” bez liczby opinii; (c) ocena na zdjęciu (lewy górny róg, pigułka jak licznik).
 
 ## Dziennik postępu
 - 2026-11-07 — plan napisany; czeka na odpowiedzi Q1–Q6 i akceptację.
