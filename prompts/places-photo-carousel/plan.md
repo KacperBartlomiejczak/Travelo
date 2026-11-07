@@ -64,7 +64,7 @@ Kacper (bezpośrednio): „Problem w karuzeli jest taki że aktualnie te zdjęci
 - **Wdrożenie i test (krok 8):** wdrożenie funkcji robi Kacper (sesja nie ma uprawnień); tester po sygnale menedżera, 1 wyszukiwanie; potem docs, verifier końca planu z CodeRabbit, push do PR #32.
 
 ### Kroki (szkic)
-- [ ] 6. [backend] Zod + maska + mapowanie oceny — najpierw testy schematu i `parseNearbySearch` — verifier
+- [x] 6. [backend] Zod + maska + mapowanie oceny — najpierw testy schematu i `parseNearbySearch` — verifier
 - [ ] 7. [frontend] Ocena na karcie — najpierw testy `PlaceCard` — verifier
 - [ ] 8. Wdrożenie funkcji (Kacper) → tester na emulatorze (po sygnale menedżera, 1 wyszukiwanie) → docs → verifier końca planu z CodeRabbit → PR #32
 
@@ -92,6 +92,7 @@ Kacper (bezpośrednio): „Problem w karuzeli jest taki że aktualnie te zdjęci
 - 2026-11-07 — Kacper: „Tak, szukaj” (drugie wyszukiwanie). Tester: Metro 8083 tego worktree zatrzymane przez aplikację (~13:48 UTC), więc nowego bundla nie dało się wczytać; wyszukiwań 0, emulator zwolniony 14:58 CEST dla sesji przełącznika. Sprawdzenie da705bd na urządzeniu i ciemnego motywu dalej czeka.
 - 2026-11-07 — Krok 5: verifier końca planu (Sonnet 5.5) + CodeRabbit (`--base feature/discover-places --committed`, 27 plików): **PASS**, CodeRabbit 0 uwag; 192/3879, typecheck, lint 0; docs zgodne z kodem. Zostaje: sprawdzenie da705bd i ciemnego motywu na urządzeniu (krok 4).
 - 2026-11-07 — Krok 4, powtórka na buildzie z da705bd (emulator-5554, Expo Go → Metro 8083, 1 wyszukiwanie: Lizbona, zostało 2): **scenariusz 1 PASS** — karta x=53–1028, ramka zdjęcia x=56–1026 (970×727, 4:3) w obrysie karty, licznik i podpis w środku, bez skoku; przewijanie PASS; **ciemny motyw PASS** (licznik i „Fot. …” czytelne, wyniki z pamięci podręcznej — licznik wyszukiwań bez zmian), motyw przywrócony na „Jasny”. Angielski niesprawdzony (nowe wyszukiwanie). Emulator zwolniony 15:08 CEST; `adb reverse` usunięty, Metro 8083 zatrzymane. Uwagi poza zakresem: „Otwórz w Mapach Google” → Madryt (Explore); zainteresowania na `/discover` zmieniały się między uruchomieniami (inne sesje?).
+- 2026-11-07 — Krok 6: red ✓ (11 failed / 114 passed; 3 testy-strażnicy zielone od początku) · `RatingSchema` 1–5, `RatingCountSchema` int ≥ 0; `GooglePlaceSchema.rating/userRatingCount` `.optional().catch(undefined)` (zła wartość usuwa tylko pole); `PlaceSchema.rating?/ratingCount?`; maska + `places.rating,places.userRatingCount` (Enterprise, D7), dalej bez `openingHours/reviews/priceLevel`; test: ocena nie trafia do Gemini. Verifier **PASS** (192/3891, typecheck, lint 0).
 
 ## Decyzje
 - **D1 — Q1 = (a): Edge Function rozwiązuje `photoUri`** (`skipHttpRedirect=true`, klucz w nagłówku) dla miejsc wybranych przez Gemini i zwraca aplikacji gotowe adresy bez klucza; bez drugiej funkcji (Kacper, 2026-11-07).

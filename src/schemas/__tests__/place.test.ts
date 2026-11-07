@@ -49,8 +49,26 @@ const picks = (n: number) => Array.from({ length: n }, () => ({ placeId: 'a', re
 describe('GooglePlaceSchema', () => {
   it('accepts a full place and strips unknown keys', () => {
     const parsed = GooglePlaceSchema.parse(googlePlace);
-    expect(parsed).not.toHaveProperty('rating');
+    expect(parsed).not.toHaveProperty('businessStatus');
     expect(parsed.id).toBe('ChIJabc');
+    expect(parsed.rating).toBe(4.8);
+  });
+
+  it('keeps the place and drops only an invalid rating or userRatingCount', () => {
+    for (const patch of [{ rating: 7 }, { rating: 0.5 }, { userRatingCount: -1 }, { userRatingCount: 1.5 }, { rating: 'x' }]) {
+      const parsed = GooglePlaceSchema.parse({ ...googlePlace, userRatingCount: 10, ...patch });
+      expect(parsed.id).toBe('ChIJabc');
+      expect(Object.keys(patch)[0] === 'rating' ? parsed.rating : parsed.userRatingCount).toBeUndefined();
+    }
+    expect(GooglePlaceSchema.parse({ ...googlePlace, rating: 7, userRatingCount: 10 }).userRatingCount).toBe(10);
+  });
+
+  it('allows a missing rating and userRatingCount', () => {
+    const { rating, ...noRating } = googlePlace;
+    void rating;
+    const parsed = GooglePlaceSchema.parse(noRating);
+    expect(parsed.rating).toBeUndefined();
+    expect(parsed.userRatingCount).toBeUndefined();
   });
 
   it('defaults types to [] and allows missing optional fields', () => {
@@ -93,8 +111,11 @@ describe('PlaceSchema', () => {
   it.each([{ placeId: '' }, { name: '' }, { googleMapsUri: 'x' }])('rejects %j', (patch) => {
     expect(PlaceSchema.safeParse({ ...place, ...patch }).success).toBe(false);
   });
-  it('has no rating', () => {
-    expect(PlaceSchema.parse({ ...place, rating: 5 })).not.toHaveProperty('rating');
+  it.each([1, 4.5, 5])('accepts rating %d', (rating) => {
+    expect(PlaceSchema.parse({ ...place, rating, ratingCount: 0 })).toMatchObject({ rating, ratingCount: 0 });
+  });
+  it.each([{ rating: 0 }, { rating: 5.1 }, { ratingCount: -1 }, { ratingCount: 1.5 }])('rejects %j', (patch) => {
+    expect(PlaceSchema.safeParse({ ...place, ...patch }).success).toBe(false);
   });
 });
 

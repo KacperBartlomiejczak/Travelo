@@ -4,12 +4,16 @@ import { z } from 'zod';
 import { InterestTagSchema } from './interests.ts';
 
 // Google Places + Gemini recommendations (places-legal-navbar plan, step C1). Imported by the Deno Edge Function too.
-// Only Nearby Search Pro SKU fields: no rating. `places.photos` is Pro too (photos carousel plan, D1).
+// `rating` / `userRatingCount` make the request Nearby Search Enterprise SKU (photos carousel plan, D7, verified
+// 2026-11-07); everything else here is Pro, `places.photos` included (D1).
 
 const LatitudeSchema = z.number().min(-90).max(90);
 const LongitudeSchema = z.number().min(-180).max(180);
 const LocationSchema = z.object({ latitude: LatitudeSchema, longitude: LongitudeSchema });
 const LocalizedTextSchema = z.object({ text: z.string().min(1), languageCode: z.string().optional() });
+
+const RatingSchema = z.number().min(1).max(5);
+const RatingCountSchema = z.int().nonnegative();
 
 // D2: photos per place shown in the carousel.
 export const MAX_PLACE_PHOTOS = 3;
@@ -48,6 +52,9 @@ export const GooglePlaceSchema = z.object({
   googleMapsUri: z.url(),
   primaryType: z.string().optional(),
   primaryTypeDisplayName: LocalizedTextSchema.optional(),
+  // An out-of-range value from Google drops only that field, never the place.
+  rating: RatingSchema.optional().catch(undefined),
+  userRatingCount: RatingCountSchema.optional().catch(undefined),
   // One malformed photo is dropped, never the place.
   photos: z
     .array(z.unknown())
@@ -83,6 +90,8 @@ export const PlaceSchema = z.object({
   types: z.array(z.string()),
   location: LocationSchema,
   googleMapsUri: z.url(),
+  rating: RatingSchema.optional(),
+  ratingCount: RatingCountSchema.optional(),
   // Internal: never sent to Gemini or the app; resolved to `photos` by the Edge Function.
   photoRefs: z.array(PlacePhotoRefSchema),
 });

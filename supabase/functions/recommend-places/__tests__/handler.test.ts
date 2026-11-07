@@ -325,6 +325,12 @@ describe('buildPicksPrompt', () => {
     expect(buildPicksPrompt(candidates, ['landmarks'], 'en')).toContain('English');
   });
 
+  it('does not send ratings to the model', () => {
+    const rated = candidates.map((c) => ({ ...c, rating: 4.123456, ratingCount: 98765 }));
+    const prompt = buildPicksPrompt(rated, ['landmarks'], 'en');
+    expect(prompt).not.toMatch(/rating|4\.123456|98765/i);
+  });
+
   it('tells the model to choose only from the given ids', () => {
     expect(buildPicksPrompt(candidates, ['landmarks'], 'en')).toMatch(/only from the given placeIds/i);
   });

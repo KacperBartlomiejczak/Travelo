@@ -33,6 +33,13 @@ describe('pickPlaces', () => {
     }
   });
 
+  it('carries rating and ratingCount through to the recommendation', () => {
+    const rated = [{ ...place(1), rating: 4.5, ratingCount: 321 }];
+    for (const result of [pickPlaces(rated, { picks: [pick(1)] }), pickPlaces(rated, undefined)]) {
+      expect(result[0]).toMatchObject({ rating: 4.5, ratingCount: 321 });
+    }
+  });
+
   it('drops placeIds outside the candidate set', () => {
     expect(ids(pickPlaces(candidates, { picks: [pick(2), { placeId: 'invented', reason: 'x' }, pick(1)] }))).toEqual([
       'p2',
