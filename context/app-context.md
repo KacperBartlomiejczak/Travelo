@@ -49,6 +49,7 @@ Platforms: iOS and Android (Expo / React Native). Languages: Polish (`pl`) and E
 16. **Profile screen and sign-out** (`prompts/profile-screen/`) — "Profil" shows the photo, the nick and five numbers of the past trips (trips, countries, days travelled, flights, km flown), also offline; the gear opens Settings with "Wyloguj się" (a confirmation, disabled offline). The device run is done except the stats of a past trip (scenario 7).
 17. **Avatar and settings** (`prompts/profile-settings/`) — a full-screen avatar preview with change and remove, theme and language, profile editing, and account deletion. Done: the `delete-account` function is deployed and the device run partly passed on Android (iOS and a few deletion cases are not checked yet, see the plan).
 17. **Expenses** (`prompts/expenses/`, done 2026-11-02). The "Wydatki" screen has a trip bar (opens the side panel), budget left for the group or "Ja" with today's amount and carryover from earlier days, a bar per person split by category, a timeline by day, and adding by the button in the empty state, then a floating button. One person per expense, the trip's base currency only, offline. The organizer edits anyone's expenses; a linked friend adds and edits only their own.
+18. **Discover places** (`prompts/places-legal-navbar/`, stream C, 2026-11-07) — from the home screen's empty state, "Odkryj miejsca" opens `/discover`: pick a city (airport search) and interests, get up to 10 real places from Google Places with a short AI reason why they fit, open each in Google Maps. 5 searches per user per day; needs internet.
 
 ### In progress (plans in `prompts/`)
 - None.
@@ -257,7 +258,7 @@ Key facts:
 | An FX rates API | Multi-currency expenses | Edge Function |
 | Google Gemini (Gemini API, AI Studio key) | Day plans, with JSON-schema structured output generated from Zod | Edge Function only |
 
-Open decision: the exact Gemini model ID (it comes from config, never hardcoded) and free vs paid tier — no shipping to real users on the free tier without Kacper's decision.
+Gemini model: `gemini-3.8-flash` from the `GEMINI_MODEL` secret (never hardcoded; places-legal-navbar D20). Free tier only in development, paid before release (D17). Google Places and Gemini are already used by Discover places (`recommend-places`).
 
 ### AI rules (when built)
 - The model **never invents places**: Places candidates → the model selects and orders them by `placeId` → output parsed with Zod → any `placeId` outside the candidate set is rejected.
