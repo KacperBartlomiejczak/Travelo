@@ -65,7 +65,8 @@ Kacper (bezpośrednio): „Problem w karuzeli jest taki że aktualnie te zdjęci
 - [ ] 8. Wdrożenie funkcji (Kacper) → tester na emulatorze (po sygnale menedżera, 1 wyszukiwanie) → docs → verifier końca planu z CodeRabbit → PR #32
 
 ### Pytania
-- **Q7 — Co znaczy „zdjęcia nie są ucięte”?** (a) zdjęcie ma być zaokrąglone na wszystkich rogach i odsunięte od krawędzi karty (z marginesem, jak „miniatura” w karcie), zamiast iść od krawędzi do krawędzi; (b) dolne rogi zdjęcia też zaokrąglone; (c) przy przesuwaniu widać sąsiednie zdjęcie / wychodzi poza kartę na Twoim telefonie (wtedy to stary build — sprawdzić wersję); (d) inne — opisz albo wyślij zrzut. Rekomendacja: zrzut ekranu rozstrzygnie najszybciej.
+- **Q7a — Gdzie to widać:** na emulatorze po da705bd ramka była w obrysie (970 px w karcie 975 px). Potrzebne: urządzenie (telefon / emulator, Android / iOS), czy aplikacja była przeładowana po 15:00, zrzut ekranu.
+- ✅ **Q7** → (c): Kacper, 2026-11-07: „zdjęcia wychodzą poza kartę”. **Q7 — Co znaczy „zdjęcia nie są ucięte”?** (a) zdjęcie ma być zaokrąglone na wszystkich rogach i odsunięte od krawędzi karty (z marginesem, jak „miniatura” w karcie), zamiast iść od krawędzi do krawędzi; (b) dolne rogi zdjęcia też zaokrąglone; (c) przy przesuwaniu widać sąsiednie zdjęcie / wychodzi poza kartę na Twoim telefonie (wtedy to stary build — sprawdzić wersję); (d) inne — opisz albo wyślij zrzut. Rekomendacja: zrzut ekranu rozstrzygnie najszybciej.
 - **Q8 — Ocena:** (a) „★ 4,6 (1 234)” w wierszu z typem miejsca, pole Enterprise w Nearby Search (droższe wyszukiwanie, jak wyżej) — rekomendacja; (b) sama gwiazdka z liczbą „★ 4,6” bez liczby opinii; (c) ocena na zdjęciu (lewy górny róg, pigułka jak licznik).
 
 ## Dziennik postępu
