@@ -1,5 +1,5 @@
 # Zadanie: Karuzela zdjęć na kartach miejsc (Discover)
-Status: czeka na akceptację (otwarte pytania Q1–Q6)
+Status: czeka na akceptację (Q1 → D1; otwarte Q2–Q6)
 
 ## Zrozumienie i założenia
 - Kacper chce, żeby każda karta miejsca na `/discover` miała przesuwaną karuzelę zdjęć miejsca — żeby było widać, jak wygląda.
@@ -9,7 +9,7 @@ Status: czeka na akceptację (otwarte pytania Q1–Q6)
 - Klucz Google **nigdy** nie trafia do aplikacji.
 
 ## Podejście
-1. **Skąd zdjęcia (do potwierdzenia w Q1):** Nearby Search (New) zwraca pole `places.photos` (nazwy zasobów `places/{id}/photos/{ref}`, `widthPx`, `heightPx`, `authorAttributions`). Edge Function, **po** wyborze miejsc przez Gemini (żeby nie płacić za zdjęcia odrzuconych kandydatów), dla każdego wybranego miejsca wywołuje Place Photos (New): `GET /v1/{name}/media?maxWidthPx=…&skipHttpRedirect=true` z kluczem w nagłówku. Google zwraca `photoUri` — krótko żyjący adres `googleusercontent.com` **bez klucza** — i ten adres idzie do aplikacji. Zapytania równolegle, z limitem czasu; nieudane zdjęcie jest pomijane (nigdy nie psuje całej odpowiedzi).
+1. **Skąd zdjęcia (D1):** Nearby Search (New) zwraca pole `places.photos` (nazwy zasobów `places/{id}/photos/{ref}`, `widthPx`, `heightPx`, `authorAttributions`). Edge Function, **po** wyborze miejsc przez Gemini (żeby nie płacić za zdjęcia odrzuconych kandydatów), dla każdego wybranego miejsca wywołuje Place Photos (New): `GET /v1/{name}/media?maxWidthPx=…&skipHttpRedirect=true` z kluczem w nagłówku. Google zwraca `photoUri` — krótko żyjący adres `googleusercontent.com` **bez klucza** — i ten adres idzie do aplikacji. Zapytania równolegle, z limitem czasu; nieudane zdjęcie jest pomijane (nigdy nie psuje całej odpowiedzi).
 2. **Aplikacja:** `PlaceCard` wydzielona do `src/features/discover/PlaceCard.tsx`; karuzela nad treścią karty (Q3), kropki/licznik stron, podpis autora zdjęcia (Q6), stan „brak zdjęcia” (Q4), `CoverImage`-podobne zanikanie (bez animacji przy reduce motion), zdjęcie nieudane → placeholder, nie dziura.
 3. **Koszt:** zapytań o zdjęcia na wyszukiwanie = (liczba miejsc ≤ 10) × (zdjęć na kartę, Q2). Czy `places.photos` nie podnosi SKU Nearby Search z Pro na droższy i aktualne ceny Place Photos — **sprawdzić u źródła (docs Google) w kroku 1, przed kodem**, wynik zapisać w dzienniku.
 
@@ -50,9 +50,13 @@ Status: czeka na akceptację (otwarte pytania Q1–Q6)
 
 ## Dziennik postępu
 - 2026-11-07 — plan napisany; czeka na odpowiedzi Q1–Q6 i akceptację.
+- 2026-11-07 — Kacper: Q1 = (a) → D1.
+
+## Decyzje
+- **D1 — Q1 = (a): Edge Function rozwiązuje `photoUri`** (`skipHttpRedirect=true`, klucz w nagłówku) dla miejsc wybranych przez Gemini i zwraca aplikacji gotowe adresy bez klucza; bez drugiej funkcji (Kacper, 2026-11-07).
 
 ## Ryzyka i otwarte pytania
-- **Q1 — Skąd zdjęcia / jak przechodzą do aplikacji** (pytanie teraz): (a) Edge Function rozwiązuje `photoUri` (`skipHttpRedirect`) dla wybranych miejsc i zwraca gotowe adresy bez klucza — **rekomendacja**: jedno wywołanie z aplikacji, klucz zostaje na serwerze, zero nowych funkcji; minus: płacimy za wszystkie N zdjęć z góry, nawet nieprzesunięte. (b) Funkcja zwraca tylko nazwy zdjęć, a osobna Edge Function `place-photo` rozwiązuje je leniwie przy przesunięciu — taniej, ale druga funkcja, wolniejsze przesuwanie, trzeba ją chronić limitem. (c) Proxy przesyłające same bajty zdjęcia przez Edge Function — najwięcej ruchu i kosztu po naszej stronie, odradzam.
+- ✅ **Q1** → D1. **Q1 — Skąd zdjęcia / jak przechodzą do aplikacji:** (a) Edge Function rozwiązuje `photoUri` (`skipHttpRedirect`) dla wybranych miejsc i zwraca gotowe adresy bez klucza — **rekomendacja**: jedno wywołanie z aplikacji, klucz zostaje na serwerze, zero nowych funkcji; minus: płacimy za wszystkie N zdjęć z góry, nawet nieprzesunięte. (b) Funkcja zwraca tylko nazwy zdjęć, a osobna Edge Function `place-photo` rozwiązuje je leniwie przy przesunięciu — taniej, ale druga funkcja, wolniejsze przesuwanie, trzeba ją chronić limitem. (c) Proxy przesyłające same bajty zdjęcia przez Edge Function — najwięcej ruchu i kosztu po naszej stronie, odradzam.
 - **Q2 — Ile zdjęć na kartę:** (a) 3 — rekomendacja (≤ 30 zapytań o zdjęcia na wyszukiwanie), (b) 5, (c) 1 (bez karuzeli).
 - **Q3 — Układ karty:** (a) zdjęcie na górze karty (proporcje 4:3, zaokrąglone górne rogi `radius.lg`), tekst pod nim jak dziś — rekomendacja; design-context: „nie zamieniaj każdej karty w plakat”; (b) zdjęcie na całą kartę, tekst na `hero.scrim`.
 - **Q4 — Brak zdjęć:** (a) karta bez obszaru zdjęcia, jak dziś — rekomendacja; (b) placeholder tej samej wysokości z ikoną (równa lista).
