@@ -1,5 +1,5 @@
 # Zadanie: Karuzela zdjęć na kartach miejsc (Discover)
-Status: iteracja 1 zrobiona (PR #32); iteracja 2 — szkic, Q7–Q8 zamknięte (D7), czeka na akceptację
+Status: iteracja 1 zrobiona (PR #32); iteracja 2 — szkic, zaakceptowana 2026-11-07 („Akceptuję”, Kacper), w trakcie
 
 ## Zrozumienie i założenia
 - Kacper chce, żeby każda karta miejsca na `/discover` miała przesuwaną karuzelę zdjęć miejsca — żeby było widać, jak wygląda.
