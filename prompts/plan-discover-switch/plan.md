@@ -1,5 +1,5 @@
 # Zadanie: Przełącznik „Plan” / „Odkryj” w zakładce Plan
-Status: szkic — czeka na odpowiedzi na pytania i akceptację Kacpra (2026-11-07)
+Status: zaakceptowany (2026-11-07) — w realizacji
 
 ## Zrozumienie i założenia
 Kacper chce w zakładce „Plan” przełącznik o dwóch stanach (w stylu włącznika, nie listy ani paska zakładek), który przełącza widok między „Plan” a „Odkryj” i z powrotem.
@@ -40,7 +40,11 @@ Założenia (do potwierdzenia przy akceptacji):
 ### Decyzje (Kacper)
 - **D1 — P1 = (a):** przełącznik na górze treści ekranu Plan, zamiast tytułu (Kacper, 2026-11-07).
 - **D2 — P2 = (a):** Discover renderowany w zakładce Plan pod przełącznikiem, bez przechodzenia na inny ekran; pigułka zostaje (Kacper, 2026-11-07).
-- (czeka na odpowiedzi P3–P6)
+- **D3 — P3 = (a):** przełącznik widoczny zawsze.
+- **D4 — P4 = (a):** istniejący `SegmentedControl` z dwiema opcjami, bez zmian w komponencie.
+- **D5 — P5 = (a):** etykiety „Plan” / „Odkryj” (en „Plan” / „Discover”).
+- **D6 — P6 = (a):** bez animacji — treść podmienia się od razu.
+- **D7 — Akceptacja:** plan zaakceptowany razem z założeniami Z1–Z4 (w tym zmiana D16: drugie wejście do Discover). Słowa Kacpra: „Tak, rekomendacje” (przekazane przez sesję-menedżera, 2026-11-07; menedżer uprzedził, że traktuje to jako akceptację planu).
 
 ## Podejście
 Przy rekomendacjach (P1a, P2a, P3a, P4a, P5a, P6a):
@@ -86,6 +90,7 @@ Każdy krok: `pnpm test`, `pnpm typecheck`, `pnpm lint` zielone, verifier PASS p
 
 ## Dziennik postępu
 - 2026-11-07 — szkic planu, pytania P1–P6.
+- 2026-11-07 — odpowiedzi P1–P6 (D1–D6), plan zaakceptowany (D7).
 
 ## Ryzyka i otwarte pytania
 - **R1 — Discover pod pigułką.** `DiscoverScreen` stoi na `AuthFormScreen` i był projektowany jako ekran bez pigułki; w zakładce dół listy wyników i stopka („Dane: Google”, limit dzienny) mogą schować się pod pigułką. Może wymagać jednej zmiany w `DiscoverScreen.tsx` (dolny odstęp) — ten sam plik, w którym inna sesja przerabia `PlaceCard`, więc grozi konflikt przy merge'u. Ograniczam zmianę do propsa/odstępu poza `PlaceCard`; przy konflikcie scalam ręcznie.
