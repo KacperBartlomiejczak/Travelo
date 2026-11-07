@@ -1,5 +1,5 @@
 # Zadanie: Karuzela zdjęć na kartach miejsc (Discover)
-Status: iteracja 1 zrobiona (PR #32); iteracja 2 — szkic, Q7 zamknięte, czeka na Q8 i akceptację
+Status: iteracja 1 zrobiona (PR #32); iteracja 2 — szkic, Q7–Q8 zamknięte (D7), czeka na akceptację
 
 ## Zrozumienie i założenia
 - Kacper chce, żeby każda karta miejsca na `/discover` miała przesuwaną karuzelę zdjęć miejsca — żeby było widać, jak wygląda.
@@ -55,9 +55,13 @@ Kacper (bezpośrednio): „Problem w karuzeli jest taki że aktualnie te zdjęci
 - **Zdjęcia „nie są ucięte”** — niejasne, co dokładnie (Q7). Stan obecny (emulator, da705bd): ramka 4:3 w obrysie karty, górne rogi zaokrąglone `card.radius - borderWidth`, `contentFit="cover"` (zdjęcie wypełnia ramkę i jest przycinane), `overflow: hidden`.
 - **Ocena miejsca** — zmienia D15 („bez ocen”). Sprawdzone u źródła (developers.google.com, 2026-11-07): `places.rating` i `places.userRatingCount` wywołują **Nearby Search Enterprise** zamiast Pro — każde wyszukiwanie droższe: Pro $32 / 1000 (5000 darmowych / mies.) → Enterprise $35 / 1000 (1000 darmowych / mies.). Dla porównania Place Photos: $7 / 1000 (1000 darmowych).
 
-### Podejście (szkic, po Q7–Q8)
-- Ocena: `places.rating` + `places.userRatingCount` w masce Nearby Search (jedno zapytanie, bez dodatkowych wywołań) → `GooglePlaceSchema` → `PlaceSchema` / `PlaceRecommendationSchema` (`rating?: 1–5`, `ratingCount?: int ≥ 0`) → karta. Brak oceny w Google → brak wiersza oceny.
-- Przycinanie zdjęć: zależnie od Q7.
+### Decyzje iteracji 2
+- **D7 — Q8 = (a): ocena „★ 4,6 (1 234)”** w wierszu z typem miejsca; `places.rating` + `places.userRatingCount` w Nearby Search → SKU Enterprise ($35 / 1000, 1000 darmowych / mies. zamiast Pro $32 / 5000); brak oceny w Google → brak wiersza oceny; zastępuje „bez ocen” z places-legal-navbar D15 (Kacper, 2026-11-07).
+
+### Podejście (do akceptacji)
+- **Backend (krok 6):** `NEARBY_FIELD_MASK` + `places.rating,places.userRatingCount` (komentarz: teraz Enterprise, D7). `GooglePlaceSchema`: `rating: number 1–5 optional`, `userRatingCount: int ≥ 0 optional`. `PlaceSchema` (więc i `PlaceRecommendationSchema`): `rating?`, `ratingCount?`; `parseNearbySearch` je przepisuje. Ocena nie idzie do Gemini (prompt bez zmian). Zła wartość z Google (np. 7) nie odrzuca miejsca — tylko pole oceny znika (jak przy złym zdjęciu). Testy najpierw: schemat (granice 1/5, brak, zła wartość), `parseNearbySearch`, maska.
+- **Frontend (krok 7):** w `PlaceCard` wiersz typu: „Klub nocny · ★ 4,6 (1 234)” — `typography.caption`, `text.secondary`, ikona `Star` (lucide, rozmiar `iconography.size.xs`, ten sam kolor, wypełniona), liczby formatowane wg języka (`Intl.NumberFormat`: PL „4,6” i „1 234”, EN „4.6” i „1,234”), jedna cyfra po przecinku. Bez typu — sama ocena; bez `ratingCount` — „★ 4,6”. Czytnik ekranu: „Ocena 4,6 na 5, 1234 opinie” / „Rated 4.6 out of 5, 1,234 reviews” (klucze i18n z liczbą mnogą). Testy najpierw: z oceną, bez oceny, bez liczby opinii, PL/EN, etykieta a11y.
+- **Wdrożenie i test (krok 8):** wdrożenie funkcji robi Kacper (sesja nie ma uprawnień); tester po sygnale menedżera, 1 wyszukiwanie; potem docs, verifier końca planu z CodeRabbit, push do PR #32.
 
 ### Kroki (szkic)
 - [ ] 6. [backend] Zod + maska + mapowanie oceny — najpierw testy schematu i `parseNearbySearch` — verifier
@@ -67,7 +71,7 @@ Kacper (bezpośrednio): „Problem w karuzeli jest taki że aktualnie te zdjęci
 ### Pytania
 - **Q7a** → emulator (Kacper). Odczyt 15:22 (adb, tylko zrzut i dump): na emulatorze działa teraz Expo Go z Metro 8084 sesji `plan-discover-switch` (jej worktree nie ma `PlaceCard` — bez zdjęć). Przepełnienie widziane przez Kacpra to najpewniej build sprzed da705bd (emulator 14:10–15:00); po da705bd (15:08) ramka 970 px w karcie 975 px. Kacper potwierdził zrzut po poprawce: „Tak, jest OK” → przycinanie bez zmian w kodzie (krok 7 tylko ocena). **Q7a — Gdzie to widać:** na emulatorze po da705bd ramka była w obrysie (970 px w karcie 975 px). Potrzebne: urządzenie (telefon / emulator, Android / iOS), czy aplikacja była przeładowana po 15:00, zrzut ekranu.
 - ✅ **Q7** → (c): Kacper, 2026-11-07: „zdjęcia wychodzą poza kartę”. **Q7 — Co znaczy „zdjęcia nie są ucięte”?** (a) zdjęcie ma być zaokrąglone na wszystkich rogach i odsunięte od krawędzi karty (z marginesem, jak „miniatura” w karcie), zamiast iść od krawędzi do krawędzi; (b) dolne rogi zdjęcia też zaokrąglone; (c) przy przesuwaniu widać sąsiednie zdjęcie / wychodzi poza kartę na Twoim telefonie (wtedy to stary build — sprawdzić wersję); (d) inne — opisz albo wyślij zrzut. Rekomendacja: zrzut ekranu rozstrzygnie najszybciej.
-- **Q8 — Ocena:** (a) „★ 4,6 (1 234)” w wierszu z typem miejsca, pole Enterprise w Nearby Search (droższe wyszukiwanie, jak wyżej) — rekomendacja; (b) sama gwiazdka z liczbą „★ 4,6” bez liczby opinii; (c) ocena na zdjęciu (lewy górny róg, pigułka jak licznik).
+- ✅ **Q8** → D7. **Q8 — Ocena:** (a) „★ 4,6 (1 234)” w wierszu z typem miejsca, pole Enterprise w Nearby Search (droższe wyszukiwanie, jak wyżej) — rekomendacja; (b) sama gwiazdka z liczbą „★ 4,6” bez liczby opinii; (c) ocena na zdjęciu (lewy górny róg, pigułka jak licznik).
 
 ## Dziennik postępu
 - 2026-11-07 — plan napisany; czeka na odpowiedzi Q1–Q6 i akceptację.
