@@ -30,6 +30,7 @@ function makePorts(overrides: Partial<RecommendPorts> = {}) {
       seen.prompt = prompt;
       return GOOD_PICKS;
     },
+    resolvePhoto: async (name) => `https://lh3.example/${name}`,
     ...overrides,
   };
   return { ports, calls, seen };
@@ -194,6 +195,113 @@ describe('handleRecommendPlaces', () => {
   it('errors match RecommendPlacesErrorSchema', async () => {
     const { ports } = makePorts({ consumeQuota: async () => null });
     expect(RecommendPlacesErrorSchema.safeParse((await handleRecommendPlaces(req(), ports)).body).success).toBe(true);
+  });
+});
+
+describe('handleRecommendPlaces photos', () => {
+  afterEach(() => jest.restoreAllMocks());
+
+  // Real photo names are `places/<id>/photos/<id>`; the tests use short ids for readability.
+  const short = (name: string) => name.replace('places/x/photos/', '');
+  const photo = (id: string) => ({
+    name: `places/x/photos/${id}`,
+    widthPx: 800,
+    heightPx: 600,
+    authorAttributions: [{ displayName: 'Ann', uri: 'https://maps.google.com/ann' }],
+  });
+  const photosById: Record<string, string[]> = {
+    'ChIJ-lisbon-castle': ['c1', 'c2', 'c3', 'c4'],
+    'ChIJ-lisbon-park': ['p1'],
+    'ChIJ-lisbon-cafe': ['x1'],
+    'ChIJ-lisbon-viewpoint': ['x2'],
+  };
+  const withPhotos = {
+    places: nearby.places.map((p) => ({ ...p, photos: (photosById[p.id] ?? []).map(photo) })),
+  };
+  const PICKS = JSON.stringify({
+    picks: [
+      { placeId: 'ChIJ-lisbon-park', reason: 'Zielono.' },
+      { placeId: 'ChIJ-lisbon-castle', reason: 'Zamek.' },
+      { placeId: 'ChIJ-lisbon-museum', reason: 'Muzeum.' },
+    ],
+  });
+  const setup = (overrides: Partial<RecommendPorts> = {}) => {
+    const requested: string[] = [];
+    const made = makePorts({
+      nearbySearch: async () => withPhotos,
+      pickWithGemini: async () => PICKS,
+      resolvePhoto: async (name) => {
+        requested.push(short(name));
+        return `https://lh3.example/${short(name)}`;
+      },
+      ...overrides,
+    });
+    return { ...made, requested };
+  };
+
+  it('resolves photos only for picked places, at most 3 each, in order', async () => {
+    const { ports, requested } = setup();
+    const res = await handleRecommendPlaces(req(), ports);
+    const body = RecommendPlacesResponseSchema.parse(res.body);
+    expect(res.status).toBe(200);
+    expect([...requested].sort()).toEqual(['c1', 'c2', 'c3', 'p1']);
+    expect(requested).not.toContain('x1');
+    expect(requested).not.toContain('x2');
+    expect(body.places.map((p) => p.photos.map((ph) => ph.uri))).toEqual([
+      ['https://lh3.example/p1'],
+      ['https://lh3.example/c1', 'https://lh3.example/c2', 'https://lh3.example/c3'],
+      [],
+    ]);
+    expect(body.places[1]!.photos[0]).toEqual({
+      uri: 'https://lh3.example/c1',
+      width: 800,
+      height: 600,
+      authors: [{ name: 'Ann', uri: 'https://maps.google.com/ann' }],
+    });
+  });
+
+  it('never exposes photoRefs', async () => {
+    const { ports } = setup();
+    expect(JSON.stringify((await handleRecommendPlaces(req(), ports)).body)).not.toContain('photoRefs');
+  });
+
+  it('drops a failed photo, keeps the others and warns once without names', async () => {
+    const warn = jest.spyOn(console, 'warn').mockImplementation(() => undefined);
+    const { ports } = setup({
+      resolvePhoto: async (name) => {
+        if (short(name) === 'c2') throw new Error('boom c2');
+        return `https://lh3.example/${short(name)}`;
+      },
+    });
+    const body = RecommendPlacesResponseSchema.parse((await handleRecommendPlaces(req(), ports)).body);
+    expect(body.places[1]!.photos.map((ph) => ph.uri)).toEqual(['https://lh3.example/c1', 'https://lh3.example/c3']);
+    expect(warn).toHaveBeenCalledTimes(1);
+    expect(warn).toHaveBeenCalledWith('photo_failed', { count: 1 });
+  });
+
+  it('answers 200 with empty photos when every photo fails', async () => {
+    jest.spyOn(console, 'warn').mockImplementation(() => undefined);
+    const { ports } = setup({
+      resolvePhoto: async () => {
+        throw new Error('down');
+      },
+    });
+    const res = await handleRecommendPlaces(req(), ports);
+    expect(res.status).toBe(200);
+    expect(RecommendPlacesResponseSchema.parse(res.body).places.every((p) => p.photos.length === 0)).toBe(true);
+  });
+
+  it('still resolves photos on the Gemini fallback path', async () => {
+    jest.spyOn(console, 'error').mockImplementation(() => undefined);
+    const { ports, requested } = setup({
+      pickWithGemini: async () => {
+        throw new Error('gemini');
+      },
+    });
+    const body = RecommendPlacesResponseSchema.parse((await handleRecommendPlaces(req(), ports)).body);
+    expect(body.places.every((p) => p.reason === null)).toBe(true);
+    expect(requested).toEqual(expect.arrayContaining(['c1', 'p1']));
+    expect(body.places.find((p) => p.placeId === 'ChIJ-lisbon-castle')!.photos).toHaveLength(3);
   });
 });
 

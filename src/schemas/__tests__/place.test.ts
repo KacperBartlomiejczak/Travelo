@@ -3,6 +3,7 @@ import { z } from 'zod';
 import {
   GeminiPlacePicksSchema,
   GoogleNearbySearchResponseSchema,
+  GooglePhotoMediaSchema,
   GooglePlaceSchema,
   GooglePlacePhotoSchema,
   MAX_PLACE_PHOTOS,
@@ -137,6 +138,27 @@ describe('GooglePlacePhotoSchema', () => {
   it.each([{ name: '' }, { widthPx: 0 }, { heightPx: 1.5 }])('rejects %j', (patch) => {
     expect(GooglePlacePhotoSchema.safeParse({ ...raw, ...patch }).success).toBe(false);
   });
+  it.each(['places/x/photos/y?key=1', 'places/x/photos/../../z', 'https://evil/x', 'places/x/photos/y/z', 'places/%2e%2e/photos/x'])(
+    'rejects the unsafe name %s',
+    (name) => {
+      expect(GooglePlacePhotoSchema.safeParse({ ...raw, name }).success).toBe(false);
+    },
+  );
+  it('drops only the photo with a bad name, keeping the place and the other photos', () => {
+    const good = { ...raw, name: 'places/x/photos/ok' };
+    const parsed = GooglePlaceSchema.parse({ ...googlePlace, photos: [{ ...raw, name: 'places/x/photos/../z' }, good] });
+    expect(parsed.photos.map((p) => p.name)).toEqual(['places/x/photos/ok']);
+  });
+  it('warns photo_invalid with a count only when photos were dropped', () => {
+    const warn = jest.spyOn(console, 'warn').mockImplementation(() => undefined);
+    const bad = { ...raw, name: 'places/x/photos/../secret' };
+    GooglePlaceSchema.parse({ ...googlePlace, photos: [{ ...raw, name: 'places/x/photos/ok' }] });
+    expect(warn).not.toHaveBeenCalled();
+    GooglePlaceSchema.parse({ ...googlePlace, photos: [bad, bad] });
+    expect(warn).toHaveBeenCalledTimes(1);
+    expect(warn).toHaveBeenCalledWith('photo_invalid', { count: 2 });
+    warn.mockRestore();
+  });
   it('is optional on GooglePlaceSchema and defaults to []', () => {
     expect(GooglePlaceSchema.parse(googlePlace).photos).toEqual([]);
   });
@@ -220,5 +242,16 @@ describe('RecommendPlacesErrorSchema', () => {
 describe('PLACE_REQUESTS_PER_DAY', () => {
   it('is 5 (D17)', () => {
     expect(PLACE_REQUESTS_PER_DAY).toBe(5);
+  });
+});
+
+describe('GooglePhotoMediaSchema', () => {
+  it('keeps photoUri and strips the rest', () => {
+    expect(GooglePhotoMediaSchema.parse({ name: 'n', photoUri: 'https://lh3.googleusercontent.com/a' })).toEqual({
+      photoUri: 'https://lh3.googleusercontent.com/a',
+    });
+  });
+  it.each([{}, { photoUri: 'nope' }])('rejects %p', (value) => {
+    expect(GooglePhotoMediaSchema.safeParse(value).success).toBe(false);
   });
 });

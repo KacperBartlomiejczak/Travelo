@@ -18,7 +18,8 @@ const PhotoAuthorSchema = z.object({ name: z.string().min(1), uri: z.url().optio
 
 // Photo names must not be stored and can expire: resolve them to a photoUri in the same request.
 export const GooglePlacePhotoSchema = z.object({
-  name: z.string().min(1),
+  // Interpolated into a URL that carries the API key: a single safe path shape only.
+  name: z.string().regex(/^places\/[A-Za-z0-9_-]+\/photos\/[A-Za-z0-9_-]+$/),
   widthPx: z.int().positive(),
   heightPx: z.int().positive(),
   authorAttributions: z.array(z.object({ displayName: z.string().min(1), uri: z.url().optional() })).default([]),
@@ -34,6 +35,9 @@ export const PlacePhotoSchema = z.object({
 });
 export type PlacePhoto = z.infer<typeof PlacePhotoSchema>;
 
+// Place Photos (New) with skipHttpRedirect=true: only the Google-hosted photoUri is used.
+export const GooglePhotoMediaSchema = z.object({ photoUri: z.url() });
+
 // Raw Nearby Search (New) place; unknown keys are stripped.
 export const GooglePlaceSchema = z.object({
   id: z.string().min(1),
@@ -44,7 +48,19 @@ export const GooglePlaceSchema = z.object({
   googleMapsUri: z.url(),
   primaryType: z.string().optional(),
   primaryTypeDisplayName: LocalizedTextSchema.optional(),
-  photos: z.array(GooglePlacePhotoSchema).default([]),
+  // One malformed photo is dropped, never the place.
+  photos: z
+    .array(z.unknown())
+    .default([])
+    .transform((items) => {
+      const photos = items.flatMap((item) => {
+        const photo = GooglePlacePhotoSchema.safeParse(item);
+        return photo.success ? [photo.data] : [];
+      });
+      // Count only, never names: they end up in a URL with the API key.
+      if (photos.length < items.length) console.warn('photo_invalid', { count: items.length - photos.length });
+      return photos;
+    }),
 });
 export type GooglePlace = z.infer<typeof GooglePlaceSchema>;
 

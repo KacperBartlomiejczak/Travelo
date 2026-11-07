@@ -7,7 +7,7 @@ import {
   RecommendPlacesRequestSchema,
   RecommendPlacesResponseSchema,
 } from '../../../src/schemas/place.ts';
-import type { Place, RecommendPlacesError, RecommendPlacesResponse } from '../../../src/schemas/place.ts';
+import type { Place, PlacePhoto, RecommendPlacesError, RecommendPlacesResponse } from '../../../src/schemas/place.ts';
 
 export type AuthResult = { kind: 'user'; id: string } | { kind: 'invalid' };
 
@@ -19,6 +19,8 @@ export interface RecommendPorts {
   nearbySearch(body: unknown): Promise<unknown>;
   /** The model's JSON text. */
   pickWithGemini(prompt: string): Promise<string>;
+  /** Resolves a photo name to a Google-hosted photoUri. */
+  resolvePhoto(name: string): Promise<string>;
 }
 
 export interface RecommendPlacesRequest {
@@ -94,6 +96,30 @@ export async function handleRecommendPlaces(
   if (output !== undefined && places.every((place) => place.reason === null)) {
     console.warn('gemini_picks_empty', { candidates: candidates.length }); // output arrived but no pick survived
   }
-  const response = RecommendPlacesResponseSchema.safeParse({ places, remainingToday });
+  // Only picked places cost photo requests. A failed photo is dropped; one aggregated warning, no names.
+  const refsById = new Map(candidates.map((candidate) => [candidate.placeId, candidate.photoRefs]));
+  const settled = await Promise.allSettled(
+    places.map((place) =>
+      Promise.allSettled(
+        (refsById.get(place.placeId) ?? []).map(
+          async ({ name, width, height, authors }): Promise<PlacePhoto> => ({
+            uri: await ports.resolvePhoto(name),
+            width,
+            height,
+            authors,
+          }),
+        ),
+      ),
+    ),
+  );
+  let failed = 0;
+  const withPhotos = places.map((place, i) => {
+    const results = settled[i]?.status === 'fulfilled' ? settled[i].value : [];
+    const photos = results.flatMap((r) => (r.status === 'fulfilled' ? [r.value] : []));
+    failed += results.length - photos.length;
+    return { ...place, photos };
+  });
+  if (failed > 0) console.warn('photo_failed', { count: failed });
+  const response = RecommendPlacesResponseSchema.safeParse({ places: withPhotos, remainingToday });
   return response.success ? { status: 200, body: response.data } : fail(502, 'upstream_failed');
 }

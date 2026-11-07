@@ -3,11 +3,13 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { z } from 'zod';
 import { NEARBY_FIELD_MASK } from '../../../src/lib/place-types.ts';
-import { GeminiPlacePicksSchema } from '../../../src/schemas/place.ts';
+import { GeminiPlacePicksSchema, GooglePhotoMediaSchema } from '../../../src/schemas/place.ts';
 import type { RecommendPorts } from './handler.ts';
 
 const TIMEOUT_MS = 10_000;
 const GEMINI_TIMEOUT_MS = 20_000; // Gemini 3 is slow even at low thinking
+const PHOTO_TIMEOUT_MS = 5_000;
+const PHOTO_MAX_WIDTH_PX = 1200; // card width on phones at 3x
 
 export interface PortsConfig {
   admin: SupabaseClient;
@@ -45,6 +47,14 @@ export function createPorts({ admin, fetch, env }: PortsConfig): RecommendPorts 
       });
       if (!res.ok) throw new Error(`Nearby Search failed: ${res.status}`);
       return res.json();
+    },
+    async resolvePhoto(name) {
+      const res = await fetch(
+        `https://places.googleapis.com/v1/${name}/media?maxWidthPx=${PHOTO_MAX_WIDTH_PX}&skipHttpRedirect=true`,
+        { headers: { 'X-Goog-Api-Key': env.placesApiKey }, signal: AbortSignal.timeout(PHOTO_TIMEOUT_MS) },
+      );
+      if (!res.ok) throw new Error(`Place Photos failed: ${res.status}`);
+      return GooglePhotoMediaSchema.parse(await res.json()).photoUri;
     },
     async pickWithGemini(prompt) {
       const res = await fetch(
