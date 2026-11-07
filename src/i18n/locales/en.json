@@ -471,6 +471,10 @@
     "offline": "You're offline. Finding places needs internet.",
     "attribution": "Data: Google",
     "openMaps": "Open in Google Maps",
+    "photoLabel": "Photo {{index}} of {{count}}, {{name}}",
+    "photoCounter": "{{index}}/{{count}}",
+    "photoCredit": "Photo: {{names}}",
+    "photoCreditLabel": "Open photo author page, {{names}}",
     "back": "Back"
   },
   "a11y": {
