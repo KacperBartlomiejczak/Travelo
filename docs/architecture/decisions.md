@@ -8,6 +8,7 @@
 - When to switch the Gemini key to the paid tier (before release, D17).
 
 ## Key decisions
+- 2026-11-07 — Discover place rating (`prompts/places-photo-carousel/plan.md` D7, replaces "no ratings" from places-legal-navbar D15): Google `rating` + `userRatingCount` in the type row; Nearby Search moves from the Pro to the Enterprise SKU.
 - 2026-11-07 — Discover place photos (`prompts/places-photo-carousel/plan.md` D1–D6, replaces "no photos" from places-legal-navbar D15): up to 3 photos per picked place, resolved by `recommend-places` to short-lived Google `photoUri`s (key only on the server), carousel on top of the card, no photo area without photos, memory-only cache, author credit on the photo.
 - 2026-11-06…07 — Discover places (`prompts/places-legal-navbar/plan.md` D14–D21): Google Places API (New) with a limit of 5 searches per user per day in `ai_usage`; a list of cards without ratings or map (photos added later, see below); the only entry is the home screen's empty state; the city comes from the airport search; Gemini only picks and explains real candidates by `placeId`.
 - 2026-11-04 — Budget is **per day per person**: the organizer's on `trips.daily_budget_minor`, each friend's on `trip_members.daily_budget_minor`; „Razem / Osobno” is a form mode only (not stored); totals = daily × trip days (dates change totals, not daily amounts); unspent money carries over to the next day as before (expenses D7). Old trips: daily = `greatest(1, total / days)`; queued old-shape offline changes dropped (`prompts/daily-budget/plan.md` B1–B8, A1–A3).
