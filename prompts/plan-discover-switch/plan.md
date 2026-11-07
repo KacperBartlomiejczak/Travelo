@@ -38,7 +38,8 @@ Założenia (do potwierdzenia przy akceptacji):
   (b) kciuk przesuwa się w `motion.duration.standard`, a przy „ogranicz ruch” (`useReduceMotion`) przeskakuje od razu / crossfade ≤ 80 ms (§13.10) — tylko przy P4b lub P4c.
 
 ### Decyzje (Kacper)
-- (brak — czeka na odpowiedzi P1–P6)
+- **D1 — P1 = (a):** przełącznik na górze treści ekranu Plan, zamiast tytułu (Kacper, 2026-11-07).
+- (czeka na odpowiedzi P2–P6)
 
 ## Podejście
 Przy rekomendacjach (P1a, P2a, P3a, P4a, P5a, P6a):
