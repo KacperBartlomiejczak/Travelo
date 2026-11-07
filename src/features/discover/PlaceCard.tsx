@@ -58,61 +58,67 @@ function Carousel({ photos, placeName }: CarouselProps) {
   const { t } = useTranslation();
   const theme = useTheme();
   const [index, setIndex] = useState(0);
-  // The area reserves its 4:3 height at once; the pages are as wide as it is, known after layout.
+  // The pages are as wide as the frame, known after layout.
   const [width, setWidth] = useState(0);
   const onScroll = (event: NativeSyntheticEvent<NativeScrollEvent>) =>
     setIndex(Math.min(Math.max(Math.round(event.nativeEvent.contentOffset.x / width), 0), photos.length - 1));
+  // Reserves the 4:3 height at once (the frame is out of the flow): the spacer is as high as the content width needs, and the
+  // padding adds the two card paddings the frame is wider by. Negative side margins with a stretch and an aspect ratio
+  // overflowed the card's right border on Android, so the frame is placed by insets over the card padding instead.
   return (
-    <View
-      testID="place-card-photos"
-      onLayout={(event: LayoutChangeEvent) => setWidth(event.nativeEvent.layout.width)}
-      // Out over the card's padding, to its border on the top and the sides.
-      style={{
-        alignSelf: 'stretch',
-        aspectRatio: card.photoAspectRatio,
-        marginTop: -card.padding,
-        marginHorizontal: -card.padding,
-        borderTopLeftRadius: PHOTO_RADIUS,
-        borderTopRightRadius: PHOTO_RADIUS,
-        overflow: 'hidden',
-        backgroundColor: theme.skeleton.base,
-      }}
-    >
-      {width > 0 && (
-        <FlatList
-          testID="place-card-pager"
-          horizontal
-          pagingEnabled
-          data={photos}
-          keyExtractor={(photo) => photo.uri}
-          renderItem={({ item, index: i }) => (
-            <Page photo={item} width={width} label={t('discover.photoLabel', { index: i + 1, count: photos.length, name: placeName })} />
-          )}
-          getItemLayout={(_, i) => ({ length: width, offset: width * i, index: i })}
-          onScroll={onScroll}
-          scrollEventThrottle={16}
-          showsHorizontalScrollIndicator={false}
-        />
-      )}
-      {photos.length > 1 && (
-        <View
-          pointerEvents="none"
-          style={{
-            position: 'absolute',
-            zIndex: ABOVE_PHOTO,
-            top: spacing[2],
-            right: spacing[2],
-            backgroundColor: theme.hero.controlBackground,
-            borderRadius: tokens.radii.pill,
-            paddingHorizontal: spacing[3],
-            paddingVertical: spacing[1],
-          }}
-        >
-          <Text style={[typography.styles.caption, { color: theme.hero.text }]}>
-            {t('discover.photoCounter', { index: index + 1, count: photos.length })}
-          </Text>
-        </View>
-      )}
+    <View testID="place-card-photos" style={{ marginTop: -card.padding, paddingBottom: (2 * card.padding) / card.photoAspectRatio }}>
+      <View testID="place-card-photo-spacer" style={{ aspectRatio: card.photoAspectRatio }} />
+      <View
+        testID="place-card-photo-frame"
+        onLayout={(event: LayoutChangeEvent) => setWidth(event.nativeEvent.layout.width)}
+        style={{
+          position: 'absolute',
+          top: 0,
+          bottom: 0,
+          left: -card.padding,
+          right: -card.padding,
+          borderTopLeftRadius: PHOTO_RADIUS,
+          borderTopRightRadius: PHOTO_RADIUS,
+          overflow: 'hidden',
+          backgroundColor: theme.skeleton.base,
+        }}
+      >
+        {width > 0 && (
+          <FlatList
+            testID="place-card-pager"
+            horizontal
+            pagingEnabled
+            data={photos}
+            keyExtractor={(photo) => photo.uri}
+            renderItem={({ item, index: i }) => (
+              <Page photo={item} width={width} label={t('discover.photoLabel', { index: i + 1, count: photos.length, name: placeName })} />
+            )}
+            getItemLayout={(_, i) => ({ length: width, offset: width * i, index: i })}
+            onScroll={onScroll}
+            scrollEventThrottle={16}
+            showsHorizontalScrollIndicator={false}
+          />
+        )}
+        {photos.length > 1 && (
+          <View
+            pointerEvents="none"
+            style={{
+              position: 'absolute',
+              zIndex: ABOVE_PHOTO,
+              top: spacing[2],
+              right: spacing[2],
+              backgroundColor: theme.hero.controlBackground,
+              borderRadius: tokens.radii.pill,
+              paddingHorizontal: spacing[3],
+              paddingVertical: spacing[1],
+            }}
+          >
+            <Text style={[typography.styles.caption, { color: theme.hero.text }]}>
+              {t('discover.photoCounter', { index: index + 1, count: photos.length })}
+            </Text>
+          </View>
+        )}
+      </View>
     </View>
   );
 }

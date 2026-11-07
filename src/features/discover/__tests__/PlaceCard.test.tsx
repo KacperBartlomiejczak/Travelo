@@ -1,7 +1,8 @@
 import { act, fireEvent, render, screen } from '@testing-library/react-native';
-import { Linking } from 'react-native';
+import { Linking, StyleSheet } from 'react-native';
 
 import i18n from '@/i18n';
+import { tokens } from '@/theme/tokens';
 import type { PlaceRecommendation } from '@/schemas';
 
 import { PlaceCard } from '../PlaceCard';
@@ -28,7 +29,7 @@ const place = (photos: PlaceRecommendation['photos'] = []): PlaceRecommendation 
 async function show(photos: PlaceRecommendation['photos'] = []) {
   await render(<PlaceCard place={place(photos)} />);
   // The pages are as wide as the photo area, which is known after layout.
-  if (photos.length > 0) await fireEvent(screen.getByTestId('place-card-photos'), 'layout', { nativeEvent: { layout: { width: 360, height: 270 } } });
+  if (photos.length > 0) await fireEvent(screen.getByTestId('place-card-photo-frame'), 'layout', { nativeEvent: { layout: { width: 360, height: 270 } } });
 }
 
 const scrollTo = (x: number) => fireEvent.scroll(screen.getByTestId('place-card-pager'), { nativeEvent: { contentOffset: { x } } });
@@ -57,6 +58,20 @@ describe('PlaceCard photos', () => {
     await render(<PlaceCard place={place([photo(1)])} />);
     expect(screen.getByTestId('place-card-photos')).toBeTruthy();
     expect(screen.queryByTestId('place-card-pager')).toBeNull();
+  });
+
+  // Jest computes no layout, so the flush layout is pinned by its style contract (device bug: stretch + negative side margins +
+  // aspectRatio made the photo run past the card's right border). The frame is placed by insets over the padding, not by margins.
+  it('lays the photo frame over the card padding with insets, and reserves the 4:3 height with a spacer', async () => {
+    await render(<PlaceCard place={place([photo(1)])} />);
+    const { padding } = tokens.components.card;
+    const area = StyleSheet.flatten(screen.getByTestId('place-card-photos').props.style);
+    expect(area).toMatchObject({ marginTop: -padding, paddingBottom: (2 * padding) / tokens.components.card.photoAspectRatio });
+    expect(area.marginHorizontal).toBeUndefined();
+    expect(area.aspectRatio).toBeUndefined();
+    const frame = StyleSheet.flatten(screen.getByTestId('place-card-photo-frame').props.style);
+    expect(frame).toMatchObject({ position: 'absolute', top: 0, bottom: 0, left: -padding, right: -padding, overflow: 'hidden' });
+    expect(StyleSheet.flatten(screen.getByTestId('place-card-photo-spacer').props.style).aspectRatio).toBe(tokens.components.card.photoAspectRatio);
   });
 
   it('follows the page in the indicator and clamps an offset past the end', async () => {
