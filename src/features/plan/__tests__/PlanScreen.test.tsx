@@ -1,5 +1,5 @@
 import { Stack } from 'expo-router';
-import { fireEvent, renderRouter, screen, waitFor } from 'expo-router/testing-library';
+import { act, fireEvent, renderRouter, screen, waitFor } from 'expo-router/testing-library';
 import { StyleSheet } from 'react-native';
 
 import { useCurrentTrip } from '@/hooks/useTrips';
@@ -131,5 +131,36 @@ describe('PlanScreen (plan-discover-switch D1-D6)', () => {
     expect(screen.getByLabelText('Plan screen view').props.accessibilityRole).toBe('radiogroup');
     expect(radio('Discover')).toBeTruthy();
     expect(radio('Plan')).toBeChecked();
+  });
+});
+
+describe('PlanScreen while the current trip reloads (D8)', () => {
+  const reload = async (trip: Partial<ReturnType<typeof useCurrentTrip>>) => {
+    jest.mocked(useCurrentTrip).mockReturnValue({ isPending: false, isError: false, data: null, ...trip } as never);
+    // The hook is mocked, so a language change is what re-renders the screen.
+    await act(async () => {
+      await i18n.changeLanguage('en');
+    });
+  };
+
+  it('keeps the switch and Discover state while the trip refetches, and after it resolves', async () => {
+    await open();
+    await fireEvent.press(radio('Odkryj'));
+    await fireEvent.changeText(screen.getByLabelText('Miasto'), 'Lisbon');
+    await reload({ isPending: true, data: undefined });
+    expect(radio('Discover')).toBeChecked();
+    expect(screen.getByLabelText('City').props.value).toBe('Lisbon');
+    await reload({ data: { overview: {} } as never });
+    expect(radio('Discover')).toBeChecked();
+    expect(screen.getByLabelText('City').props.value).toBe('Lisbon');
+  });
+
+  it('falls back to the placeholder when the reload finds no trip', async () => {
+    await open();
+    await reload({ isPending: true, data: undefined });
+    expect(screen.getByLabelText('Plan screen view')).toBeTruthy();
+    await reload({ data: null });
+    expect(screen.queryByLabelText('Plan screen view')).toBeNull();
+    expect(screen.getByRole('header', { name: 'Plan' })).toBeTruthy();
   });
 });

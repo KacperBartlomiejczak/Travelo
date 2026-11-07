@@ -29,7 +29,11 @@ export function PlanScreen() {
   const column = { width: '100%', maxWidth: layout.maxContentWidth, alignSelf: 'center' } as const;
 
   // Without a current trip (loading, error, none) the screen stays the plain placeholder, no switch (D3).
-  if (!trips.data) return <EmptyScreen title={t('nav.plan')} message={t('nav.comingSoon')} />;
+  // Exception (D8): a reload after the first load (trip switch) keeps the tree so Discover state survives.
+  const [hadTrip, setHadTrip] = useState(false);
+  const show = !!trips.data || (hadTrip && trips.isPending);
+  if (hadTrip !== show) setHadTrip(show);
+  if (!show) return <EmptyScreen title={t('nav.plan')} message={t('nav.comingSoon')} />;
 
   return (
     <View testID="plan-screen" style={{ flex: 1, backgroundColor: theme.background.canvas, paddingTop: insets.top + spacing[4] }}>
