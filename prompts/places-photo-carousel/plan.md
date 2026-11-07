@@ -1,5 +1,5 @@
 # Zadanie: Karuzela zdjęć na kartach miejsc (Discover)
-Status: czeka na akceptację (Q1 → D1; otwarte Q2–Q6)
+Status: zaakceptowany 2026-11-07 („Tak, rekomendacje”, przekazane przez sesję-menedżera), w trakcie
 
 ## Zrozumienie i założenia
 - Kacper chce, żeby każda karta miejsca na `/discover` miała przesuwaną karuzelę zdjęć miejsca — żeby było widać, jak wygląda.
@@ -16,7 +16,7 @@ Status: czeka na akceptację (Q1 → D1; otwarte Q2–Q6)
 ## Struktury danych (Zod) — szkic, ostatecznie po Q1–Q6
 - `GooglePlacePhotoSchema` = `{ name: string, widthPx: int, heightPx: int, authorAttributions: [{ displayName: string, uri?: url }] (default []) }`; `GooglePlaceSchema.photos: array(GooglePlacePhotoSchema).default([])`.
 - `PlacePhotoSchema` = `{ uri: url, width: int, height: int, authors: [{ name: string, uri?: url }] }` — to, co dostaje aplikacja.
-- `PlaceRecommendationSchema.photos: array(PlacePhotoSchema).max(N)` (N z Q2); pusta tablica = brak zdjęć.
+- `PlaceRecommendationSchema.photos: array(PlacePhotoSchema).max(3)` (D2); pusta tablica = brak zdjęć.
 - Kandydat w funkcji niesie wewnętrznie nazwy zdjęć (`photoRefs`); nie trafiają do Gemini ani do aplikacji.
 - `NEARBY_FIELD_MASK` + `places.photos`.
 - Brak zmian w bazie (nic od Google nie jest zapisywane) → bez migracji i regeneracji typów.
@@ -51,16 +51,22 @@ Status: czeka na akceptację (Q1 → D1; otwarte Q2–Q6)
 ## Dziennik postępu
 - 2026-11-07 — plan napisany; czeka na odpowiedzi Q1–Q6 i akceptację.
 - 2026-11-07 — Kacper: Q1 = (a) → D1.
+- 2026-11-07 — Kacper (przez sesję-menedżera): „Tak, rekomendacje” → Q2–Q6 = (a) → D2–D6; menedżer uprzedził, że to też akceptacja planu → plan zaakceptowany. N = 3.
 
 ## Decyzje
 - **D1 — Q1 = (a): Edge Function rozwiązuje `photoUri`** (`skipHttpRedirect=true`, klucz w nagłówku) dla miejsc wybranych przez Gemini i zwraca aplikacji gotowe adresy bez klucza; bez drugiej funkcji (Kacper, 2026-11-07).
+- **D2 — Q2 = (a): maks. 3 zdjęcia na kartę** (mniej, jeśli Google ma mniej) (Kacper, 2026-11-07).
+- **D3 — Q3 = (a): zdjęcie na górze karty**, proporcje 4:3, górne rogi `radius.lg`, tekst pod nim jak dziś (Kacper, 2026-11-07).
+- **D4 — Q4 = (a): miejsce bez zdjęć** — karta bez obszaru zdjęcia, jak dziś (Kacper, 2026-11-07).
+- **D5 — Q5 = (a): zdjęcia tylko w pamięci** (`expo-image` `cachePolicy: 'memory'`), nic na dysku (Kacper, 2026-11-07).
+- **D6 — Q6 = (a): atrybucja „Fot. <autor>”** na dole zdjęcia na `hero.scrim`, dotyk otwiera `uri` autora; „Dane: Google” pod listą zostaje (Kacper, 2026-11-07).
 
 ## Ryzyka i otwarte pytania
 - ✅ **Q1** → D1. **Q1 — Skąd zdjęcia / jak przechodzą do aplikacji:** (a) Edge Function rozwiązuje `photoUri` (`skipHttpRedirect`) dla wybranych miejsc i zwraca gotowe adresy bez klucza — **rekomendacja**: jedno wywołanie z aplikacji, klucz zostaje na serwerze, zero nowych funkcji; minus: płacimy za wszystkie N zdjęć z góry, nawet nieprzesunięte. (b) Funkcja zwraca tylko nazwy zdjęć, a osobna Edge Function `place-photo` rozwiązuje je leniwie przy przesunięciu — taniej, ale druga funkcja, wolniejsze przesuwanie, trzeba ją chronić limitem. (c) Proxy przesyłające same bajty zdjęcia przez Edge Function — najwięcej ruchu i kosztu po naszej stronie, odradzam.
-- **Q2 — Ile zdjęć na kartę:** (a) 3 — rekomendacja (≤ 30 zapytań o zdjęcia na wyszukiwanie), (b) 5, (c) 1 (bez karuzeli).
-- **Q3 — Układ karty:** (a) zdjęcie na górze karty (proporcje 4:3, zaokrąglone górne rogi `radius.lg`), tekst pod nim jak dziś — rekomendacja; design-context: „nie zamieniaj każdej karty w plakat”; (b) zdjęcie na całą kartę, tekst na `hero.scrim`.
-- **Q4 — Brak zdjęć:** (a) karta bez obszaru zdjęcia, jak dziś — rekomendacja; (b) placeholder tej samej wysokości z ikoną (równa lista).
-- **Q5 — Offline / pamięć podręczna:** zdjęcia tylko w pamięci (`expo-image` `cachePolicy: 'memory'`), zgodnie z zasadą „od Google zapisujemy tylko `placeId`” — rekomendacja; `photoUri` i tak wygasa. Alternatywa: domyślny cache dyskowy (do sprawdzenia z regulaminem Google).
-- **Q6 — Atrybucja:** Google wymaga pokazania autora zdjęcia (`authorAttributions`) przy zdjęciu. (a) mały podpis „Fot. <autor>” na dole zdjęcia na `hero.scrim`, dotyk otwiera profil autora — rekomendacja; (b) podpis pod zdjęciem w karcie. „Dane: Google” pod listą zostaje.
+- ✅ **Q2** → D2. **Q2 — Ile zdjęć na kartę:** (a) 3 — rekomendacja (≤ 30 zapytań o zdjęcia na wyszukiwanie), (b) 5, (c) 1 (bez karuzeli).
+- ✅ **Q3** → D3. **Q3 — Układ karty:** (a) zdjęcie na górze karty (proporcje 4:3, zaokrąglone górne rogi `radius.lg`), tekst pod nim jak dziś — rekomendacja; design-context: „nie zamieniaj każdej karty w plakat”; (b) zdjęcie na całą kartę, tekst na `hero.scrim`.
+- ✅ **Q4** → D4. **Q4 — Brak zdjęć:** (a) karta bez obszaru zdjęcia, jak dziś — rekomendacja; (b) placeholder tej samej wysokości z ikoną (równa lista).
+- ✅ **Q5** → D5. **Q5 — Offline / pamięć podręczna:** zdjęcia tylko w pamięci (`expo-image` `cachePolicy: 'memory'`), zgodnie z zasadą „od Google zapisujemy tylko `placeId`” — rekomendacja; `photoUri` i tak wygasa. Alternatywa: domyślny cache dyskowy (do sprawdzenia z regulaminem Google).
+- ✅ **Q6** → D6. **Q6 — Atrybucja:** Google wymaga pokazania autora zdjęcia (`authorAttributions`) przy zdjęciu. (a) mały podpis „Fot. <autor>” na dole zdjęcia na `hero.scrim`, dotyk otwiera profil autora — rekomendacja; (b) podpis pod zdjęciem w karcie. „Dane: Google” pod listą zostaje.
 - Ryzyko: `photoUri` wygasa — karta otwarta długo może nie doładować kolejnego zdjęcia (wtedy placeholder); do `known-limitations.md`.
 - Ryzyko: dłuższy czas odpowiedzi (dodatkowe zapytania po Gemini); limit czasu zdjęć do ustalenia w kroku 2 (propozycja 5 s, całość nie przekracza obecnych limitów o więcej niż ten czas).
