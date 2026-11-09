@@ -59,6 +59,10 @@ Odpowiedzi Kacpra przekazane przez sesję-menedżera (2026-11-09), dosłownie: �
 - **D8 — P8 = (a):** zmiana języka → nowe zapytanie do API (zostaje jak jest).
 - **D9 — Emulator (krok 4):** wolno, pod warunkiem że żadna inna podsesja go teraz nie używa.
 - **P7 — doprecyzowanie w toku:** Kacper chce, żeby dane dla pierwszego miasta wczytały się raz i były pamiętane. Pytanie uzupełniające: czy „pamiętać” = do zamknięcia aplikacji (jak dziś) + bez automatycznego ponawiania po błędzie, czy także między uruchomieniami.
+- Odpowiedź Kacpra na doprecyzowanie P7 (przez menedżera, 2026-11-09), dosłownie: „powiedzmy do momentu kiedy podroz sie skonczy niech podsesja sprawdzi warunki google jezeli nie mozna to wtedy nie pozostaje nic innego niz strzelanie do api”.
+- **Warunki Google (sprawdzone 2026-11-09 u źródła, https://developers.google.com/maps/documentation/places/web-service/policies):** trwale wolno trzymać tylko `placeId`; współrzędne do 30 dni; nazw, adresów i pozostałych pól nie wolno zapisywać (strona wprost zakazuje kopiowania „business names, addresses, or user reviews”), zalecenie: trzymać `placeId` i pobierać szczegóły na nowo. Zapis wyników do końca podróży jest więc niedozwolony; trzymanie samych `placeId` + powodów od AI wymagałoby po restarcie ~10 płatnych zapytań Place Details zamiast 1 wyszukania — drożej, nie taniej.
+- **D10 — P7, pamięć:** polecenia trzymane w pamięci do zamknięcia aplikacji (jak dziś); po ponownym uruchomieniu nowe zapytanie do API — wariant, który Kacper przyjął, gdy zapis jest niedozwolony.
+- **P7b — ponawianie po błędzie (otwarte):** czy po błędzie automatycznego wyszukania kolejne otwarcie „Odkryj” ma próbować samo, czy tylko przyciskiem „Spróbuj ponownie”.
 
 ## Podejście
 Przy rekomendacjach:
