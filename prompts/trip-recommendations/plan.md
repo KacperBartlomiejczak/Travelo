@@ -1,5 +1,5 @@
 # Zadanie: Polecane miejsca dla celu podróży (Odkryj w zakładce Plan)
-Status: zaakceptowany (2026-11-09) — w realizacji
+Status: wstrzymane na noc (2026-11-09) — patrz „Gdzie wznowić”
 Gałąź: `feature/trip-recommendations` (od `claude/plan-discover-switch-1cf264` = PR #31, zawiera #30 i #31, bez #32)
 
 ## Zrozumienie i założenia
@@ -129,6 +129,15 @@ Każdy krok: `pnpm test`, `pnpm typecheck`, `pnpm lint` zielone, verifier PASS p
 - 2026-11-09 — krok 5: verifier końca planu (Sonnet 5.5 + CodeRabbit, baza `origin/claude/plan-discover-switch-1cf264`): PASS, CodeRabbit 0 uwag (14 plików); 192/3862, typecheck, lint zielone. Krok `[x]` dopiero po kroku 4 lub decyzji Kacpra, żeby go pominąć.
 - 2026-11-09 — przebieg testera przed D13 (wstępny, nie zamyka kroku 4): `Medium_Phone_API_37.0`, Expo Go, Metro 8081 z tego worktree; bundle = ta gałąź (bez chipów, „Lisbon · LIS”). PASS: auto-ładowanie (szkielety → karty, „Dane: Google”, licznik), powrót Plan → Odkryj bez nowego zapytania (licznik bez zmian), wybór „Porto · OPO” nic nie ładuje, offline (baner, przycisk wyłączony), przewinięcie do końca nad pigułką. Nie zrobione: naciśnięcie „Szukaj miejsc”, zmiana podróży (oszczędzanie limitu — zostało 1), ciemny motyw. Zużyte: 1 wyszukanie. Sieć włączona na końcu.
 - 2026-11-09 — krok 2b (D14): stan `searched` w `DiscoverScreen` (ostatnie wyszukane zapytanie; przy auto-ładowaniu ustawiany w renderze — lint zabrania setState w efekcie); `stale` = inne miasto / współrzędne albo brak miasta (wpisywanie) → ukryte karty z „Dane: Google”, pusty wynik, błąd; limit, szkielety, licznik, stany profilu, offline zostają. Powrót do wyszukanego miasta pokazuje jego wyniki z pamięci (to wyniki tego miasta, nie „stare” — zgodne z D14). Testy: 3 czerwone przed zmianą (karty / błąd widoczne), test limitu zielony od razu (straż). 192/3866, typecheck, lint zielone. Docs: `discover-places.md`, `frontend.md`. Verifier: PASS (luki bez blokady: brak testu ukrycia pustego wyniku i powrotu do miasta).
+
+## Gdzie wznowić (2026-11-09, koniec dnia)
+- **Gałąź:** `feature/trip-recommendations` (worktree `.claude/worktrees/trip-recommendations-0b29b6`), tylko lokalne commity, nic nie wypchnięte, brak PR. Stoi na `claude/plan-discover-switch-1cf264` (PR #31).
+- **GitHub wg sesji-menedżera (wieczór 2026-11-09; nie sprawdzone tutaj — brak połączenia z api.github.com):** #30 i #32 scalone do `main`, #31 jeszcze otwarty.
+- **Zrobione:** kroki 1, 2, 2b, 3 (verifier PASS każdy); przegląd całej gałęzi z CodeRabbit przed krokiem 2b — PASS, 0 uwag. Decyzje D1–D14 wyżej. 192/3866, typecheck, lint zielone.
+- **Do zrobienia, po kolei:**
+  1. Gdy #31 zostanie scalony: rebase gałęzi na `origin/main` (D12). Oczekiwane konflikty: `src/features/discover/DiscoverScreen.tsx` (#32 przeniósł `PlaceCard` do `src/features/discover/PlaceCard.tsx` — usuń inline `PlaceCard` i zaimportuj nowy), `src/features/discover/__tests__/DiscoverScreen.test.tsx`, i18n `discover.*`, docs (`frontend.md`, `discover-places.md`, `decisions.md`, `known-limitations.md`, `overview.md`, `app-context.md`). Potem `pnpm test`, `pnpm typecheck`, `pnpm lint` + verifier.
+  2. Krok 4 (tester) na emulatorze — raz, po rebase (D13), ze zdjęciami w kartach; tylko gdy żadna inna sesja nie używa emulatora (D9). Metro z tego worktree (`pnpm start`, `.env` skopiowany z głównego checkoutu — jest w `.gitignore`). Limit 5 wyszukań dziennie; konto testowe ma podróże „TEST Lizbona” (LIS) i „TEST Porto” (OPO). Do sprawdzenia też: naciśnięcie „Szukaj miejsc” po zmianie miasta, zmiana podróży, ukrycie starych wyników (D14), ciemny motyw.
+  3. Krok 5: verifier końca planu z CodeRabbit od nowa (po kroku 2b i rebase), commit, potem **zgoda Kacpra** na push i PR do `main`.
 
 ## Ryzyka i otwarte pytania
 - **R1 — Konflikt z PR #32.** #32 wynosi `PlaceCard` z `DiscoverScreen.tsx` do osobnego pliku i zmienia test `DiscoverScreen`; ten plan też edytuje oba pliki. Gałąź stoi na #31; po scaleniu #32 trzeba będzie zrobić rebase i ręcznie scalić importy / testy (zmiany nie dotykają karty, więc konflikt powinien być mechaniczny). Alternatywa: oprzeć gałąź na #32 — tylko jeśli Kacper woli.
