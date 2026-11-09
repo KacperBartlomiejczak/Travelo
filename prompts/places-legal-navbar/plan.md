@@ -163,10 +163,11 @@ Ja jestem managerem. Po akceptacji każdy strumień dostaje **osobną sesję (te
 - [x] B2. [frontend] Ekran `/legal/[doc]` + klucze i18n + linki w Ustawieniach i arkuszu logowania → verifier.
 - [x] A10. [sesja A10] Bez tła kółek + mniejsze odstępy (D18) → verifier → tester.
 - [ ] B5. [orkiestrator] Publikacja dokumentów pod publicznym URL (P3).
-- [ ] C1. [backend] `src/schemas/place.ts` + testy schematów → verifier.
-- [ ] C2. [backend] `place-types.ts` (mapowanie) i `place-picks.ts` (filtr odpowiedzi Gemini) z testami → verifier.
+- [x] C1. [backend] `src/schemas/place.ts` + testy schematów → verifier.
+- [x] C2. [backend] `place-types.ts` (mapowanie) i `place-picks.ts` (filtr odpowiedzi Gemini) z testami → verifier.
 - [x] C3. [backend] Migracja `ai_usage` + Edge Function `recommend-places` (Places + Gemini + limit) na fixturach → verifier. Kacper ustawia sekrety; potem jedno ręczne wywołanie na żywo.
 - [ ] C4. [backend] `src/data/places.ts` + `usePlaceRecommendations` → verifier.
+- [ ] C4a. [backend] D22: limit czasu 45 s tylko dla `recommend-places` w `src/data/places.ts` (test najpierw: wywołanie trwające > 20 s nie jest przerywane, inne zapytania dalej 20 s) → verifier; po PASS C4 i C4a → `[x]`.
 - [x] C5. [frontend] Ekran `/discover` (miasto, zainteresowania, lista, wszystkie stany, atrybucja) → verifier.
 - [x] C6. [frontend] Przycisk „Odkryj miejsca” w pustym stanie „Podróż” → verifier.
 - [x] C7. [tester] Przejście scenariuszy na urządzeniu.
@@ -208,6 +209,8 @@ Scenariusze ręczne C7: brak podróży → „Odkryj miejsca” → wybór miast
 - **D19 — Wybór miasta na `/discover`:** wyszukiwarka lotnisk (`AirportField`) — miasto i współrzędne z lotniska, działa offline; zainteresowania z profilu jako `InterestChips` do zmiany na ekranie (Kacper, 2026-11-07: „Airport search”; zainteresowania — propozycja bez sprzeciwu).
 - **D20 — Model Gemini `gemini-3.8-flash` (zastępuje model z D17):** `gemini-2.5-flash` zwraca 404 „no longer available to new users” (Kacper, 2026-11-07).
 - **D21 — Gemini: niski poziom myślenia + limit 20 s** (zamiast 10 s): `gemini-3.8-flash` nie mieścił się w 10 s („Signal timed out”) (Kacper, 2026-11-07).
+- **D22 — Limit czasu `recommend-places` po stronie aplikacji: 45 s** tylko dla tego wywołania (serwer: Places 10 s + Gemini 20 s + zdjęcia 5 s); inne zapytania dalej 20 s; komunikat błędu bez zmian (Kacper, 2026-11-09).
+- **D23 — Wyjątek: hook `usePlaceRecommendations` (`src/hooks/`) z kroku backendowego C4 zostaje** (Kacper, 2026-11-09).
 - **D4 — Nowy wygląd pigułki** wg wzoru: aktywna = wypełniona kapsuła ikona + etykieta, nieaktywne = okrągłe przyciski z ikoną; w kolorach Sunline.
 
 ## Dziennik
@@ -243,3 +246,5 @@ Scenariusze ręczne C7: brak podróży → „Odkryj miejsca” → wybór miast
 - 2026-11-07 — Kacper przebudował APK z tej gałęzi (decyzja „Rebuild APK”): build z krótkiej ścieżki `C:\td` (detached worktree, `node-linker=hoisted`, JDK 17; głęboka ścieżka i JDK 25 łamią CMake/ninja). C7 (tester, bundle 8087): pigułka 4 zakładki, bez kółek, ~296 dp — PASS; `/discover` (przez deep link, konto ma podróż), Lizbona/Porto/Madryt — karty, „Data: Google”, licznik, Mapy Google, offline, EN + ciemny — PASS. FAIL: brak „dlaczego dla Ciebie” na wszystkich kartach. Przyczyna z logów: Gemini 404 (`gemini-2.5-flash` niedostępny dla nowych kont) → D20, potem „Signal timed out” (Gemini 3 domyślnie myśli „high”) → D21. Poprawka (backend): log `gemini_fallback`/`gemini_picks_empty` (bez klucza i promptu), `thinkingLevel: 'low'`, limit Gemini 20 s (Places 10 s). Verifier PASS (191/3834, typecheck, lint). Uwagi: `thinkingLevel` działa tylko z modelami Gemini 3; log zawiera dosłowny `error.message` Google. Niesprawdzone: pusty stan „Podróż” (konto ma podróż), komunikat limitu (licznik wyzerował się o północy UTC).
 - 2026-11-07 — Po wdrożeniu poprawki (4a2eecf): Barcelona — karty z „dlaczego dla Ciebie” (EN), wywołanie 7,9 s po stronie serwera. C7 zamknięty z wyjątkami: pusty stan „Podróż” i komunikat limitu niesprawdzone na urządzeniu (pokryte testami). Scalone poprawki PR #29 z review CodeRabbit (`feature/places-legal-navbar`); 191/3837, typecheck, lint zielone.
 - 2026-11-07 — D1: docs strumienia C — `backend.md` (`recommend-places`, `ai_usage`), `frontend.md` (`/discover`), `shared.md` (`place.ts`), `overview.md`, `decisions.md` (D14–D21, model Gemini), `known-limitations.md` (limit, Gemini, budowanie APK na Windows), nowy `flows/features/discover-places.md`, `context/app-context.md` (pkt 18). Dalej: verifier końca planu z CodeRabbit.
+- 2026-11-09 — Verifier (Haiku) C1, C2, C4 na d42b364: **C1 PASS, C2 PASS** → `[x]`. **C4 FAIL**: (1) hook `usePlaceRecommendations` w `src/hooks/` napisał backend (poza jego plikami; plan przypisał go do C — sprzeczność z zasadami, decyzja Kacpra); (2) `src/data/places.ts`: klient przerywa po 20 s (`REQUEST_TIMEOUT_MS`), a serwer w najgorszym razie potrzebuje Places 10 s + Gemini 20 s (+ zdjęcia 5 s w #32) — wolne, ale udane wywołanie kończy się „offline” i zużywa 1 z 5 zapytań; brak testu. Pełny zestaw 191/3837, lint 0; typecheck czerwony tylko przez nieaktualny `.expo/types/router.d.ts` (do odświeżenia). Uwagi bez blokady: `googleMapsUri` bez wymogu https; `buildNearbySearchBody` z ręcznym typem zamiast `Pick<RecommendPlacesRequest>`; jedna zła pozycja z Google odrzuca całą odpowiedź; nazwy typów `market`, `scenic_spot`, `kebab_shop`, `sauna` niesprawdzone na żywo; brak testu nowego zapytania przy innym `locale`.
+- 2026-11-09 — Kacper: „Dłuższy limit tylko dla tego wywołania” → D22, krok C4a; „Akceptuję wyjątek” → D23 (hook w `src/hooks/` z kroku backendowego zostaje).
