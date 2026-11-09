@@ -98,7 +98,7 @@ Brak zmian. Używam istniejących `RecommendPlacesRequestSchema` (`src/schemas/p
 
 ## Kroki
 - [x] **1. [frontend]** Bez chipów: zainteresowania tylko z profilu, stany profilu (P2, P4), tekst pustego wyniku (Z4) — testy najpierw → verifier.
-- [ ] **2. [frontend]** Cel podróży: prop `destination`, prefill przez `findAirport`, auto-ładowanie (P1, P3, P5, P6), `PlanScreen` przekazuje cel — testy najpierw → verifier.
+- [x] **2. [frontend]** Cel podróży: prop `destination`, prefill przez `findAirport`, auto-ładowanie (P1, P3, P5, P6), `PlanScreen` przekazuje cel — testy najpierw → verifier.
 - [ ] **3. [orchestrator]** Docs (lista w „Pliki”) + ten plan → verifier.
 - [ ] **4. [tester]** Na emulatorze — **tylko po zgodzie Kacpra** (jeden emulator, używa go sesja „discover-stack”): podróż z celem → „Odkryj” ładuje się samo; powrót do „Plan” i znów „Odkryj” → bez nowego zapytania (licznik „Zostało dziś” się nie zmienia); inne miasto + przycisk; zmiana podróży w szufladzie; offline; `/discover` bez podróży; jasny/ciemny; EN.
 - [ ] **5.** Verifier całej gałęzi (CodeRabbit), commit. Push / PR tylko po zgodzie Kacpra.
@@ -111,10 +111,13 @@ Każdy krok: `pnpm test`, `pnpm typecheck`, `pnpm lint` zielone, verifier PASS p
 - 2026-11-09 — odpowiedzi P1–P6 = (a) (D1–D6). 
 - 2026-11-09 — plan zaakceptowany (D7). Stos PR bez zmian (#30–#32 otwarte), gałąź dalej na #31.
 - 2026-11-09 — krok 1: `DiscoverScreen` bez pola zainteresowań i stanu `edited`; zainteresowania z `useMyProfile`; profil ładuje się → blok `discover-loading`, błąd profilu → notka `discover.profileError` (przycisk wyłączony, bo zapytanie bez zainteresowań nie przechodzi schematu); `discover.empty` zmieniony (Z4), `discover.interests` usunięty (Z5). Testy: brak chipów, ładowanie i błąd profilu, nowy tekst pustego wyniku — czerwone przed zmianą; test „bez miasta nic się nie wysyła” zielony od razu (straż regresji). 192/3854, typecheck, lint zielone. Verifier: PASS. Skille: test-driven-development, frontend-ui-engineering.
+- 2026-11-09 — krok 2: `DiscoverScreen` dostaje `destination?: string`; miasto = wybór ręczny albo `findAirport(destination)`; auto-wyszukanie w `useEffect`, gdy brak wyboru ręcznego, profil wczytany, zapytanie poprawne i online; `PlanScreen` przekazuje `overview.trip.destination`. Odstępstwo: stan wyboru ręcznego ma 3 wartości (`undefined` = cel podróży, `Airport` = wybrane, `null` = wpisany tekst bez wyboru), żeby wpisywanie nie wracało po cichu do miasta celu. Zmiana celu (D5) resetuje wybór. Mocki `PlanScreen` dostały `overview.trip.destination`. Testy: 7 nowych czerwonych na kodzie z kroku 1 (np. pole „" zamiast „Lisbon · LIS"), test nieznanego IATA zielony od razu (straż). 192/3862, typecheck, lint zielone. Verifier: PASS. Uwagi verifiera → P7, P8 w „Ryzyka”.
 
 ## Ryzyka i otwarte pytania
 - **R1 — Konflikt z PR #32.** #32 wynosi `PlaceCard` z `DiscoverScreen.tsx` do osobnego pliku i zmienia test `DiscoverScreen`; ten plan też edytuje oba pliki. Gałąź stoi na #31; po scaleniu #32 trzeba będzie zrobić rebase i ręcznie scalić importy / testy (zmiany nie dotykają karty, więc konflikt powinien być mechaniczny). Alternatywa: oprzeć gałąź na #32 — tylko jeśli Kacper woli.
 - **R2 — Koszt.** Auto-ładowanie zwiększa zużycie limitu (dziś zapytanie jest tylko po naciśnięciu). P1a ogranicza to do 1 zapytania na miasto na sesję aplikacji.
 - **R3 — Zmiana D19** (zainteresowania do edycji na ekranie) — to zadanie ją odwraca; zapiszę w `decisions.md`.
 - **R4 — Test na urządzeniu** zależy od wolnego emulatora i od tego, czy konto testowe ma podróż (P8 z planu przełącznika: 2 podróże „TEST …”).
-- Pytania P1–P6 wyżej.
+- Pytania P1–P6 wyżej (rozstrzygnięte).
+- **P7 — Ponowne auto-wyszukanie po błędzie** (verifier, krok 2; TanStack: zapytanie bez danych jest „nieświeże” mimo `staleTime: Infinity`): gdy automatyczne wyszukanie skończy się błędem (`failed` albo `limit_reached`), każde kolejne otwarcie „Odkryj” w tej sesji próbuje jeszcze raz samo. Przy `failed` to kolejne zużyte zapytanie z limitu (limit pobierany przed Google); przy `limit_reached` serwer odmawia bez kosztu Google. (a) zostawić — ponowne otwarcie = ponowna próba (rekomendacja: zero kodu; po limicie nic nie kosztuje); (b) po błędzie nie ponawiać samo, tylko przyciskiem „Spróbuj ponownie”.
+- **P8 — Zmiana języka** przy otwartym „Odkryj” uruchamia nowe płatne wyszukanie (język jest w zapytaniu — powody od AI są w tym języku). (a) zostawić (rekomendacja — rzadkie); (b) język tylko przy ręcznym wyszukaniu.

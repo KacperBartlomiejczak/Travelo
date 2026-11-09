@@ -1,5 +1,5 @@
 import { CircleAlert } from 'lucide-react-native';
-import { useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Text, View } from 'react-native';
 
@@ -10,6 +10,7 @@ import { TextButton } from '@/components/TextButton';
 import { AuthFormScreen } from '@/features/auth/AuthFormScreen';
 import { usePlaceRecommendations } from '@/hooks/usePlaceRecommendations';
 import { useMyProfile } from '@/hooks/useProfile';
+import { findAirport } from '@/lib/airport-search';
 import { useIsOffline } from '@/providers/BudgetSync';
 import {
   RecommendPlacesRequestSchema,
@@ -31,24 +32,45 @@ const { spacing, typography } = tokens;
 export function DiscoverScreen({
   fetcher,
   bottomInset,
+  destination,
 }: {
   fetcher?: (request: RecommendPlacesRequest) => Promise<RecommendPlacesResponse>;
   bottomInset?: number;
+  /** Trip destination (IATA): prefilled as the city and searched once on its own. */
+  destination?: string;
 }) {
   const { t, i18n } = useTranslation();
   const theme = useTheme();
   const offline = useIsOffline();
   const profile = useMyProfile();
-  const [airport, setAirport] = useState<Airport | null>(null);
+  // undefined = follow the trip destination; an airport or null (typed text, not picked yet) = the user's own choice.
+  const [manual, setManual] = useState<Airport | null | undefined>(undefined);
+  const [seenDestination, setSeenDestination] = useState(destination);
+  if (seenDestination !== destination) {
+    setSeenDestination(destination);
+    setManual(undefined);
+  }
+  const airport = manual === undefined ? (destination ? (findAirport(destination) ?? null) : null) : manual;
   const { data, loading, error, remainingToday, search, retry } = usePlaceRecommendations(fetcher);
 
-  const request = RecommendPlacesRequestSchema.safeParse({
-    city: airport?.city ?? '',
-    latitude: airport?.latitude,
-    longitude: airport?.longitude,
-    interests: profile.data?.profile.interests ?? [],
-    locale: i18n.language.startsWith('pl') ? 'pl' : 'en',
-  });
+  const interests = profile.data?.profile.interests;
+  const locale = i18n.language.startsWith('pl') ? 'pl' : 'en';
+  const request = useMemo(
+    () =>
+      RecommendPlacesRequestSchema.safeParse({
+        city: airport?.city ?? '',
+        latitude: airport?.latitude,
+        longitude: airport?.longitude,
+        interests: interests ?? [],
+        locale,
+      }),
+    [airport, interests, locale],
+  );
+  const autoRequest = manual === undefined && airport && interests && request.success && !offline ? request.data : null;
+  // Same request = cache hit in the hook, so remounting or reconnecting never calls the fetcher again.
+  useEffect(() => {
+    if (autoRequest) search(autoRequest);
+  }, [autoRequest, search]);
   const canSearch = request.success && !offline && !loading;
 
   const note = (text: string) => <Text style={[typography.styles.bodySM, { color: theme.text.secondary }]}>{text}</Text>;
@@ -110,7 +132,7 @@ export function DiscoverScreen({
         </>
       }
     >
-      <AirportField label={t('discover.city')} iata={airport?.iata ?? ''} onSelect={setAirport} />
+      <AirportField label={t('discover.city')} iata={airport?.iata ?? ''} onSelect={setManual} />
       {results}
     </AuthFormScreen>
   );
