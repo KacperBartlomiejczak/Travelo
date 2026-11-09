@@ -52,6 +52,7 @@ export function DiscoverScreen({
   }
   const airport = manual === undefined ? (destination ? (findAirport(destination) ?? null) : null) : manual;
   const { data, loading, error, remainingToday, search, retry } = usePlaceRecommendations(fetcher);
+  const [searched, setSearched] = useState<RecommendPlacesRequest | null>(null);
 
   const interests = profile.data?.profile.interests;
   const locale = i18n.language.startsWith('pl') ? 'pl' : 'en';
@@ -71,7 +72,13 @@ export function DiscoverScreen({
   useEffect(() => {
     if (autoRequest) search(autoRequest);
   }, [autoRequest, search]);
+  // The automatic search above is for autoRequest, so remember it during render (same pattern as seenDestination).
+  if (autoRequest && searched !== autoRequest) setSearched(autoRequest);
   const canSearch = request.success && !offline && !loading;
+  // Results belong to the city they were searched for; a different (or half-typed) city hides them.
+  const current = request.success ? request.data : null;
+  const stale =
+    !current || !searched || current.city !== searched.city || current.latitude !== searched.latitude || current.longitude !== searched.longitude;
 
   const note = (text: string) => <Text style={[typography.styles.bodySM, { color: theme.text.secondary }]}>{text}</Text>;
 
@@ -87,6 +94,8 @@ export function DiscoverScreen({
     results = note(t('discover.profileError'));
   } else if (error === 'limit_reached') {
     results = <Text style={[typography.styles.bodyMD, { color: theme.text.primary }]}>{t('discover.limit')}</Text>;
+  } else if (stale) {
+    results = null;
   } else if (error) {
     results = (
       <View testID="discover-error" style={{ gap: spacing[2], alignItems: 'flex-start' }}>
@@ -126,7 +135,10 @@ export function DiscoverScreen({
             loading={loading}
             disabled={!canSearch}
             onPress={() => {
-              if (canSearch && request.success) search(request.data);
+              if (canSearch && request.success) {
+                search(request.data);
+                setSearched(request.data);
+              }
             }}
           />
         </>

@@ -252,6 +252,46 @@ describe('DiscoverScreen with a trip destination', () => {
     expect(fetcher).toHaveBeenLastCalledWith(expect.objectContaining({ city: 'Kraków' }));
   });
 
+  it('hides the previous city results when another city is picked, and shows the new ones after searching', async () => {
+    const fetcher = jest
+      .fn<ReturnType<Fetcher>, Parameters<Fetcher>>()
+      .mockResolvedValueOnce(answer())
+      .mockResolvedValue(answer([place({ placeId: 'p2', name: 'Wawel' })]));
+    await open(fetcher, 'LIS');
+    await waitFor(() => expect(screen.getByText('Muzeum Narodowe')).toBeTruthy());
+    await pickCity();
+    expect(screen.queryByText('Muzeum Narodowe')).toBeNull();
+    expect(screen.queryByText('Dane: Google')).toBeNull();
+    expect(fetcher).toHaveBeenCalledTimes(1);
+    expect(screen.getByText('Zostało dziś wyszukiwań: 4')).toBeTruthy();
+    await fireEvent.press(searchButton());
+    await waitFor(() => expect(screen.getByText('Wawel')).toBeTruthy());
+    expect(screen.getByText('Dane: Google')).toBeTruthy();
+  });
+
+  it('hides the results while typing a new city', async () => {
+    await open(() => Promise.resolve(answer()), 'LIS');
+    await waitFor(() => expect(screen.getByText('Muzeum Narodowe')).toBeTruthy());
+    await fireEvent.changeText(screen.getByLabelText('Miasto'), 'Kra');
+    expect(screen.queryByText('Muzeum Narodowe')).toBeNull();
+    expect(screen.queryByText('Dane: Google')).toBeNull();
+  });
+
+  it('hides the error block of the searched city when another city is picked', async () => {
+    await open(() => Promise.reject(new PlacesError('failed', 'x')), 'LIS');
+    await waitFor(() => expect(screen.getByText('Nie udało się wczytać miejsc.')).toBeTruthy());
+    await pickCity();
+    expect(screen.queryByText('Nie udało się wczytać miejsc.')).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Spróbuj ponownie' })).toBeNull();
+  });
+
+  it('keeps the daily limit message when another city is picked', async () => {
+    await open(() => Promise.reject(new PlacesError('limit_reached', 'x')), 'LIS');
+    await waitFor(() => expect(screen.getByText(/Wykorzystano dzisiejszy limit/)).toBeTruthy());
+    await pickCity();
+    expect(screen.getByText(/Wykorzystano dzisiejszy limit/)).toBeTruthy();
+  });
+
   it('leaves the city empty and searches nothing for an unknown destination', async () => {
     const fetcher = jest.fn();
     await open(fetcher, 'ZZZ');
