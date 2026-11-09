@@ -6,7 +6,8 @@
     "title": "Your trips",
     "empty": {
       "heading": "You don't have any trips yet.",
-      "description": "Plan your first one and invite your friends."
+      "description": "Plan your first one and invite your friends.",
+      "discover": "Discover places"
     },
     "create": "Create trip",
     "loadError": "Couldn't load your trips.",
@@ -454,6 +455,23 @@
   "confirm": {
     "expenseSaved": "Expense saved",
     "expenseSavedPending": "Expense saved. Waiting to sync."
+  },
+  "discover": {
+    "title": "Discover places",
+    "hint": "We'll suggest places in the city that match your interests.",
+    "city": "City",
+    "interests": "Interests",
+    "search": "Find places",
+    "loading": "Finding places",
+    "remaining": "Searches left today: {{count}}",
+    "empty": "We couldn't find places for these interests. Try changing your picks.",
+    "error": "Couldn't load places.",
+    "retry": "Try again",
+    "limit": "You've used today's searches. Come back tomorrow.",
+    "offline": "You're offline. Finding places needs internet.",
+    "attribution": "Data: Google",
+    "openMaps": "Open in Google Maps",
+    "back": "Back"
   },
   "a11y": {
     "addExpense": "Add expense"

@@ -172,6 +172,13 @@ describe('Home screen above the floating pill (pill-nav-and-dialog step 5)', () 
       await screen.findByTestId('trips-loading');
       expect(mockSnackbarOffset).toBe(PILL_HEIGHT + spacing[4]);
     });
+
+    it('has no Discover action while loading (D16: empty state only)', async () => {
+      mockCurrent = () => new Promise(() => {});
+      await renderHome();
+      await screen.findByTestId('trips-loading');
+      expect(screen.queryByRole('button', { name: 'Odkryj miejsca' })).toBeNull();
+    });
   });
 
   describe.each(['empty', 'error'] as const)('%s state', (state) => {
@@ -189,10 +196,18 @@ describe('Home screen above the floating pill (pill-nav-and-dialog step 5)', () 
       expect(StyleSheet.flatten(screen.getByTestId('trips-screen').props.style).paddingBottom).toBe(CLEARANCE + spacing[4]);
     });
 
+    it(state === 'error' ? 'has no Discover action in the error state (D16: empty state only)' : 'has the Discover action in the empty state', async () => {
+      await show();
+      const discover = screen.queryByRole('button', { name: 'Odkryj miejsca' });
+      if (state === 'error') expect(discover).toBeNull();
+      else expect(discover).toBeTruthy();
+    });
+
     it('lifts the snackbar above the button, which sits above the pill', async () => {
       await show();
-      // Clear of the button: its height and 12dp above the snackbar's usual place (the clearance and 16dp).
-      expect(mockSnackbarOffset).toBe(PILL_HEIGHT + spacing[4] + size.buttonPrimary + spacing[3]);
+      // Clear of every pinned button (error: create; empty: create and Discover): each its height and 12dp above the snackbar's usual place (the clearance and 16dp).
+      const pinnedButtons = state === 'empty' ? 2 : 1;
+      expect(mockSnackbarOffset).toBe(PILL_HEIGHT + spacing[4] + pinnedButtons * (size.buttonPrimary + spacing[3]));
     });
 
     it('offline: puts the banner right above the button, so both clear the pill', async () => {

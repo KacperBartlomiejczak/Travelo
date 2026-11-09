@@ -5,7 +5,20 @@ export type Database = {
   
   "public": {
           Tables: {
-            "expenses": {
+            "ai_usage": {
+                  Row: {
+                    "count": number,"day": string,"user_id": string
+                  }
+                  Insert: {
+                    "count": number,"day": string,"user_id": string
+                  }
+                  Update: {
+                    "count"?: number,"day"?: string,"user_id"?: string
+                  }
+                  Relationships: [
+                    
+                  ]
+                },"expenses": {
                   Row: {
                     "amount_minor": number,"category": string,"created_at": string,"currency": string,"deleted_at": string | null,"id": string,"member_id": string | null,"name": string,"spent_on": string,"trip_id": string,"updated_at": string
                   }
@@ -119,7 +132,10 @@ isOneToOne: false
             [_ in never]: never
           }
           Functions: {
-            "create_trip":
+            "consume_ai_quota":
+{ Args: { "p_limit": number,"p_user_id": string }; Returns: number
+                           },
+"create_trip":
 { Args: { "members": Json,"segments": Json,"trip": Json }; Returns: undefined
                            },
 "find_profile_by_friend_code":

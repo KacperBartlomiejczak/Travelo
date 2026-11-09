@@ -86,6 +86,7 @@ Travelo/
 │   ├── components/             Shared UI components (+ `__tests__/`)
 │   ├── data/                   airports.json (+ typed export), trip and profile repositories (in-memory, Supabase), rows ↔ entities, generated DB types, auth and session source, SQLite store, budget sync, photo files (+ `__tests__/`)
 │   ├── features/auth/          Welcome, sign-in sheet, brand buttons, e-mail and code screens, profile setup, gate view (+ `__tests__/`)
+│   ├── features/discover/      `DiscoverScreen` — Discover places (city, interests, result cards) (+ `__tests__/`)
 │   ├── features/drawer/        `TripsDrawer` — the side panel's content
 │   ├── features/nav/           `NAV_TABS` (the four tabs), `usePillClearance` / `usePillBottomOffset`, `EmptyScreen` (+ `__tests__/`)
 │   ├── features/home/          `CurrentTrip` — the home screen's trip view; `HeroMenuButton`, `TripMenuButton`; sheets `TripMenuSheet`, `TripDetailsSheet`, `BudgetSheet`, `DeleteTripSheet` (+ `__tests__/`)
@@ -122,7 +123,7 @@ The original plan was a monorepo (`apps/mobile/`, `packages/schemas/`, `supabase
 | `apps/mobile/` | Expo app | repository root (`src/`) |
 | `packages/schemas/` | Zod schemas | `src/schemas/` |
 | `supabase/migrations/` | SQL migrations | exists (at the root, as planned) |
-| `supabase/functions/` | Edge Functions | exists: `delete-account` |
+| `supabase/functions/` | Edge Functions | exists: `delete-account`, `recommend-places` |
 
 
 ## Modules
@@ -142,6 +143,7 @@ The original plan was a monorepo (`apps/mobile/`, `packages/schemas/`, `supabase
 | Drawer feature | `src/features/drawer/` | `TripsDrawer`: "Twoje podróże", "Nadchodzące" / "Minione" rows (thumbnail, name, dates, the open trip marked), "Nowa podróż"; loading / error / empty / offline | components, hooks, providers, lib, theme, `expo-image` |
 | Nav feature | `src/features/nav/` | `NAV_TABS` (route key, i18n label key, lucide icon for the four tabs), `usePillClearance` (space the floating pill occupies: inset + 12 + `PILL_HEIGHT` 64) and `usePillBottomOffset`, `EmptyScreen` (title + one sentence, bottom padding above the pill) | components, theme, i18n, `react-native-safe-area-context` |
 | Expenses feature | `src/features/expenses/`, `src/hooks/useExpenses.ts` | Expenses screen, budget card, per-person chart, timeline, add / edit sheet; read and write hooks, edit rule | schemas, lib, data, components |
+| Discover feature | `src/features/discover/`, `src/hooks/usePlaceRecommendations.ts`, `src/data/places.ts` | `/discover` screen; the hook calls the `recommend-places` Edge Function through `fetchPlaceRecommendations` (Zod on the response, errors as `PlacesError` kinds `limit_reached \| offline \| unauthorized \| failed`) | schemas, lib (`place-types`, `place-picks`), data, components |
 | Expense data | `src/schemas/expense.ts`, `src/data/expense-repository.ts`, `expense-rows.ts`, `expense-sync.ts`, `app-expense.ts` | Expense schemas; local writes and reads in SQLite; row mapping; push and pull with Supabase; app instances | Zod, `expo-sqlite`, Supabase |
 | Expense budget | `src/lib/expense-budget.ts` | Pure totals, daily limit with carryover (D7), category sums, timeline days | schemas, `trip-days` |
 | Create-trip feature | `src/features/trip-create/` | Draft type and helpers, step routing, draft context (dirty/complete), wizard frame, segment/friend cards, field errors | schemas, lib, components |

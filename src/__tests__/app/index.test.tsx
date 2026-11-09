@@ -37,6 +37,7 @@ function renderTrips() {
     '(drawer)/(tabs)/index': HomeScreen,
     'trips/new/_layout': NewTripLayout,
     'trips/new/index': FlightsStep,
+    discover: () => null,
   });
   const loaded = rendered.then(async (result) => {
     await waitFor(() => expect(screen.queryByTestId('trips-loading')).toBeNull());
@@ -69,11 +70,18 @@ describe('Trips screen — empty state', () => {
     expect(screen.getByRole('button', { name: 'Create trip' })).toBeTruthy();
   });
 
-  it('has exactly one action, next to the menu button by the title (§10.19, trips-drawer P5)', async () => {
+  it('opens Discover places from the secondary action under the create button (D16)', async () => {
+    const rendered = renderTrips();
+    await rendered;
+    await fireEvent.press(screen.getByRole('button', { name: 'Odkryj miejsca' }));
+    expect(rendered.getPathname()).toBe('/discover');
+  });
+
+  it('has the create button and the Discover action next to the menu button (§10.19, trips-drawer P5)', async () => {
     await renderTrips();
     // Within the screen: the side panel's scrim sits beside it (hidden on a device while the panel is closed).
     const buttons = within(screen.getByTestId('trips-screen')).getAllByRole('button').map((button) => button.props.accessibilityLabel);
-    expect(buttons).toEqual(['Otwórz listę podróży', 'Utwórz podróż']);
+    expect(buttons).toEqual(['Otwórz listę podróży', 'Utwórz podróż', 'Odkryj miejsca']);
   });
 
   it('opens the new trip screen when the button is pressed', async () => {
