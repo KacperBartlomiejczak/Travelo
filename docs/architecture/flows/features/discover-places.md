@@ -4,7 +4,7 @@ Entries: (1) "Odkryj miejsca" under "Utwórz podróż" in the home screen's empt
 
 Plan and decisions: `prompts/places-legal-navbar/plan.md` (stream C, D14–D23).
 
-The app waits up to 45 s for `recommend-places` (D22; every other request 20 s), because the server may take Places 10 s + Gemini 20 s + photos 5 s; an abort after 45 s shows the offline state and the request still counts toward the daily limit.
+The app waits up to 45 s for `recommend-places` (D22; every other request 20 s), because the server may take Places 10 s + Gemini 20 s + photos 5 s; an abort after 45 s becomes the `offline` error kind, which the screen shows as the generic error with "Spróbuj ponownie" (the offline banner follows `useIsOffline()`, not the request), and the request still counts toward the daily limit.
 
 - **Form** (`DiscoverScreen`):
   1. City: `AirportField` — the airport's `city`, `latitude`, `longitude` (D19). Works offline (bundled airport list).
@@ -21,5 +21,6 @@ The app waits up to 45 s for `recommend-places` (D22; every other request 20 s),
   3. Google Places Nearby Search (New): candidates of the place types mapped from the interests.
   4. Gemini picks ≤ 10 candidates by `placeId` and writes a reason in the request's language; ids outside the candidates are dropped (the model never invents places).
   5. If Gemini fails, the candidates come back without reasons (`reason: null`), and the failure is logged (`gemini_fallback`).
-- **Results:** cards with name, type, address and the reason (hidden when null), "Otwórz w Mapach Google" → `Linking.openURL(googleMapsUri)`, "Dane: Google" under the list, the searches left today in the footer.
+  6. Photos (places-photo-carousel D1–D2): for the picked places only (also on the fallback), up to 3 photo names each from Nearby Search `places.photos` are resolved in parallel with Place Photos (New) (`/v1/{name}/media?maxWidthPx=1200&skipHttpRedirect=true`, key in `X-Goog-Api-Key`, 5 s) to a Google `photoUri`; a failed photo is dropped (`photo_failed {count}`), never the place.
+- **Results:** `PlaceCard`s — with photos, a swipeable 4:3 carousel on top ("n/3" counter, "Fot. <autor>" credit linking to the author, memory-only image cache); then name, type with the Google rating „★ 4,6 (1234)” (hidden without a rating), address and the reason (hidden when null), "Otwórz w Mapach Google" → `Linking.openURL(googleMapsUri)`, "Dane: Google" under the list, the searches left today in the footer.
 - **States:** idle, loading (skeletons), empty, error with retry, offline, daily limit (no retry).

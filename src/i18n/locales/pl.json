@@ -473,6 +473,15 @@
     "offline": "Jesteś offline. Szukanie miejsc wymaga internetu.",
     "attribution": "Dane: Google",
     "openMaps": "Otwórz w Mapach Google",
+    "photoLabel": "Zdjęcie {{index}} z {{count}}, {{name}}",
+    "photoCounter": "{{index}}/{{count}}",
+    "photoCredit": "Fot. {{names}}",
+    "ratingLabel": "Ocena {{rating}} na 5",
+    "ratingLabelCount_one": "Ocena {{rating}} na 5, {{n}} opinia",
+    "ratingLabelCount_few": "Ocena {{rating}} na 5, {{n}} opinie",
+    "ratingLabelCount_many": "Ocena {{rating}} na 5, {{n}} opinii",
+    "ratingLabelCount_other": "Ocena {{rating}} na 5, {{n}} opinii",
+    "photoCreditLabel": "Otwórz stronę autora zdjęcia, {{names}}",
     "back": "Wróć"
   },
   "a11y": {

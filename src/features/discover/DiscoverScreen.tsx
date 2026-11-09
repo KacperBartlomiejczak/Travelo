@@ -1,10 +1,9 @@
 import { CircleAlert } from 'lucide-react-native';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Linking, Text, View } from 'react-native';
+import { Text, View } from 'react-native';
 
 import { AirportField } from '@/components/AirportField';
-import { Card } from '@/components/Card';
 import { Field } from '@/components/Field';
 import { InterestChips } from '@/components/InterestChips';
 import { PrimaryButton } from '@/components/PrimaryButton';
@@ -18,35 +17,15 @@ import {
   RecommendPlacesRequestSchema,
   type Airport,
   type InterestTag,
-  type PlaceRecommendation,
   type RecommendPlacesRequest,
   type RecommendPlacesResponse,
 } from '@/schemas';
 import { tokens } from '@/theme/tokens';
 import { useTheme } from '@/theme/useTheme';
 
-const { spacing, typography } = tokens;
+import { PlaceCard } from './PlaceCard';
 
-function PlaceCard({ place }: { place: PlaceRecommendation }) {
-  const { t } = useTranslation();
-  const theme = useTheme();
-  return (
-    <Card>
-      <View style={{ gap: spacing[1] }}>
-        <Text style={[typography.styles.labelLG, { color: theme.text.primary }]}>{place.name}</Text>
-        {place.typeLabel && <Text style={[typography.styles.caption, { color: theme.text.secondary }]}>{place.typeLabel}</Text>}
-        {place.address && <Text style={[typography.styles.bodySM, { color: theme.text.secondary }]}>{place.address}</Text>}
-      </View>
-      {place.reason && <Text style={[typography.styles.bodyMD, { color: theme.text.primary }]}>{place.reason}</Text>}
-      <TextButton
-        variant="secondary"
-        label={t('discover.openMaps')}
-        accessibilityLabel={`${t('discover.openMaps')}, ${place.name}`}
-        onPress={() => void Linking.openURL(place.googleMapsUri).catch(() => {})}
-      />
-    </Card>
-  );
-}
+const { spacing, typography } = tokens;
 
 /**
  * Discover places (places step C5): pick a city (airport list, D19), confirm the interests (from the profile, editable), and get

@@ -30,6 +30,7 @@ const place = (over: Partial<RecommendPlacesResponse['places'][number]> = {}) =>
   location: { latitude: 50.06, longitude: 19.92 },
   googleMapsUri: 'https://maps.google.com/?cid=1',
   reason: 'Pasuje do Twojej miłości do muzeów.',
+  photos: [],
   ...over,
 });
 const answer = (places = [place()], remainingToday = 4): RecommendPlacesResponse => ({ places, remainingToday });
