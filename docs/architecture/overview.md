@@ -86,7 +86,7 @@ Travelo/
 │   ├── components/             Shared UI components (+ `__tests__/`)
 │   ├── data/                   airports.json (+ typed export), trip and profile repositories (in-memory, Supabase), rows ↔ entities, generated DB types, auth and session source, SQLite store, budget sync, photo files (+ `__tests__/`)
 │   ├── features/auth/          Welcome, sign-in sheet, brand buttons, e-mail and code screens, profile setup, gate view (+ `__tests__/`)
-│   ├── features/discover/      `DiscoverScreen` — Discover places (city, interests, result cards) (+ `__tests__/`)
+│   ├── features/discover/      `DiscoverScreen` — Discover places (city, interests, result cards), `PlaceCard` (photo carousel) (+ `__tests__/`)
 │   ├── features/drawer/        `TripsDrawer` — the side panel's content
 │   ├── features/nav/           `NAV_TABS` (the four tabs), `usePillClearance` / `usePillBottomOffset`, `EmptyScreen` (+ `__tests__/`)
 │   ├── features/home/          `CurrentTrip` — the home screen's trip view; `HeroMenuButton`, `TripMenuButton`; sheets `TripMenuSheet`, `TripDetailsSheet`, `BudgetSheet`, `DeleteTripSheet` (+ `__tests__/`)
@@ -148,7 +148,7 @@ The original plan was a monorepo (`apps/mobile/`, `packages/schemas/`, `supabase
 | Expense budget | `src/lib/expense-budget.ts` | Pure totals, daily limit with carryover (D7), category sums, timeline days | schemas, `trip-days` |
 | Create-trip feature | `src/features/trip-create/` | Draft type and helpers, step routing, draft context (dirty/complete), wizard frame, segment/friend cards, field errors | schemas, lib, components |
 | Theme | `src/theme/` | Primitive tokens (`tokens.ts`, incl. the `gradient` and `duration` groups), type scale (`typography.styles` in `tokens.ts`), semantic `lightTheme` / `darkTheme` and `Theme` type (`theme.ts`), `useTheme()` hook and `DarkThemeScope` | `react-native` (`useColorScheme`) |
-| i18n | `src/i18n/` | One i18next instance with `pl` / `en` resources; the saved language, or the device's on `system` (`resolveLanguage`) | `i18next`, `react-i18next`, `expo-localization` |
+| i18n | `src/i18n/` | One i18next instance with `pl` / `en` resources; the saved language, or the device's on `system` (`resolveLanguage`) | `i18next`, `react-i18next`, `expo-localization`, `@formatjs/intl-pluralrules` (polyfill on Hermes) |
 | Components | `src/components/` | Buttons (incl. the round `HeroIconButton`), `Fab`, fields, chips, interest chips (`InterestChips`), cards, step indicator, stepper, segmented control, cover picker, cover image, trip hero, bottom sheet, confirm dialog, pill nav, snackbar, sync indicator, offline banner (see Frontend) | theme, i18n, lib, `lucide-react-native`, `react-native-svg`, `@expo/ui`, `expo-image`, `expo-image-picker`, `react-native-safe-area-context` |
 
 ### Data module
