@@ -62,7 +62,7 @@ Odpowiedzi Kacpra przekazane przez sesję-menedżera (2026-11-09), dosłownie: �
 - Odpowiedź Kacpra na doprecyzowanie P7 (przez menedżera, 2026-11-09), dosłownie: „powiedzmy do momentu kiedy podroz sie skonczy niech podsesja sprawdzi warunki google jezeli nie mozna to wtedy nie pozostaje nic innego niz strzelanie do api”.
 - **Warunki Google (sprawdzone 2026-11-09 u źródła, https://developers.google.com/maps/documentation/places/web-service/policies):** trwale wolno trzymać tylko `placeId`; współrzędne do 30 dni; nazw, adresów i pozostałych pól nie wolno zapisywać (strona wprost zakazuje kopiowania „business names, addresses, or user reviews”), zalecenie: trzymać `placeId` i pobierać szczegóły na nowo. Zapis wyników do końca podróży jest więc niedozwolony; trzymanie samych `placeId` + powodów od AI wymagałoby po restarcie ~10 płatnych zapytań Place Details zamiast 1 wyszukania — drożej, nie taniej.
 - **D10 — P7, pamięć:** polecenia trzymane w pamięci do zamknięcia aplikacji (jak dziś); po ponownym uruchomieniu nowe zapytanie do API — wariant, który Kacper przyjął, gdy zapis jest niedozwolony.
-- **P7b — ponawianie po błędzie (otwarte):** czy po błędzie automatycznego wyszukania kolejne otwarcie „Odkryj” ma próbować samo, czy tylko przyciskiem „Spróbuj ponownie”.
+- **D11 — P7b = ponawiać samo:** po błędzie automatycznego wyszukania kolejne otwarcie „Odkryj” próbuje samo (zostaje jak jest, bez zmian w kodzie). Menedżer podał Kacprowi opcje „Tak, ponawiać samo” i „Nie, tylko przyciskiem „Spróbuj ponownie””; Kacper: „wezmy ta pierwsze opcje tak” (2026-11-09). Uwaga: menedżer opisał opcję pierwszą jako rekomendację orkiestratora, a orkiestrator polecał „tylko przyciskiem”.
 
 ## Podejście
 Przy rekomendacjach:
