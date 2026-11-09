@@ -55,6 +55,10 @@ Odpowiedzi Kacpra przekazane przez sesję-menedżera (2026-11-09), dosłownie: �
 - **D5 — P5 = (a):** zmiana podróży w szufladzie → miasto przechodzi na cel nowej podróży i polecenia ładują się dla niego; ręczny wybór przepada.
 - **D6 — P6 = (a):** po wybraniu innego miasta trzeba nacisnąć „Szukaj miejsc”.
 - **D7 — Akceptacja:** plan zaakceptowany razem z założeniami Z1–Z5 (Kacper bezpośrednio: „Akceptuję”, 2026-11-09).
+- Odpowiedzi Kacpra na P7, P8 i emulator, przekazane przez sesję-menedżera (2026-11-09), dosłownie: „1. moze zrobic testy na emulatorze pod warunkiem ze inna podsesja aktualnie go nie uzywa 2. Najlepiej by bylo aby an to pierwsze miasto dane wczytywaly sie raz a potem aplikacja pamietala to bedzie mniejsze zapotrzebowanie na api 3. Nie wiem w jaki sposob uzytkownik moglby zmienic jezyk nie wychodzac z odkryj jezeli uzytkwonik zmieni jezyk to wtedy rzeczywiscie najlepiej strzelic jeszcze raz do api”.
+- **D8 — P8 = (a):** zmiana języka → nowe zapytanie do API (zostaje jak jest).
+- **D9 — Emulator (krok 4):** wolno, pod warunkiem że żadna inna podsesja go teraz nie używa.
+- **P7 — doprecyzowanie w toku:** Kacper chce, żeby dane dla pierwszego miasta wczytały się raz i były pamiętane. Pytanie uzupełniające: czy „pamiętać” = do zamknięcia aplikacji (jak dziś) + bez automatycznego ponawiania po błędzie, czy także między uruchomieniami.
 
 ## Podejście
 Przy rekomendacjach:
