@@ -89,6 +89,7 @@
   - Gemini reasons take ~8 s server-side (low thinking); without them (Gemini failure) the cards show no "why for you". `thinkingLevel` works only with Gemini 3 models — a 2.5 model in `GEMINI_MODEL` would fail with 400 and fall back silently (logged as `gemini_fallback`).
   - `gemini_fallback` logs Google's error message verbatim (no key or prompt, but a 400 message could echo part of the request).
   - The city search is the airport list: only cities with an airport, matched from the start of the name or IATA code ("Lizb" finds nothing, "Lisbon" does).
+  - An abort after the 45 s client limit (D22) shows the offline state although the device is online, and the request still counts toward the daily limit.
   - A failed `Linking.openURL` (no maps app or browser) is ignored without a message.
   - Not checked on a device: the "Odkryj miejsca" button in the empty home state (the test account has a trip) and the daily-limit message (covered by tests).
 - **Android dev build on Windows (2026-11-07):** a dev APK does not build from a deep worktree path (`.claude/worktrees/…`, CMake path length), with Android Studio's JDK 25 (CMake configure fails), or with pnpm's isolated `node_modules` (ninja "build.ninja still dirty"). It builds from a short path (e.g. `C:\td`) with JDK 17 and `pnpm install --config.node-linker=hoisted`. Typed routes in `.expo/types/router.d.ts` can also go stale in a worktree, breaking `pnpm typecheck` until Metro regenerates them.
