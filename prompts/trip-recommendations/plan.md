@@ -1,5 +1,5 @@
 # Zadanie: Polecane miejsca dla celu podróży (Odkryj w zakładce Plan)
-Status: czeka na akceptację
+Status: zaakceptowany (2026-11-09) — w realizacji
 Gałąź: `feature/trip-recommendations` (od `claude/plan-discover-switch-1cf264` = PR #31, zawiera #30 i #31, bez #32)
 
 ## Zrozumienie i założenia
@@ -54,7 +54,7 @@ Odpowiedzi Kacpra przekazane przez sesję-menedżera (2026-11-09), dosłownie: �
 - **D4 — P4 = (a):** `/discover` bez podróży — tylko wybór miasta, bez chipów, zainteresowania z profilu, wyszukanie przyciskiem.
 - **D5 — P5 = (a):** zmiana podróży w szufladzie → miasto przechodzi na cel nowej podróży i polecenia ładują się dla niego; ręczny wybór przepada.
 - **D6 — P6 = (a):** po wybraniu innego miasta trzeba nacisnąć „Szukaj miejsc”.
-- Plan **nie jest jeszcze zaakceptowany** (odpowiedzi to nie akceptacja).
+- **D7 — Akceptacja:** plan zaakceptowany razem z założeniami Z1–Z5 (Kacper bezpośrednio: „Akceptuję”, 2026-11-09).
 
 ## Podejście
 Przy rekomendacjach:
@@ -108,7 +108,8 @@ Każdy krok: `pnpm test`, `pnpm typecheck`, `pnpm lint` zielone, verifier PASS p
 
 ## Dziennik postępu
 - 2026-11-09 — szkic planu, pytania P1–P6.
-- 2026-11-09 — odpowiedzi P1–P6 = (a) (D1–D6). Czeka akceptacja planu.
+- 2026-11-09 — odpowiedzi P1–P6 = (a) (D1–D6). 
+- 2026-11-09 — plan zaakceptowany (D7). Stos PR bez zmian (#30–#32 otwarte), gałąź dalej na #31.
 
 ## Ryzyka i otwarte pytania
 - **R1 — Konflikt z PR #32.** #32 wynosi `PlaceCard` z `DiscoverScreen.tsx` do osobnego pliku i zmienia test `DiscoverScreen`; ten plan też edytuje oba pliki. Gałąź stoi na #31; po scaleniu #32 trzeba będzie zrobić rebase i ręcznie scalić importy / testy (zmiany nie dotykają karty, więc konflikt powinien być mechaniczny). Alternatywa: oprzeć gałąź na #32 — tylko jeśli Kacper woli.
