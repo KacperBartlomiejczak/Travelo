@@ -65,6 +65,7 @@ Odpowiedzi Kacpra przekazane przez sesję-menedżera (2026-11-09), dosłownie: �
 - **D11 — P7b = ponawiać samo:** po błędzie automatycznego wyszukania kolejne otwarcie „Odkryj” próbuje samo (zostaje jak jest, bez zmian w kodzie). Menedżer podał Kacprowi opcje „Tak, ponawiać samo” i „Nie, tylko przyciskiem „Spróbuj ponownie””; Kacper: „wezmy ta pierwsze opcje tak” (2026-11-09). Uwaga: menedżer opisał opcję pierwszą jako rekomendację orkiestratora, a orkiestrator polecał „tylko przyciskiem”.
 - **D12 — Łączenie z #32 (karuzela zdjęć):** czekamy, aż #32 (i #31) zostaną scalone, potem rebase `feature/trip-recommendations` na wynik, rozwiązanie konfliktów (`DiscoverScreen` importy / testy, docs), pełny zestaw testów, typecheck, lint i verifier od nowa. Teraz #32 nie jest wciągany. Menedżer dał Kacprowi dwie opcje (najpierw: czekać na scalenie #32 i zrobić rebase; potem: scalić #32 teraz); Kacper: „zrobmy ta pierwsza opcje” (2026-11-09). 
 - **D13 — Krok 4 po rebase:** test na urządzeniu raz, po rebase na scalone #32 / #31 (karty ze zdjęciami w tym samym przebiegu). Kacper: „po rebase” (przez menedżera, 2026-11-09). Wcześniejszy przebieg testera (przed tą decyzją) nie zastępuje kroku 4.
+- **D14 — P9 = (a):** po wybraniu innego miasta (albo w trakcie wpisywania) wyniki poprzedniego miasta znikają do wyszukania nowego. Kacper: „ukryc stare wyniki” (przez menedżera, 2026-11-09). Krok 2b. Założenie orkiestratora: komunikat limitu dziennego zostaje widoczny (dotyczy użytkownika, nie miasta).
 
 ## Podejście
 Przy rekomendacjach:
@@ -109,6 +110,7 @@ Brak zmian. Używam istniejących `RecommendPlacesRequestSchema` (`src/schemas/p
 ## Kroki
 - [x] **1. [frontend]** Bez chipów: zainteresowania tylko z profilu, stany profilu (P2, P4), tekst pustego wyniku (Z4) — testy najpierw → verifier.
 - [x] **2. [frontend]** Cel podróży: prop `destination`, prefill przez `findAirport`, auto-ładowanie (P1, P3, P5, P6), `PlanScreen` przekazuje cel — testy najpierw → verifier.
+- [ ] **2b. [frontend]** D14: ukrycie wyników (karty, pusto, błąd) gdy wybrane miasto różni się od wyszukanego — testy najpierw → verifier; docs (`discover-places.md`, `frontend.md`) poprawia orkiestrator.
 - [x] **3. [orchestrator]** Docs (lista w „Pliki”) + ten plan → verifier.
 - [ ] **4. [tester]** Na emulatorze — **tylko po zgodzie Kacpra** (jeden emulator, używa go sesja „discover-stack”): podróż z celem → „Odkryj” ładuje się samo; powrót do „Plan” i znów „Odkryj” → bez nowego zapytania (licznik „Zostało dziś” się nie zmienia); inne miasto + przycisk; zmiana podróży w szufladzie; offline; `/discover` bez podróży; jasny/ciemny; EN.
 - [ ] **5.** Verifier całej gałęzi (CodeRabbit), commit. Push / PR tylko po zgodzie Kacpra.
