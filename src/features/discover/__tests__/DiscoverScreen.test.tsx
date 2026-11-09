@@ -6,7 +6,7 @@ import { PlacesError } from '@/data/places';
 import i18n from '@/i18n';
 import { AppProviders } from '@/providers/AppProviders';
 import type { RecommendPlacesRequest, RecommendPlacesResponse } from '@/schemas';
-import { setAppProfileRepository, repositoryWithProfile } from '@/test/fake-profile-repository';
+import { setAppProfileRepository, repositoryWithProfile, withMyProfile } from '@/test/fake-profile-repository';
 import { setNetwork } from '@/test/mock-network';
 import { tokens } from '@/theme/tokens';
 
@@ -47,7 +47,7 @@ async function open(fetcher: Fetcher) {
   setAppProfileRepository(await repositoryWithProfile());
   const Screen = () => <DiscoverScreen fetcher={fetcher} />;
   await renderRouter({ _layout: Layout, discover: Screen }, { initialUrl: '/discover' });
-  await waitFor(() => expect(screen.getByRole('checkbox', { name: 'Muzea' })).toBeChecked());
+  await waitFor(() => expect(screen.queryByTestId('discover-loading')).toBeNull());
 }
 
 const searchButton = () => screen.getByRole('button', { name: 'Szukaj miejsc' });
@@ -62,20 +62,40 @@ beforeEach(async () => {
 });
 
 describe('DiscoverScreen', () => {
-  it('shows the form with the profile interests preselected and no results', async () => {
+  it('shows the form without interest chips and no results', async () => {
     await open(jest.fn());
-    expect(screen.getByRole('checkbox', { name: 'Muzea' })).toBeChecked();
-    expect(screen.getByRole('checkbox', { name: 'Plaże' })).not.toBeChecked();
+    expect(screen.queryByText('Zainteresowania')).toBeNull();
+    expect(screen.queryAllByRole('checkbox')).toHaveLength(0);
     expect(screen.queryByText('Dane: Google')).toBeNull();
   });
 
-  it('disables search until a city and at least one interest are chosen', async () => {
-    await open(jest.fn());
+  it('disables search and fetches nothing until a city is picked', async () => {
+    const fetcher = jest.fn();
+    await open(fetcher);
     expect(searchButton()).toBeDisabled();
+    expect(fetcher).not.toHaveBeenCalled();
     await pickCity();
-    expect(searchButton()).toBeEnabled();
-    await fireEvent.press(screen.getByRole('checkbox', { name: 'Muzea' }));
+    await waitFor(() => expect(searchButton()).toBeEnabled());
+  });
+
+  it('disables search and shows the loading block while the profile loads', async () => {
+    setAppProfileRepository(withMyProfile(await repositoryWithProfile(), () => new Promise(() => {})));
+    const fetcher = jest.fn();
+    await renderRouter({ _layout: Layout, discover: () => <DiscoverScreen fetcher={fetcher} /> }, { initialUrl: '/discover' });
+    await pickCity();
+    expect(screen.getByTestId('discover-loading')).toBeTruthy();
     expect(searchButton()).toBeDisabled();
+    expect(fetcher).not.toHaveBeenCalled();
+  });
+
+  it('disables search and says so when the profile fails to load', async () => {
+    setAppProfileRepository(withMyProfile(await repositoryWithProfile(), () => Promise.reject(new Error('boom'))));
+    const fetcher = jest.fn();
+    await renderRouter({ _layout: Layout, discover: () => <DiscoverScreen fetcher={fetcher} /> }, { initialUrl: '/discover' });
+    await waitFor(() => expect(screen.getByText('Nie udało się wczytać Twoich zainteresowań.')).toBeTruthy());
+    await pickCity();
+    expect(searchButton()).toBeDisabled();
+    expect(fetcher).not.toHaveBeenCalled();
   });
 
   it('calls the fetcher with the city, its coordinates, the interests and the locale', async () => {
@@ -121,7 +141,7 @@ describe('DiscoverScreen', () => {
     await open(() => Promise.resolve(answer([], 3)));
     await pickCity();
     await fireEvent.press(searchButton());
-    await waitFor(() => expect(screen.getByText(/Nie znaleźliśmy miejsc/)).toBeTruthy());
+    await waitFor(() => expect(screen.getByText('Nie znaleźliśmy miejsc w tym mieście. Spróbuj innego miasta.')).toBeTruthy());
   });
 
   it('shows an error with a retry that searches again', async () => {

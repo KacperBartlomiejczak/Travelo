@@ -4,8 +4,6 @@ import { useTranslation } from 'react-i18next';
 import { Text, View } from 'react-native';
 
 import { AirportField } from '@/components/AirportField';
-import { Field } from '@/components/Field';
-import { InterestChips } from '@/components/InterestChips';
 import { PrimaryButton } from '@/components/PrimaryButton';
 import { SkeletonBlock } from '@/components/SkeletonBlock';
 import { TextButton } from '@/components/TextButton';
@@ -16,7 +14,6 @@ import { useIsOffline } from '@/providers/BudgetSync';
 import {
   RecommendPlacesRequestSchema,
   type Airport,
-  type InterestTag,
   type RecommendPlacesRequest,
   type RecommendPlacesResponse,
 } from '@/schemas';
@@ -28,8 +25,8 @@ import { PlaceCard } from './PlaceCard';
 const { spacing, typography } = tokens;
 
 /**
- * Discover places (places step C5): pick a city (airport list, D19), confirm the interests (from the profile, editable), and get
- * Google places with a short AI reason (D15). Google and AI text is shown as plain text only. Searching needs internet.
+ * Discover places (places step C5): pick a city (airport list, D19), and get
+ * Google places for the profile interests with a short AI reason (D15). Google and AI text is shown as plain text only. Searching needs internet.
  */
 export function DiscoverScreen({
   fetcher,
@@ -41,18 +38,15 @@ export function DiscoverScreen({
   const { t, i18n } = useTranslation();
   const theme = useTheme();
   const offline = useIsOffline();
-  const profileInterests = useMyProfile().data?.profile.interests;
+  const profile = useMyProfile();
   const [airport, setAirport] = useState<Airport | null>(null);
-  // null = untouched: follows the profile once it is loaded.
-  const [edited, setEdited] = useState<InterestTag[] | null>(null);
-  const interests = edited ?? profileInterests ?? [];
   const { data, loading, error, remainingToday, search, retry } = usePlaceRecommendations(fetcher);
 
   const request = RecommendPlacesRequestSchema.safeParse({
     city: airport?.city ?? '',
     latitude: airport?.latitude,
     longitude: airport?.longitude,
-    interests,
+    interests: profile.data?.profile.interests ?? [],
     locale: i18n.language.startsWith('pl') ? 'pl' : 'en',
   });
   const canSearch = request.success && !offline && !loading;
@@ -60,13 +54,15 @@ export function DiscoverScreen({
   const note = (text: string) => <Text style={[typography.styles.bodySM, { color: theme.text.secondary }]}>{text}</Text>;
 
   let results = null;
-  if (loading) {
+  if (loading || profile.isPending) {
     results = (
       <View testID="discover-loading" accessibilityLabel={t('discover.loading')} style={{ gap: spacing[3] }}>
         <SkeletonBlock width="100%" height={spacing[10]} />
         <SkeletonBlock width="100%" height={spacing[10]} />
       </View>
     );
+  } else if (profile.isError) {
+    results = note(t('discover.profileError'));
   } else if (error === 'limit_reached') {
     results = <Text style={[typography.styles.bodyMD, { color: theme.text.primary }]}>{t('discover.limit')}</Text>;
   } else if (error) {
@@ -115,9 +111,6 @@ export function DiscoverScreen({
       }
     >
       <AirportField label={t('discover.city')} iata={airport?.iata ?? ''} onSelect={setAirport} />
-      <Field label={t('discover.interests')}>
-        <InterestChips selected={interests} onChange={setEdited} />
-      </Field>
       {results}
     </AuthFormScreen>
   );

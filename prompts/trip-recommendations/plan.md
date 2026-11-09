@@ -97,7 +97,7 @@ Brak zmian. Używam istniejących `RecommendPlacesRequestSchema` (`src/schemas/p
 - Inne: brak.
 
 ## Kroki
-- [ ] **1. [frontend]** Bez chipów: zainteresowania tylko z profilu, stany profilu (P2, P4), tekst pustego wyniku (Z4) — testy najpierw → verifier.
+- [x] **1. [frontend]** Bez chipów: zainteresowania tylko z profilu, stany profilu (P2, P4), tekst pustego wyniku (Z4) — testy najpierw → verifier.
 - [ ] **2. [frontend]** Cel podróży: prop `destination`, prefill przez `findAirport`, auto-ładowanie (P1, P3, P5, P6), `PlanScreen` przekazuje cel — testy najpierw → verifier.
 - [ ] **3. [orchestrator]** Docs (lista w „Pliki”) + ten plan → verifier.
 - [ ] **4. [tester]** Na emulatorze — **tylko po zgodzie Kacpra** (jeden emulator, używa go sesja „discover-stack”): podróż z celem → „Odkryj” ładuje się samo; powrót do „Plan” i znów „Odkryj” → bez nowego zapytania (licznik „Zostało dziś” się nie zmienia); inne miasto + przycisk; zmiana podróży w szufladzie; offline; `/discover` bez podróży; jasny/ciemny; EN.
@@ -110,6 +110,7 @@ Każdy krok: `pnpm test`, `pnpm typecheck`, `pnpm lint` zielone, verifier PASS p
 - 2026-11-09 — szkic planu, pytania P1–P6.
 - 2026-11-09 — odpowiedzi P1–P6 = (a) (D1–D6). 
 - 2026-11-09 — plan zaakceptowany (D7). Stos PR bez zmian (#30–#32 otwarte), gałąź dalej na #31.
+- 2026-11-09 — krok 1: `DiscoverScreen` bez pola zainteresowań i stanu `edited`; zainteresowania z `useMyProfile`; profil ładuje się → blok `discover-loading`, błąd profilu → notka `discover.profileError` (przycisk wyłączony, bo zapytanie bez zainteresowań nie przechodzi schematu); `discover.empty` zmieniony (Z4), `discover.interests` usunięty (Z5). Testy: brak chipów, ładowanie i błąd profilu, nowy tekst pustego wyniku — czerwone przed zmianą; test „bez miasta nic się nie wysyła” zielony od razu (straż regresji). 192/3854, typecheck, lint zielone. Verifier: PASS. Skille: test-driven-development, frontend-ui-engineering.
 
 ## Ryzyka i otwarte pytania
 - **R1 — Konflikt z PR #32.** #32 wynosi `PlaceCard` z `DiscoverScreen.tsx` do osobnego pliku i zmienia test `DiscoverScreen`; ten plan też edytuje oba pliki. Gałąź stoi na #31; po scaleniu #32 trzeba będzie zrobić rebase i ręcznie scalić importy / testy (zmiany nie dotykają karty, więc konflikt powinien być mechaniczny). Alternatywa: oprzeć gałąź na #32 — tylko jeśli Kacper woli.
