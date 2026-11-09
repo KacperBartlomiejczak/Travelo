@@ -2,7 +2,9 @@
 
 Entries: (1) "Odkryj miejsca" under "Utwórz podróż" in the home screen's empty state (places-legal-navbar D16) → `/discover`; (2) the „Odkryj” side of the „Plan” / „Odkryj” switch in the Plan tab, shown only with a current trip — `DiscoverScreen` renders inside the tab, above the pill (`prompts/plan-discover-switch/plan.md` D1–D7). Needs internet; offline the screen shows a banner and search is disabled.
 
-Plan and decisions: `prompts/places-legal-navbar/plan.md` (stream C, D14–D21).
+Plan and decisions: `prompts/places-legal-navbar/plan.md` (stream C, D14–D23).
+
+The app waits up to 45 s for `recommend-places` (D22; every other request 20 s), because the server may take Places 10 s + Gemini 20 s + photos 5 s; an abort after 45 s shows the offline state and the request still counts toward the daily limit.
 
 - **Form** (`DiscoverScreen`):
   1. City: `AirportField` — the airport's `city`, `latitude`, `longitude` (D19). Works offline (bundled airport list).

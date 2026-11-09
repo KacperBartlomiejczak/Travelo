@@ -34,7 +34,8 @@ Brak zmian.
 - [ ] 5. Merge #29, rebase #30 na `main`, zmiana z draftu na ready (CodeRabbit sprawdzi #30)
 
 ## Dziennik postępu
-(pusty)
+- 2026-11-09 — Krok 4: #29 scalony do `main` (ec9862b) przed tym krokiem; przegląd przeniesiony na #30 — verifier całej gałęzi `feature/discover-places` vs `origin/main` (Sonnet 5.5) + CodeRabbit (48 plików): po poprawce docs D22 **PASS** (191/3840, typecheck, lint 0; CodeRabbit 2× minor: escapowanie `|` poprawione, ponowne szukanie → known-limitations za zgodą Kacpra). Krok 5: rebase niepotrzebny — `main` nie ma nic poza commitem scalającym #29, którego treść #30 już ma; zostaje push, zmiana bazy #30 na `main` i draft → ready (za zgodą Kacpra).
+
 
 ## Ryzyka i otwarte pytania
 - **Region Supabase** — ZAŁATWIONE: `eu-west-1` (Irlandia), z `supabase/.temp/pooler-url` projektu hwsqdlxojllclbwlhuwb.
