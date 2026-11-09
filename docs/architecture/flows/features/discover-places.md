@@ -7,9 +7,10 @@ Plan and decisions: `prompts/places-legal-navbar/plan.md` (stream C, D14–D23).
 The app waits up to 45 s for `recommend-places` (D22; every other request 20 s), because the server may take Places 10 s + Gemini 20 s + photos 5 s; an abort after 45 s becomes the `offline` error kind, which the screen shows as the generic error with "Spróbuj ponownie" (the offline banner follows `useIsOffline()`, not the request), and the request still counts toward the daily limit.
 
 - **Form** (`DiscoverScreen`):
-  1. City: `AirportField` — the airport's `city`, `latitude`, `longitude` (D19). Works offline (bundled airport list).
-  2. Interests: prefilled from the profile, editable with `InterestChips`, at least one.
-  3. The request is parsed with `RecommendPlacesRequestSchema` (`locale` from i18n) before "Znajdź miejsca" is enabled.
+  1. City: `AirportField` — the airport's `city`, `latitude`, `longitude` (D19). Works offline (bundled airport list). In the Plan tab it starts on the current trip's destination (`overview.trip.destination` → `findAirport`); unknown IATA → empty (`prompts/trip-recommendations/plan.md` D3).
+  2. Interests: only from the profile (`useMyProfile`), not editable on the screen (trip-recommendations D4). While the profile loads → skeletons; profile error → a note and search disabled.
+  3. The request is parsed with `RecommendPlacesRequestSchema` (`locale` from i18n) before "Szukaj miejsc" is enabled.
+- **Auto-load** (Plan tab only, trip-recommendations D1, D5, D6): with the destination airport, no manual pick, the profile loaded and online, the search runs without a button press; offline it waits and runs once when the connection returns. Reopening „Odkryj” with the same request is a cache hit. A manually picked city searches only on "Szukaj miejsc"; a new trip destination drops the manual pick and loads the new one. `/discover` never auto-loads.
 - **Fetch** (`usePlaceRecommendations` → `fetchAppPlaceRecommendations` → `fetchPlaceRecommendations`, `src/data/places.ts`):
   1. `supabase.functions.invoke('recommend-places')` with the request.
   2. The response is parsed with `RecommendPlacesResponseSchema`; a bad shape → `PlacesError('failed')`.
@@ -23,4 +24,4 @@ The app waits up to 45 s for `recommend-places` (D22; every other request 20 s),
   5. If Gemini fails, the candidates come back without reasons (`reason: null`), and the failure is logged (`gemini_fallback`).
   6. Photos (places-photo-carousel D1–D2): for the picked places only (also on the fallback), up to 3 photo names each from Nearby Search `places.photos` are resolved in parallel with Place Photos (New) (`/v1/{name}/media?maxWidthPx=1200&skipHttpRedirect=true`, key in `X-Goog-Api-Key`, 5 s) to a Google `photoUri`; a failed photo is dropped (`photo_failed {count}`), never the place.
 - **Results:** `PlaceCard`s — with photos, a swipeable 4:3 carousel on top ("n/3" counter, "Fot. <autor>" credit linking to the author, memory-only image cache); then name, type with the Google rating „★ 4,6 (1234)” (hidden without a rating), address and the reason (hidden when null), "Otwórz w Mapach Google" → `Linking.openURL(googleMapsUri)`, "Dane: Google" under the list, the searches left today in the footer.
-- **States:** idle, loading (skeletons), empty, error with retry, offline, daily limit (no retry).
+- **States:** idle, loading (skeletons), profile error, empty, error with retry, offline, daily limit (no retry).
