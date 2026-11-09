@@ -89,7 +89,7 @@
   - Gemini reasons take ~8 s server-side (low thinking); without them (Gemini failure) the cards show no "why for you". `thinkingLevel` works only with Gemini 3 models — a 2.5 model in `GEMINI_MODEL` would fail with 400 and fall back silently (logged as `gemini_fallback`).
   - `gemini_fallback` logs Google's error message verbatim (no key or prompt, but a 400 message could echo part of the request).
   - The city search is the airport list: only cities with an airport, matched from the start of the name or IATA code ("Lizb" finds nothing, "Lisbon" does).
-  - An abort after the 45 s client limit (D22) shows the offline state although the device is online, and the request still counts toward the daily limit.
+  - An abort after the 45 s client limit (D22) shows the generic "couldn't load places" error with a retry button, and the request still counts toward the daily limit.
   - After a failed search, pressing "Szukaj miejsc" again with the same city and interests does nothing; only the error state's "Spróbuj ponownie" retries (CodeRabbit on PR #30; kept by Kacper, 2026-11-09, since each retry costs one of the 5 daily searches).
   - A failed `Linking.openURL` (no maps app or browser) is ignored without a message.
   - Not checked on a device: the "Odkryj miejsca" button in the empty home state (the test account has a trip) and the daily-limit message (covered by tests).
