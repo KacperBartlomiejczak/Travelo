@@ -8,6 +8,7 @@
 - When to switch the Gemini key to the paid tier (before release, D17).
 
 ## Key decisions
+- 2026-11-09 — Plural forms on phones (`prompts/places-photo-carousel/plan.md` D8): `@formatjs/intl-pluralrules` (pl, en) polyfills `Intl.PluralRules`, which Hermes on Android lacks — before it every plural key used `_other` („77 034 opinii”, „3 osób”).
 - 2026-11-07 — Discover place rating (`prompts/places-photo-carousel/plan.md` D7, replaces "no ratings" from places-legal-navbar D15): Google `rating` + `userRatingCount` in the type row; Nearby Search moves from the Pro to the Enterprise SKU.
 - 2026-11-07 — Discover place photos (`prompts/places-photo-carousel/plan.md` D1–D6, replaces "no photos" from places-legal-navbar D15): up to 3 photos per picked place, resolved by `recommend-places` to short-lived Google `photoUri`s (key only on the server), carousel on top of the card, no photo area without photos, memory-only cache, author credit on the photo.
 - 2026-11-06…07 — Discover places (`prompts/places-legal-navbar/plan.md` D14–D23): Google Places API (New) with a limit of 5 searches per user per day in `ai_usage`; a list of cards without ratings or map (photos added later, see below); the only entry is the home screen's empty state; the city comes from the airport search; Gemini only picks and explains real candidates by `placeId`; the app waits up to 45 s for `recommend-places` instead of the usual 20 s (D22).
