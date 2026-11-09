@@ -67,7 +67,7 @@ Kacper (bezpośrednio): „Problem w karuzeli jest taki że aktualnie te zdjęci
 ### Kroki (szkic)
 - [x] 6. [backend] Zod + maska + mapowanie oceny — najpierw testy schematu i `parseNearbySearch` — verifier
 - [x] 7. [frontend] Ocena na karcie — najpierw testy `PlaceCard` — verifier
-- [ ] 8. Wdrożenie funkcji (Kacper) → tester na emulatorze (po sygnale menedżera, 1 wyszukiwanie) → docs → verifier końca planu z CodeRabbit → PR #32
+- [x] 8. Wdrożenie funkcji (Kacper) → tester na emulatorze (po sygnale menedżera, 1 wyszukiwanie) → docs → verifier końca planu z CodeRabbit → PR #32
 - [x] 8a. [frontend] D8: polyfill `@formatjs/intl-pluralrules` (pl, en) przed i18n — najpierw test: bez natywnego `Intl.PluralRules` „77 034” → „opinie”, „3” → „osoby” — verifier → sprawdzenie na emulatorze bez nowego wyszukiwania (wyniki w pamięci) lub odłożone
 
 ### Pytania
@@ -102,6 +102,7 @@ Kacper (bezpośrednio): „Problem w karuzeli jest taki że aktualnie te zdjęci
 - 2026-11-09 — Krok 8a (frontend, 30a067b + 73bd032): red ✓ („77 034 opinii” bez `Intl.PluralRules`) · `@formatjs/intl-pluralrules` 7.0.2, `src/i18n/pluralRules.ts` (`shouldPolyfill` → `polyfill-force` + dane pl/en), import jako pierwszy w `src/i18n/index.ts`; jest `transformIgnorePatterns` = domyślne jest-expo + `@formatjs` (pakiet ESM). Verifier: FAIL (zgubione 2 domyślne wpisy jest-expo) → poprawione → **PASS** (193/3910, typecheck, lint 0; `expo export --platform android` buduje bundle Hermes z polyfillem). Na urządzeniu niesprawdzone (w tym `Intl.getCanonicalLocales` w Hermesie) — sprawdzenie po teście #31.
 - 2026-11-09 — Gałąź zaktualizowana z `origin/feature/discover-places` (ee2b479, C4a 45 s; konflikt w `decisions.md` rozwiązany); 193/3913, typecheck, lint 0. Docs D8: `frontend.md` (i18n), `overview.md`, `decisions.md`, `known-limitations.md` (grupowanie liczb: Hermes „4 739”, Node „1234”).
 - 2026-11-09 — Kacper: „Tak, 1 wyszukiwanie”. Krok 8a na emulatorze (Expo Go → Metro 8083 z aa946fd, nowy bundle potwierdzony; 1 wyszukiwanie: Lizbona/LIS, zostały 2): aplikacja startuje z polyfillem bez błędu (w logcat brak błędów PluralRules / `getCanonicalLocales` / formatjs); 10 etykiet ocen z poprawną formą („4 739 opinii”, „6 814 opinii”, „17 231 opinii” …). Z wyjątkiem: forma „opinie” (2–4) nie wystąpiła w wynikach — na urządzeniu niepotwierdzona (pokryta testem Jest). Krok 8a `[x]` z tym wyjątkiem. Po teście adb się zawiesił (obcy proces co 10 s `dumpsys package com.google.android.gms`); `adb reverse` 8083/8084 nieusunięte. Uwagi poza zakresem: Discover dostępny tylko z pustej zakładki „Podróż” (na tej gałęzi); tytuł „Odkrywaj miejsca” vs przycisk „Odkryj miejsca”.
+- 2026-11-09 — Krok 8: verifier końca planu (Sonnet 5.5) + CodeRabbit (`--base origin/feature/discover-places`, 32 pliki): **PASS**, 0 uwag; 193/3913, typecheck, lint 0. `known-limitations.md`: ciemny motyw sprawdzony 2026-11-07 (usunięty z „niesprawdzone”), dodane „opinie” na Hermesie. Krok 8 `[x]`; zostaje push i scalenie (za zgodą Kacpra).
 
 ## Decyzje
 - **D1 — Q1 = (a): Edge Function rozwiązuje `photoUri`** (`skipHttpRedirect=true`, klucz w nagłówku) dla miejsc wybranych przez Gemini i zwraca aplikacji gotowe adresy bez klucza; bez drugiej funkcji (Kacper, 2026-11-07).
