@@ -20,7 +20,9 @@
     "expenses": "Wydatki",
     "plan": "Plan",
     "profile": "Profil",
-    "comingSoon": "Ten ekran pojawi się wkrótce."
+    "comingSoon": "Ten ekran pojawi się wkrótce.",
+    "discover": "Odkryj",
+    "planView": "Widok ekranu Plan"
   },
   "drawer": {
     "upcoming": "Nadchodzące",

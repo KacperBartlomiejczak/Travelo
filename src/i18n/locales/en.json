@@ -20,7 +20,9 @@
     "expenses": "Expenses",
     "plan": "Plan",
     "profile": "Profile",
-    "comingSoon": "This screen is coming soon."
+    "comingSoon": "This screen is coming soon.",
+    "discover": "Discover",
+    "planView": "Plan screen view"
   },
   "drawer": {
     "upcoming": "Upcoming",

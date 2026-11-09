@@ -15,6 +15,7 @@ jest.mock('expo-font', () => ({ ...jest.requireActual('expo-font'), useFonts: je
 jest.mocked(useFonts).mockReturnValue([true, null]);
 
 jest.mock('expo-status-bar', () => ({ StatusBar: () => null }));
+jest.mock('@/data/app-places', () => ({ fetchAppPlaceRecommendations: jest.fn() })); // the Plan tab now hosts Discover
 
 const ROUTES = {
   _layout: RootLayout,

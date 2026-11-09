@@ -8,6 +8,7 @@
 - When to switch the Gemini key to the paid tier (before release, D17).
 
 ## Key decisions
+- 2026-11-07…09 — Plan / Discover switch (`prompts/plan-discover-switch/plan.md` D1–D10): a two-option `SegmentedControl` at the top of the Plan tab, shown only with a current trip; „Odkryj” renders Discover inside the tab (second entry next to the home empty state, extends places-legal-navbar D16); no animation; mode not persisted; changing or reloading the current trip keeps the switch and the Discover form (D8).
 - 2026-11-09 — Plural forms on phones (`prompts/places-photo-carousel/plan.md` D8): `@formatjs/intl-pluralrules` (pl, en) polyfills `Intl.PluralRules`, which Hermes on Android lacks — before it every plural key used `_other` (seen: „77 034 opinii”).
 - 2026-11-07 — Discover place rating (`prompts/places-photo-carousel/plan.md` D7, replaces "no ratings" from places-legal-navbar D15): Google `rating` + `userRatingCount` in the type row; Nearby Search moves from the Pro to the Enterprise SKU.
 - 2026-11-07 — Discover place photos (`prompts/places-photo-carousel/plan.md` D1–D6, replaces "no photos" from places-legal-navbar D15): up to 3 photos per picked place, resolved by `recommend-places` to short-lived Google `photoUri`s (key only on the server), carousel on top of the card, no photo area without photos, memory-only cache, author credit on the photo.
