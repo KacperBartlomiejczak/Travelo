@@ -47,7 +47,14 @@ Założenia (do potwierdzenia razem z planem):
   (b) szuka od razu po wybraniu miasta.
 
 ### Decyzje (Kacper)
-- (brak — czekają P1–P6)
+Odpowiedzi Kacpra przekazane przez sesję-menedżera (2026-11-09), dosłownie: „1. Polecenia laduja sie same jak uzytkownik kliknie w zakladke odkryj miejsca czyli poszedl bym w twoja odpowiedz a 2. a 3. a 4. a 5. a 6. a”.
+- **D1 — P1 = (a):** polecenia ładują się same po przełączeniu na „Odkryj”; jedno zapytanie na miasto na sesję aplikacji, potem z pamięci; offline nic, po powrocie internetu przy otwartym ekranie — ładuje się.
+- **D2 — P2 = (a):** profil się wczytuje → szkielety; błąd profilu → przycisk wyłączony + notka „Nie udało się wczytać Twoich zainteresowań.” (nowy klucz pl/en).
+- **D3 — P3 = (a):** nieznane lotnisko celu → pole miasta puste, nic się nie ładuje, użytkownik wybiera sam.
+- **D4 — P4 = (a):** `/discover` bez podróży — tylko wybór miasta, bez chipów, zainteresowania z profilu, wyszukanie przyciskiem.
+- **D5 — P5 = (a):** zmiana podróży w szufladzie → miasto przechodzi na cel nowej podróży i polecenia ładują się dla niego; ręczny wybór przepada.
+- **D6 — P6 = (a):** po wybraniu innego miasta trzeba nacisnąć „Szukaj miejsc”.
+- Plan **nie jest jeszcze zaakceptowany** (odpowiedzi to nie akceptacja).
 
 ## Podejście
 Przy rekomendacjach:
@@ -101,6 +108,7 @@ Każdy krok: `pnpm test`, `pnpm typecheck`, `pnpm lint` zielone, verifier PASS p
 
 ## Dziennik postępu
 - 2026-11-09 — szkic planu, pytania P1–P6.
+- 2026-11-09 — odpowiedzi P1–P6 = (a) (D1–D6). Czeka akceptacja planu.
 
 ## Ryzyka i otwarte pytania
 - **R1 — Konflikt z PR #32.** #32 wynosi `PlaceCard` z `DiscoverScreen.tsx` do osobnego pliku i zmienia test `DiscoverScreen`; ten plan też edytuje oba pliki. Gałąź stoi na #31; po scaleniu #32 trzeba będzie zrobić rebase i ręcznie scalić importy / testy (zmiany nie dotykają karty, więc konflikt powinien być mechaniczny). Alternatywa: oprzeć gałąź na #32 — tylko jeśli Kacper woli.
