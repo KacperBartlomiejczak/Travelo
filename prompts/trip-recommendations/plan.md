@@ -1,6 +1,6 @@
 # Zadanie: Polecane miejsca dla celu podróży (Odkryj w zakładce Plan)
-Status: wstrzymane na noc (2026-11-09) — patrz „Gdzie wznowić”
-Gałąź: `feature/trip-recommendations` (od `claude/plan-discover-switch-1cf264` = PR #31, zawiera #30 i #31, bez #32)
+Status: kroki zakończone (2026-11-10) — PR #33 otwarty, czeka na scalenie
+Gałąź: `feature/trip-recommendations` (po rebase na `main`, który zawiera już #30, #31 i #32)
 
 ## Zrozumienie i założenia
 Słowa Kacpra (2026-11-09, przekazane przez sesję-menedżera): „chciałbym, aby w podróży polecało, co użytkownik ma zobaczyć, na podstawie tego, gdzie leci, i jego preferencji; nie chcę, żeby był wybór tych rzeczy — to ma być brane z jego profilu” oraz „chciałbym, aby można było wybrać miasto, jednak domyślnie mają być już załadowane polecane z tego, gdzie użytkownik leci, na jakie lotnisko”.
