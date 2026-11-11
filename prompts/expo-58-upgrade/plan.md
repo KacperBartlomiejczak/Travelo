@@ -143,6 +143,56 @@ To aktualizacja, nie nowe zachowanie, więc „red” to istniejąca suite po po
 - Krok 7 (2026-11-11, frontend): po merge'u 11 błędów typecheck i 8 czerwonych testów. Poprawki: `await renderRouter` w 4 testach; `useRef<ScrollViewInstance>` w `trips/new/budget.tsx` i `home/BudgetSheet.tsx`; `StyleSheet.flatten(...)?.borderWidth` w `PillNav.tsx`; mock `Linking.openURL` zwraca `void`; `profile.test.tsx` — w expo-router 58 `useRouter()` nie zwraca singletonu `router`, więc `jest.spyOn(router, 'push')` nie widzi wywołania → test sprawdza przejście przez stub trasy `avatar` (ta sama liczba `it`/`expect`). green: 194/194 suite, 3928/3928 testów, typecheck ✓, lint ✓ · verifier (Haiku): PASS.
 - Krok 5: `commands.md` — SDK 58, RN 0.88, React 19.3, lottie 7.5; `overview.md` nie podaje wersji — bez zmian. Krok 4 nadal zablokowany (ścieżki > 260 znaków).
 
+## Etap 2: naprawa po review PR #34 (2026-11-11)
+Kacper (2026-11-11): „Akceptuję” — plan etapu 2 z rekomendacjami: P4 → a) skille bez zmian, odpowiedź w wątkach CodeRabbit; P5 → usunąć `.agents/skills/{expo-upgrade,migrate-to-strict-api}`, poprawić `overview.md`; P6 → a) Kacper włącza `LongPathsEnabled`, potem tester; P7 → `nodeLinker: hoisted` zostaje.
+Polecenie Kacpra: „Sprawdz otwarty pr za pomoca subagenta explorer [...] i stworz plan naprawy tego”. Źródło: raport explorera (Haiku, effort high) + komentarze CodeRabbit z PR #34.
+
+### Stan PR
+- Gałąź jest **47 commitów za `main`** (po niej weszły PR #35 profile-upgrade i #36 settings-redesign, oba na SDK 57). GitHub pokazuje MERGEABLE, ale po merge'u kod z `main` nie przejdzie typecheck/testów na SDK 58.
+- CodeRabbit: 13 komentarzy, **wszystkie w skopiowanych skillach** `.claude/skills/expo-upgrade/` i `.claude/skills/migrate-to-strict-api/` (4× Major, 9× Minor), żaden nie dotyczy kodu aplikacji. Wszystkie nadal aktualne. Review kończy się na 53ffede — commity po nim (nodeLinker, merge `main`, skille, krok 7) nie były przeglądane.
+- Krok 4 (emulator) nadal otwarty; nawigacja expo-router 58 (strażnik kreatora, przełączanie zakładek, szuflada, wylogowanie → `/welcome`) jest pokryta tylko Jestem.
+- Krok 5 niepełny: brak wpisu w `known-limitations.md` (iOS 26, R8), brak końcowego verifiera + CodeRabbit na całej gałęzi.
+
+### Co trzeba dostosować po merge'u `main` (z raportu explorera)
+- `src/app/_layout.tsx` — `Stack.Protected` bez `redirectTo`; `(drawer)/_layout.tsx` bez `<Drawer.Screen name="(tabs)" />`; `(auth)/_layout.tsx` bez `anchor`; `(drawer)/(tabs)/_layout.tsx` — `PillTabBar` z `navigation.emit/navigate`; `trips/new/_layout.tsx` — `dispatch(data.action)` zamiast `repeat()`. Spodziewane konflikty, rozwiązanie = wersja z gałęzi SDK 58 + nowa logika z `main`.
+- `useRef<ScrollView|TextInput>` → `*Instance`: `CoverPicker.tsx`, `trips/new/{index,friends,budget}.tsx`, `WizardScreen.tsx`, `BudgetSheet.tsx`, `CodeScreen.tsx`, `ProfileSetupScreen.tsx`.
+- Testy: nieawaitowany `renderRouter` (~30 plików w `src/__tests__/app/`, `EditProfileScreen.test.tsx`, testy auth), `settle-gate.ts` / `jest.setup.ts` / `drawer-status.ts` z `main`, `CoverImage.test.tsx` (`aria-hidden`), `openURL.mockResolvedValue(true)` w discover, `jest.spyOn(router, 'push')` w `profile.test.tsx`.
+- Lista jest wskazówką; prawdziwy „red” to typecheck + suite po merge'u.
+
+### Pytania do Kacpra (przed akceptacją)
+- **P4 — komentarze CodeRabbit w skillach.** Skille są vendorowane (hash w `skills-lock.json`), ręczna edycja psuje hash.
+  a) **zostawić skille bez zmian, odpowiedzieć CodeRabbitowi „vendored upstream, nie edytujemy” i rozwiązać wątki** — rekomenduję (zero wpływu na aplikację);
+  b) poprawić tylko 4 Majory (`SKILL.md:44`, `migrate-to-strict-api/SKILL.md:72`, `:130`, `expo-av-to-audio.md:68`) i zaktualizować hash;
+  c) poprawić wszystkie 13.
+- **P5 — nieśledzone `.agents/skills/expo-upgrade/` i `.agents/skills/migrate-to-strict-api/`** w worktree to duplikaty `.claude/skills/`. Rekomenduję usunąć (nie commitować). Przy okazji `docs/architecture/overview.md:45-48` (`.agents` = źródło, `.claude` = symlinki) przeczy `docs/agents/skills.md:83-84` (skopiowane) — poprawić `overview.md` pod stan faktyczny?
+- **P6 — krok 4 (emulator).** Bez długich ścieżek dev build nie przejdzie (4 próby w dzienniku). Opcje:
+  a) **Ty włączasz `LongPathsEnabled = 1` w rejestrze Windows (wymaga admina, ja tego nie zmieniam) + restart, potem tester** — rekomenduję;
+  b) dev build przez EAS (`eas build --profile development`, zużywa limit EAS);
+  c) merge bez testu na urządzeniu, ryzyko zapisane w `known-limitations.md`.
+- **P7 — `nodeLinker: hoisted`** w `pnpm-workspace.yaml` to obejście ścieżek, nie część SDK 58. Zostawić (rekomenduję, jeśli P6 = a/b — dalej skraca ścieżki) czy cofnąć?
+
+### Kroki (etap 2)
+- [x] 8. [tooling — orkiestrator] merge `origin/main` → `feature/expo-58-upgrade` (merge, nie rebase); konflikty w layoutach wg listy wyżej; `pnpm install`, `expo install --fix`, `expo-doctor`; zapis red (typecheck + suite) — skill: expo-upgrade — weryfikacja: doctor 20/20, lista błędów w dzienniku
+- [x] 9. [frontend] poprawki SDK 58 / RN 0.88 w kodzie z PR #35/#36 (refy `*Instance`, `await renderRouter`, mocki, `profile.test.tsx`) — skill: migrate-to-strict-api, test-driven-development — najpierw testy: red z kroku 8 — weryfikacja: pełna suite + typecheck + lint, verifier
+- [x] 10. [backend] `supabase-trip-repository.test.ts`: 14× `toHaveProperty('constructor.name', …)` → `rejects.toBeInstanceOf(Klasa)` (przywraca porównanie klasy, nie nazwy) — skill: test-driven-development — najpierw testy: sprawdzam, że asercja oblewa przy podmienionej klasie błędu — weryfikacja: suite + typecheck, verifier
+- [ ] 11. [docs — orkiestrator] `known-limitations.md` (iOS 26 nagłówki, R8 w release, brak testu na urządzeniu jeśli P6 = c), `overview.md` wg P5, sprzątanie wg P4/P5, status planu; odpowiedzi na wątki CodeRabbit wg P4 — weryfikacja: verifier
+- [x] 12. [verifier — Sonnet] końcowy przegląd całej gałęzi + nowy przegląd CodeRabbit na aktualnym HEAD; push do PR #34 dopiero po PASS i Twojej zgodzie
+- [ ] 4. [tester] scenariusze ręczne wyżej + **8. wylogowanie → `/welcome` (`redirectTo`)**; priorytet: 4 (strażnik), 2 (zakładki), 1 (splash), 3 (szuflada), 8 — zależy od P6
+
+#### Dziennik etapu 2
+- Krok 8 (orkiestrator): merge `origin/main` (47 commitów) → `f66a765`, bez konfliktów. `pnpm install --frozen-lockfile` ✓, lint ✓. `expo-doctor` 19/20 — tylko niezgodności patchy (np. `expo` 58.0.23 vs 58.0.24, `expo-router` 58.0.30 vs 58.0.31), niezwiązane z merge'em (nowe wydania SDK). `expo install --fix` dopisał do `pnpm-workspace.yaml` 35 wpisów `minimumReleaseAgeExclude` (obejście zabezpieczenia supply-chain) → **cofnięte**, pytanie P8. Red: typecheck 2 błędy (`FriendCode.test.tsx:24`, `ProfileScreen.test.tsx:199` — mock `Share.share` bez `activityType`); pełna suite 15 testów / 7 suite czerwonych — wszystkie to timeouty 5 s pod obciążeniem (w izolacji 5/7 zielone, potem `friends` + `photos` 81/81 dwa razy). skill: expo-upgrade.
+- **P8 — patche SDK 58** (`expo` 58.0.24 itd.) są świeższe niż minimalny wiek wydania w polityce pnpm. a) **zostać na obecnych patchach, doctor 19/20 z uwagą w dzienniku** — rekomenduję; podbić później, gdy wiek minie; b) podbić teraz z wyjątkami `minimumReleaseAgeExclude`.
+
+- Krok 9 (frontend): mock `Share.share` → `{ action, activityType: undefined }` w `FriendCode.test.tsx` i `ProfileScreen.test.tsx`; typecheck 0, lint ✓, `src/features/profile` 137/137. Verifier (Haiku): diff OK, ale **FAIL bramki** — pełna suite niedeterministycznie czerwona. Przebiegi pełnej suite: 15 / 1 / 69 (równolegle z innymi jestami) / 1 (sama) czerwonych; za każdym razem inne pliki z `src/__tests__/app/*`, zwykle pierwszy test w pliku przekracza 5 s (zimny start routera 58), w izolacji wszystkie zielone. Hipoteza „nieawaitowany `renderRouter`” odpadła (grep: wszystkie z `await`). Po P9 (`testTimeout: 15000`): pełna suite 199/199, 4042/4042 trzy razy z rzędu (2× orkiestrator, 1× verifier), typecheck ✓, lint ✓ · verifier (Haiku): PASS.
+- Krok 10 (backend): 14× `toBeInstanceOf(Klasa)` + w tabelach `it.each` wiersze `Error` z `.not.toBeInstanceOf(ServerUnreachableError)`; red pokazany (podmieniona klasa → fail), `src/data` 896/896 · verifier (Haiku): PASS · commit 5278d03.
+- Krok 11 (częściowo): `overview.md`, `known-limitations.md` (sekcja SDK 58) · verifier (Haiku): PASS + 2 drobne poprawki wprowadzone · commit a7dc164. Zostaje: usunięcie `.agents/skills/{expo-upgrade,migrate-to-strict-api}` (strażnik poleceń zablokował `rm -r`; pliki identyczne z `.claude/skills/`), odpowiedzi w wątkach CodeRabbit (przy pushu).
+- **P9 — niestabilna pełna suite.** a) **`testTimeout: 15000` w konfiguracji Jest** (tylko limit czasu, asercje bez zmian; pokrywa zimny start) — rekomenduję; b) `maxWorkers: '50%'` (mniej równoległości, wolniejsza suite); c) zostawić i zapisać jako znane ograniczenie (łamie zasadę „nic nie jest skończone, gdy test pada”). → Kacper (2026-11-11): **„testTimeout 15 s”** — `jest.testTimeout: 15000` w `package.json` (orkiestrator, jak krok 1).
+
+- Krok 12 (verifier Sonnet, HEAD 4575c23): **PASS**. typecheck ✓, lint ✓, suite 199/199 · 4042/4042, `--frozen-lockfile` ✓, `expo-doctor` 19/20 (tylko patche, P8). CodeRabbit (`--committed` vs `origin/main`): 2 uwagi Minor, obie w vendorowanym `.claude/skills/expo-upgrade/**` (P4), zero uwag w kodzie/testach/docs.
+- Zostaje: push + odpowiedzi w wątkach CodeRabbit (P4) — po zgodzie Kacpra; usunięcie `.agents/skills/{expo-upgrade,migrate-to-strict-api}` (zablokowane przez strażnik poleceń); krok 4 (tester).
+
+Ryzyko: strażnik kreatora ustawia `leaving` i nigdy go nie resetuje — jeśli `repeat()` na urządzeniu nie odmontuje kreatora, dialog przestanie się pokazywać. Sprawdza scenariusz 4; jeśli padnie → najpierw test odtwarzający, potem poprawka.
+
 ## Ryzyka i otwarte pytania
 - **P1 — jak testujemy na emulatorze?** Expo Go dla SDK 58 może jeszcze nie być w Google Play (obsługuje tylko SDK 58). Opcje:
   a) **lokalny dev build `npx expo run:android`** (generuje `android/`, ignorowany przez git; wymaga JDK + Android SDK, które już są) — **rekomenduję**, bo i tak cel to dev buildy;
