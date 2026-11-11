@@ -125,3 +125,7 @@ i żądanie o asset zwraca 200, a aplikacja ładuje się na emulatorze.
 - Czy commitować aktualizację Expo 57.0.32 w tej samej gałęzi, czy osobno? (rekomendacja: razem — to ona
   wywołała reinstall).
 - Plugin `expo-asset` w `app.json` — Kacper (2026-11-11): commitować razem z tą poprawką.
+
+## Po review (PR #37)
+- CodeRabbit: regex `blockList` zakotwiczony do `__dirname/.claude/worktrees` oraz komenda dla PowerShell w docs —
+  szczegóły w `prompts/coderabbit-pr37-fixes/plan.md`.

@@ -22,4 +22,10 @@ describe('metro.config.js', () => {
     expect(blocked(path.join(root, 'src', 'app', '_layout.tsx'))).toBe(false);
     expect(blocked(path.join(root, 'node_modules', 'react', 'index.js'))).toBe(false);
   });
+
+  it('does not block a project that itself runs from another repo’s worktree', () => {
+    const otherWorktree = path.join(path.dirname(root), 'Other', '.claude', 'worktrees', 'x');
+    expect(blocked(path.join(otherWorktree, 'src', 'app', '_layout.tsx'))).toBe(false);
+    expect(blocked(path.join(otherWorktree, 'node_modules', 'react', 'index.js'))).toBe(false);
+  });
 });
