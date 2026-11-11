@@ -364,6 +364,7 @@
     "editProfileOffline": "You're offline. Editing your profile needs internet.",
     "offline": "You're offline. Account settings need internet.",
     "backFromEdit": "Back, Settings",
+    "rowValue": "{{label}}, {{value}}",
     "theme": "Theme",
     "language": "Language",
     "system": "System",

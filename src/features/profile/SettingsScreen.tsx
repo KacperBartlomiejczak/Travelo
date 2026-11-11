@@ -1,12 +1,12 @@
 import Constants from 'expo-constants';
 import { router } from 'expo-router';
-import { ArrowRight, FileText, Info, ShieldCheck, UserRound, type LucideIcon } from 'lucide-react-native';
+import { ArrowRight, FileText, Info, Languages, Palette, ShieldCheck, UserRound, type LucideIcon } from 'lucide-react-native';
 import { useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Pressable, ScrollView, Text, useWindowDimensions, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { Card } from '@/components/Card';
+import { BottomSheet } from '@/components/BottomSheet';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
 import { OfflineBanner } from '@/components/OfflineBanner';
 import { SegmentedControl } from '@/components/SegmentedControl';
@@ -22,12 +22,13 @@ import { useTheme } from '@/theme/useTheme';
 
 const { typography, spacing, layout, iconography, components, radii } = tokens;
 
-type RowProps = { icon: LucideIcon; label: string; value?: string; onPress?: () => void; divider?: boolean };
+type RowProps = { icon: LucideIcon; label: string; value?: string; onPress?: () => void; divider?: boolean; labelWithValue?: boolean };
 
 // One row of a settings card (settings-redesign): outline icon, label, optional value; with `onPress` it is a button with a
 // decorative arrow circle, without it a plain info row (no arrow). The divider starts at the text.
 function SettingsRow({ icon: Icon, label, value, onPress, divider }: RowProps) {
   const theme = useTheme();
+  const { t } = useTranslation();
   const body = (pressed: boolean) => (
     <View
       testID="settings-row"
@@ -57,7 +58,7 @@ function SettingsRow({ icon: Icon, label, value, onPress, divider }: RowProps) {
   return (
     <>
       {onPress ? (
-        <Pressable accessibilityRole="button" accessibilityLabel={label} onPress={onPress}>
+        <Pressable accessibilityRole="button" accessibilityLabel={value === undefined ? label : t('settings.rowValue', { label, value })} onPress={onPress}>
           {({ pressed }) => body(pressed)}
         </Pressable>
       ) : (
@@ -110,6 +111,8 @@ export function SettingsScreen() {
   const [checking, setChecking] = useState(false);
   const [dialog, setDialog] = useState({ visible: false, unsent: false });
   const [deleting, setDeleting] = useState(false);
+  // The kind stays when the sheet closes, so its content does not change during the slide-out.
+  const [sheet, setSheet] = useState({ kind: 'theme' as 'theme' | 'language', open: false });
   // Deleting needs the own nick (to type it) and the server; without a loaded profile there is nothing to confirm against.
   const hasProfile = Boolean(useMyProfile().data);
 
@@ -149,54 +152,62 @@ export function SettingsScreen() {
       >
         <View style={{ gap: spacing[4] }}>
           <SettingsGroup>
-            <SettingsRow icon={UserRound} label={t('settings.editProfile')} onPress={() => router.push('/edit-profile')} />
+            <SettingsRow icon={UserRound} label={t('settings.editProfile')} onPress={() => router.push('/edit-profile')} divider />
+            <SettingsRow icon={Palette} label={t('settings.theme')} value={t(`settings.${preferences.theme === 'system' ? 'system' : preferences.theme}`)} onPress={() => setSheet({ kind: 'theme', open: true })} divider />
+            <SettingsRow
+              icon={Languages}
+              label={t('settings.language')}
+              value={t(`settings.${{ system: 'system', pl: 'polish', en: 'english' }[preferences.language]}`)}
+              onPress={() => setSheet({ kind: 'language', open: true })}
+            />
           </SettingsGroup>
           <SettingsGroup>
             <SettingsRow icon={ShieldCheck} label={t('settings.privacyPolicy')} onPress={() => router.push('/legal/privacy')} divider />
             <SettingsRow icon={FileText} label={t('settings.terms')} onPress={() => router.push('/legal/terms')} divider />
             <SettingsRow icon={Info} label={t('settings.version')} value={Constants.expoConfig?.version} />
           </SettingsGroup>
-          <Card>
-            <Text style={[typography.styles.bodyMD, { color: theme.text.primary }]}>{t('settings.theme')}</Text>
-            <SegmentedControl
-              label={t('settings.theme')}
-              value={preferences.theme}
-              onChange={preferences.setTheme}
-              options={[
-                { value: 'system', label: t('settings.system') },
-                { value: 'light', label: t('settings.light') },
-                { value: 'dark', label: t('settings.dark') },
-              ]}
-            />
-            <Text style={[typography.styles.bodyMD, { color: theme.text.primary }]}>{t('settings.language')}</Text>
-            <SegmentedControl
-              label={t('settings.language')}
-              value={preferences.language}
-              onChange={preferences.setLanguage}
-              options={[
-                { value: 'system', label: t('settings.system') },
-                { value: 'pl', label: t('settings.polish') },
-                { value: 'en', label: t('settings.english') },
-              ]}
-            />
-          </Card>
         </View>
         <View testID="settings-bottom" style={{ marginTop: 'auto', gap: spacing[6] }}>
           {offline && <OfflineBanner text={t('settings.offline')} />}
-        {offline && (
-          <Text style={[typography.styles.bodySM, { color: theme.text.secondary }]} accessibilityLiveRegion="polite">
-            {t('settings.signOutOffline')}
-          </Text>
-        )}
-        {offline && (
-          <Text style={[typography.styles.bodySM, { color: theme.text.secondary }]} accessibilityLiveRegion="polite">
-            {t('settings.deleteAccountOffline')}
-          </Text>
-        )}
-        <TextButton variant="destructive" label={t('settings.signOut')} onPress={() => void ask()} disabled={offline || checking || pending} />
-        <TextButton variant="destructive" label={t('settings.deleteAccount')} onPress={() => setDeleting(true)} disabled={offline || !hasProfile} />
+          {offline && (
+            <Text style={[typography.styles.bodySM, { color: theme.text.secondary }]} accessibilityLiveRegion="polite">
+              {t('settings.signOutOffline')}
+            </Text>
+          )}
+          {offline && (
+            <Text style={[typography.styles.bodySM, { color: theme.text.secondary }]} accessibilityLiveRegion="polite">
+              {t('settings.deleteAccountOffline')}
+            </Text>
+          )}
+          <TextButton variant="destructive" label={t('settings.signOut')} onPress={() => void ask()} disabled={offline || checking || pending} />
+          <TextButton variant="destructive" label={t('settings.deleteAccount')} onPress={() => setDeleting(true)} disabled={offline || !hasProfile} />
         </View>
       </ScrollView>
+      <BottomSheet visible={sheet.open} title={t(sheet.kind === 'language' ? 'settings.language' : 'settings.theme')} onClose={() => setSheet((current) => ({ ...current, open: false }))}>
+        {sheet.kind === 'language' ? (
+          <SegmentedControl
+            label={t('settings.language')}
+            value={preferences.language}
+            onChange={preferences.setLanguage}
+            options={[
+              { value: 'system', label: t('settings.system') },
+              { value: 'pl', label: t('settings.polish') },
+              { value: 'en', label: t('settings.english') },
+            ]}
+          />
+        ) : (
+          <SegmentedControl
+            label={t('settings.theme')}
+            value={preferences.theme}
+            onChange={preferences.setTheme}
+            options={[
+              { value: 'system', label: t('settings.system') },
+              { value: 'light', label: t('settings.light') },
+              { value: 'dark', label: t('settings.dark') },
+            ]}
+          />
+        )}
+      </BottomSheet>
       <ConfirmDialog
         visible={dialog.visible}
         destructive

@@ -364,6 +364,7 @@
     "editProfileOffline": "Jesteś offline. Zmiana profilu wymaga internetu.",
     "offline": "Jesteś offline. Ustawienia konta wymagają internetu.",
     "backFromEdit": "Wróć, Ustawienia",
+    "rowValue": "{{label}}, {{value}}",
     "theme": "Motyw",
     "language": "Język",
     "system": "Systemowy",
