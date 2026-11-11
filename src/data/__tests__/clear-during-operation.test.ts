@@ -55,6 +55,7 @@ const listRow = ({ row }: ReturnType<typeof serverTrip>) => ({
   start_date: row.start_date,
   end_date: row.end_date,
   flight_segments: row.flight_segments.map(({ from_iata, to_iata }) => ({ from_iata, to_iata })),
+  trip_members: row.trip_members.map(({ id }) => ({ id })),
 });
 const photoRow = (): PhotoRow => ({
   id: '5a1c0000-0000-4000-8000-000000000001',

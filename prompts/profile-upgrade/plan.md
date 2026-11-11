@@ -205,7 +205,7 @@ Reużywane bez zmian: `CoverImage`, `Card`, `SkeletonBlock`, `IconButton`, `Text
 
 ## Kroki
 
-- [ ] 1. `[backend]` `travellerCount?` w `TripListItemSchema` (najpierw Zod), potem `TripListRow` / `listItemFromRow`, `select` z `trip_members(id)`, in-memory `list()` — skill: `test-driven-development`, `api-and-interface-design`, `supabase` — najpierw testy: schemat, wiersze, oba repozytoria, kopia w SQLite (stara kopia się czyta) — weryfikacja: pełny zestaw + typecheck + lint, weryfikator; brak zmian w `supabase/` i `database.types.ts`.
+- [x] 1. `[backend]` `travellerCount?` w `TripListItemSchema` (najpierw Zod), potem `TripListRow` / `listItemFromRow`, `select` z `trip_members(id)`, in-memory `list()` — skill: `test-driven-development`, `api-and-interface-design`, `supabase` — najpierw testy: schemat, wiersze, oba repozytoria, kopia w SQLite (stara kopia się czyta) — weryfikacja: pełny zestaw + typecheck + lint, weryfikator; brak zmian w `supabase/` i `database.types.ts`.
 - [x] 2. `[frontend]` Wszystkie nowe klucze i18n (tabela „Teksty”) w `pl.json` i `en.json` — jeden agent, tylko te pliki — skill: `test-driven-development`, `javascript-typescript-jest` — najpierw testy: `i18n.test.ts` — weryfikacja: pełny zestaw, weryfikator. **Na nic nie czeka; biegnie równolegle z krokiem 1** (inne pliki).
 - [ ] 3. `[frontend]` `PastTrips.tsx`: sekcja, karta (okładka, gradient do `hero.scrim`, pigułka z miastem, nazwa, znajomi), szkielety, stan pusty i błędu — skill: `test-driven-development`, `frontend-ui-engineering`, `frontend-design` — najpierw testy: `PastTrips.test.tsx` — weryfikacja: pełny zestaw, weryfikator (+ `ui-taste`), tokeny bez wartości „z ręki”. **Czeka na kroki 1 i 2.**
 - [x] 4. `[frontend]` `FriendCode.tsx`: podpis, kod, przycisk udostępniania z `Share.share` — skill: `test-driven-development`, `source-driven-development`, `frontend-ui-engineering` — najpierw testy: `FriendCode.test.tsx` — weryfikacja: pełny zestaw, weryfikator. **Czeka tylko na krok 2.**
@@ -241,6 +241,7 @@ na końcu:             krok 7 dokumenty, weryfikator gałęzi, tester
 - 2026-11-11 — plan zaakceptowany (D12–D18 z rekomendacji), start wykonania.
 - 2026-11-11 — krok 2 (klucze i18n) PASS weryfikatora; en ma też `pastFriends_few`/`_many` (wymóg testu parzystości kluczy).
 - 2026-11-11 — krok 4 (`FriendCode`) PASS weryfikatora.
+- 2026-11-11 — krok 1 (`travellerCount?` na liście) PASS weryfikatora. Odstępstwo od TDD: implementer napisał testy razem z kodem (bez obserwowanej fazy red); weryfikator potwierdził z diffu, że nowe asercje padłyby bez zmiany produkcyjnej.
 
 ## Ryzyka i otwarte pytania
 

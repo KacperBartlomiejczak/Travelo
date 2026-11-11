@@ -82,6 +82,8 @@ export const TripListItemSchema = z
     flights: z.array(FlightRouteSchema),
     startDate: tripShape.startDate,
     endDate: tripShape.endDate,
+    /** Organizer + members, for the profile's past-trip cards (profile-upgrade D1). A copy kept from before lacks it. */
+    travellerCount: z.int().min(1).optional(),
   })
   .superRefine((trip, ctx) => {
     if (trip.endDate < trip.startDate) ctx.addIssue({ code: 'custom', path: ['endDate'], message: 'End date is before start date' });

@@ -30,6 +30,7 @@ export type CreateTripArgs = Database['public']['Functions']['create_trip']['Arg
  */
 export type TripListRow = Pick<TripRow, 'id' | 'name' | 'cover_image_uri' | 'destination' | 'start_date' | 'end_date'> & {
   flight_segments: Pick<SegmentRow, 'from_iata' | 'to_iata'>[];
+  trip_members: Pick<MemberRow, 'id'>[];
 };
 
 /** The owner is always the caller (`create_trip` sets it), so it is not sent. */
@@ -186,5 +187,6 @@ export function listItemFromRow(row: TripListRow, coverUrls?: CoverUrls): TripLi
     flights: row.flight_segments.map((segment) => ({ fromIata: segment.from_iata, toIata: segment.to_iata })),
     startDate: row.start_date,
     endDate: row.end_date,
+    travellerCount: row.trip_members.length + 1,
   });
 }
