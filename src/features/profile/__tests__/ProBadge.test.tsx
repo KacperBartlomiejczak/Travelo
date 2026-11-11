@@ -1,9 +1,9 @@
 import { render, screen } from '@testing-library/react-native';
-import { processColor } from 'react-native';
+import { processColor, StyleSheet } from 'react-native';
 
 import i18n from '@/i18n';
 import { darkTheme, lightTheme } from '@/theme/theme';
-import { radii } from '@/theme/tokens';
+import { radii, tokens } from '@/theme/tokens';
 
 import { ProBadge } from '../ProBadge';
 
@@ -66,6 +66,17 @@ describe('ProBadge (profile-upgrade D4, D7, D14)', () => {
     expect(gradientColours().map(rgb)).toEqual([rgb(processColor(theme.brand.primary)), rgb(processColor(theme.accent.sun))]);
     expect(screen.getByText('PRO')).toHaveStyle({ color: theme.brand.onBrand });
     expect(screen.getByTestId('pro-badge')).toHaveStyle({ borderRadius: radii.pill });
+  });
+
+  it('pads the PRO text, not the root, so the absolute gradient covers the whole pill', async () => {
+    await render(<ProBadge />);
+    const root = StyleSheet.flatten(screen.getByTestId('pro-badge').props.style);
+    expect(root.paddingHorizontal).toBeUndefined();
+    expect(root.paddingVertical).toBeUndefined();
+    expect(screen.getByText('PRO')).toHaveStyle({
+      paddingHorizontal: tokens.spacing[2],
+      paddingVertical: tokens.spacing[1],
+    });
   });
 
   it.each([

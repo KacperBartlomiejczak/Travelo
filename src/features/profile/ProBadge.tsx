@@ -25,8 +25,6 @@ export function ProBadge({ pro = IS_PRO }: { pro?: boolean }) {
         borderRadius: radii.pill,
         overflow: 'hidden',
         flexShrink: 0,
-        paddingHorizontal: tokens.spacing[2],
-        paddingVertical: tokens.spacing[1],
       }}
     >
       <Svg style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }} width="100%" height="100%">
@@ -38,7 +36,12 @@ export function ProBadge({ pro = IS_PRO }: { pro?: boolean }) {
         </Defs>
         <Rect width="100%" height="100%" fill={`url(#${gradientId})`} />
       </Svg>
-      <Text style={[tokens.typography.styles.labelSM, { color: theme.brand.onBrand }]}>{t('profile.pro')}</Text>
+      <Text
+        style={[
+          tokens.typography.styles.labelSM,
+          { color: theme.brand.onBrand, paddingHorizontal: tokens.spacing[2], paddingVertical: tokens.spacing[1] },
+        ]}
+      >{t('profile.pro')}</Text>
     </View>
   );
 }
