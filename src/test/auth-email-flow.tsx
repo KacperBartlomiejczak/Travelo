@@ -36,13 +36,11 @@ export function headerConfigs(container: Awaited<ReturnType<typeof renderEmailFl
 
 /** Opens the flow on the welcome stand-in, then the e-mail screen. */
 export async function openEmailScreen() {
-  // renderRouter attaches getPathname to the returned promise, not to the awaited result.
-  const rendered = renderEmailFlow('/welcome');
-  const { container } = await rendered;
+  const { container, getPathname } = await renderEmailFlow('/welcome');
   await waitFor(() => expect(screen.getByText('welcome stand-in')).toBeTruthy());
   await act(async () => router.push('/email'));
   await waitFor(() => expect(screen.getByTestId('email-screen')).toBeTruthy());
-  return { container, getPathname: () => rendered.getPathname() };
+  return { container, getPathname };
 }
 
 /** Types an address on the e-mail screen (in the phone's language) and sends the code, ending on the code screen. */

@@ -2,7 +2,7 @@ import { createClient } from '@supabase/supabase-js';
 
 import { NotSignedInError } from '@/data/auth';
 import type { Database } from '@/data/database.types';
-import { FriendAlreadyAddedError, OwnFriendCodeError, UnknownFriendCodeError } from '@/data/errors';
+import { FriendAlreadyAddedError, OwnFriendCodeError, ServerUnreachableError, UnknownFriendCodeError } from '@/data/errors';
 import { REQUEST_TIMEOUT_MS, withTimeout } from '@/data/fetch-timeout';
 import { migrateLocalDb } from '@/data/local-db';
 import { createLocalStore } from '@/data/local-store';
@@ -727,7 +727,7 @@ describe('updateDetails (trip-edit-menu D5)', () => {
 
     const rejected = repository.updateDetails(PAST_ID, { name: 'Lisbon 2026', coverImageUri: STORED_COVER });
     await expect(rejected).rejects.toThrow('Network request failed');
-    await expect(rejected).rejects.toMatchObject({ constructor: expect.objectContaining({ name: 'ServerUnreachableError' }) });
+    await expect(rejected).rejects.toBeInstanceOf(ServerUnreachableError);
     await expect(local.cachedList()).resolves.toEqual(listCopy);
     await expect(local.cachedOverview(PAST_ID)).resolves.toEqual(overviewCopy);
   });
@@ -737,7 +737,7 @@ describe('updateDetails (trip-edit-menu D5)', () => {
     const { AuthRetryableFetchError } = jest.requireActual('@supabase/supabase-js');
     supabase.auth.getSession.mockResolvedValueOnce({ data: { session: null as never }, error: new AuthRetryableFetchError('Network request failed', 0) });
     const rejected = repository.updateDetails(PAST_ID, { name: 'Lisbon', coverImageUri: STORED_COVER });
-    await expect(rejected).rejects.toMatchObject({ constructor: expect.objectContaining({ name: 'ServerUnreachableError' }) });
+    await expect(rejected).rejects.toBeInstanceOf(ServerUnreachableError);
     expect(supabase.queries).toHaveLength(0);
   });
 });
@@ -820,7 +820,7 @@ describe('delete (trip-edit-menu D8, A5)', () => {
 
     const rejected = repository.delete(PAST_ID);
     await expect(rejected).rejects.toThrow('Network request failed');
-    await expect(rejected).rejects.toMatchObject({ constructor: expect.objectContaining({ name: 'ServerUnreachableError' }) });
+    await expect(rejected).rejects.toBeInstanceOf(ServerUnreachableError);
 
     await expect(local.cachedOverview(PAST_ID)).resolves.not.toBeNull();
     await expect(local.selectedTripId()).resolves.toBe(PAST_ID);
@@ -877,7 +877,7 @@ describe('delete (trip-edit-menu D8, A5)', () => {
 
       const rejected = repository.delete(PAST_ID);
       await expect(rejected).rejects.toThrow('Network request failed');
-      await expect(rejected).rejects.toMatchObject({ constructor: expect.objectContaining({ name: 'ServerUnreachableError' }) });
+      await expect(rejected).rejects.toBeInstanceOf(ServerUnreachableError);
 
       await expect(local.cachedOverview(PAST_ID)).resolves.not.toBeNull();
       await expect(local.selectedTripId()).resolves.toBe(PAST_ID);
@@ -970,9 +970,9 @@ describe('delete (trip-edit-menu D8, A5)', () => {
       expect(calls(supabase, 'remove').map((call) => call.args[0])).toEqual([folderPaths(1000)]);
     });
 
-    const FAILURES: [string, (supabase: Context['supabase']) => void, string, string][] = [
-      ['the server refuses to list', (s) => s.respondStorage('list', { error: { message: 'permission denied', status: 403 } }), 'permission denied', 'Error'],
-      ['it is offline when listing', (s) => s.respondStorage('list', STORAGE_NETWORK_FAILURE), 'Network request failed', 'ServerUnreachableError'],
+    const FAILURES: [string, (supabase: Context['supabase']) => void, string, new () => Error][] = [
+      ['the server refuses to list', (s) => s.respondStorage('list', { error: { message: 'permission denied', status: 403 } }), 'permission denied', Error],
+      ['it is offline when listing', (s) => s.respondStorage('list', STORAGE_NETWORK_FAILURE), 'Network request failed', ServerUnreachableError],
       [
         'the server refuses to remove',
         (s) => {
@@ -980,7 +980,7 @@ describe('delete (trip-edit-menu D8, A5)', () => {
           s.respondStorage('remove', { error: { message: 'boom', status: 500 } });
         },
         'boom',
-        'Error',
+        Error,
       ],
       [
         'it is offline when removing',
@@ -989,18 +989,19 @@ describe('delete (trip-edit-menu D8, A5)', () => {
           s.respondStorage('remove', STORAGE_NETWORK_FAILURE);
         },
         'Network request failed',
-        'ServerUnreachableError',
+        ServerUnreachableError,
       ],
     ];
 
-    it.each(FAILURES)('when %s: rejects, the trip is not deleted, and the phone keeps everything', async (_label, queueFailure, message, errorName) => {
+    it.each(FAILURES)('when %s: rejects, the trip is not deleted, and the phone keeps everything', async (_label, queueFailure, message, errorClass) => {
       const ctx = await withFolder();
       queueFailure(ctx.supabase);
 
       const rejected = ctx.repository.delete(PAST_ID);
 
       await expect(rejected).rejects.toThrow(message);
-      await expect(rejected).rejects.toMatchObject({ constructor: expect.objectContaining({ name: errorName }) });
+      await expect(rejected).rejects.toBeInstanceOf(errorClass);
+      if (errorClass === Error) await expect(rejected).rejects.not.toBeInstanceOf(ServerUnreachableError);
       expect(tripDeletes(ctx.supabase)).toEqual([]);
       await expectCopiesKept(ctx);
     });
@@ -1479,7 +1480,7 @@ describe('addPhoto (trip-photos A5, D2, D7, D14)', () => {
 
     const rejected = repository.addPhoto(PAST_ID, photoUuid(1), PICKED);
     await expect(rejected).rejects.toThrow('Network request failed');
-    await expect(rejected).rejects.toMatchObject({ constructor: expect.objectContaining({ name: 'ServerUnreachableError' }) });
+    await expect(rejected).rejects.toBeInstanceOf(ServerUnreachableError);
     expect(supabase.queries).toEqual([]);
   });
 
@@ -1488,9 +1489,7 @@ describe('addPhoto (trip-photos A5, D2, D7, D14)', () => {
     const { AuthRetryableFetchError } = jest.requireActual('@supabase/supabase-js');
     supabase.auth.getSession.mockResolvedValueOnce({ data: { session: null as never }, error: new AuthRetryableFetchError('Network request failed', 0) });
 
-    await expect(repository.addPhoto(PAST_ID, photoUuid(1), PICKED)).rejects.toMatchObject({
-      constructor: expect.objectContaining({ name: 'ServerUnreachableError' }),
-    });
+    await expect(repository.addPhoto(PAST_ID, photoUuid(1), PICKED)).rejects.toBeInstanceOf(ServerUnreachableError);
     expect(prepare).not.toHaveBeenCalled();
     expect(supabase.storageCalls).toEqual([]);
   });
@@ -1499,9 +1498,7 @@ describe('addPhoto (trip-photos A5, D2, D7, D14)', () => {
     const { supabase, repository, seed } = await setupAdd();
     supabase.respond('trip_photos', NETWORK_FAILURE);
 
-    await expect(repository.addPhoto(PAST_ID, photoUuid(1), PICKED)).rejects.toMatchObject({
-      constructor: expect.objectContaining({ name: 'ServerUnreachableError' }),
-    });
+    await expect(repository.addPhoto(PAST_ID, photoUuid(1), PICKED)).rejects.toBeInstanceOf(ServerUnreachableError);
     expect(seed).not.toHaveBeenCalled();
   });
 
@@ -1598,20 +1595,21 @@ describe('deletePhoto (trip-photos R6)', () => {
     const { supabase, repository } = await setup();
     supabase.respond('trip_photos', { data: [] }, NETWORK_FAILURE);
 
-    await expect(repository.deletePhoto(photo)).rejects.toMatchObject({ constructor: expect.objectContaining({ name: 'ServerUnreachableError' }) });
+    await expect(repository.deletePhoto(photo)).rejects.toBeInstanceOf(ServerUnreachableError);
     expect(removeCalls(supabase)).toEqual([]);
   });
 
   it.each([
-    ['the server refuses it', { error: { message: 'permission denied for table trip_photos' }, status: 401 }, 'permission denied', 'Error'],
-    ['it is offline', NETWORK_FAILURE, 'Network request failed', 'ServerUnreachableError'],
-  ])('when deleting the row fails because %s: rejects and removes no file', async (_label, response, message, errorName) => {
+    ['the server refuses it', { error: { message: 'permission denied for table trip_photos' }, status: 401 }, 'permission denied', Error],
+    ['it is offline', NETWORK_FAILURE, 'Network request failed', ServerUnreachableError],
+  ])('when deleting the row fails because %s: rejects and removes no file', async (_label, response, message, errorClass) => {
     const { supabase, repository } = await setup();
     supabase.respond('trip_photos', response);
 
     const rejected = repository.deletePhoto(photo);
     await expect(rejected).rejects.toThrow(message);
-    await expect(rejected).rejects.toMatchObject({ constructor: expect.objectContaining({ name: errorName }) });
+    await expect(rejected).rejects.toBeInstanceOf(errorClass);
+    if (errorClass === Error) await expect(rejected).rejects.not.toBeInstanceOf(ServerUnreachableError);
     expect(removeCalls(supabase)).toEqual([]);
   });
 
@@ -2230,9 +2228,7 @@ describe('covers (trip-covers D1, D4, D5)', () => {
       it('reading the stored cover offline rejects as unreachable', async () => {
         const { supabase, repository } = await setupCovers();
         supabase.respond('trips', NETWORK_FAILURE);
-        await expect(repository.updateDetails(PAST_ID, input(OLD_COVER))).rejects.toMatchObject({
-          constructor: expect.objectContaining({ name: 'ServerUnreachableError' }),
-        });
+        await expect(repository.updateDetails(PAST_ID, input(OLD_COVER))).rejects.toBeInstanceOf(ServerUnreachableError);
       });
     });
 
@@ -2293,9 +2289,7 @@ describe('covers (trip-covers D1, D4, D5)', () => {
       const { supabase, repository } = await setupCovers();
       supabase.respond('trips', oldCoverRow('preset:auckland'));
       supabase.respondStorage('upload', STORAGE_NETWORK_FAILURE);
-      await expect(repository.updateDetails(PAST_ID, input(PICKED_URI))).rejects.toMatchObject({
-        constructor: expect.objectContaining({ name: 'ServerUnreachableError' }),
-      });
+      await expect(repository.updateDetails(PAST_ID, input(PICKED_URI))).rejects.toBeInstanceOf(ServerUnreachableError);
     });
 
     it('a photo that cannot be prepared rejects and sends nothing', async () => {
@@ -2322,9 +2316,7 @@ describe('covers (trip-covers D1, D4, D5)', () => {
       const { supabase, repository } = await setupCovers();
       supabase.respond('trips', oldCoverRow(OLD_COVER), NETWORK_FAILURE);
 
-      await expect(repository.updateDetails(PAST_ID, input(PICKED_URI))).rejects.toMatchObject({
-        constructor: expect.objectContaining({ name: 'ServerUnreachableError' }),
-      });
+      await expect(repository.updateDetails(PAST_ID, input(PICKED_URI))).rejects.toBeInstanceOf(ServerUnreachableError);
 
       expect(calls(supabase, 'remove')).toEqual([]);
     });
@@ -2350,9 +2342,7 @@ describe('covers (trip-covers D1, D4, D5)', () => {
     it('reading the old cover offline rejects as unreachable', async () => {
       const { repository, supabase } = await setupCovers();
       supabase.respond('trips', NETWORK_FAILURE);
-      await expect(repository.updateDetails(PAST_ID, input('preset:bali'))).rejects.toMatchObject({
-        constructor: expect.objectContaining({ name: 'ServerUnreachableError' }),
-      });
+      await expect(repository.updateDetails(PAST_ID, input('preset:bali'))).rejects.toBeInstanceOf(ServerUnreachableError);
     });
 
     it('a trip id that is not a lowercase UUID is refused before any network call (it becomes a folder)', async () => {

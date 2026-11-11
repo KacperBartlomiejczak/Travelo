@@ -70,9 +70,8 @@ function renderWizard(flights: () => React.JSX.Element = ShellFlights) {
 }
 
 async function openWizard(flights: () => React.JSX.Element = ShellFlights) {
-  // renderRouter attaches getPathname to the returned promise, not to the awaited result.
-  const rendered = renderWizard(flights);
-  const { container } = await rendered;
+  const rendered = await renderWizard(flights);
+  const { container } = rendered;
   await fireEvent.press(await screen.findByText('Utwórz podróż'));
   return { container, getPathname: () => rendered.getPathname() };
 }
@@ -109,8 +108,7 @@ describe('Create trip wizard', () => {
 
   it('shows the English title', async () => {
     await i18n.changeLanguage('en');
-    const renderedApp = renderWizard();
-    const { container } = await renderedApp;
+    const { container } = await renderWizard();
     await fireEvent.press(await screen.findByText('Create trip'));
     expect(headerTitles(container)).toContain('New trip');
   });

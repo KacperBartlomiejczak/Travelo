@@ -1,6 +1,6 @@
 import { fireEvent, render, screen } from '@testing-library/react-native';
 import { createRef } from 'react';
-import { StyleSheet, TextInput } from 'react-native';
+import { StyleSheet, type TextInputInstance } from 'react-native';
 
 import { TextField } from '@/components/TextField';
 import i18n from '@/i18n';
@@ -138,7 +138,7 @@ describe('TextField input behaviour (auth-onboarding step 7)', () => {
   });
 
   it('gives the input to a ref, so a screen can focus it', async () => {
-    const ref = createRef<TextInput>();
+    const ref = createRef<TextInputInstance>();
     await render(<TextField label="Kod" value="" onChangeText={() => {}} inputRef={ref} />);
     // In Jest the ref is the mocked TextInput instance, not the host node, so it is not compared to the queried element.
     expect(ref.current).not.toBeNull();

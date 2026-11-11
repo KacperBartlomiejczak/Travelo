@@ -60,7 +60,7 @@ async function pickCity() {
 
 beforeEach(async () => {
   await i18n.changeLanguage('pl');
-  jest.spyOn(Linking, 'openURL').mockResolvedValue(true);
+  jest.spyOn(Linking, 'openURL').mockResolvedValue();
 });
 
 describe('DiscoverScreen', () => {

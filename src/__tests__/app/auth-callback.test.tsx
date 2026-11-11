@@ -12,7 +12,7 @@ jest.mocked(useFonts).mockReturnValue([true, null]);
 
 describe('auth/callback (auth-onboarding step 3)', () => {
   it('lands on / without an "unmatched route" when the OAuth redirect opens the app here', async () => {
-    const rendered = renderRouter(
+    const rendered = await renderRouter(
       {
         _layout: RootLayout,
         '(drawer)/_layout': DrawerLayout,
@@ -23,7 +23,6 @@ describe('auth/callback (auth-onboarding step 3)', () => {
       },
       { initialUrl: '/auth/callback?code=x' },
     );
-    await rendered;
 
     expect(rendered.getPathname()).toBe('/');
     expect(screen.getByText('home screen')).toBeTruthy();

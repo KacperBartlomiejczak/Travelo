@@ -42,7 +42,9 @@ export default function DrawerLayout() {
         overlayColor: SCRIM,
         overlayAccessibilityLabel: t('common.close'),
       }}
-    />
+    >
+      <Drawer.Screen name="(tabs)" />
+    </Drawer>
   );
 }
 

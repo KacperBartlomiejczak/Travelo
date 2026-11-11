@@ -45,8 +45,7 @@ const ROUTES = {
 };
 
 async function openSettings() {
-  const rendered = renderRouter(ROUTES, { initialUrl: '/settings' });
-  await rendered;
+  const rendered = await renderRouter(ROUTES, { initialUrl: '/settings' });
   await screen.findByTestId('settings-screen');
   return { getPathname: () => rendered.getPathname() };
 }

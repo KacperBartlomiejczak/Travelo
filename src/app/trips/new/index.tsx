@@ -1,7 +1,7 @@
 import { Plus, Ticket } from 'lucide-react-native';
 import { Fragment, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { AccessibilityInfo, Text, View, type ScrollView } from 'react-native';
+import { AccessibilityInfo, Text, View, type ScrollViewInstance } from 'react-native';
 
 import { LayoverLabel } from '@/components/LayoverLabel';
 import { SegmentedControl } from '@/components/SegmentedControl';
@@ -32,7 +32,7 @@ export default function FlightsStep() {
   // One direction at a time; the outbound first (trip-flight-tabs-name-cover).
   const [shown, setShown] = useState<Direction>('outbound');
   // Section and card offsets, to scroll to the first card with an error (D29).
-  const scrollRef = useRef<ScrollView>(null);
+  const scrollRef = useRef<ScrollViewInstance>(null);
   const sectionY = useRef(0);
   const cardY = useRef<Record<string, number>>({});
   // A card on the other tab is measured only once it is shown; scroll when it is (D5).

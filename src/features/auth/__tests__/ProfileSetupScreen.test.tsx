@@ -32,7 +32,7 @@ jest.mock('react-native/Libraries/ReactNative/RendererProxy', () => {
   const actual = jest.requireActual('react-native/Libraries/ReactNative/RendererProxy');
   return { ...actual, findNodeHandle: jest.fn(actual.findNodeHandle) };
 });
-const actualFindNodeHandle = jest.requireActual<typeof import('react-native/Libraries/ReactNative/RendererProxy')>(
+const actualFindNodeHandle = jest.requireActual<Pick<typeof import('react-native'), 'findNodeHandle'>>(
   'react-native/Libraries/ReactNative/RendererProxy',
 ).findNodeHandle;
 const NICK_HANDLE = 1001;
@@ -67,8 +67,7 @@ function Layout() {
 
 /** The screen in the app's providers, opened the way the gate opens it: a stack screen without a header. */
 async function openSetup() {
-  const rendered = renderRouter({ _layout: Layout, onboarding: ProfileSetupScreen }, { initialUrl: '/onboarding' });
-  await rendered;
+  const rendered = await renderRouter({ _layout: Layout, onboarding: ProfileSetupScreen }, { initialUrl: '/onboarding' });
   await waitFor(() => expect(screen.getByTestId('profile-setup-screen')).toBeTruthy());
   return { getPathname: () => rendered.getPathname() };
 }

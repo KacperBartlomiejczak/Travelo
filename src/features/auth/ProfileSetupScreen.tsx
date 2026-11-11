@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { AccessibilityInfo, findNodeHandle, View, type ScrollView, type TextInput } from 'react-native';
+import { AccessibilityInfo, findNodeHandle, View, type ScrollViewInstance, type TextInputInstance } from 'react-native';
 
 import { Field } from '@/components/Field';
 import { InterestChips } from '@/components/InterestChips';
@@ -50,9 +50,9 @@ export function ProfileSetupScreen() {
   // `create.isPending` only updates on the next render; this closes the gap between two taps in the same moment.
   const saving = useRef(false);
   // Where the nick sits in the scrolling content (from onLayout), to scroll to its error; and the input that takes the screen reader focus.
-  const scrollRef = useRef<ScrollView>(null);
+  const scrollRef = useRef<ScrollViewInstance>(null);
   const nickY = useRef(0);
-  const nickInput = useRef<TextInput>(null);
+  const nickInput = useRef<TextInputInstance>(null);
 
   // The schema is the one rule for a complete form (D4).
   const parsed = ProfileSetupInputSchema.safeParse({ username, interests, avatarUri });
@@ -105,7 +105,7 @@ export function ProfileSetupScreen() {
   function showNickError() {
     scrollRef.current?.scrollTo({ y: nickY.current, animated: false });
     const handle = findNodeHandle(nickInput.current);
-    if (handle !== null) AccessibilityInfo.setAccessibilityFocus(handle);
+    if (handle != null) AccessibilityInfo.setAccessibilityFocus(handle);
   }
 
   function submit() {

@@ -1,4 +1,4 @@
-import { act, render, screen } from '@testing-library/react-native';
+import { act, isHiddenFromAccessibility, render, screen } from '@testing-library/react-native';
 import { AccessibilityInfo } from 'react-native';
 
 import { CoverImage } from '@/components/CoverImage';
@@ -84,7 +84,7 @@ describe('CoverImage (trip-covers C3)', () => {
   it('is hidden from screen readers unless the parent gives it a label', async () => {
     const { rerender } = await render(<CoverImage testID="cover" cover="preset:bali" variant="full" />);
     expect(screen.queryByTestId('cover')).toBeNull();
-    expect(screen.getByTestId('cover', hidden).props['aria-hidden']).toBe(true);
+    expect(isHiddenFromAccessibility(screen.getByTestId('cover', hidden))).toBe(true);
     await rerender(<CoverImage testID="cover" cover="preset:bali" variant="full" accessibilityLabel="Bali" />);
     expect(screen.getByLabelText('Bali')).toBeTruthy();
   });

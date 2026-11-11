@@ -27,6 +27,7 @@ jest.mock('react-native/Libraries/Utilities/useColorScheme', () => ({ __esModule
 // The style the home screen last gave the status bar.
 let mockStatusBarStyle: string | undefined;
 jest.mock('expo-status-bar', () => ({
+  ...jest.requireActual('expo-status-bar'),
   StatusBar: ({ style }: { style?: string }) => {
     mockStatusBarStyle = style;
     return null;
@@ -567,13 +568,10 @@ describe('Home screen — offline (D6, D11)', () => {
 });
 
 describe('Home screen — menu button (trips-drawer P5)', () => {
-  // Returns the router handle in an object: renderRouter puts getRouterState on its promise, and an async
-  // function returning that promise would unwrap it.
   async function failToLoad() {
     jest.useFakeTimers({ advanceTimers: true });
     mockCurrent = () => Promise.reject(new Error('offline'));
-    const rendered = renderHome();
-    await rendered;
+    const rendered = await renderHome();
     // TanStack Query retries before giving up.
     await act(async () => {
       await jest.runAllTimersAsync();
@@ -585,8 +583,7 @@ describe('Home screen — menu button (trips-drawer P5)', () => {
   async function showState(state: 'loading' | 'empty' | 'error' | 'trip') {
     if (state === 'error') return failToLoad();
     mockCurrent = state === 'loading' ? () => new Promise(() => {}) : () => Promise.resolve(state === 'trip' ? overview() : null);
-    const rendered = renderHome();
-    await rendered;
+    const rendered = await renderHome();
     if (state === 'empty') await screen.findByText('Nie masz jeszcze żadnej podróży.');
     if (state === 'trip') await screen.findByTestId('home-screen');
     return { rendered };
@@ -1115,7 +1112,7 @@ describe('Home screen — photo strip (trip-photos P1, A3, D23)', () => {
   it('pressing a photo tile opens the viewer on that photo, with the trip and the photo in the route', async () => {
     mockCurrent = () => Promise.resolve(overview());
     mockPhotos = twoPhotos;
-    const app = renderRouter({
+    const app = await renderRouter({
       _layout: RootLayout,
       '(drawer)/_layout': DrawerLayout,
       '(drawer)/(tabs)/_layout': TabsLayout,
@@ -1123,7 +1120,6 @@ describe('Home screen — photo strip (trip-photos P1, A3, D23)', () => {
       'trips/[tripId]/photos': () => null,
       'trips/new/index': () => null,
     });
-    await app;
     await fireEvent.press(await screen.findByRole('button', { name: 'Zdjęcie 2 z 2' }));
     await waitFor(() => expect(app.getPathname()).toBe(`/trips/${TRIP_ID}/photos`));
     expect(app.getSearchParams()).toEqual({ tripId: TRIP_ID, photoId: PHOTO_IDS[1] });
@@ -1132,7 +1128,7 @@ describe('Home screen — photo strip (trip-photos P1, A3, D23)', () => {
   it('the home screen stays mounted under the viewer, and a tile of another photo opens that one', async () => {
     mockCurrent = () => Promise.resolve(overview());
     mockPhotos = twoPhotos;
-    const app = renderRouter({
+    const app = await renderRouter({
       _layout: RootLayout,
       '(drawer)/_layout': DrawerLayout,
       '(drawer)/(tabs)/_layout': TabsLayout,
@@ -1140,7 +1136,6 @@ describe('Home screen — photo strip (trip-photos P1, A3, D23)', () => {
       'trips/[tripId]/photos': () => null,
       'trips/new/index': () => null,
     });
-    await app;
     await fireEvent.press(await screen.findByRole('button', { name: 'Zdjęcie 1 z 2' }));
     await waitFor(() => expect(app.getPathname()).toBe(`/trips/${TRIP_ID}/photos`));
     expect(screen.getByTestId('home-screen', { includeHiddenElements: true })).toBeTruthy();

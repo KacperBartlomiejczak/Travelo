@@ -18,11 +18,10 @@ export function resetGateAllowance(): void {
   stayLoadingAllowed = false;
 }
 
-export function settleGateAfterRender(testingLibrary: TestingLibrary): void {
+export function settleGateAfterRender(testingLibrary: TestingLibrary): TestingLibrary {
   const original = testingLibrary.renderRouter;
   const settling: typeof original = (...args) => {
-    const rendered = original(...args);
-    const settled = Promise.resolve(rendered).then(async (result) => {
+    return original(...args).then(async (result) => {
       try {
         await testingLibrary.waitFor(() => expect(testingLibrary.screen.queryByTestId('app-loading')).toBeNull(), { timeout: 200 });
       } catch {
@@ -35,8 +34,7 @@ export function settleGateAfterRender(testingLibrary: TestingLibrary): void {
       }
       return result;
     });
-    // `getPathname`, `getSegments`, ... are on the promise renderRouter returns, and tests call them on it.
-    return Object.assign(settled, rendered);
   };
-  testingLibrary.renderRouter = settling;
+  // The library's exports are getter-only (expo-router 58), so the wrapper goes on a copy that keeps the other getters (`screen`) live.
+  return Object.defineProperties({}, { ...Object.getOwnPropertyDescriptors(testingLibrary), renderRouter: { value: settling, enumerable: true } }) as TestingLibrary;
 }

@@ -28,7 +28,7 @@ jest.mock('react-native/Libraries/Utilities/useColorScheme', () => ({ __esModule
 jest.mock('expo-status-bar', () => {
   const { createElement } = jest.requireActual<typeof import('react')>('react');
   const { View } = jest.requireActual<typeof import('react-native')>('react-native');
-  return { StatusBar: ({ style }: { style?: string }) => createElement(View, { testID: `status-bar-${style}` }) };
+  return { ...jest.requireActual('expo-status-bar'), StatusBar: ({ style }: { style?: string }) => createElement(View, { testID: `status-bar-${style}` }) };
 });
 
 // The screens read the photos through the repository; each test decides which one.
@@ -54,10 +54,9 @@ async function setup(count = 12, patch: Partial<TripRepository> = {}) {
   return base;
 }
 
-// renderRouter attaches getPathname & co to the returned promise, not to the awaited result (see the wizard tests).
-let app: ReturnType<typeof renderRouter>;
-function renderApp(initialUrl = '/') {
-  app = renderRouter(
+let app: Awaited<ReturnType<typeof renderRouter>>;
+async function renderApp(initialUrl = '/') {
+  app = await renderRouter(
     {
       _layout: RootLayout,
       '(drawer)/_layout': DrawerLayout,

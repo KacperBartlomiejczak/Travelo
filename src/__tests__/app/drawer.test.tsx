@@ -25,6 +25,7 @@ jest.mock('react-native/Libraries/Utilities/useWindowDimensions', () => ({
 
 let mockStatusBarStyle: string | undefined;
 jest.mock('expo-status-bar', () => ({
+  ...jest.requireActual('expo-status-bar'),
   StatusBar: ({ style }: { style?: string }) => {
     mockStatusBarStyle = style;
     return null;
@@ -80,8 +81,7 @@ function renderApp() {
 }
 
 async function openPanel() {
-  const rendered = renderApp();
-  await rendered;
+  const rendered = await renderApp();
   await screen.findByRole('header', { name: 'Rzym' });
   await fireEvent.press(screen.getByRole('button', { name: 'Otwórz listę podróży' }));
   await screen.findByRole('button', { name: 'Oslo, 10 sie – 14 sie 2026' });

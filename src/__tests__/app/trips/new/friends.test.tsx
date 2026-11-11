@@ -80,7 +80,7 @@ function FlightsWithCompanions() {
 }
 
 async function openFriends(setUp = 'test: two friends') {
-  const rendered = renderRouter(
+  const rendered = await renderRouter(
     {
       _layout: RootLayout,
       '(drawer)/_layout': DrawerLayout,
@@ -94,7 +94,6 @@ async function openFriends(setUp = 'test: two friends') {
     },
     { initialUrl: '/' },
   );
-  await rendered;
   await fireEvent.press(await screen.findByText('Utwórz podróż'));
   await fireEvent.press(screen.getByText(setUp));
   await fireEvent.press(screen.getByText('test: next'));

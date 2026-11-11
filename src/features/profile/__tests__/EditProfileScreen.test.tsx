@@ -38,8 +38,7 @@ function SettingsStub() {
 }
 
 async function openEdit() {
-  const rendered = renderRouter({ _layout: Layout, settings: SettingsStub, 'edit-profile': EditProfileScreen }, { initialUrl: '/settings' });
-  await rendered;
+  const rendered = await renderRouter({ _layout: Layout, settings: SettingsStub, 'edit-profile': EditProfileScreen }, { initialUrl: '/settings' });
   await waitFor(() => expect(screen.getByTestId('settings-stub').props.children).toBe('kacper'));
   await act(async () => router.push('/edit-profile'));
   await waitFor(() => expect(screen.getByTestId('edit-profile-screen')).toBeTruthy());

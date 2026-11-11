@@ -16,7 +16,7 @@ import { tokens } from '@/theme/tokens';
 jest.mock('expo-font', () => ({ ...jest.requireActual('expo-font'), useFonts: jest.fn() }));
 jest.mocked(useFonts).mockReturnValue([true, null]);
 
-jest.mock('expo-status-bar', () => ({ StatusBar: () => null }));
+jest.mock('expo-status-bar', () => ({ ...jest.requireActual('expo-status-bar'), StatusBar: () => null }));
 
 // A phone with a home indicator, so the clearance has an inset part that must not be counted twice.
 const INSET_BOTTOM = 34;

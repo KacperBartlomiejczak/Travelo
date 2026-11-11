@@ -85,6 +85,12 @@
       "skillPath": "skills/doubt-driven-development/SKILL.md",
       "computedHash": "b13f18a68abf2a1fd0c30adeac9bec0ee551adec9f2a1dc2700f1a6e3eb48092"
     },
+    "expo-upgrade": {
+      "source": "expo/skills",
+      "sourceType": "github",
+      "skillPath": "plugins/expo/skills/expo-upgrade/SKILL.md",
+      "computedHash": "c6f268da02e53f9b220e00ef90b6fc85aea7d42aed4e875255db73713091594c"
+    },
     "find-skills": {
       "source": "vercel-labs/skills",
       "sourceType": "github",
@@ -144,6 +150,12 @@
       "sourceType": "github",
       "skillPath": "skills/javascript-typescript-jest/SKILL.md",
       "computedHash": "0073d19ab0275eb6a8200aced6789a53744667bd717b5d1f44ce708a1740e5d4"
+    },
+    "migrate-to-strict-api": {
+      "source": "react-native-community/skills",
+      "sourceType": "github",
+      "skillPath": "migrate-to-strict-api/SKILL.md",
+      "computedHash": "2c25b784e4b7671520f00bde67186a371132fc72ce5cb9c62aa9df7f53e80e46"
     },
     "observability-and-instrumentation": {
       "source": "addyosmani/agent-skills",

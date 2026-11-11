@@ -49,8 +49,7 @@ function Layout() {
 }
 
 async function setup() {
-  const rendered = renderRouter({ _layout: Layout, index: WelcomeScreen, email: () => <Text>email screen</Text> });
-  await rendered;
+  const rendered = await renderRouter({ _layout: Layout, index: WelcomeScreen, email: () => <Text>email screen</Text> });
   return { getPathname: () => rendered.getPathname() };
 }
 

@@ -196,7 +196,7 @@ describe('ProfileScreen — past trips, the rules', () => {
     mockOffline = true;
     mockProfile = { profile: { username: 'kacper', avatarId: null, friendCode: 'ABC234' } };
     mockTrips = { data: list(), isPending: false, isError: true };
-    const share = jest.spyOn(Share, 'share').mockResolvedValue({ action: 'sharedAction' });
+    const share = jest.spyOn(Share, 'share').mockResolvedValue({ action: 'sharedAction', activityType: undefined });
     await renderScreen();
     expect(await screen.findByTestId(`past-trip-card-${A}`, { includeHiddenElements: true })).toBeTruthy();
     expect(screen.getByText('Jesteś offline. Zmiany zapiszą się po połączeniu.')).toBeTruthy();
