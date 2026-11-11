@@ -30,20 +30,29 @@ export function customerInfoFixture({ pro }: { pro: boolean }): CustomerInfo {
   } as unknown as CustomerInfo;
 }
 
-function createPurchasesMock() {
-  return {
-    configure: jest.fn(),
-    logIn: jest.fn(async () => ({ customerInfo: customerInfoFixture({ pro: false }), created: false })),
-    logOut: jest.fn(async () => customerInfoFixture({ pro: false })),
-    getCustomerInfo: jest.fn(async () => customerInfoFixture({ pro: false })),
-    addCustomerInfoUpdateListener: jest.fn((listener: Listener) => {
-      listeners.add(listener);
-    }),
-    removeCustomerInfoUpdateListener: jest.fn((listener: Listener) => listeners.delete(listener)),
-  };
-}
+export const purchasesMock = {
+  configure: jest.fn(),
+  logIn: jest.fn(),
+  logOut: jest.fn(),
+  getCustomerInfo: jest.fn(),
+  getAppUserID: jest.fn(),
+  addCustomerInfoUpdateListener: jest.fn(),
+  removeCustomerInfoUpdateListener: jest.fn(),
+};
 
-export const purchasesMock = createPurchasesMock();
+// Default behaviour; also re-applied on every reset so once-queues (mockReturnValueOnce) never leak between tests.
+function applyPurchasesDefaults() {
+  purchasesMock.logIn.mockImplementation(async () => ({ customerInfo: customerInfoFixture({ pro: false }), created: false }));
+  purchasesMock.logOut.mockImplementation(async () => customerInfoFixture({ pro: false }));
+  purchasesMock.getCustomerInfo.mockImplementation(async () => customerInfoFixture({ pro: false }));
+  // An anonymous SDK user: differs from every Supabase user id.
+  purchasesMock.getAppUserID.mockImplementation(async () => '$RCAnonymousID:test');
+  purchasesMock.addCustomerInfoUpdateListener.mockImplementation((listener: Listener) => {
+    listeners.add(listener);
+  });
+  purchasesMock.removeCustomerInfoUpdateListener.mockImplementation((listener: Listener) => listeners.delete(listener));
+}
+applyPurchasesDefaults();
 
 export const purchasesUiMock = {
   presentPaywall: jest.fn(),
@@ -66,6 +75,7 @@ export function emitCustomerInfo(customerInfo: CustomerInfo) {
 
 export function resetPurchasesMocks() {
   listeners.clear();
-  Object.values(purchasesMock).forEach((fn) => fn.mockClear());
+  Object.values(purchasesMock).forEach((fn) => fn.mockReset());
+  applyPurchasesDefaults();
   Object.values(purchasesUiMock).forEach((fn) => fn.mockClear());
 }

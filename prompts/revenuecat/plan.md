@@ -1,5 +1,5 @@
 # Zadanie: Subskrypcja PRO przez RevenueCat (revenuecat)
-Status: w trakcie
+Status: w trakcie (krok 2 odblokowany decyzją D5)
 
 Akceptacja: Kacper, 2026-11-11, „Akceptuję” (na pytanie o plan z P1 = gałąź od `fix/profile-pro-badge`).
 
@@ -13,6 +13,7 @@ Travelo dostaje prawdziwą subskrypcję PRO przez RevenueCat (`react-native-purc
 - **D1. Zakres = infrastruktura.** SDK, logowanie użytkownika do RevenueCat, prawdziwy status `travelo_pro` zamiast stałej `IS_PRO`, baner „Przejdź na PRO” otwiera paywall i znika dla PRO, Customer Center dla PRO. **Żadna funkcja nie jest blokowana** dla kont bez PRO (to osobne zadanie). Bez statusu PRO po stronie serwera (bez webhooka, migracji, RLS).
 - **D2. Customer Center = wiersz w Ustawieniach.** Dla PRO baner znika, a w pierwszej karcie wierszy pojawia się „Subskrypcja” → otwiera Customer Center.
 - **D3. Offline:** baner i wiersz „Subskrypcja” są wyłączone z powodem pod spodem (jak „Wyloguj się”). Status PRO (odznaka) działa offline z pamięci podręcznej SDK RevenueCat.
+- **D5 (P2, 2026-11-11, po zablokowaniu kroku 2).** Gdy `userId` jest znany, a SDK ma już zalogowanego tego samego użytkownika (`Purchases.getAppUserID() === userId`), od razu pokazujemy jego status z pamięci SDK (`getCustomerInfo`, działa offline); `logIn` tylko go odświeża, a jego błąd nie kasuje statusu. Inny użytkownik w SDK → „bez PRO” do odpowiedzi `logIn`.
 - **D4. Klucz:** zmienna `EXPO_PUBLIC_REVENUECAT_API_KEY` (Kacper zmienia nazwę w `.env`; ja dopisuję samą nazwę do `.env.example`). To publiczny klucz SDK, więc może być w aplikacji.
 
 ### Co ustaliłem w kodzie (fakty)
@@ -76,7 +77,7 @@ Klucz `settings.pro.comingSoon` znika. `settings.pro.title` / `subtitle` zostaj�
 
 ## Kroki
 - [x] 1. [backend] Instalacja `npx expo install react-native-purchases react-native-purchases-ui` (Kacper już się zgodził w prośbie); `RevenueCatConfigSchema`, `src/lib/pro.ts`, `src/data/purchases.ts`, globalny mock w `jest.setup.ts` + `src/test/mock-purchases.ts`, `.env.example`. — skill: test-driven-development, source-driven-development — najpierw testy: schemat, `hasPro`, `purchases.ts` — weryfikacja: verifier + pełny zestaw, typecheck, lint.
-- [ ] 2. [backend] `src/providers/Purchases.tsx` (`PurchasesProvider`, `useIsPro`) i wpięcie w `AppProviders.tsx` wewnątrz `SessionProvider`. — skill: test-driven-development — najpierw testy: `Purchases.test.tsx` — weryfikacja: verifier.
+- [x] 2. [backend] `src/providers/Purchases.tsx` (`PurchasesProvider`, `useIsPro`) i wpięcie w `AppProviders.tsx` wewnątrz `SessionProvider`. — skill: test-driven-development — najpierw testy: `Purchases.test.tsx` — weryfikacja: verifier.
 - [ ] 3. [frontend] `ProBadge` czyta `useIsPro()`, usunięcie `IS_PRO`. — skill: test-driven-development — najpierw testy: `ProBadge.test.tsx`, `ProfileScreen.test.tsx` — weryfikacja: verifier.
 - [ ] 4. [frontend] Ustawienia: baner tylko bez PRO → `RevenueCatUI.presentPaywall()`; wiersz „Subskrypcja” dla PRO → `RevenueCatUI.presentCustomerCenter()`; offline wyłączone z powodem; błąd → Snackbar; teksty pl/en. — skill: test-driven-development, frontend-ui-engineering — najpierw testy: `SettingsScreen.test.tsx`, `i18n.test.ts` — weryfikacja: verifier.
 - [ ] 5. [orkiestrator] Dokumenty (lista w „Pliki”), wpis w roadmapie. Kacper: konfiguracja panelu (niżej) i dev build. — weryfikacja: tester na emulatorze Android: bez PRO baner → paywall → zakup `monthly` w Test Store → odznaka PRO, baner znika, „Subskrypcja” otwiera Customer Center; wylogowanie i logowanie innym kontem → bez PRO; offline → przyciski wyłączone, odznaka zostaje. Na końcu verifier całej gałęzi z CodeRabbit.
@@ -93,7 +94,14 @@ Klucz `settings.pro.comingSoon` znika. `settings.pro.title` / `subtitle` zostaj�
 ## Dziennik postępu
 - Krok 1 (2026-11-11): testy napisane (red ✓: brak modułów) · `react-native-purchases` i `react-native-purchases-ui` 11.0.1, `RevenueCatConfigSchema`, `hasPro` / `PRO_ENTITLEMENT`, `configurePurchases()`, globalne mocki SDK (`src/test/mock-purchases.ts`), `.env.example` · green ✓ (4062 testy, typecheck, lint) · verifier PASS · użyty skill: test-driven-development, source-driven-development · odstępstwo: `purchases.ts` eksportuje tylko `configurePurchases()`, krok 2 woła `logIn` / `logOut` / nasłuch bezpośrednio na SDK.
 
+- Krok 2 (2026-11-11): zablokowany po 3 próbach (niezacommitowany). Próba 1: FAIL — wylogowany telefon mógł pokazać PRO poprzedniego konta (SDK pamięta użytkownika). Próba 2: FAIL — późny status z pamięci SDK przeciekał do następnego konta; test zależny od kolejności. Próba 3 (przebudowa na licznik „pokolenia” sesji, 15 testów, 4077 zielonych): FAIL — (a) test „offline start” pada przy losowej kolejności (kolejki `mockReturnValueOnce` nie są czyszczone w `resetPurchasesMocks`), (b) **offline z zapamiętaną sesją (`userId` znany) `logIn` się nie udaje i odznaka PRO znika — sprzeczne z D3**. Odstępstwo TDD w próbie 2: poprawka przed testami, czerwień pokazana mutacją.
+
+- Krok 2, próba 4 (po D5): kod spełnia wymagania (24 testy, 4086 zielonych, 7 losowych kolejności), FAIL verifiera tylko za brak testów dla 4 zabezpieczeń (mutacje przeżywają: sprawdzenie sesji po `logIn` i po `getAppUserID`, pierwszeństwo `logIn` nad pamięcią, strażnik StrictMode). Dopisywanie testów. Start offline (`userId = null`): aktualizacje z SDK przyjmowane bez potwierdzenia tożsamości — zgodne z Z1/D5 (ostatni użytkownik SDK jest zaufany offline).
+
+- Krok 2, próba 5: dopisane 5 testów (29), usunięty strażnik `handledId` (nie dało się zbudować testu, który go wymaga; provider montuje się przy sesji `loading`) · green ✓ (4091 testów, typecheck, lint, 6 losowych kolejności pliku) · verifier PASS (17/20 mutacji zabitych; przeżyły: równoważna, aktualizacja z nasłuchu w oknie `logIn` tego samego użytkownika, odrzucenie `getCustomerInfo` przy starcie offline — drobne) · użyty skill: test-driven-development · uwaga verifiera: cały zestaw z `--randomize --seed=977` ma 8 błędów w niezwiązanych testach (animacje / timery), te same bez zmian tego kroku.
+
 ## Ryzyka i otwarte pytania
+- **P2 (rozstrzygnięte: D5).** Jak ustalać status PRO, gdy `userId` jest znany, a `logIn` jeszcze nie odpowiedział albo się nie udał (offline / wolna sieć)? Rekomendacja: jeśli SDK ma już zalogowanego tego samego użytkownika (`Purchases.getAppUserID() === userId`), od razu pokazać jego status z pamięci SDK (`getCustomerInfo`, działa offline), a `logIn` tylko go odświeża; dla innego użytkownika czekać na `logIn`. Alternatywa: zostawić „bez PRO” do odpowiedzi `logIn` i zapisać odstępstwo od D3.
 - **P1. Skąd odgałęzić `feature/revenuecat`?** Lokalny `main` jest przestarzały, a `fix/profile-pro-badge` ma 3 niewypchnięte commity z poprawką `ProBadge`, który ten plan zmienia. Rekomendacja: odgałęzić od `fix/profile-pro-badge` (po `git pull` na `main` i scaleniu jej do `main` przez PR — wtedy od `main`). Inaczej będzie konflikt w `ProBadge.tsx`.
 - R1. Klucz `test_…` (Test Store) nie może trafić do wydania produkcyjnego — RevenueCat odrzuca takie zakupy w produkcji. Do zrobienia przed wydaniem, poza tym zadaniem.
 - R2. Moduł natywny: po instalacji trzeba przebudować dev build (`npx expo run:android`); znane problemy z buildem na Windows (`known-limitations.md`: krótka ścieżka, JDK 17).
