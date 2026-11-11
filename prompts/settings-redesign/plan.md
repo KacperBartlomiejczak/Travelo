@@ -1,5 +1,5 @@
 # Zadanie: Nowy wygląd ekranu Ustawienia (settings-redesign)
-Status: w trakcie
+Status: zrobione (bez push i PR)
 
 Akceptacja: Kacper, 2026-11-10, na pytanie „Akceptujesz oba plany razem z pozostałymi rekomendacjami leaderów?”: „Akceptuję oba”; potwierdzone 2026-11-11: „plany sa zaakceptowane kontynuuj prace”. Obejmuje D1–D10 i rekomendacje lidera w P3, P5, P7 (D11–D13).
 
@@ -179,6 +179,7 @@ Ręczne scenariusze dla testera (po krokach 2, 4, 6): wejście z „Profilu" i p
 - 2026-11-11: tester na emulatorze Android (Medium Phone API 37, Expo Go, Metro z TEGO worktree na porcie 8082 — potwierdzone ramkami stosu z `src/` worktree i nowym układem; Metro Kacpra na 8081 z `main` nieużywane i nietknięte): 5/5 PASS — przycisk wstecz ~44 dp bez przycięcia, tytuł na środku, blok tożsamości, baner → „Wkrótce”, arkusze Motyw/Język, ciemny motyw. Niesprawdzone na urządzeniu: trwałość po restarcie, awatar z inicjałem, offline, iOS, duża czcionka, mały ekran.
 - 2026-11-11: krok 7 — dokumenty zaktualizowane: `app-context.md` §3.9, `design-context.md` (notatka „Settings screen” + wyjątek gradientu PRO), `frontend.md`, `overview.md` (`useSession.email`), `flows/features/profile-settings.md`, `decisions.md`, `known-limitations.md`.
 - 2026-11-11: weryfikator końca planu (Haiku zamiast Sonneta) — FAIL: brak szkieletu podczas pobierania zdjęcia awatara (plan „Stany”), nieaktualny opis Ustawień w `overview.md`, zapis TDD kroku 3 (kod przed testem — zostaje do oceny Kacpra). Poprawki: szkielet `settings-avatar-photo-skeleton` do `onLoad` (red → green), `overview.md` poprawiony, red kroków 1–2 dopisany do dziennika.
+- 2026-11-11: weryfikator końca planu ponownie (Sonnet 5.5 + CodeRabbit: 22 pliki, 0 uwag) — PASS. Pełny zestaw 3969 testów, typecheck, lint zielone. Do decyzji Kacpra: odstępstwo od TDD w kroku 3.
 
 ## Ryzyka i otwarte pytania
 
