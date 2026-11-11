@@ -1,7 +1,7 @@
 import { CircleAlert } from 'lucide-react-native';
 import { useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { AccessibilityInfo, ScrollView, Text, View } from 'react-native';
+import { AccessibilityInfo, ScrollView, Text, View, type ScrollViewInstance } from 'react-native';
 
 import { AmountField } from '@/components/AmountField';
 import { BottomSheet } from '@/components/BottomSheet';
@@ -33,7 +33,7 @@ export function BudgetSheet({ trip, members, onClose }: Props) {
   const [texts, setTexts] = useState(() => initial.map((amount) => formatAmountInput(amount, currency, i18n.language)));
   const [submitted, setSubmitted] = useState(false);
   const individual = !solo && mode === 'individual';
-  const scrollRef = useRef<ScrollView>(null);
+  const scrollRef = useRef<ScrollViewInstance>(null);
   const keyboardScrollProps = useScrollFocusedFieldIntoView(scrollRef, tokens.spacing[4]);
 
   const names = [t('newTrip.budget.you'), ...members.map((member) => member.displayName)];

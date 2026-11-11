@@ -95,8 +95,7 @@ describe('Settings links to the legal documents', () => {
     ['Polityka prywatności', '/legal/privacy'],
     ['Regulamin', '/legal/terms'],
   ])('"%s" opens %s', async (label, path) => {
-    const rendered = renderRouter(ROUTES, { initialUrl: '/settings' });
-    await rendered;
+    const rendered = await renderRouter(ROUTES, { initialUrl: '/settings' });
     await fireEvent.press(await screen.findByRole('button', { name: label }));
     await waitFor(() => expect(rendered.getPathname()).toBe(path));
     expect(await screen.findByTestId('legal-screen')).toBeTruthy();

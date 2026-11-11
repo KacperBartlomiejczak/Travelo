@@ -75,6 +75,8 @@ const ROUTES = {
   '(drawer)/(tabs)/profile': ProfileScreen,
   // Opening it mounts one more reader of the profile, which reads it again without the phone going offline and online.
   settings: SettingsStub,
+  // useRouter() hands out its own object, so `router.push` cannot be spied on: the viewer route stands in and is looked for.
+  avatar: () => <Text>avatar-viewer</Text>,
 };
 
 // By default the helper also
@@ -633,9 +635,8 @@ describe('Profile screen — photo and nick (A3)', () => {
         expect(photoInitial()).toBeNull();
         const circle = screen.getByRole('button', { name: 'Otwórz zdjęcie profilowe' });
         expect(circle).toBeDisabled();
-        const push = jest.spyOn(router, 'push').mockImplementation(() => undefined); // the test routes have no /avatar
         await fireEvent.press(circle);
-        expect(push).not.toHaveBeenCalled();
+        expect(screen.queryByText('avatar-viewer')).toBeNull();
 
         const failedUrl = urlOfPhoto();
         await go(false);
@@ -645,8 +646,7 @@ describe('Profile screen — photo and nick (A3)', () => {
         const open = screen.getByRole('button', { name: 'Otwórz zdjęcie profilowe' });
         expect(open).toBeEnabled();
         await fireEvent.press(open);
-        expect(push).toHaveBeenCalledWith(expect.objectContaining({ pathname: '/avatar' }));
-        push.mockRestore();
+        expect(await screen.findByText('avatar-viewer')).toBeTruthy();
       });
 
       it('a photo that was never shown and fails is still the skeleton (D20)', async () => {

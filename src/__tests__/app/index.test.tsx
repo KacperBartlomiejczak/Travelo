@@ -67,8 +67,7 @@ describe('Trips screen — empty state', () => {
   });
 
   it('opens Discover places from the secondary action under the create button (D16)', async () => {
-    const rendered = renderTrips();
-    await rendered;
+    const rendered = await renderTrips();
     await fireEvent.press(screen.getByRole('button', { name: 'Odkryj miejsca' }));
     expect(rendered.getPathname()).toBe('/discover');
   });

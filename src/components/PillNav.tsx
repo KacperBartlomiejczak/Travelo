@@ -69,7 +69,7 @@ export function PillNav({ items, activeKey, onSelect }: Props) {
     placed.current = false;
   }, [theme]);
   // Absolute `left` is measured inside the border, a layout x from the outside of it (dark mode has a 1 dp border).
-  const border = StyleSheet.flatten(theme.elevation.level2).borderWidth ?? 0;
+  const border = StyleSheet.flatten(theme.elevation.level2)?.borderWidth ?? 0;
   const place = (key: string, x: number, w: number) => {
     if (key !== activeRef.current) return;
     if (!placed.current || !animateRef.current) {

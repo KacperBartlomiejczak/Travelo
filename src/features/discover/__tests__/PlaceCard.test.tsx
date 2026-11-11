@@ -36,7 +36,7 @@ const scrollTo = (x: number) => fireEvent.scroll(screen.getByTestId('place-card-
 
 beforeEach(async () => {
   await i18n.changeLanguage('pl');
-  jest.spyOn(Linking, 'openURL').mockResolvedValue(true);
+  jest.spyOn(Linking, 'openURL').mockResolvedValue();
 });
 
 describe('PlaceCard photos', () => {
