@@ -155,6 +155,8 @@ function SettingsGroup({ children }: { children: ReactNode }) {
 function SettingsAvatar({ uri, username }: { uri?: string; username: string }) {
   const theme = useTheme();
   const [failed, setFailed] = useState<string | null>(null);
+  // Keyed by uri, so a new photo shows the skeleton again without an effect.
+  const [loaded, setLoaded] = useState<string | null>(null);
   const size = components.avatar.xl;
   const circle = { width: size, height: size, borderRadius: radii.pill };
   // No url (offline start) or a photo that failed: the initial of the nick on the sunken background (design-context §8.7).
@@ -169,7 +171,12 @@ function SettingsAvatar({ uri, username }: { uri?: string; username: string }) {
   }
   return (
     <View testID="settings-avatar" aria-hidden>
-      <Image testID="settings-avatar-image" source={{ uri }} contentFit="cover" onError={() => setFailed(uri)} style={circle} />
+      <Image testID="settings-avatar-image" source={{ uri }} contentFit="cover" onLoad={() => setLoaded(uri)} onError={() => setFailed(uri)} style={circle} />
+      {loaded !== uri && (
+        <View style={StyleSheet.absoluteFill} pointerEvents="none">
+          <SkeletonBlock testID="settings-avatar-photo-skeleton" width={size} height={size} radius={radii.pill} />
+        </View>
+      )}
     </View>
   );
 }

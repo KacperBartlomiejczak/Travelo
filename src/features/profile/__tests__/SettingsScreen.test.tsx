@@ -108,6 +108,23 @@ describe('Settings identity block (settings-redesign step 5)', () => {
     expect(screen.getByTestId('settings-avatar-initial', hidden)).toBeTruthy();
   });
 
+  it('shows a round skeleton over the photo until it loads', async () => {
+    await renderSettings({ photo: true });
+    const image = await screen.findByTestId('settings-avatar-image', hidden);
+    const skeleton = screen.getByTestId('settings-avatar-photo-skeleton', hidden);
+    expect(StyleSheet.flatten(skeleton.props.style)).toMatchObject({ width: tokens.components.avatar.xl, height: tokens.components.avatar.xl });
+    await fireEvent(image, 'load', { nativeEvent: { source: { width: 1, height: 1 } } });
+    expect(screen.queryByTestId('settings-avatar-photo-skeleton', hidden)).toBeNull();
+    expect(screen.getByTestId('settings-avatar-image', hidden)).toBeTruthy();
+  });
+
+  it('drops the photo skeleton and shows the initial when the photo fails', async () => {
+    await renderSettings({ photo: true });
+    await fireEvent(await screen.findByTestId('settings-avatar-image', hidden), 'error', { nativeEvent: { error: 'x' } });
+    expect(screen.queryByTestId('settings-avatar-photo-skeleton', hidden)).toBeNull();
+    expect(screen.getByTestId('settings-avatar-initial', hidden)).toBeTruthy();
+  });
+
   it('shows skeletons for the avatar and the nick while the profile loads', async () => {
     await renderSettings({ patch: { myProfile: () => new Promise(() => undefined) } });
     expect(await screen.findByTestId('settings-avatar-skeleton', hidden)).toBeTruthy();
