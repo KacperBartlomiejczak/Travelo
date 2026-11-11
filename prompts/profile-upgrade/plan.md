@@ -39,6 +39,7 @@ Ekran „Profil” (`/profile`) dostaje trzy nowe rzeczy, nic więcej:
 - **D16 (Q8) — Tekst udostępniania:** pl „Dodaj mnie do podróży w Travelo. Mój kod znajomego: {{code}}”, en „Add me to your trip in Travelo. My friend code: {{code}}”.
 - **D17 (Q9) — Brak minionych podróży:** nagłówek „Minione podróże” + zdanie „Tu pojawią się Twoje zakończone podróże.”.
 - **D18 (Q10) — Błąd wczytania bez kopii:** zdanie „Nie udało się wczytać podróży.” bez przycisku „Spróbuj ponownie”.
+- **D19 — `ProBadge` ma opcjonalny prop `pro` (domyślnie `IS_PRO`)** (Kacper, 2026-11-11): w Jest nie da się podmienić stałej użytej w tym samym module, więc test przypadku „nie PRO” przekazuje `pro={false}`. Zastępuje zdanie „test przez mock modułu, bez dodatkowej konfiguracji w kodzie” z kroku 5.
 
 ### Co ustaliłem w kodzie (fakty, nie założenia)
 
@@ -209,7 +210,7 @@ Reużywane bez zmian: `CoverImage`, `Card`, `SkeletonBlock`, `IconButton`, `Text
 - [x] 2. `[frontend]` Wszystkie nowe klucze i18n (tabela „Teksty”) w `pl.json` i `en.json` — jeden agent, tylko te pliki — skill: `test-driven-development`, `javascript-typescript-jest` — najpierw testy: `i18n.test.ts` — weryfikacja: pełny zestaw, weryfikator. **Na nic nie czeka; biegnie równolegle z krokiem 1** (inne pliki).
 - [ ] 3. `[frontend]` `PastTrips.tsx`: sekcja, karta (okładka, gradient do `hero.scrim`, pigułka z miastem, nazwa, znajomi), szkielety, stan pusty i błędu — skill: `test-driven-development`, `frontend-ui-engineering`, `frontend-design` — najpierw testy: `PastTrips.test.tsx` — weryfikacja: pełny zestaw, weryfikator (+ `ui-taste`), tokeny bez wartości „z ręki”. **Czeka na kroki 1 i 2.**
 - [x] 4. `[frontend]` `FriendCode.tsx`: podpis, kod, przycisk udostępniania z `Share.share` — skill: `test-driven-development`, `source-driven-development`, `frontend-ui-engineering` — najpierw testy: `FriendCode.test.tsx` — weryfikacja: pełny zestaw, weryfikator. **Czeka tylko na krok 2.**
-- [ ] 5. `[frontend]` `ProBadge.tsx` ze stałą `IS_PRO = true` (komentarz: do podmiany przez zadanie subskrypcji) i gradientem `brand.primary` → `accent.sun` z `react-native-svg` — skill: `test-driven-development`, `frontend-design` — najpierw testy: `ProBadge.test.tsx` — weryfikacja: pełny zestaw, weryfikator (+ `ui-taste`), kontrast tekstu na obu końcach gradientu w obu motywach. **Czeka tylko na krok 2.**
+- [x] 5. `[frontend]` `ProBadge.tsx` ze stałą `IS_PRO = true` (komentarz: do podmiany przez zadanie subskrypcji) i gradientem `brand.primary` → `accent.sun` z `react-native-svg` — skill: `test-driven-development`, `frontend-design` — najpierw testy: `ProBadge.test.tsx` — weryfikacja: pełny zestaw, weryfikator (+ `ui-taste`), kontrast tekstu na obu końcach gradientu w obu motywach. **Czeka tylko na krok 2.**
 - [ ] 6. `[frontend]` Wpięcie trzech komponentów w `ProfileScreen`: `tripSections(...).past`, stany z `useTripList`, tapnięcie = `select` (gdy nie bieżąca) + `router.navigate('/')`, odznaka i kod z profilu — jeden agent — skill: `test-driven-development`, `javascript-typescript-jest` — najpierw testy: `ProfileScreen.test.tsx` — weryfikacja: pełny zestaw, weryfikator. **Czeka na kroki 3, 4 i 5.**
 - [ ] 7. (orkiestrator) Dokumenty z tabeli „Pliki”; potem weryfikator całej gałęzi z przeglądem CodeRabbit i tester na urządzeniu (jeśli podłączone): lista minionych, tapnięcie → „Podróż”, arkusz udostępniania z kodem, odznaka w obu motywach, offline — skill: `documentation-and-adrs`, `code-review` — weryfikacja: linki, grep starych opisów, pełny zestaw.
 
@@ -242,6 +243,7 @@ na końcu:             krok 7 dokumenty, weryfikator gałęzi, tester
 - 2026-11-11 — krok 2 (klucze i18n) PASS weryfikatora; en ma też `pastFriends_few`/`_many` (wymóg testu parzystości kluczy).
 - 2026-11-11 — krok 4 (`FriendCode`) PASS weryfikatora.
 - 2026-11-11 — krok 1 (`travellerCount?` na liście) PASS weryfikatora. Odstępstwo od TDD: implementer napisał testy razem z kodem (bez obserwowanej fazy red); weryfikator potwierdził z diffu, że nowe asercje padłyby bez zmiany produkcyjnej.
+- 2026-11-11 — krok 5 (`ProBadge`): weryfikator FAIL wyłącznie za prop `pro` spoza planu; Kacper wybrał prop (D19) → krok zamknięty. Kontrast `brand.onBrand` na obu końcach gradientu ≥ 4.5:1 w obu motywach. Testy pisane razem z kodem (bez obserwowanej fazy red).
 
 ## Ryzyka i otwarte pytania
 
