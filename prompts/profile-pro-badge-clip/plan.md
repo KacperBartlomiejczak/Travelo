@@ -1,6 +1,6 @@
 # Plan: znacznik PRO ucięty przy długim nicku
 
-Status: zaakceptowany przez Kacpra (2026-11-11), krok 1 zrobiony; czeka na ręczny test na urządzeniu
+Status: zrobione (2026-11-11): oba kroki, verifier PASS, sprawdzone na emulatorze
 
 ## Zrozumienie
 Na ekranie profilu długi nick (np. `kacperbartlomiejczak`) zajmuje całą szerokość wiersza i znacznik PRO wypada poza ekran (jest ucięty). Kacper chce, żeby nick łamał się do kolejnej linii, a znacznik PRO był zawsze w całości widoczny.
@@ -34,3 +34,6 @@ Krok 2: padding przenosimy z `View` znacznika na `Text` „PRO”. Pigułka wygl
 
 ## Weryfikacja
 `pnpm test`, `pnpm typecheck`, `pnpm lint` zielone; ręcznie: profil z długim nickiem — nick w dwóch liniach, PRO w całości.
+
+## Test na emulatorze po kroku 2 (2026-11-11)
+Metro uruchomione z tego katalogu (`fix/profile-pro-badge`), Android emulator, ciemny motyw, nick `kacperbartlomiejczak`: nick w dwóch liniach, gradient pokrywa całą pigułkę (108 px), „PRO” w całości w środku. PASS. Nie sprawdzone: jasny motyw, większa czcionka systemowa.
