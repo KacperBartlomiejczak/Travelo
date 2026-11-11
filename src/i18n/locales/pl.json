@@ -385,7 +385,13 @@
     "pro": {
       "title": "Przejdź na PRO",
       "subtitle": "Więcej możliwości w Travelo",
-      "comingSoon": "Wkrótce! Subskrypcja PRO jest w przygotowaniu."
+      "offline": "Połącz się z internetem, żeby przejść na PRO.",
+      "error": "Nie udało się otworzyć oferty. Spróbuj ponownie."
+    },
+    "subscription": {
+      "title": "Subskrypcja",
+      "offline": "Połącz się z internetem, żeby zarządzać subskrypcją.",
+      "error": "Nie udało się otworzyć subskrypcji. Spróbuj ponownie."
     },
     "theme": "Motyw",
     "language": "Język",

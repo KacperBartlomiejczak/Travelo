@@ -2,9 +2,10 @@ import Constants from 'expo-constants';
 import { Image } from 'expo-image';
 import { router } from 'expo-router';
 import { ArrowRight, Crown, FileText, Info, Languages, Palette, Plane, ShieldCheck, UserRound, type LucideIcon } from 'lucide-react-native';
-import { useId, useState, type ReactNode } from 'react';
+import { useId, useRef, useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
+import RevenueCatUI, { PAYWALL_RESULT } from 'react-native-purchases-ui';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Svg, { Defs, LinearGradient, Rect, Stop } from 'react-native-svg';
 
@@ -22,6 +23,7 @@ import { useMyProfile } from '@/hooks/useProfile';
 import { useSignOut } from '@/hooks/useSignOut';
 import { useTripRepository } from '@/providers/AppProviders';
 import { useIsOffline } from '@/providers/BudgetSync';
+import { useIsPro } from '@/providers/Purchases';
 import type { ShownProfile } from '@/schemas';
 import { tokens } from '@/theme/tokens';
 import type { Theme } from '@/theme/theme';
@@ -29,11 +31,11 @@ import { useTheme } from '@/theme/useTheme';
 
 const { typography, spacing, layout, iconography, components, radii } = tokens;
 
-type RowProps = { icon: LucideIcon; label: string; value?: string; onPress?: () => void; divider?: boolean };
+type RowProps = { icon: LucideIcon; label: string; value?: string; onPress?: () => void; divider?: boolean; disabled?: boolean };
 
 // One row of a settings card (settings-redesign): outline icon, label, optional value; with `onPress` it is a button with a
 // decorative arrow circle, without it a plain info row (no arrow). The divider starts at the text.
-function SettingsRow({ icon: Icon, label, value, onPress, divider }: RowProps) {
+function SettingsRow({ icon: Icon, label, value, onPress, divider, disabled }: RowProps) {
   const theme = useTheme();
   const { t } = useTranslation();
   const body = (pressed: boolean) => (
@@ -49,7 +51,7 @@ function SettingsRow({ icon: Icon, label, value, onPress, divider }: RowProps) {
       }}
     >
       <Icon aria-hidden size={iconography.size.sm} strokeWidth={iconography.strokeWidth} color={theme.icon.primary} />
-      <Text style={[typography.styles.bodyMD, { color: theme.text.primary, flex: 1 }]}>{label}</Text>
+      <Text style={[typography.styles.bodyMD, { color: disabled ? theme.disabled.foreground : theme.text.primary, flex: 1 }]}>{label}</Text>
       {value !== undefined && <Text style={[typography.styles.bodyMD, { color: theme.text.secondary }]}>{value}</Text>}
       {onPress && (
         <View
@@ -65,7 +67,7 @@ function SettingsRow({ icon: Icon, label, value, onPress, divider }: RowProps) {
   return (
     <>
       {onPress ? (
-        <Pressable accessibilityRole="button" accessibilityLabel={value === undefined ? label : t('settings.rowValue', { label, value })} onPress={onPress}>
+        <Pressable accessibilityRole="button" accessibilityLabel={value === undefined ? label : t('settings.rowValue', { label, value })} accessibilityState={{ disabled: Boolean(disabled) }} disabled={disabled} onPress={onPress}>
           {({ pressed }) => body(pressed)}
         </Pressable>
       ) : (
@@ -89,8 +91,7 @@ function proGradient(theme: Theme) {
   return [theme.brand.primary, theme.accent.sun] as const;
 }
 
-// shortcut: shown to everyone until the subscription task replaces this with the real PRO status; a tap only says "coming soon".
-function ProBanner({ onPress }: { onPress: () => void }) {
+function ProBanner({ onPress, disabled }: { onPress: () => void; disabled: boolean }) {
   const theme = useTheme();
   const { t } = useTranslation();
   const gradientId = useId();
@@ -99,6 +100,8 @@ function ProBanner({ onPress }: { onPress: () => void }) {
     <Pressable
       accessibilityRole="button"
       accessibilityLabel={`${t('settings.pro.title')}. ${t('settings.pro.subtitle')}`}
+      accessibilityState={{ disabled }}
+      disabled={disabled}
       onPress={onPress}
       style={{
         minHeight: components.input.amountHeight,
@@ -113,7 +116,7 @@ function ProBanner({ onPress }: { onPress: () => void }) {
       <View style={{ flex: 3, justifyContent: 'center', gap: spacing[1], padding: spacing[4] }}>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing[2] }}>
           <Crown aria-hidden size={iconography.size.sm} strokeWidth={iconography.strokeWidth} color={theme.icon.primary} />
-          <Text style={[typography.styles.labelLG, { color: theme.text.primary, flexShrink: 1 }]}>{t('settings.pro.title')}</Text>
+          <Text style={[typography.styles.labelLG, { color: disabled ? theme.disabled.foreground : theme.text.primary, flexShrink: 1 }]}>{t('settings.pro.title')}</Text>
         </View>
         <Text style={[typography.styles.bodySM, { color: theme.text.secondary }]}>{t('settings.pro.subtitle')}</Text>
       </View>
@@ -235,6 +238,22 @@ export function SettingsScreen() {
   const myProfile = useMyProfile();
   const hasProfile = Boolean(myProfile.data);
   const email = useAccountEmail();
+  const isPro = useIsPro();
+  // Ignores taps while a RevenueCat screen is open, so a double tap cannot open two.
+  const presenting = useRef(false);
+
+  async function present(open: () => Promise<boolean>, errorKey: string) {
+    if (offline || presenting.current) return;
+    presenting.current = true;
+    let failed = false;
+    try {
+      failed = await open();
+    } catch {
+      failed = true;
+    }
+    presenting.current = false;
+    if (failed) setSnackbar(t(errorKey));
+  }
 
   async function ask() {
     if (offline || checking || pending) return;
@@ -272,8 +291,22 @@ export function SettingsScreen() {
       >
         <IdentityBlock loading={myProfile.isPending && myProfile.fetchStatus !== 'idle'} profile={myProfile.data?.profile} email={email} />
         <View style={{ gap: spacing[4] }}>
-          <ProBanner onPress={() => setSnackbar(t('settings.pro.comingSoon'))} />
+          {!isPro && <ProBanner disabled={offline} onPress={() => void present(async () => (await RevenueCatUI.presentPaywall()) === PAYWALL_RESULT.ERROR, 'settings.pro.error')} />}
+          {!isPro && offline && (
+            <Text style={[typography.styles.bodySM, { color: theme.text.secondary }]} accessibilityLiveRegion="polite">
+              {t('settings.pro.offline')}
+            </Text>
+          )}
           <SettingsGroup>
+            {isPro && (
+              <SettingsRow
+                icon={Crown}
+                label={t('settings.subscription.title')}
+                disabled={offline}
+                onPress={() => void present(async () => { await RevenueCatUI.presentCustomerCenter(); return false; }, 'settings.subscription.error')}
+                divider
+              />
+            )}
             <SettingsRow icon={UserRound} label={t('settings.editProfile')} onPress={() => router.push('/edit-profile')} divider />
             <SettingsRow icon={Palette} label={t('settings.theme')} value={t(`settings.${preferences.theme}`)} onPress={() => setSheet({ kind: 'theme', open: true })} divider />
             <SettingsRow
@@ -283,6 +316,11 @@ export function SettingsScreen() {
               onPress={() => setSheet({ kind: 'language', open: true })}
             />
           </SettingsGroup>
+          {isPro && offline && (
+            <Text style={[typography.styles.bodySM, { color: theme.text.secondary }]} accessibilityLiveRegion="polite">
+              {t('settings.subscription.offline')}
+            </Text>
+          )}
           <SettingsGroup>
             <SettingsRow icon={ShieldCheck} label={t('settings.privacyPolicy')} onPress={() => router.push('/legal/privacy')} divider />
             <SettingsRow icon={FileText} label={t('settings.terms')} onPress={() => router.push('/legal/terms')} divider />
