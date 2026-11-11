@@ -122,29 +122,41 @@ describe('Settings — screen (profile-screen A4)', () => {
     await waitFor(() => expect(app.getPathname()).toBe('/profile'));
   });
 
-  it('on iOS the back control gets a touch area of at least 44dp (D17, design-context §5.2), keeping its label', async () => {
+  it('on iOS the back control is a 44x44 round icon button, keeping its label', async () => {
     const platform = jest.replaceProperty(Platform, 'OS', 'ios');
     try {
       await openSettings();
       const back = screen.getByRole('button', { name: 'Wróć, Profil' });
       // iOS has no hitSlop on the header buttons (HeaderButton.js), so the control itself must be 44dp.
       expect(back.props.hitSlop).toBeUndefined();
-      expect(StyleSheet.flatten(back.props.style)).toMatchObject({ minWidth: lightTheme.size.touchTarget, minHeight: lightTheme.size.touchTarget });
-      expect(lightTheme.size.touchTarget).toBeGreaterThanOrEqual(44);
+      expect(StyleSheet.flatten(back.props.style)).toMatchObject({ width: 44, height: 44 });
     } finally {
       platform.restore();
     }
   });
 
-  it('on Android the back control is 44dp tall (the library hitSlop is clipped vertically, D26) but not wider, which would push the title', async () => {
+  it('on Android the back control is 44x44 as well', async () => {
     const platform = jest.replaceProperty(Platform, 'OS', 'android');
     try {
       await openSettings();
       const style = StyleSheet.flatten(screen.getByRole('button', { name: 'Wróć, Profil' }).props.style);
-      expect(style.minHeight).toBe(lightTheme.size.touchTarget);
-      expect(style.minWidth).not.toBe(lightTheme.size.touchTarget);
-      // Not asserted here: the library's Android hitSlop of 16dp on every side (HeaderButton.js, Platform.select). Jest runs as
-      // iOS, and Platform.select is bound to that, so the rendered hitSlop cannot be read as Android's; the device run checks it.
+      expect(style).toMatchObject({ width: 44, height: 44 });
+    } finally {
+      platform.restore();
+    }
+  });
+
+  it('hides the back icon from screen readers', async () => {
+    await openSettings();
+    const icon = within(screen.getByRole('button', { name: 'Wróć, Profil' })).getByTestId('icon-button-icon', { includeHiddenElements: true });
+    expect(icon.props['aria-hidden']).toBe(true);
+  });
+
+  it('centres the header title (on Android the title then renders as a centre view)', async () => {
+    const platform = jest.replaceProperty(Platform, 'OS', 'android');
+    try {
+      const { container } = await openSettings();
+      expect(container.queryAll((node) => node.type === 'RNSScreenStackHeaderSubview' && node.props.type === 'center')).not.toHaveLength(0);
     } finally {
       platform.restore();
     }

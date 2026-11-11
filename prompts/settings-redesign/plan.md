@@ -159,7 +159,7 @@ Nie ruszamy: `ProfileScreen.tsx`, `TravelStatsCard.tsx` i ich testy, `Card.tsx`,
 
 ## Kroki
 - [ ] 1. [backend] E-mail konta: `SessionSource.email()` (z zapisanej sesji, przez `EmailSchema`, nigdy nie odrzuca), wystawione w `useSession()`, obsłużone w fałszywym źródle (D6). — skill: `test-driven-development`, `javascript-typescript-jest` — najpierw testy: adres / brak sesji / sesja anonimowa / błąd odczytu / zły format → `null` — weryfikacja: nowe testy red → green, pełny zestaw, typecheck, lint, weryfikator.
-- [ ] 2. [frontend] Nagłówek: okrągły `IconButton` ze strzałką i wyśrodkowany tytuł w opcjach ekranu `settings`. — skill: `test-driven-development`, `source-driven-development`, `frontend-ui-engineering` — najpierw testy: zmienione testy rozmiaru przycisku (iOS, Android), nowy test wyśrodkowania; reszta testów nagłówka bez zmian — weryfikacja: jw. + tester na urządzeniu (czy nagłówek Androida nie przycina przycisku 44 dp).
+- [x] 2. [frontend] Nagłówek: okrągły `IconButton` ze strzałką i wyśrodkowany tytuł w opcjach ekranu `settings`. — skill: `test-driven-development`, `source-driven-development`, `frontend-ui-engineering` — najpierw testy: zmienione testy rozmiaru przycisku (iOS, Android), nowy test wyśrodkowania; reszta testów nagłówka bez zmian — weryfikacja: jw. + tester na urządzeniu (czy nagłówek Androida nie przycina przycisku 44 dp).
 - [ ] 3. [frontend] Wiersze i grupy: karty A i B z ikonami, liniami i kółkami ze strzałką; „Motyw" i „Język" w tym kroku jeszcze jako dotychczasowe przełączniki pod kartami (ekran działa po każdym kroku); przyciski na dole dosunięte do dołu; usunięcie tytułów sekcji i trzech kluczy i18n. — skill: `test-driven-development`, `frontend-design`, `frontend-ui-engineering`, `incremental-implementation` — najpierw testy: komplet wierszy pl/en, wysokość 56, role, kolejność, blok przycisków na dole — weryfikacja: jw.
 - [ ] 4. [frontend] „Motyw" i „Język" jako wiersze z bieżącą wartością, otwierające `BottomSheet` z `SegmentedControl`; przełączniki znikają z głównego poziomu. — skill: `test-driven-development`, `javascript-typescript-jest`, `frontend-ui-engineering` — najpierw testy: brak `radio` na głównym poziomie, otwarcie/zamknięcie arkusza, dotychczasowe asercje wyboru po otwarciu arkusza, wartość w wierszu, offline — weryfikacja: jw.
 - [ ] 5. [frontend] Blok tożsamości: awatar, nick, e-mail (`useAccountEmail` na wyniku kroku 1). — skill: `test-driven-development`, `frontend-design`, `frontend-ui-engineering` — najpierw testy: nick, e-mail jest/nie ma, zdjęcie/inicjał/szkielet, oba motywy — weryfikacja: jw.
@@ -170,6 +170,7 @@ Ręczne scenariusze dla testera (po krokach 2, 4, 6): wejście z „Profilu" i p
 
 ## Dziennik postępu
 - 2026-11-11: plan zaakceptowany (D11–D13 dopisane), start realizacji.
+- 2026-11-11: krok 2 (nagłówek: `IconButton` 44×44, `headerTitleAlign: center`) — weryfikator PASS. Test na urządzeniu (przycinanie na Androidzie) odłożony na przebieg testera po kroku 6.
 
 ## Ryzyka i otwarte pytania
 
