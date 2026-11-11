@@ -55,7 +55,7 @@ export function PlanScreen() {
           <Text style={[typography.styles.bodyMD, column, { color: theme.text.secondary }]}>{t('nav.comingSoon')}</Text>
         </View>
       ) : (
-        <DiscoverScreen bottomInset={clearance} />
+        <DiscoverScreen bottomInset={clearance} destination={trips.data?.overview.trip.destination} />
       )}
     </View>
   );
