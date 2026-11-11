@@ -22,7 +22,9 @@ Ekran `/settings` dostaje nowy układ wzorowany na obrazku od Kacpra. Zachowanie
 - **D8 (P4 = A).** „Wyloguj się" i „Usuń konto" zostają dwoma przyciskami destrukcyjnymi na samym dole, bez zmian.
 - **D9 (P6).** Bursztyn gradientu PRO to `accent.sun`; lider profilu używa tego samego tokenu do odznaki. (Sformułowanie „bursztyn etykiet przesiadek" było pomyłką w briefie.) Gradient: `brand.primary` → `accent.sun`.
 - **D10 (P7, część).** Używamy ISTNIEJĄCYCH tokenów: `spacing[8]` (32) na kółko ze strzałką, `components.input.amountHeight` (72) na wysokość banera. Nie dodajemy tokenów, `src/theme/` zostaje nietknięte.
-- **Wciąż otwarte** (przyjdą razem z akceptacją): P3 (grupy i kolejność), P5 (forma „Wkrótce" i teksty banera), rozmiar awatara (64 czy 96).
+- **D11 (P3 = A).** Dwie karty bez tytułów sekcji: [Edytuj profil, Motyw, Język] i [Polityka prywatności, Regulamin, Wersja].
+- **D12 (P5 = A).** „Wkrótce” jako `Snackbar`; teksty banera jak w tabeli „Teksty” (pl i en).
+- **D13 (P7).** Awatar w Ustawieniach 64 dp (`components.avatar.xl`).
 
 ### Co ustaliłem w kodzie (fakty, nie założenia)
 - **E-maila nie ma dziś w aplikacji po zalogowaniu.** `SessionState` niesie tylko `userId`, profil (`ShownProfile`) nie ma e-maila, kopia profilu w SQLite też nie. E-mail siedzi w sesji Supabase zapisanej na telefonie (`auth.getSession()`), więc da się go odczytać bez sieci, ale po starcie offline z wygasłym tokenem sesji nie da się odczytać i e-maila wtedy nie ma. → rozstrzygnięte w D6; pokazanie e-maila wymaga małego kroku `[backend]`.
