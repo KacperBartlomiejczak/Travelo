@@ -341,7 +341,24 @@
       "days": "Days travelled",
       "flights": "Flights",
       "km": "Km flown"
-    }
+    },
+    "pastTitle": "Past trips",
+    "pastLoading": "Loading past trips",
+    "pastEmpty": "Your finished trips will show up here.",
+    "pastError": "Couldn't load your trips.",
+    "pastFriends_one": "{{count}} friend",
+    "pastFriends_few": "{{count}} friends",
+    "pastFriends_many": "{{count}} friends",
+    "pastFriends_other": "{{count}} friends",
+    "pastSolo": "Solo trip",
+    "pastTripLabel": "{{name}}, {{place}}, {{friends}}",
+    "pastTripHint": "Opens the trip",
+    "friendCode": "Your friend code",
+    "friendCodeSpoken": "Your friend code: {{code}}",
+    "shareCode": "Share friend code",
+    "shareMessage": "Add me to your trip in Travelo. My friend code: {{code}}",
+    "pro": "PRO",
+    "proLabel": "PRO account"
   },
   "avatar": {
     "add": "Add profile photo",
