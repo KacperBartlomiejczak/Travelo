@@ -57,6 +57,12 @@ jest.mock('expo-router/testing-library', () => {
   return jest.requireActual('@/test/settle-gate').settleGateAfterRender(testingLibrary);
 });
 jest.mock('expo-network', () => jest.requireActual('@/test/mock-network').expoNetworkMock);
+// RevenueCat (revenuecat step 1): the SDK and its paywall UI have no native side in Jest (src/test/mock-purchases.ts).
+jest.mock('react-native-purchases', () => ({ __esModule: true, default: jest.requireActual('@/test/mock-purchases').purchasesMock }));
+jest.mock('react-native-purchases-ui', () => {
+  const { purchasesUiMock, PAYWALL_RESULT } = jest.requireActual('@/test/mock-purchases');
+  return { __esModule: true, default: purchasesUiMock, PAYWALL_RESULT };
+});
 
 // The side panel (expo-router/drawer, trips-drawer) runs on gesture-handler and Reanimated, which have no native
 // side in Jest: their own test mocks stand in. Gestures and animations themselves are checked on a device.
@@ -123,6 +129,7 @@ afterEach(async () => {
   const epoch = jest.requireActual('@/data/local-store');
   if (!epoch.isEpochCurrent(epoch.currentUserEpoch())) await jest.requireActual('@/test/user-epoch').reopenUserEpoch();
   jest.requireActual('@/test/mock-network').resetNetwork();
+  jest.requireActual('@/test/mock-purchases').resetPurchasesMocks();
   jest.requireActual('@/test/fake-session-source').resetFakeAppSession();
   jest.requireActual('@/test/settle-gate').resetGateAllowance();
   jest.requireActual('@/test/fake-profile-repository').resetAppProfileRepository();
