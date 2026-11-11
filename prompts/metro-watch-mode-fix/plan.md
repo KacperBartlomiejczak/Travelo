@@ -129,3 +129,8 @@ i żądanie o asset zwraca 200, a aplikacja ładuje się na emulatorze.
 ## Po review (PR #37)
 - CodeRabbit: regex `blockList` zakotwiczony do `__dirname/.claude/worktrees` oraz komenda dla PowerShell w docs —
   szczegóły w `prompts/coderabbit-pr37-fixes/plan.md`.
+- Merge `origin/main` (Expo SDK 58, PR #34), 2026-11-11: konflikty w `package.json`, `app.json`, `pnpm-workspace.yaml`,
+  `pnpm-lock.yaml` — wzięte wersje z `main` (SDK 58 zastępuje podbicie 57.0.32; `main` miał już `nodeLinker: hoisted`
+  i `expo-asset`), z tej gałęzi zostają `packageManager` i skrypt `doctor` · `pnpm doctor` ✓ · `pnpm test` 4045/4045
+  (pierwszy przebieg: timeout w `photos.test.tsx`, osobno 46/46, drugi pełny przebieg zielony) · typecheck ✓ · lint ✓ ·
+  Metro (SDK 58, `@expo/metro-file-map` 58.0.5): crawler 41 154 plików, asset i bundle Androida → 200.

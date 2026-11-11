@@ -19,5 +19,5 @@ function findDrawer(state: NavigationState | undefined): NavigationState | undef
 export function drawerStatus(rendered: { getRouterState(): unknown }): 'open' | 'closed' {
   const drawer = findDrawer(rendered.getRouterState() as NavigationState | undefined);
   if (!drawer) return 'closed';
-  return getDrawerStatusFromState(drawer as Parameters<typeof getDrawerStatusFromState>[0]);
+  return getDrawerStatusFromState(drawer as Parameters<typeof getDrawerStatusFromState>[0], 'closed');
 }

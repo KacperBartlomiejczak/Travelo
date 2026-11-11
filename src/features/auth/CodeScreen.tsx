@@ -1,7 +1,7 @@
 import { Redirect } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { AccessibilityInfo, type TextInput } from 'react-native';
+import { AccessibilityInfo, type TextInputInstance } from 'react-native';
 
 import { PrimaryButton } from '@/components/PrimaryButton';
 import { TextButton } from '@/components/TextButton';
@@ -38,7 +38,7 @@ function Code({ email, sentAt }: { email: string; sentAt: number }) {
   const remaining = useResendCountdown(sentAt);
   const [code, setCode] = useState('');
   const [formatError, setFormatError] = useState<string>();
-  const inputRef = useRef<TextInput>(null);
+  const inputRef = useRef<TextInputInstance>(null);
   // `verify.isPending` only updates on the next render; this closes the gap between two submits in the same moment.
   const submitting = useRef(false);
 

@@ -1,6 +1,6 @@
 import { useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { AccessibilityInfo, Text, View, type ScrollView } from 'react-native';
+import { AccessibilityInfo, Text, View, type ScrollViewInstance } from 'react-native';
 
 import { AmountField } from '@/components/AmountField';
 import { SegmentedControl } from '@/components/SegmentedControl';
@@ -21,7 +21,7 @@ export default function BudgetStep() {
   const { draft, setDraft } = useTripDraft();
   const goNext = useGoToNextStep('budget');
   const [submitted, setSubmitted] = useState(false);
-  const scrollRef = useRef<ScrollView>(null);
+  const scrollRef = useRef<ScrollViewInstance>(null);
   const fieldY = useRef<Record<number, number>>({});
 
   const currencies = budgetCurrencyOptions(draft);

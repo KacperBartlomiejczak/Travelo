@@ -14,7 +14,7 @@ import i18n from '@/i18n';
 jest.mock('expo-font', () => ({ ...jest.requireActual('expo-font'), useFonts: jest.fn() }));
 jest.mocked(useFonts).mockReturnValue([true, null]);
 
-jest.mock('expo-status-bar', () => ({ StatusBar: () => null }));
+jest.mock('expo-status-bar', () => ({ ...jest.requireActual('expo-status-bar'), StatusBar: () => null }));
 jest.mock('@/data/app-places', () => ({ fetchAppPlaceRecommendations: jest.fn() })); // the Plan tab now hosts Discover
 
 const ROUTES = {
@@ -46,8 +46,7 @@ beforeEach(async () => {
 
 describe('Pill navigation routes (pill-nav-and-dialog step 4)', () => {
   it('opens on the home screen at "/" with the pill and "Podróż" selected', async () => {
-    const app = renderRouter(ROUTES);
-    await app;
+    const app = await renderRouter(ROUTES);
     expect(app.getPathname()).toBe('/');
     expect(await screen.findByTestId('trips-screen')).toBeTruthy();
     expect(pill()).toBeTruthy();
@@ -57,8 +56,7 @@ describe('Pill navigation routes (pill-nav-and-dialog step 4)', () => {
 
   describe.each(EMPTY)('%s', (key) => {
     it('shows its title and the "coming soon" sentence in Polish, with the pill', async () => {
-      const app = renderRouter(ROUTES, { initialUrl: PATHS[key] });
-      await app;
+      const app = await renderRouter(ROUTES, { initialUrl: PATHS[key] });
       expect(app.getPathname()).toBe(PATHS[key]);
       expect(screen.getByRole('header', { name: PL[key] })).toBeTruthy();
       expect(screen.getByText(SOON_PL)).toBeTruthy();
@@ -109,8 +107,7 @@ describe('Pill navigation routes (pill-nav-and-dialog step 4)', () => {
   });
 
   it('navigates to each screen by tapping its pill item and marks it selected', async () => {
-    const app = renderRouter(ROUTES);
-    await app;
+    const app = await renderRouter(ROUTES);
     await screen.findByTestId('trips-screen');
     for (const key of SCREENS) {
       await fireEvent.press(tab(PL[key]));
@@ -126,8 +123,7 @@ describe('Pill navigation routes (pill-nav-and-dialog step 4)', () => {
   });
 
   it('returns to the home screen at "/" when the home item is pressed', async () => {
-    const app = renderRouter(ROUTES, { initialUrl: '/profile' });
-    await app;
+    const app = await renderRouter(ROUTES, { initialUrl: '/profile' });
     await fireEvent.press(tab(PL.index));
     await waitFor(() => expect(app.getPathname()).toBe('/'));
     expect(await screen.findByTestId('trips-screen')).toBeTruthy();
@@ -135,15 +131,13 @@ describe('Pill navigation routes (pill-nav-and-dialog step 4)', () => {
   });
 
   it('has no pill in the new-trip wizard', async () => {
-    const app = renderRouter(ROUTES, { initialUrl: '/trips/new' });
-    await app;
+    await renderRouter(ROUTES, { initialUrl: '/trips/new' });
     expect(screen.getByText('wizard')).toBeTruthy();
     expect(pill()).toBeNull();
   });
 
   it('has no pill in the photo viewer', async () => {
-    const app = renderRouter(ROUTES, { initialUrl: '/trips/0b9e7c4e-6a43-4c4b-9a55-2f6f0f7e1a01/photos' });
-    await app;
+    await renderRouter(ROUTES, { initialUrl: '/trips/0b9e7c4e-6a43-4c4b-9a55-2f6f0f7e1a01/photos' });
     expect(screen.getByText('photo viewer')).toBeTruthy();
     expect(pill()).toBeNull();
   });

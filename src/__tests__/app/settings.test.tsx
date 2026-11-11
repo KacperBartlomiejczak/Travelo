@@ -3,7 +3,7 @@ import { router } from 'expo-router';
 import { act, fireEvent, renderRouter, screen, waitFor, within } from 'expo-router/testing-library';
 import { AccessibilityInfo, Platform, StyleSheet, Text } from 'react-native';
 
-import AuthLayout from '@/app/(auth)/_layout';
+import * as AuthLayout from '@/app/(auth)/_layout';
 import WelcomeScreen from '@/app/(auth)/welcome';
 import TabsLayout from '@/app/(drawer)/(tabs)/_layout';
 import ProfileScreen from '@/app/(drawer)/(tabs)/profile';
@@ -19,7 +19,7 @@ import { darkTheme as sunlineDark, lightTheme as sunlineLight } from '@/theme/th
 
 jest.mock('expo-font', () => ({ ...jest.requireActual('expo-font'), useFonts: jest.fn() }));
 jest.mocked(useFonts).mockReturnValue([true, null]);
-jest.mock('expo-status-bar', () => ({ StatusBar: () => null }));
+jest.mock('expo-status-bar', () => ({ ...jest.requireActual('expo-status-bar'), StatusBar: () => null }));
 
 let mockScheme: 'light' | 'dark' = 'light';
 let mockWindowWidth = 390;
@@ -58,8 +58,8 @@ const OFFLINE_MESSAGE = 'Połącz się z internetem, żeby się wylogować.';
 
 // Opens the app on the profile and takes the gear to Settings, like a user does. The gate must show the app first.
 async function openSettings() {
-  const rendered = renderRouter(ROUTES, { initialUrl: '/profile' });
-  const { container } = await rendered;
+  const rendered = await renderRouter(ROUTES, { initialUrl: '/profile' });
+  const { container } = rendered;
   await fireEvent.press(await screen.findByRole('button', { name: 'Ustawienia' }));
   await screen.findByRole('button', { name: 'Wyloguj się' });
   return { container, getPathname: () => rendered.getPathname() };
@@ -101,8 +101,8 @@ describe('Settings — screen (profile-screen A4)', () => {
 
   it('shows the English title and button', async () => {
     await i18n.changeLanguage('en');
-    const rendered = renderRouter(ROUTES, { initialUrl: '/profile' });
-    const { container } = await rendered;
+    const rendered = await renderRouter(ROUTES, { initialUrl: '/profile' });
+    const { container } = rendered;
     await fireEvent.press(await screen.findByRole('button', { name: 'Settings' }));
     expect(await screen.findByRole('button', { name: 'Sign out' })).toBeTruthy();
     expect(
@@ -257,8 +257,7 @@ describe('Settings — the confirmation (D5)', () => {
   it('says it in English', async () => {
     await i18n.changeLanguage('en');
     mockHasUnsentChanges.mockResolvedValue(true);
-    const rendered = renderRouter(ROUTES, { initialUrl: '/profile' });
-    await rendered;
+    await renderRouter(ROUTES, { initialUrl: '/profile' });
     await fireEvent.press(await screen.findByRole('button', { name: 'Settings' }));
     await fireEvent.press(await screen.findByRole('button', { name: 'Sign out' }));
     expect(await screen.findByText('Sign out?')).toBeTruthy();
@@ -315,8 +314,7 @@ describe('Settings — offline (D8)', () => {
 
   it('says it in English', async () => {
     await i18n.changeLanguage('en');
-    const rendered = renderRouter(ROUTES, { initialUrl: '/profile' });
-    await rendered;
+    await renderRouter(ROUTES, { initialUrl: '/profile' });
     await fireEvent.press(await screen.findByRole('button', { name: 'Settings' }));
     expect(await screen.findByText('Connect to the internet to sign out.')).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Sign out' })).toBeDisabled();

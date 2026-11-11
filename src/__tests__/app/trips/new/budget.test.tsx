@@ -55,7 +55,7 @@ function filledSteps(companions: number, first: Destination) {
 }
 
 async function openBudget(companions = 2, destination: Destination = BKK) {
-  const rendered = renderRouter(
+  const rendered = await renderRouter(
     {
       _layout: RootLayout,
       '(drawer)/_layout': DrawerLayout,
@@ -68,7 +68,6 @@ async function openBudget(companions = 2, destination: Destination = BKK) {
     },
     { initialUrl: '/' },
   );
-  await rendered;
   await fireEvent.press(await screen.findByText('Utwórz podróż'));
   await fireEvent.press(screen.getByText('test: fill and go to budget'));
   return { getPathname: () => rendered.getPathname() };

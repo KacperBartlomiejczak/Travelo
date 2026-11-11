@@ -2,7 +2,7 @@ import { launchImageLibraryAsync } from 'expo-image-picker';
 import { Check, ImagePlus } from 'lucide-react-native';
 import { useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Pressable, ScrollView, Text, View, type LayoutChangeEvent } from 'react-native';
+import { Pressable, ScrollView, Text, View, type LayoutChangeEvent, type ScrollViewInstance } from 'react-native';
 
 import { COVER_PRESETS, presetIdOf } from '@/lib/cover-presets';
 import { COVER_PRESET_IDS, CoverChoiceSchema, type CoverChoice, type CoverUrls } from '@/schemas';
@@ -37,7 +37,7 @@ export function CoverPicker({ value, onChange, urls }: Props) {
   const custom = parsedCustom.success ? parsedCustom.data : null;
   // The row scrolls sideways, so a selected tile can be off screen when the picker opens: it is brought into view once,
   // without animation (nothing moves, so reduce motion needs no case). Later choices are taps on tiles already in view.
-  const row = useRef<ScrollView>(null);
+  const row = useRef<ScrollViewInstance>(null);
   const opened = useRef(false);
 
   function showSelected(event: LayoutChangeEvent) {

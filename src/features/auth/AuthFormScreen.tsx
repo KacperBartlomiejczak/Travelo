@@ -1,7 +1,7 @@
 import { useHeaderHeight } from 'expo-router/react-navigation';
 import { CircleAlert } from 'lucide-react-native';
 import type { ReactNode, Ref } from 'react';
-import { KeyboardAvoidingView, ScrollView, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
+import { KeyboardAvoidingView, ScrollView, StyleSheet, Text, useWindowDimensions, View, type ScrollViewInstance } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { OfflineBanner } from '@/components/OfflineBanner';
@@ -21,7 +21,7 @@ type Props = {
   /** For a screen without a header (profile setup): the content starts below the status bar. */
   topInset?: boolean;
   /** Lets a screen scroll the fields, e.g. to the first one with an error. */
-  scrollRef?: Ref<ScrollView>;
+  scrollRef?: Ref<ScrollViewInstance>;
   /** Replaces the default offline banner text, for a screen where the default would promise a later sync. */
   offlineText?: string;
   /** Replaces the safe-area bottom inset under the footer, for a screen hosted above the floating pill. */

@@ -111,7 +111,7 @@ function filledSteps(companions: number, linkedFirstFriend = false, individualBu
 }
 
 async function openSummary(companions = 2, home: () => ReactElement | null = TripsProbe, linkedFirstFriend = false, individualBudget = false) {
-  const rendered = renderRouter(
+  const rendered = await renderRouter(
     {
       _layout: RootLayout,
       '(drawer)/_layout': DrawerLayout,
@@ -125,7 +125,6 @@ async function openSummary(companions = 2, home: () => ReactElement | null = Tri
     },
     { initialUrl: '/trips/new' },
   );
-  await rendered;
   await fireEvent.press(screen.getByText('test: fill all and go to summary'));
   return { getPathname: () => rendered.getPathname(), getSearchParams: () => rendered.getSearchParams() };
 }
@@ -435,7 +434,7 @@ describe('Summary step', () => {
         </Pressable>
       );
     }
-    const rendered = renderRouter(
+    const rendered = await renderRouter(
       {
         _layout: RootLayout,
         '(drawer)/_layout': DrawerLayout,
@@ -447,7 +446,6 @@ describe('Summary step', () => {
       },
       { initialUrl: '/trips/new' },
     );
-    await rendered;
     await fireEvent.press(screen.getByText('test: long-name trip'));
     expect(rendered.getPathname()).toBe('/trips/new/summary');
     const details = section('details');
@@ -458,7 +456,7 @@ describe('Summary step', () => {
   });
 
   it('sends an incomplete draft (e.g. opened by URL) back to step 1', async () => {
-    const rendered = renderRouter(
+    const rendered = await renderRouter(
       {
         _layout: RootLayout,
         '(drawer)/_layout': DrawerLayout,
@@ -470,7 +468,6 @@ describe('Summary step', () => {
       },
       { initialUrl: '/trips/new/summary' },
     );
-    await rendered;
     expect(rendered.getPathname()).toBe('/trips/new');
   });
 
