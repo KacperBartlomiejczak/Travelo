@@ -1,5 +1,6 @@
-import { fireEvent, render, screen } from '@testing-library/react-native';
-import { StyleSheet } from 'react-native';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react-native';
+import { router } from 'expo-router';
+import { processColor, StyleSheet } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import { createInMemoryProfileRepository, type ProfileRepository } from '@/data/profile-repository';
@@ -23,13 +24,14 @@ const EMAIL = 'kacper@example.com';
 
 type Options = { photo?: boolean; email?: string | null; patch?: Partial<ProfileRepository> };
 
+let session: ReturnType<typeof useFakeAppSession>;
+
 async function renderSettings({ photo = false, email = EMAIL, patch = {} }: Options = {}) {
-  // eslint-disable-next-line react-hooks/rules-of-hooks -- a test helper named like a hook, not a React hook
-  useFakeAppSession().setEmail(email);
+  session.setEmail(email);
   const base = createInMemoryProfileRepository({ newId: () => '00000000-0000-4000-8000-0000000000aa' });
   await base.createProfile({ username: 'kacper', interests: ['museums'], avatarUri: photo ? 'file:///old.jpg' : null });
   setAppProfileRepository({ ...base, ...patch });
-  await render(
+  return render(
     <SafeAreaProvider initialMetrics={METRICS}>
       <AppProviders>
         <SettingsScreen />
@@ -40,7 +42,24 @@ async function renderSettings({ photo = false, email = EMAIL, patch = {} }: Opti
 
 const hidden = { includeHiddenElements: true };
 
+type JsonNode = { type: string; props: Record<string, unknown>; children: (JsonNode | string)[] | null };
+
+function findNode(node: JsonNode | string | null, type: string): JsonNode | null {
+  if (!node || typeof node === 'string') return null;
+  if (node.type === type) return node;
+  for (const child of node.children ?? []) {
+    const found = findNode(child, type);
+    if (found) return found;
+  }
+  return null;
+}
+
+function gradientStops(): number[] {
+  return (findNode(screen.toJSON() as JsonNode | null, 'RNSVGLinearGradient')?.props.gradient as number[] | undefined) ?? [];
+}
+
 beforeEach(async () => {
+  session = useFakeAppSession();
   mockScheme = 'light';
   setNetwork({ isConnected: true, isInternetReachable: true });
   await i18n.changeLanguage('pl');
@@ -99,7 +118,8 @@ describe('Settings identity block (settings-redesign step 5)', () => {
   it('shows no nick block when the profile cannot be read', async () => {
     await renderSettings({ patch: { myProfile: () => Promise.reject(new Error('boom')) } });
     await screen.findByTestId('settings-screen');
-    expect(screen.queryByTestId('settings-nick-skeleton', hidden)).toBeNull();
+    // The query settles asynchronously (the rejection may still be in flight): wait for the error state first.
+    await waitFor(() => expect(screen.queryByTestId('settings-nick-skeleton', hidden)).toBeNull());
     expect(screen.queryByTestId('settings-identity')).toBeNull();
   });
 
@@ -123,5 +143,91 @@ describe('Settings identity block (settings-redesign step 5)', () => {
     const email = await screen.findByText(EMAIL);
     expect(StyleSheet.flatten(email.props.style)).toMatchObject({ color: theme.text.secondary, ...tokens.typography.styles.bodySM });
     expect(StyleSheet.flatten(screen.getByTestId('settings-avatar-initial', hidden).props.style)).toMatchObject({ backgroundColor: theme.background.sunken });
+  });
+});
+
+describe('Settings PRO banner (settings-redesign step 6)', () => {
+  const TITLE = { pl: 'Przejdź na PRO', en: 'Go PRO' };
+  const LABEL = { pl: 'Przejdź na PRO. Więcej możliwości w Travelo', en: 'Go PRO. More from Travelo' };
+  const SOON = { pl: 'Wkrótce! Subskrypcja PRO jest w przygotowaniu.', en: 'Coming soon! The PRO subscription is on its way.' };
+
+  beforeEach(() => jest.mocked(router.push).mockClear());
+
+  it.each([
+    ['online', true],
+    ['offline', false],
+  ] as const)('is visible %s, as a button', async (_name, connected) => {
+    setNetwork({ isConnected: connected, isInternetReachable: connected });
+    await renderSettings();
+    expect(await screen.findByRole('button', { name: LABEL.pl })).toBeTruthy();
+    expect(screen.getByText(TITLE.pl)).toBeTruthy();
+  });
+
+  it.each(['pl', 'en'] as const)('reads title and subtitle as one label in %s', async (lang) => {
+    await i18n.changeLanguage(lang);
+    await renderSettings();
+    expect(await screen.findByRole('button', { name: LABEL[lang] })).toBeTruthy();
+  });
+
+  it('is at least 56 high, with the card radius, surface and border', async () => {
+    await renderSettings();
+    const style = StyleSheet.flatten((await screen.findByRole('button', { name: LABEL.pl })).props.style);
+    expect(style.minHeight).toBe(tokens.components.input.amountHeight);
+    expect(style.minHeight).toBeGreaterThanOrEqual(56);
+    expect(style).toMatchObject({ borderRadius: tokens.components.card.radius, backgroundColor: lightTheme.surface.primary, borderColor: lightTheme.border.subtle, borderWidth: 1 });
+  });
+
+  it.each(['pl', 'en'] as const)('shows the coming-soon snackbar on tap in %s, with no navigation and no repository call', async (lang) => {
+    await i18n.changeLanguage(lang);
+    const myProfile = jest.fn();
+    await renderSettings({ patch: { myProfile: (...args) => { myProfile(); return createInMemoryProfileRepository().myProfile(...args); } } });
+    const banner = await screen.findByRole('button', { name: LABEL[lang] });
+    const before = myProfile.mock.calls.length;
+    await fireEvent.press(banner);
+    expect(await screen.findByText(SOON[lang])).toBeTruthy();
+    expect(router.push).not.toHaveBeenCalled();
+    expect(myProfile.mock.calls.length).toBe(before);
+  });
+
+  it('works again after the snackbar has hidden', async () => {
+    jest.useFakeTimers({ advanceTimers: true });
+    try {
+      await renderSettings();
+      const banner = await screen.findByRole('button', { name: LABEL.pl });
+      await fireEvent.press(banner);
+      expect(await screen.findByText(SOON.pl)).toBeTruthy();
+      await act(async () => {
+        await jest.advanceTimersByTimeAsync(tokens.components.snackbar.durationShort);
+      });
+      await act(async () => {
+        await jest.advanceTimersByTimeAsync(tokens.motion.duration.standard + 50);
+      });
+      expect(screen.queryByText(SOON.pl)).toBeNull();
+      await fireEvent.press(banner);
+      expect(await screen.findByText(SOON.pl)).toBeTruthy();
+    } finally {
+      jest.useRealTimers();
+    }
+  });
+
+  it.each([
+    ['light', lightTheme],
+    ['dark', darkTheme],
+  ] as const)('paints the gradient brand.primary to accent.sun in %s mode, with the left part transparent', async (scheme, theme) => {
+    mockScheme = scheme;
+    await renderSettings();
+    await screen.findByRole('button', { name: LABEL.pl });
+    // The native gradient prop is [offset, colour, offset, colour, ...]; compare colour channels, not alpha.
+    const stops = gradientStops();
+    const rgb = (value: unknown) => Number(value) & 0xffffff;
+    expect(stops.filter((_, i) => i % 2 === 0)).toEqual([0, 0.4, 1]);
+    expect(stops.filter((_, i) => i % 2 === 1).map(rgb)).toEqual([theme.brand.primary, theme.brand.primary, theme.accent.sun].map((c) => rgb(processColor(c))));
+    expect(Number(stops[1]) >>> 24).toBe(0);
+  });
+
+  it('hides the gradient and the illustration from screen readers', async () => {
+    await renderSettings();
+    await screen.findByRole('button', { name: LABEL.pl });
+    expect(screen.getByTestId('settings-pro-art', hidden).props['aria-hidden']).toBe(true);
   });
 });

@@ -365,6 +365,11 @@
     "offline": "You're offline. Account settings need internet.",
     "backFromEdit": "Back, Settings",
     "rowValue": "{{label}}, {{value}}",
+    "pro": {
+      "title": "Go PRO",
+      "subtitle": "More from Travelo",
+      "comingSoon": "Coming soon! The PRO subscription is on its way."
+    },
     "theme": "Theme",
     "language": "Language",
     "system": "System",

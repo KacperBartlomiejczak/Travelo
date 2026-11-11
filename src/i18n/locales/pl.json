@@ -365,6 +365,11 @@
     "offline": "Jesteś offline. Ustawienia konta wymagają internetu.",
     "backFromEdit": "Wróć, Ustawienia",
     "rowValue": "{{label}}, {{value}}",
+    "pro": {
+      "title": "Przejdź na PRO",
+      "subtitle": "Więcej możliwości w Travelo",
+      "comingSoon": "Wkrótce! Subskrypcja PRO jest w przygotowaniu."
+    },
     "theme": "Motyw",
     "language": "Język",
     "system": "Systemowy",

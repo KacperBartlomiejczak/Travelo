@@ -1,17 +1,19 @@
 import Constants from 'expo-constants';
 import { Image } from 'expo-image';
 import { router } from 'expo-router';
-import { ArrowRight, FileText, Info, Languages, Palette, ShieldCheck, UserRound, type LucideIcon } from 'lucide-react-native';
-import { useState, type ReactNode } from 'react';
+import { ArrowRight, Crown, FileText, Info, Languages, Palette, Plane, ShieldCheck, UserRound, type LucideIcon } from 'lucide-react-native';
+import { useId, useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Pressable, ScrollView, Text, useWindowDimensions, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import Svg, { Defs, LinearGradient, Rect, Stop } from 'react-native-svg';
 
 import { BottomSheet } from '@/components/BottomSheet';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
 import { OfflineBanner } from '@/components/OfflineBanner';
 import { SegmentedControl } from '@/components/SegmentedControl';
 import { SkeletonBlock } from '@/components/SkeletonBlock';
+import { Snackbar } from '@/components/Snackbar';
 import { TextButton } from '@/components/TextButton';
 import { DeleteAccountDialog } from '@/features/profile/DeleteAccountDialog';
 import { useAccountEmail } from '@/hooks/useAccountEmail';
@@ -22,6 +24,7 @@ import { useTripRepository } from '@/providers/AppProviders';
 import { useIsOffline } from '@/providers/BudgetSync';
 import type { ShownProfile } from '@/schemas';
 import { tokens } from '@/theme/tokens';
+import type { Theme } from '@/theme/theme';
 import { useTheme } from '@/theme/useTheme';
 
 const { typography, spacing, layout, iconography, components, radii } = tokens;
@@ -78,6 +81,57 @@ function SettingsRow({ icon: Icon, label, value, onPress, divider }: RowProps) {
         />
       )}
     </>
+  );
+}
+
+// The two gradient colours of the PRO banner (D9: the same tokens as the PRO badge on the profile screen).
+function proGradient(theme: Theme) {
+  return [theme.brand.primary, theme.accent.sun] as const;
+}
+
+// shortcut: shown to everyone until the subscription task replaces this with the real PRO status; a tap only says "coming soon".
+function ProBanner({ onPress }: { onPress: () => void }) {
+  const theme = useTheme();
+  const { t } = useTranslation();
+  const gradientId = useId();
+  const [from, to] = proGradient(theme);
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={`${t('settings.pro.title')}. ${t('settings.pro.subtitle')}`}
+      onPress={onPress}
+      style={{
+        minHeight: components.input.amountHeight,
+        flexDirection: 'row',
+        borderRadius: components.card.radius,
+        borderWidth: components.card.borderWidth,
+        borderColor: theme.border.subtle,
+        backgroundColor: theme.surface.primary,
+        overflow: 'hidden',
+      }}
+    >
+      <View style={{ flex: 3, justifyContent: 'center', gap: spacing[1], padding: spacing[4] }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing[2] }}>
+          <Crown aria-hidden size={iconography.size.sm} strokeWidth={iconography.strokeWidth} color={theme.icon.primary} />
+          <Text style={[typography.styles.labelLG, { color: theme.text.primary, flexShrink: 1 }]}>{t('settings.pro.title')}</Text>
+        </View>
+        <Text style={[typography.styles.bodySM, { color: theme.text.secondary }]}>{t('settings.pro.subtitle')}</Text>
+      </View>
+      <View testID="settings-pro-art" aria-hidden style={{ flex: 2, alignItems: 'center', justifyContent: 'center' }}>
+        <Svg style={StyleSheet.absoluteFill} width="100%" height="100%">
+          <Defs>
+            <LinearGradient id={gradientId} x1="0" y1="0" x2="1" y2="0">
+              <Stop offset={0} stopColor={from} stopOpacity={0} />
+              <Stop offset={0.4} stopColor={from} stopOpacity={1} />
+              <Stop offset={1} stopColor={to} stopOpacity={1} />
+            </LinearGradient>
+          </Defs>
+          <Rect width="100%" height="100%" fill={`url(#${gradientId})`} />
+        </Svg>
+        <Crown size={spacing[8]} strokeWidth={iconography.strokeWidth} color={theme.brand.onBrand} />
+        <Plane size={iconography.size.sm} strokeWidth={iconography.strokeWidth} color={theme.brand.onBrand} style={{ position: 'absolute', right: spacing[3], bottom: spacing[3] }} />
+      </View>
+    </Pressable>
   );
 }
 
@@ -167,6 +221,7 @@ export function SettingsScreen() {
   const [checking, setChecking] = useState(false);
   const [dialog, setDialog] = useState({ visible: false, unsent: false });
   const [deleting, setDeleting] = useState(false);
+  const [snackbar, setSnackbar] = useState<string | null>(null);
   // The kind stays when the sheet closes, so its content does not change during the slide-out.
   const [sheet, setSheet] = useState({ kind: 'theme' as 'theme' | 'language', open: false });
   // Deleting needs the own nick (to type it) and the server; without a loaded profile there is nothing to confirm against.
@@ -210,6 +265,7 @@ export function SettingsScreen() {
       >
         <IdentityBlock loading={myProfile.isPending && myProfile.fetchStatus !== 'idle'} profile={myProfile.data?.profile} email={email} />
         <View style={{ gap: spacing[4] }}>
+          <ProBanner onPress={() => setSnackbar(t('settings.pro.comingSoon'))} />
           <SettingsGroup>
             <SettingsRow icon={UserRound} label={t('settings.editProfile')} onPress={() => router.push('/edit-profile')} divider />
             <SettingsRow icon={Palette} label={t('settings.theme')} value={t(`settings.${preferences.theme}`)} onPress={() => setSheet({ kind: 'theme', open: true })} divider />
@@ -278,6 +334,7 @@ export function SettingsScreen() {
         onCancel={() => setDialog((current) => ({ ...current, visible: false }))}
       />
       <DeleteAccountDialog visible={deleting} onClose={() => setDeleting(false)} />
+      <Snackbar message={snackbar} onHide={() => setSnackbar(null)} />
     </View>
   );
 }
