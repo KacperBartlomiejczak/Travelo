@@ -16,6 +16,7 @@ export function createFakeSessionSource(initial: SessionSnapshot | Error = { sta
   let held: Promise<void> | null = null;
   let currentHeld: Promise<void> | null = null;
   let checkHeld: Promise<void> | null = null;
+  let accountEmail: string | null = null;
 
   const current = jest.fn(async () => {
     log.push('current');
@@ -50,6 +51,7 @@ export function createFakeSessionSource(initial: SessionSnapshot | Error = { sta
     checkStoredSession,
     clearUserData,
     signOut,
+    email: async () => accountEmail,
     onChange(listener) {
       listeners.add(listener);
       return () => listeners.delete(listener);
@@ -63,6 +65,10 @@ export function createFakeSessionSource(initial: SessionSnapshot | Error = { sta
     clearUserData,
     signOut,
     log,
+    /** What `email()` answers from now on. */
+    setEmail(next: string | null) {
+      accountEmail = next;
+    },
     /** What `current()` answers from now on; an `Error` makes it reject. */
     answerWith(next: SessionSnapshot | Error) {
       answer = next;
@@ -131,4 +137,5 @@ export const delegatingSessionSource: SessionSource = {
   onChange: (listener) => active.source.onChange(listener),
   clearUserData: () => active.source.clearUserData(),
   signOut: () => active.source.signOut(),
+  email: () => active.source.email(),
 };

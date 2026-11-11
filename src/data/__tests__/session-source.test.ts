@@ -329,3 +329,42 @@ describe('checkStoredSession() — the stored session changes while the check is
     });
   });
 });
+
+describe('email()', () => {
+  const withEmail = (email: string | undefined, isAnonymous = false) =>
+    ({ data: { session: { user: { id: SIGNED_IN_USER_ID, is_anonymous: isAnonymous, email } } as never }, error: null as Error | null });
+
+  it('returns the stored user e-mail (from the stored session, no network)', async () => {
+    const { source, auth } = setup();
+    auth.getSession.mockResolvedValue(withEmail('Anna@Example.com'));
+    await expect(source.email()).resolves.toBe('anna@example.com');
+  });
+
+  it('null without a session', async () => {
+    const { source, storedSession } = setup();
+    storedSession('none');
+    await expect(source.email()).resolves.toBeNull();
+  });
+
+  it('null for an anonymous session', async () => {
+    const { source, auth } = setup();
+    auth.getSession.mockResolvedValue(withEmail('anna@example.com', true));
+    await expect(source.email()).resolves.toBeNull();
+  });
+
+  it('null when the session has no e-mail or a malformed one', async () => {
+    const { source, auth } = setup();
+    auth.getSession.mockResolvedValue(withEmail(undefined));
+    await expect(source.email()).resolves.toBeNull();
+    auth.getSession.mockResolvedValue(withEmail('not-an-email'));
+    await expect(source.email()).resolves.toBeNull();
+  });
+
+  it('null when reading returns an error or throws; never rejects', async () => {
+    const { source, auth } = setup();
+    auth.getSession.mockResolvedValue({ data: { session: null as never }, error: offline() });
+    await expect(source.email()).resolves.toBeNull();
+    auth.getSession.mockRejectedValue(new Error('storage broken'));
+    await expect(source.email()).resolves.toBeNull();
+  });
+});

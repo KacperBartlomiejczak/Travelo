@@ -6,6 +6,7 @@ import {
 } from "@expo-google-fonts/dm-sans";
 import { Fraunces_500Medium, Fraunces_600SemiBold, Fraunces_700Bold } from "@expo-google-fonts/fraunces";
 import { useFonts } from "expo-font";
+import { ArrowLeft } from "lucide-react-native";
 import { router, Stack } from "expo-router";
 import { HeaderBackButton } from "expo-router/react-navigation";
 import * as SplashScreen from "expo-splash-screen";
@@ -17,6 +18,7 @@ import { Platform } from "react-native";
 import "@/i18n";
 import { readThemePreference } from "@/data/preferences";
 import { applyThemePreference } from "@/hooks/usePreferences";
+import { IconButton } from "@/components/IconButton";
 import { AnimatedSplash } from "@/components/AnimatedSplash";
 import { AppLoading } from "@/features/auth/AppLoading";
 import { FullScreenError } from "@/features/auth/FullScreenError";
@@ -121,22 +123,8 @@ function GateContent({ view, retry }: ReturnType<typeof useGateView>) {
             headerTintColor: theme.text.primary,
             headerTitleStyle: tokens.typography.styles.headingSM,
             headerShadowVisible: false,
-            headerLeft: ({ tintColor }) => (
-              <HeaderBackButton
-                label={t("nav.profile")}
-                accessibilityLabel={t("settings.back")}
-                tintColor={tintColor}
-                // iOS has no hitSlop on header buttons, so the control itself must be 44 dp (design-context §5.2, profile-screen
-                // D17). Android has a 16 dp hitSlop (HeaderButton.js), but the header view clips it vertically, so only the height
-                // is set there (D26); a wider control would push the title, which sits next to it.
-                style={
-                  Platform.OS === "ios"
-                    ? { minWidth: tokens.layout.touchTarget, minHeight: tokens.layout.touchTarget }
-                    : { minHeight: tokens.layout.touchTarget }
-                }
-                onPress={() => router.back()}
-              />
-            ),
+            headerTitleAlign: "center",
+            headerLeft: () => <IconButton icon={ArrowLeft} label={t("settings.back")} onPress={() => router.back()} />,
           }}
         />
         {/* Edit profile above settings; its back button returns there (profile-settings D9). */}
