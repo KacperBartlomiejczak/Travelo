@@ -40,6 +40,7 @@ Ekran „Profil” (`/profile`) dostaje trzy nowe rzeczy, nic więcej:
 - **D17 (Q9) — Brak minionych podróży:** nagłówek „Minione podróże” + zdanie „Tu pojawią się Twoje zakończone podróże.”.
 - **D18 (Q10) — Błąd wczytania bez kopii:** zdanie „Nie udało się wczytać podróży.” bez przycisku „Spróbuj ponownie”.
 - **D19 — `ProBadge` ma opcjonalny prop `pro` (domyślnie `IS_PRO`)** (Kacper, 2026-11-11): w Jest nie da się podmienić stałej użytej w tym samym module, więc test przypadku „nie PRO” przekazuje `pro={false}`. Zastępuje zdanie „test przez mock modułu, bez dodatkowej konfiguracji w kodzie” z kroku 5.
+- **D20 — Przyciemnienie karty minionej podróży szybciej** (Kacper, 2026-11-11, po FAIL weryfikatora: biały 2-liniowy tytuł na okładce Bali miał ok. 3:1): gradient od przezroczystego u góry do pełnego `hero.scrim` (krycie tokenu 0.82 przez `stopOpacity`, bo `react-native-svg` pomija alfę koloru) mniej więcej w połowie karty, niżej jednolicie. Doprecyzowuje D8.
 
 ### Co ustaliłem w kodzie (fakty, nie założenia)
 
@@ -208,7 +209,7 @@ Reużywane bez zmian: `CoverImage`, `Card`, `SkeletonBlock`, `IconButton`, `Text
 
 - [x] 1. `[backend]` `travellerCount?` w `TripListItemSchema` (najpierw Zod), potem `TripListRow` / `listItemFromRow`, `select` z `trip_members(id)`, in-memory `list()` — skill: `test-driven-development`, `api-and-interface-design`, `supabase` — najpierw testy: schemat, wiersze, oba repozytoria, kopia w SQLite (stara kopia się czyta) — weryfikacja: pełny zestaw + typecheck + lint, weryfikator; brak zmian w `supabase/` i `database.types.ts`.
 - [x] 2. `[frontend]` Wszystkie nowe klucze i18n (tabela „Teksty”) w `pl.json` i `en.json` — jeden agent, tylko te pliki — skill: `test-driven-development`, `javascript-typescript-jest` — najpierw testy: `i18n.test.ts` — weryfikacja: pełny zestaw, weryfikator. **Na nic nie czeka; biegnie równolegle z krokiem 1** (inne pliki).
-- [ ] 3. `[frontend]` `PastTrips.tsx`: sekcja, karta (okładka, gradient do `hero.scrim`, pigułka z miastem, nazwa, znajomi), szkielety, stan pusty i błędu — skill: `test-driven-development`, `frontend-ui-engineering`, `frontend-design` — najpierw testy: `PastTrips.test.tsx` — weryfikacja: pełny zestaw, weryfikator (+ `ui-taste`), tokeny bez wartości „z ręki”. **Czeka na kroki 1 i 2.**
+- [x] 3. `[frontend]` `PastTrips.tsx`: sekcja, karta (okładka, gradient do `hero.scrim`, pigułka z miastem, nazwa, znajomi), szkielety, stan pusty i błędu — skill: `test-driven-development`, `frontend-ui-engineering`, `frontend-design` — najpierw testy: `PastTrips.test.tsx` — weryfikacja: pełny zestaw, weryfikator (+ `ui-taste`), tokeny bez wartości „z ręki”. **Czeka na kroki 1 i 2.**
 - [x] 4. `[frontend]` `FriendCode.tsx`: podpis, kod, przycisk udostępniania z `Share.share` — skill: `test-driven-development`, `source-driven-development`, `frontend-ui-engineering` — najpierw testy: `FriendCode.test.tsx` — weryfikacja: pełny zestaw, weryfikator. **Czeka tylko na krok 2.**
 - [x] 5. `[frontend]` `ProBadge.tsx` ze stałą `IS_PRO = true` (komentarz: do podmiany przez zadanie subskrypcji) i gradientem `brand.primary` → `accent.sun` z `react-native-svg` — skill: `test-driven-development`, `frontend-design` — najpierw testy: `ProBadge.test.tsx` — weryfikacja: pełny zestaw, weryfikator (+ `ui-taste`), kontrast tekstu na obu końcach gradientu w obu motywach. **Czeka tylko na krok 2.**
 - [ ] 6. `[frontend]` Wpięcie trzech komponentów w `ProfileScreen`: `tripSections(...).past`, stany z `useTripList`, tapnięcie = `select` (gdy nie bieżąca) + `router.navigate('/')`, odznaka i kod z profilu — jeden agent — skill: `test-driven-development`, `javascript-typescript-jest` — najpierw testy: `ProfileScreen.test.tsx` — weryfikacja: pełny zestaw, weryfikator. **Czeka na kroki 3, 4 i 5.**
@@ -244,6 +245,7 @@ na końcu:             krok 7 dokumenty, weryfikator gałęzi, tester
 - 2026-11-11 — krok 4 (`FriendCode`) PASS weryfikatora.
 - 2026-11-11 — krok 1 (`travellerCount?` na liście) PASS weryfikatora. Odstępstwo od TDD: implementer napisał testy razem z kodem (bez obserwowanej fazy red); weryfikator potwierdził z diffu, że nowe asercje padłyby bez zmiany produkcyjnej.
 - 2026-11-11 — krok 5 (`ProBadge`): weryfikator FAIL wyłącznie za prop `pro` spoza planu; Kacper wybrał prop (D19) → krok zamknięty. Kontrast `brand.onBrand` na obu końcach gradientu ≥ 4.5:1 w obu motywach. Testy pisane razem z kodem (bez obserwowanej fazy red).
+- 2026-11-11 — krok 3 (`PastTrips`): pierwszy FAIL (literał `borderWidth`, kontrast 2-liniowego tytułu na Bali ok. 3:1) → poprawki: token `components.button.borderWidth`, gradient wg D20; ponowna weryfikacja PASS (szacowany kontrast ≥ 6.8:1). Faza red widziana. Zostaje drobiazg: etykieta czytnika bez linii znajomych składana jako `[name, place].join(', ')` (brak klucza i18n) — w known-limitations.
 
 ## Ryzyka i otwarte pytania
 
