@@ -19,6 +19,7 @@ Feature flows live in [`features/`](features/), one file per feature that exists
 | Startup, splash, loading screen | [startup-and-splash.md](features/startup-and-splash.md) | no |
 | Expenses | [expenses.md](features/expenses.md) | no (offline write) |
 | Discover places (Google Places + Gemini) | [discover-places.md](features/discover-places.md) | yes |
+| PRO subscription (RevenueCat paywall, Customer Center) | [subscription.md](features/subscription.md) | purchase and manage: yes; status: no (SDK cache) |
 | Offline rules | [offline.md](offline.md) | — |
 | AI day plan (rules, not built) | [ai-day-plan.md](ai-day-plan.md) | — |
 
