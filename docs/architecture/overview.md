@@ -21,7 +21,7 @@ Traveling is a mobile app for the person who organizes a trip for a group of fri
 - **Profile setup**, on the first sign-in only:
   - a unique nick, at least one interest, and an optional photo from the gallery; "Zapisz i zaczynamy" stays disabled until the nick is valid and an interest is picked;
   - after a Google or Discord sign-in the nick and the photo are pre-filled from that account (suggestions the user can change);
-  - the server gives each profile a 6-character friend code, which is not shown yet.
+  - the server gives each profile a 6-character friend code, shown on the Profile tab with a share action (profile-upgrade).
 - **A returning user** goes straight to the app, also offline: the profile has a read-only copy in SQLite.
 - **Sign-out.** When the app is signed out, everything the previous user left on the phone is erased before the welcome screen shows. The user signs out in Settings (the gear on „Profil” → „Wyloguj się” → a confirmation that also warns when budget changes were not sent yet); the button is disabled offline. The server ending the session, or a one-time background check at startup that finds the account deleted, signs out too.
 
@@ -91,7 +91,7 @@ Travelo/
 │   ├── features/plan/          `PlanScreen` — the Plan tab: placeholder, or with a trip a „Plan” / „Odkryj” switch with Discover inside (+ `__tests__/`)
 │   ├── features/nav/           `NAV_TABS` (the four tabs), `usePillClearance` / `usePillBottomOffset`, `EmptyScreen` (+ `__tests__/`)
 │   ├── features/home/          `CurrentTrip` — the home screen's trip view; `HeroMenuButton`, `TripMenuButton`; sheets `TripMenuSheet`, `TripDetailsSheet`, `BudgetSheet`, `DeleteTripSheet` (+ `__tests__/`)
-│   ├── features/profile/       `ProfileScreen` (photo, nick, stats), `TravelStatsCard`, `SettingsScreen`, `EditProfileScreen`, `AvatarViewer`, `DeleteAccountDialog` (+ `__tests__/`)
+│   ├── features/profile/       `ProfileScreen` (photo, nick + PRO badge, friend code, stats, past trips), `TravelStatsCard`, `FriendCode`, `ProBadge`, `PastTrips`, `SettingsScreen`, `EditProfileScreen`, `AvatarViewer`, `DeleteAccountDialog` (+ `__tests__/`)
 │   ├── features/trip-create/   Wizard state and pieces: draft, steps, context, frame, cards, errors (+ `__tests__/`)
 │   ├── features/trip-photos/   `PhotoStrip`, `PhotoTile`, `pickTripPhotos`, `PhotoViewer`, `DeletePhotoSheet` (+ `__tests__/`)
 │   ├── hooks/                  TanStack Query hooks (`useTripList`, `useCurrentTrip`, `useSelectTrip`, `useCreateTrip`, `useSetTripBudget`, `useUpdateTripDetails`, `useDeleteTrip`; `useTripPhotos`, `usePhotoUploads`, `useDeleteTripPhoto`; `useMyProfile`, `useCreateProfile`, `useUpdateProfile`, `useChangeAvatar`, `useRemoveAvatar`; `usePreferences`, `usePickAvatar`, `useDeleteAccount`; `useSignIn`, `useSendEmailCode`, `useVerifyEmailCode`; `useSignOut`; `useReduceMotion`)

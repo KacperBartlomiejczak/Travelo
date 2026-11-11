@@ -1,5 +1,5 @@
 # Zadanie: Ulepszenie zakładki „Profil” (minione podróże, kod znajomego, odznaka PRO)
-Status: w trakcie
+Status: zrobione (bez testu na urządzeniu — patrz dziennik)
 
 Akceptacja: Kacper, 2026-11-10, na pytanie „Akceptujesz oba plany razem z pozostałymi rekomendacjami leaderów?”: „Akceptuję oba”; potwierdzone 2026-11-11: „plany sa zaakceptowane kontynuuj prace”. Obejmuje D1–D11 oraz rekomendacje lidera dla Q3, Q5–Q10 (zapisane niżej jako D12–D18).
 
@@ -41,6 +41,7 @@ Ekran „Profil” (`/profile`) dostaje trzy nowe rzeczy, nic więcej:
 - **D18 (Q10) — Błąd wczytania bez kopii:** zdanie „Nie udało się wczytać podróży.” bez przycisku „Spróbuj ponownie”.
 - **D19 — `ProBadge` ma opcjonalny prop `pro` (domyślnie `IS_PRO`)** (Kacper, 2026-11-11): w Jest nie da się podmienić stałej użytej w tym samym module, więc test przypadku „nie PRO” przekazuje `pro={false}`. Zastępuje zdanie „test przez mock modułu, bez dodatkowej konfiguracji w kodzie” z kroku 5.
 - **D20 — Przyciemnienie karty minionej podróży szybciej** (Kacper, 2026-11-11, po FAIL weryfikatora: biały 2-liniowy tytuł na okładce Bali miał ok. 3:1): gradient od przezroczystego u góry do pełnego `hero.scrim` (krycie tokenu 0.82 przez `stopOpacity`, bo `react-native-svg` pomija alfę koloru) mniej więcej w połowie karty, niżej jednolicie. Doprecyzowuje D8.
+- **D21 — Pigułka z miejscem nie nachodzi na tytuł** (Kacper, 2026-11-11, uwaga CodeRabbit): przy dużej czcionce i 2-liniowej nazwie pigułka rezerwuje miejsce w układzie zamiast nakładać się na tekst.
 
 ### Co ustaliłem w kodzie (fakty, nie założenia)
 
@@ -213,7 +214,7 @@ Reużywane bez zmian: `CoverImage`, `Card`, `SkeletonBlock`, `IconButton`, `Text
 - [x] 4. `[frontend]` `FriendCode.tsx`: podpis, kod, przycisk udostępniania z `Share.share` — skill: `test-driven-development`, `source-driven-development`, `frontend-ui-engineering` — najpierw testy: `FriendCode.test.tsx` — weryfikacja: pełny zestaw, weryfikator. **Czeka tylko na krok 2.**
 - [x] 5. `[frontend]` `ProBadge.tsx` ze stałą `IS_PRO = true` (komentarz: do podmiany przez zadanie subskrypcji) i gradientem `brand.primary` → `accent.sun` z `react-native-svg` — skill: `test-driven-development`, `frontend-design` — najpierw testy: `ProBadge.test.tsx` — weryfikacja: pełny zestaw, weryfikator (+ `ui-taste`), kontrast tekstu na obu końcach gradientu w obu motywach. **Czeka tylko na krok 2.**
 - [x] 6. `[frontend]` Wpięcie trzech komponentów w `ProfileScreen`: `tripSections(...).past`, stany z `useTripList`, tapnięcie = `select` (gdy nie bieżąca) + `router.navigate('/')`, odznaka i kod z profilu — jeden agent — skill: `test-driven-development`, `javascript-typescript-jest` — najpierw testy: `ProfileScreen.test.tsx` — weryfikacja: pełny zestaw, weryfikator. **Czeka na kroki 3, 4 i 5.**
-- [ ] 7. (orkiestrator) Dokumenty z tabeli „Pliki”; potem weryfikator całej gałęzi z przeglądem CodeRabbit i tester na urządzeniu (jeśli podłączone): lista minionych, tapnięcie → „Podróż”, arkusz udostępniania z kodem, odznaka w obu motywach, offline — skill: `documentation-and-adrs`, `code-review` — weryfikacja: linki, grep starych opisów, pełny zestaw.
+- [x] 7. (orkiestrator) Dokumenty z tabeli „Pliki”; potem weryfikator całej gałęzi z przeglądem CodeRabbit i tester na urządzeniu (jeśli podłączone): lista minionych, tapnięcie → „Podróż”, arkusz udostępniania z kodem, odznaka w obu motywach, offline — skill: `documentation-and-adrs`, `code-review` — weryfikacja: linki, grep starych opisów, pełny zestaw.
 
 ### Równoległość (D11)
 
@@ -247,6 +248,10 @@ na końcu:             krok 7 dokumenty, weryfikator gałęzi, tester
 - 2026-11-11 — krok 5 (`ProBadge`): weryfikator FAIL wyłącznie za prop `pro` spoza planu; Kacper wybrał prop (D19) → krok zamknięty. Kontrast `brand.onBrand` na obu końcach gradientu ≥ 4.5:1 w obu motywach. Testy pisane razem z kodem (bez obserwowanej fazy red).
 - 2026-11-11 — krok 3 (`PastTrips`): pierwszy FAIL (literał `borderWidth`, kontrast 2-liniowego tytułu na Bali ok. 3:1) → poprawki: token `components.button.borderWidth`, gradient wg D20; ponowna weryfikacja PASS (szacowany kontrast ≥ 6.8:1). Faza red widziana. Zostaje drobiazg: etykieta czytnika bez linii znajomych składana jako `[name, place].join(', ')` (brak klucza i18n) — w known-limitations.
 - 2026-11-11 — krok 6 (wpięcie w `ProfileScreen`): pierwszy FAIL (brak testów z listy planu: trwająca podróż, kolejność, D10, liczba kart = „Podróże”, offline) → testy dopisane bez zmian w kodzie produkcyjnym; ponowna weryfikacja PASS. Faza red widziana dla 6 pierwszych testów; dopisane później przeszły od razu (zachowanie już było).
+- 2026-11-11 — krok 7: dokumenty zaktualizowane (+ `flows/features/trip-home.md`, zapytanie listy z `trip_members(id)`, wskazane przez weryfikatora). Weryfikator gałęzi (Haiku zamiast Sonnet 5.5): testy/typecheck/lint zielone, FAIL za brak dowodu red w krokach 1 i 5. CodeRabbit: 1 uwaga — pigułka z miejscem może nachodzić na 2-liniowy tytuł przy dużej czcionce. Kacper (2026-11-11): **wymaga dowodu red** dla kroków 1 i 5 (agent na chwilę cofa kod produkcyjny, pokazuje padające testy, przywraca) i **poprawki pigułki teraz** (D21). Tester: zablokowany — Metro na 8081 serwuje główny checkout, nie ten worktree.
+- 2026-11-11 — dowód red, krok 1: z kodem produkcyjnym cofniętym do `228bbf8^` (testy bez zmian) pada 10/449 testów w 5 plikach kroku 1 (schemat obcina `travellerCount` i przyjmuje 0/-1/1.5; wiersze i oba repozytoria bez liczby; zapytanie listy bez `trip_members(id)`; kopia w SQLite gubi pole). Pliki przywrócone z HEAD, 449/449 zielone.
+- 2026-11-11 — dowód red, krok 5: z zaślepką `ProBadge` zwracającą `null` padają 4/7 testów na asercjach (tekst „PRO”, etykieta en, gradient + kolor tekstu + promień w obu motywach). Przechodzą: 2 testy kontrastu (sprawdzają same tokeny) i „nic nie renderuje przy `pro={false}`” (padnie dopiero, gdy komponent coś pokaże). Plik przywrócony z HEAD, 7/7 zielone.
+- 2026-11-11 — poprawka pigułki (D21): pigułka w układzie (wiersz `flex: 1` wyrównany do prawej), ten sam odstęp co wcześniej; test red → green. Końcowa weryfikacja gałęzi: PASS (pełny zestaw 3987 testów, typecheck, lint). **Nie zrobione:** test na urządzeniu — emulator był podłączony, ale Metro na 8081 serwuje główny checkout (`main`), nie ten worktree; tester niczego nie oznaczył jako PASS. Do zrobienia przez Kacpra lub w osobnej sesji: Metro z tego worktree i scenariusze z kroku 7.
 
 ## Ryzyka i otwarte pytania
 
