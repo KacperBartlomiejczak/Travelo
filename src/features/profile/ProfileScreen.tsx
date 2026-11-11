@@ -118,7 +118,7 @@ export function ProfileScreen() {
                 onAdd={addPhoto}
                 onOpen={openPhoto}
               />
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing[2], flexShrink: 1 }}>
+              <View testID="profile-name-row" style={{ flexDirection: 'row', alignItems: 'center', gap: spacing[2], flex: 1 }}>
                 <Text style={[typography.heading2, { color: colors.text.primary, flexShrink: 1 }]}>{profile.username}</Text>
                 <ProBadge />
               </View>
