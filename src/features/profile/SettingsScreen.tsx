@@ -1,4 +1,5 @@
 import Constants from 'expo-constants';
+import { Image } from 'expo-image';
 import { router } from 'expo-router';
 import { ArrowRight, FileText, Info, Languages, Palette, ShieldCheck, UserRound, type LucideIcon } from 'lucide-react-native';
 import { useState, type ReactNode } from 'react';
@@ -10,19 +11,22 @@ import { BottomSheet } from '@/components/BottomSheet';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
 import { OfflineBanner } from '@/components/OfflineBanner';
 import { SegmentedControl } from '@/components/SegmentedControl';
+import { SkeletonBlock } from '@/components/SkeletonBlock';
 import { TextButton } from '@/components/TextButton';
 import { DeleteAccountDialog } from '@/features/profile/DeleteAccountDialog';
+import { useAccountEmail } from '@/hooks/useAccountEmail';
 import { usePreferences } from '@/hooks/usePreferences';
 import { useMyProfile } from '@/hooks/useProfile';
 import { useSignOut } from '@/hooks/useSignOut';
 import { useTripRepository } from '@/providers/AppProviders';
 import { useIsOffline } from '@/providers/BudgetSync';
+import type { ShownProfile } from '@/schemas';
 import { tokens } from '@/theme/tokens';
 import { useTheme } from '@/theme/useTheme';
 
 const { typography, spacing, layout, iconography, components, radii } = tokens;
 
-type RowProps = { icon: LucideIcon; label: string; value?: string; onPress?: () => void; divider?: boolean; labelWithValue?: boolean };
+type RowProps = { icon: LucideIcon; label: string; value?: string; onPress?: () => void; divider?: boolean };
 
 // One row of a settings card (settings-redesign): outline icon, label, optional value; with `onPress` it is a button with a
 // decorative arrow circle, without it a plain info row (no arrow). The divider starts at the text.
@@ -94,6 +98,58 @@ function SettingsGroup({ children }: { children: ReactNode }) {
   );
 }
 
+function SettingsAvatar({ uri, username }: { uri?: string; username: string }) {
+  const theme = useTheme();
+  const [failed, setFailed] = useState<string | null>(null);
+  const size = components.avatar.xl;
+  const circle = { width: size, height: size, borderRadius: radii.pill };
+  // No url (offline start) or a photo that failed: the initial of the nick on the sunken background (design-context §8.7).
+  if (!uri || failed === uri) {
+    return (
+      <View testID="settings-avatar" aria-hidden>
+        <View testID="settings-avatar-initial" style={[circle, { alignItems: 'center', justifyContent: 'center', backgroundColor: theme.background.sunken }]}>
+          <Text style={[typography.styles.headingMD, { color: theme.text.primary }]}>{(Array.from(username)[0] ?? '').toUpperCase()}</Text>
+        </View>
+      </View>
+    );
+  }
+  return (
+    <View testID="settings-avatar" aria-hidden>
+      <Image testID="settings-avatar-image" source={{ uri }} contentFit="cover" onError={() => setFailed(uri)} style={circle} />
+    </View>
+  );
+}
+
+// Who is signed in: avatar, nick and e-mail, centred. The e-mail line is absent when it is unknown. A profile that
+// could not be read shows nothing (the screen still works).
+function IdentityBlock({ loading, profile, email }: { loading: boolean; profile?: ShownProfile; email: string | null }) {
+  const theme = useTheme();
+  if (loading) {
+    return (
+      <View style={{ alignItems: 'center', gap: spacing[3] }}>
+        <SkeletonBlock testID="settings-avatar-skeleton" width={components.avatar.xl} height={components.avatar.xl} radius={radii.pill} />
+        <SkeletonBlock testID="settings-nick-skeleton" width={spacing[16]} height={typography.styles.headingLG.lineHeight} />
+      </View>
+    );
+  }
+  if (!profile) return null;
+  return (
+    <View testID="settings-identity" style={{ alignItems: 'center', gap: spacing[3] }}>
+      <SettingsAvatar uri={profile.avatarUrl} username={profile.username} />
+      <View style={{ alignItems: 'center', gap: spacing[1], maxWidth: '100%' }}>
+        <Text numberOfLines={1} ellipsizeMode="tail" style={[typography.styles.headingLG, { color: theme.text.primary }]}>
+          {profile.username}
+        </Text>
+        {email !== null && (
+          <Text testID="settings-email" numberOfLines={1} ellipsizeMode="tail" style={[typography.styles.bodySM, { color: theme.text.secondary }]}>
+            {email}
+          </Text>
+        )}
+      </View>
+    </View>
+  );
+}
+
 // Settings (profile-settings D7): one scrolling list (settings-redesign: cards with rows), then, at the bottom where the thumb is,
 // "Wyloguj się" (profile-screen A4, D5, D8, D16) and under it "Usuń konto" (profile-settings D2, D6, D7). Sign-out asks first (the
 // dialog also warns when budget changes were not sent yet, they are lost on sign-out; a failed check counts as "maybe unsent").
@@ -114,7 +170,9 @@ export function SettingsScreen() {
   // The kind stays when the sheet closes, so its content does not change during the slide-out.
   const [sheet, setSheet] = useState({ kind: 'theme' as 'theme' | 'language', open: false });
   // Deleting needs the own nick (to type it) and the server; without a loaded profile there is nothing to confirm against.
-  const hasProfile = Boolean(useMyProfile().data);
+  const myProfile = useMyProfile();
+  const hasProfile = Boolean(myProfile.data);
+  const email = useAccountEmail();
 
   async function ask() {
     if (offline || checking || pending) return;
@@ -150,10 +208,11 @@ export function SettingsScreen() {
           paddingBottom: insets.bottom + spacing[4],
         }}
       >
+        <IdentityBlock loading={myProfile.isPending && myProfile.fetchStatus !== 'idle'} profile={myProfile.data?.profile} email={email} />
         <View style={{ gap: spacing[4] }}>
           <SettingsGroup>
             <SettingsRow icon={UserRound} label={t('settings.editProfile')} onPress={() => router.push('/edit-profile')} divider />
-            <SettingsRow icon={Palette} label={t('settings.theme')} value={t(`settings.${preferences.theme === 'system' ? 'system' : preferences.theme}`)} onPress={() => setSheet({ kind: 'theme', open: true })} divider />
+            <SettingsRow icon={Palette} label={t('settings.theme')} value={t(`settings.${preferences.theme}`)} onPress={() => setSheet({ kind: 'theme', open: true })} divider />
             <SettingsRow
               icon={Languages}
               label={t('settings.language')}
