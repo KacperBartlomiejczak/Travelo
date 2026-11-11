@@ -24,6 +24,7 @@ export function ProBadge({ pro = IS_PRO }: { pro?: boolean }) {
       style={{
         borderRadius: radii.pill,
         overflow: 'hidden',
+        flexShrink: 0,
         paddingHorizontal: tokens.spacing[2],
         paddingVertical: tokens.spacing[1],
       }}

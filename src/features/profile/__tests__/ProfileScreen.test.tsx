@@ -110,6 +110,13 @@ describe('ProfileScreen — badge and friend code', () => {
     expect(screen.getByText('ABC234')).toBeTruthy();
   });
 
+  it('keeps a long nick wrapping while the PRO badge stays fully visible', async () => {
+    mockProfile = { profile: { username: 'kacperbartlomiejczak', avatarId: null, friendCode: 'ABC234' } };
+    await renderScreen();
+    expect(screen.getByTestId('profile-name-row')).toHaveStyle({ flex: 1 });
+    expect(screen.getByTestId('pro-badge')).toHaveStyle({ flexShrink: 0 });
+  });
+
   it('shows neither before the profile is there', async () => {
     await renderScreen();
     expect(screen.queryByLabelText('Konto PRO')).toBeNull();
