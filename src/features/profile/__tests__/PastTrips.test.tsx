@@ -96,6 +96,14 @@ describe('PastTrips (profile-upgrade step 3)', () => {
     expect((stops[5]! >>> 24) & 0xff).toBe(Math.round(tokenAlpha * 255));
   });
 
+  it('keeps the pill in the layout flow, so a long title cannot sit under it', async () => {
+    await render(<PastTrips trips={[TRIPS[0]!]} state="ready" onOpen={jest.fn()} />);
+    const pill = screen.getByTestId('past-trip-pill');
+    expect(pill).not.toHaveStyle({ position: 'absolute' });
+    expect(screen.getByTestId('past-trip-pill-row')).toHaveStyle({ alignItems: 'flex-end' });
+    expect(screen.getByTestId('past-trip-pill-row')).toContainElement(pill);
+  });
+
   it('outlines the pill with the button border width token', async () => {
     await render(<PastTrips trips={[TRIPS[0]!]} state="ready" onOpen={jest.fn()} />);
     expect(screen.getByTestId('past-trip-pill')).toHaveStyle({ borderWidth: tokens.components.button.borderWidth });

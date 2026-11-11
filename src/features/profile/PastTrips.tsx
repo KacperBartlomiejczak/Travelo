@@ -48,7 +48,7 @@ function PastTripCard({ trip, onOpen }: { trip: TripListItem; onOpen: (tripId: s
         accessibilityHint={t('profile.pastTripHint')}
         onPress={() => onOpen(trip.id)}
         {...pressHandlers}
-        style={{ minHeight: cardHeight, borderRadius: radii.lg, overflow: 'hidden', justifyContent: 'flex-end' }}
+        style={{ minHeight: cardHeight, borderRadius: radii.lg, overflow: 'hidden' }}
       >
         <View aria-hidden style={StyleSheet.absoluteFill}>
           <CoverImage cover={trip.coverImageUri} urls={trip.coverUrls} variant="full" style={StyleSheet.absoluteFill} />
@@ -63,21 +63,21 @@ function PastTripCard({ trip, onOpen }: { trip: TripListItem; onOpen: (tripId: s
             <Rect width="100%" height="100%" fill={`url(#${gradientId})`} />
           </Svg>
         </View>
-        <View
-          testID="past-trip-pill"
-          style={{
-            position: 'absolute',
-            top: spacing[3],
-            right: spacing[3],
-            borderRadius: radii.pill,
-            paddingHorizontal: spacing[3],
-            paddingVertical: spacing[1],
-            backgroundColor: theme.hero.controlBackground,
-            borderWidth: tokens.components.button.borderWidth,
-            borderColor: theme.hero.controlBorder,
-          }}
-        >
-          <Text style={[typography.styles.labelSM, { color: theme.hero.text }]}>{place}</Text>
+        {/* In flow, not absolute: the card grows when a 2-line title needs the room (D21). flex 1 is the spacer. */}
+        <View testID="past-trip-pill-row" style={{ flex: 1, alignItems: 'flex-end', padding: spacing[3] }}>
+          <View
+            testID="past-trip-pill"
+            style={{
+              borderRadius: radii.pill,
+              paddingHorizontal: spacing[3],
+              paddingVertical: spacing[1],
+              backgroundColor: theme.hero.controlBackground,
+              borderWidth: tokens.components.button.borderWidth,
+              borderColor: theme.hero.controlBorder,
+            }}
+          >
+            <Text style={[typography.styles.labelSM, { color: theme.hero.text }]}>{place}</Text>
+          </View>
         </View>
         <View style={{ padding: spacing[4], gap: spacing[1] }}>
           <Text numberOfLines={2} style={[typography.styles.headingMD, { color: theme.hero.text }]}>
