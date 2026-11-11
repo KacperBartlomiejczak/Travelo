@@ -1,7 +1,7 @@
 import Constants from 'expo-constants';
 import { useFonts } from 'expo-font';
 import { fireEvent, renderRouter, screen, within } from 'expo-router/testing-library';
-import { Text } from 'react-native';
+import { StyleSheet, Text } from 'react-native';
 
 import AuthLayout from '@/app/(auth)/_layout';
 import WelcomeScreen from '@/app/(auth)/welcome';
@@ -12,6 +12,7 @@ import SettingsRoute from '@/app/settings';
 import { writeLanguagePreference, writeThemePreference } from '@/data/preferences';
 import i18n from '@/i18n';
 import { useFakeAppSession } from '@/test/fake-session-source';
+import { tokens } from '@/theme/tokens';
 
 jest.mock('expo-font', () => ({ ...jest.requireActual('expo-font'), useFonts: jest.fn() }));
 jest.mocked(useFonts).mockReturnValue([true, null]);
@@ -60,20 +61,22 @@ beforeEach(async () => {
 });
 
 describe('Settings list (profile-settings step 8)', () => {
-  it('shows the three sections, in Polish', async () => {
+  it('shows the rows and switchers, in Polish', async () => {
     await openSettings();
-    expect(screen.getByText('Konto')).toBeTruthy();
-    expect(screen.getByText('Wygląd')).toBeTruthy();
-    expect(screen.getByText('O aplikacji')).toBeTruthy();
+    for (const name of ['Edytuj profil', 'Polityka prywatności', 'Regulamin']) {
+      expect(screen.getByRole('button', { name })).toBeTruthy();
+    }
+    expect(screen.getByText('Wersja')).toBeTruthy();
+    expect(screen.getByText('1.2.3')).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Edytuj profil' })).toBeTruthy();
     expect(screen.getByText('Motyw')).toBeTruthy();
     expect(screen.getByText('Język')).toBeTruthy();
   });
 
-  it('shows the three sections, in English', async () => {
+  it('shows the rows and switchers, in English', async () => {
     await i18n.changeLanguage('en');
     await openSettings();
-    for (const text of ['Account', 'Appearance', 'About', 'Theme', 'Language', 'Version']) {
+    for (const text of ['Privacy policy', 'Terms of use', 'Theme', 'Language', 'Version']) {
       expect(screen.getByText(text)).toBeTruthy();
     }
     expect(screen.getByRole('button', { name: 'Edit profile' })).toBeTruthy();
@@ -117,7 +120,7 @@ describe('Settings list (profile-settings step 8)', () => {
     await openSettings();
     await fireEvent.press(group('Język').getByRole('radio', { name: 'Angielski' }));
     expect(writeLanguagePreference).toHaveBeenCalledWith('en');
-    expect(await screen.findByText('Appearance')).toBeTruthy();
+    expect(await screen.findByText('Edit profile')).toBeTruthy();
     expect(group('Language').getByRole('radio', { name: 'English' })).toBeChecked();
   });
 
@@ -136,5 +139,29 @@ describe('Settings list (profile-settings step 8)', () => {
     const labels = within(screen.getByTestId('settings-scroll')).getAllByRole('button').map((b) => b.props.accessibilityLabel ?? '');
     expect(labels.at(-2)).toBe('Wyloguj się');
     expect(labels.at(-1)).toBe('Usuń konto');
+  });
+
+  it('has rows at least 56dp tall in the order Edytuj profil, Polityka prywatności, Regulamin, Wersja; Wersja is not a button', async () => {
+    await openSettings();
+    const rows = screen.getAllByTestId('settings-row');
+    expect(rows).toHaveLength(4);
+    for (const row of rows) expect(StyleSheet.flatten(row.props.style).minHeight).toBe(tokens.components.listRow.minHeight);
+    for (const name of ['Edytuj profil', 'Polityka prywatności', 'Regulamin']) {
+      expect(screen.getByRole('button', { name })).toBeTruthy();
+    }
+    expect(tokens.components.listRow.minHeight).toBe(56);
+    expect(screen.queryByRole('button', { name: /Wersja/ })).toBeNull();
+    const texts = within(screen.getByTestId('settings-scroll')).getAllByText(/^(Edytuj profil|Polityka prywatności|Regulamin|Wersja)$/).map((n) => n.props.children);
+    expect(texts).toEqual(['Edytuj profil', 'Polityka prywatności', 'Regulamin', 'Wersja']);
+  });
+
+  it('hides the arrow circles from assistive tech and shows one only on button rows', async () => {
+    await openSettings();
+    const circles = screen.getAllByTestId('settings-row-arrow', { includeHiddenElements: true });
+    expect(circles).toHaveLength(3);
+    for (const circle of circles) {
+      expect(circle.props['aria-hidden']).toBe(true);
+      expect(StyleSheet.flatten(circle.props.style)).toMatchObject({ width: tokens.spacing[8], height: tokens.spacing[8] });
+    }
   });
 });

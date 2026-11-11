@@ -359,13 +359,11 @@
     "removeError": "Nie udało się usunąć zdjęcia. Spróbuj ponownie."
   },
   "settings": {
-    "account": "Konto",
     "editProfile": "Edytuj profil",
     "saveProfile": "Zapisz",
     "editProfileOffline": "Jesteś offline. Zmiana profilu wymaga internetu.",
     "offline": "Jesteś offline. Ustawienia konta wymagają internetu.",
     "backFromEdit": "Wróć, Ustawienia",
-    "appearance": "Wygląd",
     "theme": "Motyw",
     "language": "Język",
     "system": "Systemowy",
@@ -373,7 +371,6 @@
     "dark": "Ciemny",
     "polish": "Polski",
     "english": "Angielski",
-    "about": "O aplikacji",
     "version": "Wersja",
     "privacyPolicy": "Polityka prywatności",
     "terms": "Regulamin",

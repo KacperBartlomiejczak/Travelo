@@ -205,7 +205,8 @@ describe('Settings — screen (profile-screen A4)', () => {
 
   it('puts the button in the bottom part of the screen, at least 44dp tall', async () => {
     await openSettings();
-    expect(StyleSheet.flatten(screen.getByTestId('settings-scroll').props.contentContainerStyle)).toMatchObject({ justifyContent: 'flex-end' });
+    expect(StyleSheet.flatten(screen.getByTestId('settings-scroll').props.contentContainerStyle)).toMatchObject({ flexGrow: 1 });
+    expect(StyleSheet.flatten(screen.getByTestId('settings-bottom').props.style)).toMatchObject({ marginTop: 'auto' });
     expect(signOutButton()).toHaveStyle({ minHeight: lightTheme.size.buttonPrimary });
     expect(lightTheme.size.buttonPrimary).toBeGreaterThanOrEqual(44);
   });

@@ -1,6 +1,6 @@
 import Constants from 'expo-constants';
 import { router } from 'expo-router';
-import { ChevronRight } from 'lucide-react-native';
+import { ArrowRight, FileText, Info, ShieldCheck, UserRound, type LucideIcon } from 'lucide-react-native';
 import { useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Pressable, ScrollView, Text, useWindowDimensions, View } from 'react-native';
@@ -17,48 +17,83 @@ import { useMyProfile } from '@/hooks/useProfile';
 import { useSignOut } from '@/hooks/useSignOut';
 import { useTripRepository } from '@/providers/AppProviders';
 import { useIsOffline } from '@/providers/BudgetSync';
-import type { LegalDoc } from '@/schemas/legal';
 import { tokens } from '@/theme/tokens';
 import { useTheme } from '@/theme/useTheme';
 
-const { typography, spacing, layout, iconography } = tokens;
+const { typography, spacing, layout, iconography, components, radii } = tokens;
 
-function Section({ title, children }: { title: string; children: ReactNode }) {
+type RowProps = { icon: LucideIcon; label: string; value?: string; onPress?: () => void; divider?: boolean };
+
+// One row of a settings card (settings-redesign): outline icon, label, optional value; with `onPress` it is a button with a
+// decorative arrow circle, without it a plain info row (no arrow). The divider starts at the text.
+function SettingsRow({ icon: Icon, label, value, onPress, divider }: RowProps) {
+  const theme = useTheme();
+  const body = (pressed: boolean) => (
+    <View
+      testID="settings-row"
+      style={{
+        minHeight: components.listRow.minHeight,
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: spacing[3],
+        paddingHorizontal: components.listRow.horizontalPadding,
+        backgroundColor: pressed ? theme.background.sunken : undefined,
+      }}
+    >
+      <Icon aria-hidden size={iconography.size.sm} strokeWidth={iconography.strokeWidth} color={theme.icon.primary} />
+      <Text style={[typography.styles.bodyMD, { color: theme.text.primary, flex: 1 }]}>{label}</Text>
+      {value !== undefined && <Text style={[typography.styles.bodyMD, { color: theme.text.secondary }]}>{value}</Text>}
+      {onPress && (
+        <View
+          aria-hidden
+          testID="settings-row-arrow"
+          style={{ width: spacing[8], height: spacing[8], borderRadius: radii.pill, alignItems: 'center', justifyContent: 'center', backgroundColor: theme.background.sunken }}
+        >
+          <ArrowRight aria-hidden size={iconography.size.xs} strokeWidth={iconography.strokeWidth} color={theme.icon.primary} />
+        </View>
+      )}
+    </View>
+  );
+  return (
+    <>
+      {onPress ? (
+        <Pressable accessibilityRole="button" accessibilityLabel={label} onPress={onPress}>
+          {({ pressed }) => body(pressed)}
+        </Pressable>
+      ) : (
+        <View accessible accessibilityLabel={`${label}, ${value ?? ''}`}>{body(false)}</View>
+      )}
+      {divider && (
+        <View
+          style={{
+            height: components.card.borderWidth,
+            marginLeft: components.listRow.horizontalPadding + iconography.size.sm + spacing[3],
+            backgroundColor: theme.border.subtle,
+          }}
+        />
+      )}
+    </>
+  );
+}
+
+function SettingsGroup({ children }: { children: ReactNode }) {
   const theme = useTheme();
   return (
-    <View style={{ gap: spacing[2] }}>
-      <Text accessibilityRole="header" style={[typography.styles.labelMD, { color: theme.text.secondary }]}>
-        {title}
-      </Text>
-      <Card>{children}</Card>
+    <View
+      style={{
+        backgroundColor: theme.surface.primary,
+        borderRadius: components.card.radius,
+        borderWidth: components.card.borderWidth,
+        borderColor: theme.border.subtle,
+        overflow: 'hidden',
+      }}
+    >
+      {children}
     </View>
   );
 }
 
-function LegalRow({ label, doc }: { label: string; doc: LegalDoc }) {
-  const theme = useTheme();
-  return (
-    <Pressable
-      accessibilityRole="button"
-      accessibilityLabel={label}
-      onPress={() => router.push(`/legal/${doc}`)}
-      style={({ pressed }) => ({
-        minHeight: layout.touchTarget,
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        gap: spacing[2],
-        borderRadius: tokens.radii.xs,
-        backgroundColor: pressed ? theme.background.sunken : undefined,
-      })}
-    >
-      <Text style={[typography.styles.bodyMD, { color: theme.text.primary, flexShrink: 1 }]}>{label}</Text>
-      <ChevronRight aria-hidden size={iconography.size.sm} strokeWidth={iconography.strokeWidth} color={theme.icon.secondary} />
-    </Pressable>
-  );
-}
-
-// Settings (profile-settings D7): one scrolling list (Account, Appearance, About), then, at the bottom where the thumb is,
+// Settings (profile-settings D7): one scrolling list (settings-redesign: cards with rows), then, at the bottom where the thumb is,
 // "Wyloguj się" (profile-screen A4, D5, D8, D16) and under it "Usuń konto" (profile-settings D2, D6, D7). Sign-out asks first (the
 // dialog also warns when budget changes were not sent yet, they are lost on sign-out; a failed check counts as "maybe unsent").
 // Offline the button is disabled with the reason next to it. After "Wyloguj" the gate moves to the welcome screen by itself;
@@ -103,7 +138,6 @@ export function SettingsScreen() {
         style={{ flex: 1 }}
         contentContainerStyle={{
           flexGrow: 1,
-          justifyContent: 'flex-end',
           width: '100%',
           maxWidth: layout.maxContentWidth,
           alignSelf: 'center',
@@ -113,58 +147,42 @@ export function SettingsScreen() {
           paddingBottom: insets.bottom + spacing[4],
         }}
       >
-        <Section title={t('settings.account')}>
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel={t('settings.editProfile')}
-            onPress={() => router.push('/edit-profile')}
-            style={({ pressed }) => ({
-              minHeight: layout.touchTarget,
-              flexDirection: 'row',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              gap: spacing[2],
-              borderRadius: tokens.radii.xs,
-              backgroundColor: pressed ? theme.background.sunken : undefined,
-            })}
-          >
-            <Text style={[typography.styles.bodyMD, { color: theme.text.primary, flexShrink: 1 }]}>{t('settings.editProfile')}</Text>
-            <ChevronRight aria-hidden size={iconography.size.sm} strokeWidth={iconography.strokeWidth} color={theme.icon.secondary} />
-          </Pressable>
-        </Section>
-        <Section title={t('settings.appearance')}>
-          <Text style={[typography.styles.bodyMD, { color: theme.text.primary }]}>{t('settings.theme')}</Text>
-          <SegmentedControl
-            label={t('settings.theme')}
-            value={preferences.theme}
-            onChange={preferences.setTheme}
-            options={[
-              { value: 'system', label: t('settings.system') },
-              { value: 'light', label: t('settings.light') },
-              { value: 'dark', label: t('settings.dark') },
-            ]}
-          />
-          <Text style={[typography.styles.bodyMD, { color: theme.text.primary }]}>{t('settings.language')}</Text>
-          <SegmentedControl
-            label={t('settings.language')}
-            value={preferences.language}
-            onChange={preferences.setLanguage}
-            options={[
-              { value: 'system', label: t('settings.system') },
-              { value: 'pl', label: t('settings.polish') },
-              { value: 'en', label: t('settings.english') },
-            ]}
-          />
-        </Section>
-        <Section title={t('settings.about')}>
-          <View style={{ flexDirection: 'row', justifyContent: 'space-between', gap: spacing[2] }}>
-            <Text style={[typography.styles.bodyMD, { color: theme.text.primary }]}>{t('settings.version')}</Text>
-            <Text style={[typography.styles.bodyMD, { color: theme.text.secondary }]}>{Constants.expoConfig?.version}</Text>
-          </View>
-          <LegalRow label={t('settings.privacyPolicy')} doc="privacy" />
-          <LegalRow label={t('settings.terms')} doc="terms" />
-        </Section>
-        {offline && <OfflineBanner text={t('settings.offline')} />}
+        <View style={{ gap: spacing[4] }}>
+          <SettingsGroup>
+            <SettingsRow icon={UserRound} label={t('settings.editProfile')} onPress={() => router.push('/edit-profile')} />
+          </SettingsGroup>
+          <SettingsGroup>
+            <SettingsRow icon={ShieldCheck} label={t('settings.privacyPolicy')} onPress={() => router.push('/legal/privacy')} divider />
+            <SettingsRow icon={FileText} label={t('settings.terms')} onPress={() => router.push('/legal/terms')} divider />
+            <SettingsRow icon={Info} label={t('settings.version')} value={Constants.expoConfig?.version} />
+          </SettingsGroup>
+          <Card>
+            <Text style={[typography.styles.bodyMD, { color: theme.text.primary }]}>{t('settings.theme')}</Text>
+            <SegmentedControl
+              label={t('settings.theme')}
+              value={preferences.theme}
+              onChange={preferences.setTheme}
+              options={[
+                { value: 'system', label: t('settings.system') },
+                { value: 'light', label: t('settings.light') },
+                { value: 'dark', label: t('settings.dark') },
+              ]}
+            />
+            <Text style={[typography.styles.bodyMD, { color: theme.text.primary }]}>{t('settings.language')}</Text>
+            <SegmentedControl
+              label={t('settings.language')}
+              value={preferences.language}
+              onChange={preferences.setLanguage}
+              options={[
+                { value: 'system', label: t('settings.system') },
+                { value: 'pl', label: t('settings.polish') },
+                { value: 'en', label: t('settings.english') },
+              ]}
+            />
+          </Card>
+        </View>
+        <View testID="settings-bottom" style={{ marginTop: 'auto', gap: spacing[6] }}>
+          {offline && <OfflineBanner text={t('settings.offline')} />}
         {offline && (
           <Text style={[typography.styles.bodySM, { color: theme.text.secondary }]} accessibilityLiveRegion="polite">
             {t('settings.signOutOffline')}
@@ -177,6 +195,7 @@ export function SettingsScreen() {
         )}
         <TextButton variant="destructive" label={t('settings.signOut')} onPress={() => void ask()} disabled={offline || checking || pending} />
         <TextButton variant="destructive" label={t('settings.deleteAccount')} onPress={() => setDeleting(true)} disabled={offline || !hasProfile} />
+        </View>
       </ScrollView>
       <ConfirmDialog
         visible={dialog.visible}

@@ -359,13 +359,11 @@
     "removeError": "Couldn't remove the photo. Try again."
   },
   "settings": {
-    "account": "Account",
     "editProfile": "Edit profile",
     "saveProfile": "Save",
     "editProfileOffline": "You're offline. Editing your profile needs internet.",
     "offline": "You're offline. Account settings need internet.",
     "backFromEdit": "Back, Settings",
-    "appearance": "Appearance",
     "theme": "Theme",
     "language": "Language",
     "system": "System",
@@ -373,7 +371,6 @@
     "dark": "Dark",
     "polish": "Polish",
     "english": "English",
-    "about": "About",
     "version": "Version",
     "privacyPolicy": "Privacy policy",
     "terms": "Terms of use",
