@@ -6,6 +6,10 @@ Status: w trakcie
 
 Gałąź: `feature/expo-58-upgrade` (od `main` @ 6482669), worktree `C:\Users\Baxton\Developer\Travelo-expo58`. Bez pushu.
 
+## Polecenie Kacpra (2026-11-11)
+- „w poprzednich sesjach miala byc migracja na expo 58 a nic sie nie zmienilo dalej jestesmy na 57 [...] odpal jeszcze jednego teamleadera ktory to zrobi”. Cel: dokończyć migrację na tej gałęzi, tak żeby była gotowa do merge'a do `main` (161 commitów za `main`). Bez pushu i bez PR.
+- Krok 4 (dev build na emulatorze) zostaje zablokowany — limit 260 znaków ścieżki w Windows; nie jest warunkiem tego etapu.
+
 ## Zrozumienie i założenia
 - Podnosimy aplikację z Expo SDK 57 (RN 0.86.3, React 19.2.3) na **SDK 58 (`expo@58.0.23`, RN 0.88.1, React 19.3.0)**. Diff ograniczony do samej aktualizacji: zależności, poprawki wymuszone przez nowe SDK, dokumentacja. Żadnych nowych funkcji.
 - Gotowe = `pnpm test`, `pnpm typecheck`, `pnpm lint` zielone; `npx expo-doctor` czysty; aplikacja startuje na emulatorze Android (`Medium_Phone_API_37.0`), sprawdzone przez `tester`; `docs/development/commands.md` i `docs/architecture/overview.md` mają nowe wersje.
@@ -96,6 +100,8 @@ To aktualizacja, nie nowe zachowanie, więc „red” to istniejąca suite po po
 - [x] 2. [backend] `src/test/drawer-status.ts` → nowy podpis `getDrawerStatusFromState`; `jest.setup.ts` jeśli gesture-handler 3 zmienił `jestSetup` — skill: deprecation-and-migration, test-driven-development — najpierw testy: istniejące testy szuflady (red po kroku 1) — weryfikacja: pełna suite + typecheck + lint, verifier
 - [x] 3. [frontend] poprawki w `src/` (poza warstwą danych) wymuszone przez RN 0.88 / expo-router 58: typy refów, deep importy w testach, ewentualnie strażnik kreatora (`repeat`) — skill: deprecation-and-migration, test-driven-development — najpierw testy: czerwone testy/typecheck z kroku 1 — weryfikacja: pełna suite + typecheck + lint, verifier
 - [ ] 4. [tester] dev build na emulatorze `Medium_Phone_API_37.0` (Metro bez `CI=1`), scenariusze ręczne poniżej — skill: brak — weryfikacja: raport PASS/FAIL testera
+- [ ] 6. [tooling — orkiestrator] merge `main` → `feature/expo-58-upgrade` (merge, nie rebase); konflikty `package.json`/`pnpm-lock.yaml`: zostają wersje SDK 58, nowe pakiety z `main` przez `expo install`; `pnpm install`, `pnpm dlx expo install --fix`, `pnpm dlx expo-doctor` — skill: expo-upgrade — weryfikacja: doctor czysty lub lista uwag z powodem
+- [ ] 7. [backend/frontend] poprawki kodu z `main` (discover/places, karuzela zdjęć, pill nav, strony legal, profil/ustawienia, wydatki) wymuszone przez SDK 58 / RN 0.88 strict API / expo-router 58 — skill: migrate-to-strict-api, test-driven-development — najpierw testy: czerwone testy/typecheck/lint po merge'u — weryfikacja: pełna suite + typecheck + lint, verifier
 - [ ] 5. [docs — orkiestrator] `commands.md` (tabela „Project tooling”: SDK 58, RN 0.88, React 19.3; `react-native-gesture-handler` 3), `overview.md` (wersje w stacku), ewentualnie `decisions.md` / `known-limitations.md` — skill: documentation-and-adrs — weryfikacja: verifier końcowy (Sonnet) z CodeRabbit na całej gałęzi, `expo-doctor` jeszcze raz
 
 ### Scenariusze ręczne (krok 4)
@@ -127,6 +133,12 @@ To aktualizacja, nie nowe zachowanie, więc „red” to istniejąca suite po po
   - E: strażnik kreatora (`trips/new/_layout.tsx`) — test „Odrzuć” był czerwony; teraz `usePreventRemove` zapamiętuje pierwszy `repeat`, „Odrzuć” ustawia `leaving` i woła `repeat()`. Zachowanie D19 bez zmian.
   - green: 158/158 suite, 3346/3346 testów, typecheck 0, lint ✓ · skill: migrate-to-strict-api, deprecation-and-migration, test-driven-development · verifier (Haiku): PASS (liczba `it`/`expect` bez zmian w 25 plikach testów, brak `any`/`@ts-*`).
   - Uwagi verifiera (nieblokujące, poza zakresem): `jest.mock('react-native/Libraries/ReactNative/RendererProxy')` w `ProfileSetupScreen.test.tsx` zostaje (działa w RN 0.88; skill każe nie ruszać mocków-stringów); test „jeden dialog” nie sprawdza, która akcja zostaje zapamiętana.
+- Krok 4 (w trakcie, zablokowany): lokalny `npx expo run:android` pada na kompilacji C++ — ninja z CMake 3.22.1 (Android SDK) nie obsługuje ścieżek > 260 znaków, a `LongPathsEnabled` w Windows = 0.
+  - Próba 1: ścieżka 280 znaków w `react-native-worklets`, bo pnpm 12 ignoruje `node-linker` w `.npmrc` (na `main` tak samo). Kacper: `nodeLinker: hoisted` w `pnpm-workspace.yaml` (commit 6d4f04f; lockfile bez zmian, suite 158/158 ✓, typecheck ✓, lint ✓).
+  - Próba 2: worklets przechodzi, `react-native-reanimated` pada (CMake dubluje pełną ścieżkę projektu w katalogu obiektów).
+  - Próba 3: `subst T:` — autolinking Expo nie działa w katalogu głównym dysku, a przy `T:\Travelo-expo58` Node rozwija `subst` do `C:\…` i Gradle ma „different roots”.
+  - Próba 4: jednorazowy worktree `C:\t58` (detached @ 6d4f04f) — pada codegen `react-native-gesture-handler` 3 (`shared/shadowNodes/react/renderer/components/rngesturehandler_codegen`, ~300 znaków). Krótsza ścieżka projektu już nie pomoże.
+  - Zmiany `expo prebuild` w `app.json` (`android.package`, `ios.infoPlist`) i `package.json` (skrypty `android`/`ios`) cofnięte — to artefakty prebuild, nie część zadania.
 
 ## Ryzyka i otwarte pytania
 - **P1 — jak testujemy na emulatorze?** Expo Go dla SDK 58 może jeszcze nie być w Google Play (obsługuje tylko SDK 58). Opcje:
