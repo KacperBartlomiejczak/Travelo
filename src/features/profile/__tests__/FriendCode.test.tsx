@@ -21,7 +21,7 @@ describe('FriendCode (profile-upgrade D15)', () => {
     ['en', 'Share friend code'],
   ])('shares a message containing the code once (%s)', async (lng, label) => {
     await i18n.changeLanguage(lng);
-    const share = jest.spyOn(Share, 'share').mockResolvedValue({ action: 'sharedAction' });
+    const share = jest.spyOn(Share, 'share').mockResolvedValue({ action: 'sharedAction', activityType: undefined });
     await render(<FriendCode code="AB12CD" />);
     await fireEvent.press(screen.getByLabelText(label));
     expect(share).toHaveBeenCalledTimes(1);
