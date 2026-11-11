@@ -227,10 +227,10 @@ describe('useSetTripBudget', () => {
     syncBudgets.mockClear();
 
     await act(async () => {
-      await result.current.setBudget.mutateAsync({ trip, amountMinor: 250000 });
+      await result.current.setBudget.mutateAsync({ trip, budget: { organizerDailyMinor: 250000, members: [] } });
     });
 
-    await waitFor(() => expect(result.current.current.data?.overview.trip.budgetPerPerson.amountMinor).toBe(250000));
+    await waitFor(() => expect(result.current.current.data?.overview.trip.dailyBudget.amountMinor).toBe(250000));
     expect(syncBudgets).toHaveBeenCalled();
   });
 
@@ -242,9 +242,9 @@ describe('useSetTripBudget', () => {
     onlineManager.setOnline(false);
     try {
       await act(async () => {
-        await result.current.mutateAsync({ trip, amountMinor: 250000 });
+        await result.current.mutateAsync({ trip, budget: { organizerDailyMinor: 250000, members: [] } });
       });
-      expect(setBudget).toHaveBeenCalledWith(trip, 250000);
+      expect(setBudget).toHaveBeenCalledWith(trip, { organizerDailyMinor: 250000, members: [] });
     } finally {
       onlineManager.setOnline(true);
     }

@@ -10,19 +10,31 @@ import { router, Stack } from "expo-router";
 import { HeaderBackButton } from "expo-router/react-navigation";
 import * as SplashScreen from "expo-splash-screen";
 import { useEffect, useState } from "react";
+import type { TFunction } from "i18next";
 import { useTranslation } from "react-i18next";
 import { Platform } from "react-native";
 
 import "@/i18n";
+import { readThemePreference } from "@/data/preferences";
+import { applyThemePreference } from "@/hooks/usePreferences";
 import { AnimatedSplash } from "@/components/AnimatedSplash";
 import { AppLoading } from "@/features/auth/AppLoading";
 import { FullScreenError } from "@/features/auth/FullScreenError";
 import { useGateView } from "@/features/auth/useGateView";
+import { LegalDocSchema } from "@/schemas/legal";
 import { AppProviders } from "@/providers/AppProviders";
 import { tokens } from "@/theme/tokens";
 import { useTheme } from "@/theme/useTheme";
 
+// The header title of a legal document; empty for an unknown one (the screen itself shows the error).
+function legalTitle(t: TFunction, doc: string | undefined) {
+  const name = LegalDocSchema.safeParse(doc);
+  return name.success ? t(`legal.${name.data}.title`) : "";
+}
+
 SplashScreen.preventAutoHideAsync();
+// Before the first render, so the first frame already has the chosen theme (profile-settings D8).
+applyThemePreference(readThemePreference());
 
 export default function RootLayout() {
   const [fontsLoaded, fontError] = useFonts({
@@ -130,11 +142,82 @@ function GateContent({ view, retry }: ReturnType<typeof useGateView>) {
             ),
           }}
         />
+        {/* Edit profile above settings; its back button returns there (profile-settings D9). */}
+        <Stack.Screen
+          name="edit-profile"
+          options={{
+            title: "",
+            headerStyle: { backgroundColor: theme.background.canvas },
+            headerTintColor: theme.text.primary,
+            headerShadowVisible: false,
+            headerLeft: ({ tintColor }) => (
+              <HeaderBackButton
+                label={t("profile.settings")}
+                accessibilityLabel={t("settings.backFromEdit")}
+                tintColor={tintColor}
+                style={
+                  Platform.OS === "ios"
+                    ? { minWidth: tokens.layout.touchTarget, minHeight: tokens.layout.touchTarget }
+                    : { minHeight: tokens.layout.touchTarget }
+                }
+                onPress={() => router.back()}
+              />
+            ),
+          }}
+        />
+        {/* Discover places above the drawer (places step C5); its back button returns to where it was opened. */}
+        <Stack.Screen
+          name="discover"
+          options={{
+            title: "",
+            headerStyle: { backgroundColor: theme.background.canvas },
+            headerTintColor: theme.text.primary,
+            headerShadowVisible: false,
+            headerLeft: ({ tintColor }) => (
+              <HeaderBackButton
+                accessibilityLabel={t("discover.back")}
+                tintColor={tintColor}
+                style={
+                  Platform.OS === "ios"
+                    ? { minWidth: tokens.layout.touchTarget, minHeight: tokens.layout.touchTarget }
+                    : { minHeight: tokens.layout.touchTarget }
+                }
+                onPress={() => router.back()}
+              />
+            ),
+          }}
+        />
+        {/* The profile photo full screen over the profile screen (profile-settings D13). */}
+        <Stack.Screen name="avatar" options={{ headerShown: false, presentation: 'fullScreenModal' }} />
         {/* The trip's photos full screen over the home screen (trip-photos D6, P4). */}
         <Stack.Screen name="trips/[tripId]/photos" options={{ headerShown: false, presentation: 'fullScreenModal' }} />
       </Stack.Protected>
       {/* The OAuth redirect can open the app here in any state; the screen only redirects to /. */}
       <Stack.Screen name="auth/callback" options={{ headerShown: false }} />
+      {/* The legal documents open signed out (from the sign-in sheet) and signed in (from Settings), so outside every guard. */}
+      <Stack.Screen
+        name="legal/[doc]"
+        options={({ route }) => ({
+          title: legalTitle(t, (route.params as { doc?: string } | undefined)?.doc),
+          headerStyle: { backgroundColor: theme.background.canvas },
+          headerTintColor: theme.text.primary,
+          headerTitleStyle: tokens.typography.styles.headingSM,
+          headerShadowVisible: false,
+          headerLeft: ({ tintColor }) => (
+            <HeaderBackButton
+              label={t("legal.back")}
+              accessibilityLabel={t("legal.back")}
+              tintColor={tintColor}
+              style={
+                Platform.OS === "ios"
+                  ? { minWidth: tokens.layout.touchTarget, minHeight: tokens.layout.touchTarget }
+                  : { minHeight: tokens.layout.touchTarget }
+              }
+              onPress={() => (router.canGoBack() ? router.back() : router.replace("/"))}
+            />
+          ),
+        })}
+      />
     </Stack>
   );
 }

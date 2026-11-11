@@ -1,41 +1,71 @@
 import { CircleAlert } from 'lucide-react-native';
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { AccessibilityInfo, Text, View } from 'react-native';
+import { AccessibilityInfo, ScrollView, Text, View } from 'react-native';
 
 import { AmountField } from '@/components/AmountField';
 import { BottomSheet } from '@/components/BottomSheet';
 import { PrimaryButton } from '@/components/PrimaryButton';
+import { SegmentedControl } from '@/components/SegmentedControl';
 import { useSetTripBudget } from '@/hooks/useTrips';
-import { currencyMinorDigits, formatAmountInput, parseAmountToMinor } from '@/lib/money';
-import { TripBudgetFormSchema, type TripSummary } from '@/schemas';
+import { currencyMinorDigits, formatAmountInput, formatMoney, parseAmountToMinor } from '@/lib/money';
+import { useScrollFocusedFieldIntoView } from '@/features/trip-create/WizardScreen';
+import { tripDayCount } from '@/lib/trip-days';
+import { TripBudgetFormSchema, type TripBudgetForm, type TripMember, type TripSummary } from '@/schemas';
 import { tokens } from '@/theme/tokens';
 import { useTheme } from '@/theme/useTheme';
 
-type Props = { trip: TripSummary; onClose: () => void };
+type BudgetMode = TripBudgetForm['mode'];
+type Props = { trip: TripSummary; members: TripMember[]; onClose: () => void };
 
-// Changing the budget per person of an existing trip (trips-supabase D5): amount only, in the trip's
-// base currency. Saved on the phone first, so it works offline (D1); the sheet closes after saving (D13).
-export function BudgetSheet({ trip, onClose }: Props) {
+// Changing the daily budget of an existing trip (trips-supabase D5, daily-budget B4): "Razem / Osobno" like the wizard, in the trip's
+// base currency. Opens in Razem when everyone has the same amount (A1). Saved on the phone first, so it works offline (D1); the sheet
+// closes after saving (D13).
+export function BudgetSheet({ trip, members, onClose }: Props) {
   const { t, i18n } = useTranslation();
   const theme = useTheme();
   const setBudget = useSetTripBudget();
   const currency = trip.baseCurrency;
-  const solo = trip.travellerCount === 1;
-  const [amountText, setAmountText] = useState(() => formatAmountInput(trip.budgetPerPerson.amountMinor, currency, i18n.language));
+  const solo = members.length === 0;
+  const initial = [trip.dailyBudget.amountMinor, ...members.map((member) => member.dailyBudgetMinor)];
+  const [mode, setMode] = useState<BudgetMode>(initial.every((amount) => amount === initial[0]) ? 'shared' : 'individual');
+  // The organizer first, then the friends in order.
+  const [texts, setTexts] = useState(() => initial.map((amount) => formatAmountInput(amount, currency, i18n.language)));
   const [submitted, setSubmitted] = useState(false);
+  const individual = !solo && mode === 'individual';
+  const scrollRef = useRef<ScrollView>(null);
+  const keyboardScrollProps = useScrollFocusedFieldIntoView(scrollRef, tokens.spacing[4]);
 
-  const amountMinor = parseAmountToMinor(amountText, currency, i18n.language);
-  const result = TripBudgetFormSchema.safeParse({ budgetPerPerson: { amountMinor, currency } });
+  const names = [t('newTrip.budget.you'), ...members.map((member) => member.displayName)];
+  const amounts = texts.map((text) => parseAmountToMinor(text, currency, i18n.language));
+  // Razem: everyone gets the organizer's amount.
+  const dailyMinor = individual ? amounts : amounts.map(() => amounts[0]);
+  const result = TripBudgetFormSchema.safeParse({
+    mode,
+    organizerDailyMinor: dailyMinor[0],
+    members: members.map((member, i) => ({ memberId: member.id, dailyMinor: dailyMinor[i + 1] })),
+  });
+  const days = tripDayCount(trip.startDate, trip.endDate);
+  const money = (amountMinor: number) => formatMoney({ amountMinor, currency }, i18n.language);
 
   // Same rules as the wizard's budget step (§10.5): not a number while typing; empty or zero on save.
-  let errorKey: string | undefined;
-  if (amountText.trim() !== '' && amountMinor === null) {
-    errorKey = currencyMinorDigits(currency) === 0 ? 'validation.amountInvalidWhole' : 'validation.amountInvalid';
-  } else if (submitted && amountText.trim() === '') {
-    errorKey = 'validation.amountRequired';
-  } else if (amountMinor === 0) {
-    errorKey = 'validation.amountPositive';
+  function errorFor(i: number): string | undefined {
+    const text = texts[i];
+    if (text.trim() !== '' && amounts[i] === null) {
+      return t(currencyMinorDigits(currency) === 0 ? 'validation.amountInvalidWhole' : 'validation.amountInvalid');
+    }
+    if (submitted && text.trim() === '') return t('validation.amountRequired');
+    if (submitted && amounts[i] === 0) return t('validation.amountPositive');
+    return undefined;
+  }
+
+  // Typing the shared amount in Razem sets everyone, so the amounts typed in Osobno survive a Razem round trip untouched.
+  const setText = (i: number, text: string) =>
+    setTexts((current) => current.map((old, j) => (individual && j !== i ? old : text)));
+  // Razem → Osobno: amounts already typed are kept; an empty one gets the shared amount.
+  function changeMode(next: BudgetMode) {
+    setMode(next);
+    if (next === 'individual') setTexts((current) => current.map((text) => (text.trim() === '' ? current[0] : text)));
   }
 
   function save() {
@@ -45,21 +75,44 @@ export function BudgetSheet({ trip, onClose }: Props) {
       return;
     }
     setBudget.mutate(
-      { trip, amountMinor: result.data.budgetPerPerson.amountMinor },
+      { trip, budget: { organizerDailyMinor: result.data.organizerDailyMinor, members: result.data.members } },
       { onSuccess: onClose, onError: () => AccessibilityInfo.announceForAccessibility(t('home.saveBudgetError')) },
     );
   }
 
   return (
     <BottomSheet visible title={t(solo ? 'newTrip.budget.headingSolo' : 'newTrip.budget.heading')} onClose={onClose}>
-      <Text style={[tokens.typography.styles.bodyMD, { color: theme.text.secondary }]}>{t('newTrip.budget.hint')}</Text>
-      <AmountField
-        label={t(solo ? 'newTrip.budget.amountSolo' : 'newTrip.budget.amount')}
-        amountText={amountText}
-        currency={currency}
-        onChangeText={setAmountText}
-        error={errorKey ? t(errorKey) : undefined}
-      />
+      {/* Scrolls when many people are listed; the save button below stays in reach. */}
+      <ScrollView ref={scrollRef} {...keyboardScrollProps} testID="budget-scroll" keyboardShouldPersistTaps="handled" style={{ flexShrink: 1 }} contentContainerStyle={{ gap: tokens.spacing[4] }}>
+        <Text style={[tokens.typography.styles.bodyMD, { color: theme.text.secondary }]}>{t('newTrip.budget.hint')}</Text>
+        {!solo && (
+          <SegmentedControl
+            label={t('newTrip.budget.mode')}
+            options={[
+              { value: 'shared', label: t('newTrip.budget.modeShared') },
+              { value: 'individual', label: t('newTrip.budget.modeIndividual') },
+            ]}
+            value={mode}
+            onChange={changeMode}
+          />
+        )}
+        {(individual ? names : [t(solo ? 'newTrip.budget.amountSolo' : 'newTrip.budget.amountShared')]).map((label, i) => (
+          <AmountField key={i} label={label} amountText={texts[i]} currency={currency} onChangeText={(text) => setText(i, text)} error={errorFor(i)} />
+        ))}
+        {result.success && !solo && (
+          <View style={{ gap: tokens.spacing[1] }}>
+            <Text style={[tokens.typography.styles.bodyMD, { color: theme.text.primary }]}>
+              {t('newTrip.budget.groupTotal', { count: names.length, total: money(dailyMinor.reduce<number>((sum, amount) => sum + (amount ?? 0), 0) * days) })}
+            </Text>
+            {individual &&
+              names.map((name, i) => (
+                <Text key={i} style={[tokens.typography.styles.bodyMD, { color: theme.text.secondary }]}>
+                  {t('newTrip.budget.personTotal', { name, total: money((dailyMinor[i] ?? 0) * days) })}
+                </Text>
+              ))}
+          </View>
+        )}
+      </ScrollView>
       {setBudget.isError && (
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: tokens.spacing[1] }}>
           <CircleAlert

@@ -28,6 +28,13 @@ describe('SegmentedControl', () => {
     expect(onChange).toHaveBeenCalledWith('PLN');
   });
 
+  it('does not fire onChange when the tapped option is already active', async () => {
+    const onChange = jest.fn();
+    await render(<SegmentedControl label="Waluta" options={options} value="THB" onChange={onChange} />);
+    await fireEvent.press(screen.getByRole('radio', { name: 'THB' }));
+    expect(onChange).not.toHaveBeenCalled();
+  });
+
   // Sunline Editorial §8.15.
   it('is a 44dp background.sunken container with 4dp padding and concentric corners', async () => {
     await render(<SegmentedControl label="Waluta" options={options} value="THB" onChange={() => {}} />);
@@ -60,6 +67,15 @@ describe('SegmentedControl', () => {
     expect(flat(selected).borderWidth).toBe(1);
     expect(flat(selected).shadowOpacity).toBe(0);
     expect(screen.getByText('PLN')).toHaveStyle({ color: darkTheme.text.secondary });
+  });
+
+  // Large font scale: "Systemowy" must shrink, never wrap mid-word.
+  it('keeps each label on one line and shrinks the font instead of wrapping', async () => {
+    await render(<SegmentedControl label="Waluta" options={options} value="THB" onChange={() => {}} />);
+    for (const text of ['THB', 'PLN']) {
+      expect(screen.getByText(text).props.numberOfLines).toBe(1);
+      expect(screen.getByText(text).props.adjustsFontSizeToFit).toBe(true);
+    }
   });
 
   it('gives an unselected segment an underlay while pressed', async () => {

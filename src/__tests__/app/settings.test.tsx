@@ -13,7 +13,9 @@ import SettingsRoute from '@/app/settings';
 import i18n from '@/i18n';
 import { useFakeAppSession } from '@/test/fake-session-source';
 import { setNetwork } from '@/test/mock-network';
-import { darkTheme, lightTheme } from '@/theme/legacy/theme';
+import { lightTheme } from '@/theme/legacy/theme';
+import { tokens } from '@/theme/tokens';
+import { darkTheme as sunlineDark, lightTheme as sunlineLight } from '@/theme/theme';
 
 jest.mock('expo-font', () => ({ ...jest.requireActual('expo-font'), useFonts: jest.fn() }));
 jest.mocked(useFonts).mockReturnValue([true, null]);
@@ -44,7 +46,6 @@ const ROUTES = {
   '(drawer)/(tabs)/_layout': TabsLayout,
   '(drawer)/(tabs)/index': () => <Text>home</Text>,
   '(drawer)/(tabs)/expenses': () => <Text>expenses</Text>,
-  '(drawer)/(tabs)/places': () => <Text>places</Text>,
   '(drawer)/(tabs)/plan': () => <Text>plan</Text>,
   '(drawer)/(tabs)/profile': ProfileScreen,
   settings: SettingsRoute,
@@ -177,17 +178,17 @@ describe('Settings — screen (profile-screen A4)', () => {
     expect(screen.queryByTestId('pill-nav')).toBeTruthy();
   });
 
-  it('has a 20dp side gutter at 360dp and wider, and 16dp below 360dp (design-context §18)', async () => {
-    mockWindowWidth = lightTheme.breakpoints.compact;
+  it('has a 20dp side gutter at the compact breakpoint and wider, and 16dp below it (design-context §4.2)', async () => {
+    mockWindowWidth = tokens.layout.compactBreakpoint;
     await openSettings();
     const gutter = () => StyleSheet.flatten(screen.getByTestId('settings-scroll').props.contentContainerStyle).paddingHorizontal;
-    expect(gutter()).toBe(lightTheme.spacing[5]);
-    expect(lightTheme.spacing[5]).toBe(20);
+    expect(gutter()).toBe(tokens.spacing[5]);
+    expect(tokens.spacing[5]).toBe(20);
     await screen.unmount();
-    mockWindowWidth = lightTheme.breakpoints.compact - 1;
+    mockWindowWidth = tokens.layout.compactBreakpoint - 1;
     await openSettings();
-    expect(gutter()).toBe(lightTheme.spacing[4]);
-    expect(lightTheme.spacing[4]).toBe(16);
+    expect(gutter()).toBe(tokens.spacing[4]);
+    expect(tokens.spacing[4]).toBe(16);
   });
 
   it('puts the button in the bottom part of the screen, at least 44dp tall', async () => {
@@ -199,13 +200,13 @@ describe('Settings — screen (profile-screen A4)', () => {
 
   it('uses the light background token in light mode', async () => {
     await openSettings();
-    expect(screen.getByTestId('settings-screen')).toHaveStyle({ backgroundColor: lightTheme.colors.background });
+    expect(screen.getByTestId('settings-screen')).toHaveStyle({ backgroundColor: sunlineLight.background.canvas });
   });
 
   it('uses the dark background token in dark mode', async () => {
     mockScheme = 'dark';
     await openSettings();
-    expect(screen.getByTestId('settings-screen')).toHaveStyle({ backgroundColor: darkTheme.colors.background });
+    expect(screen.getByTestId('settings-screen')).toHaveStyle({ backgroundColor: sunlineDark.background.canvas });
   });
 
   it('has no offline banner and no offline message while online', async () => {
@@ -294,6 +295,8 @@ describe('Settings — offline (D8)', () => {
     expect(signOutButton()).toBeDisabled();
     expect(screen.getByText(OFFLINE_MESSAGE)).toBeTruthy();
     expect(screen.getByTestId('offline-banner')).toBeTruthy();
+    expect(screen.getByText('Jesteś offline. Ustawienia konta wymagają internetu.')).toBeTruthy();
+    expect(screen.queryByText(/Zmiany zapiszą się po połączeniu/)).toBeNull();
   });
 
   it('says it in English', async () => {

@@ -196,7 +196,7 @@ describe('a read that finishes after the clear leaves nothing of the old user on
     let openStore = (_store: LocalStore) => {};
     const opening = new Promise<LocalStore>((resolve) => (openStore = resolve));
     const ctx = await setup(opening);
-    const saving = ctx.trips.setBudget(serverTrip().trip, 250000).catch(() => undefined);
+    const saving = ctx.trips.setBudget(serverTrip().trip, { organizerDailyMinor: 250000, members: [] }).catch(() => undefined);
     // The save has started (its epoch is captured); the clear runs and finishes, and only then does the save get to write.
     await ctx.local.clearUserData();
     openStore(ctx.local);
@@ -210,7 +210,7 @@ describe('a read that finishes after the clear leaves nothing of the old user on
     const ctx = await setup();
     await ctx.local.clearUserData();
 
-    await ctx.trips.setBudget(serverTrip().trip, 250000);
+    await ctx.trips.setBudget(serverTrip().trip, { organizerDailyMinor: 250000, members: [] });
 
     await expect(ctx.local.budgetChange(TRIP_ID)).resolves.not.toBeNull();
   });
@@ -294,7 +294,7 @@ describe('an operation of the old user that starts while the clear is running (a
   });
 
   it('a budget save leaves no row', async () => {
-    const ctx = await duringClear((c) => c.trips.setBudget(serverTrip().trip, 250000));
+    const ctx = await duringClear((c) => c.trips.setBudget(serverTrip().trip, { organizerDailyMinor: 250000, members: [] }));
     await expect(ctx.local.budgetChange(TRIP_ID)).resolves.toBeNull();
   });
 
@@ -303,7 +303,7 @@ describe('an operation of the old user that starts while the clear is running (a
     ctx.supabase.respond('trips', { data: [listRow(serverTrip())] });
 
     await ctx.trips.list();
-    await ctx.trips.setBudget(serverTrip().trip, 250000);
+    await ctx.trips.setBudget(serverTrip().trip, { organizerDailyMinor: 250000, members: [] });
 
     await expect(ctx.local.cachedList()).resolves.not.toBeNull();
     await expect(ctx.local.budgetChange(TRIP_ID)).resolves.not.toBeNull();
@@ -337,7 +337,7 @@ describe('then the next user opens the app offline and sees nothing of the old o
       ctx.trips.current(),
       ctx.trips.photos(TRIP_ID),
       ctx.profiles.myProfile(),
-      ctx.trips.setBudget(serverTrip().trip, 250000),
+      ctx.trips.setBudget(serverTrip().trip, { organizerDailyMinor: 250000, members: [] }),
     ].map((operation) => operation.catch(() => undefined));
     await ctx.local.clearUserData();
     release();

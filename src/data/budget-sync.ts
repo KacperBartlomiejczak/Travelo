@@ -32,25 +32,18 @@ async function send({ supabase }: Deps, change: LocalTripBudgetChange): Promise<
     if (isAuthRetryableFetchError(error)) return { syncStatus: 'pending' };
     return { syncStatus: 'failed', error: error instanceof Error ? error.message : String(error) };
   }
-  // Last write wins: the row changes only if the server's budget is older than this change.
-  const updated = await supabase
-    .from('trips')
-    .update({ budget_per_person_minor: change.budgetPerPerson.amountMinor, budget_updated_at: change.updatedAt })
-    .eq('id', change.tripId)
-    .lt('budget_updated_at', change.updatedAt)
-    .select('id');
-  if (updated.error) {
-    return updated.status === UNREACHABLE ? { syncStatus: 'pending' } : { syncStatus: 'failed', error: updated.error.message };
+  // One atomic call for the organizer and the friends; the server keeps the newer budget (last write wins) and ignores
+  // an older or repeated change without an error, so a retry ends as synced. Not the owner or no such trip: 42501.
+  const result = await supabase.rpc('set_trip_budget', {
+    trip_id: change.tripId,
+    organizer_daily_minor: change.organizerDailyBudget.amountMinor,
+    members: change.members.map((member) => ({ member_id: member.memberId, daily_budget_minor: member.dailyBudgetMinor })),
+    updated_at: change.updatedAt,
+  });
+  if (result.error) {
+    return result.status === UNREACHABLE ? { syncStatus: 'pending' } : { syncStatus: 'failed', error: result.error.message };
   }
-  if (updated.data.length > 0) return 'synced';
-
-  // Nothing updated: the server already has this change or a newer one — or cannot see the trip at all.
-  const current = await supabase.from('trips').select('budget_updated_at').eq('id', change.tripId).maybeSingle();
-  if (current.error) {
-    return current.status === UNREACHABLE ? { syncStatus: 'pending' } : { syncStatus: 'failed', error: current.error.message };
-  }
-  if (current.data && Date.parse(current.data.budget_updated_at) >= Date.parse(change.updatedAt)) return 'synced';
-  return { syncStatus: 'failed', error: 'trip-not-found' };
+  return 'synced';
 }
 
 /**

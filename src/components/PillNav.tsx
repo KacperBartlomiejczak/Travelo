@@ -1,11 +1,25 @@
-import type { LucideIcon } from 'lucide-react-native';
-import { useLayoutEffect, useRef, useState } from 'react';
-import { Animated, Easing, Pressable, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
+import type { LucideIcon } from "lucide-react-native";
+import { useLayoutEffect, useRef, useState } from "react";
+import {
+  LayoutAnimation,
+  Pressable,
+  StyleSheet,
+  useWindowDimensions,
+  View,
+} from "react-native";
+import ReAnimated, {
+  Easing,
+  useAnimatedStyle,
+  useSharedValue,
+  withTiming,
+} from "react-native-reanimated";
 
-import { usePillBottomOffset } from '@/features/nav/usePillClearance';
-import { useReduceMotion } from '@/hooks/useReduceMotion';
-import { tokens } from '@/theme/tokens';
-import { useTheme } from '@/theme/useTheme';
+import { usePressScale } from "@/components/usePressScale";
+import { usePillBottomOffset } from "@/features/nav/usePillClearance";
+import { useReduceMotion } from "@/hooks/useReduceMotion";
+import { darkTheme } from "@/theme/theme";
+import { tokens } from "@/theme/tokens";
+import { useTheme } from "@/theme/useTheme";
 
 export type PillNavItem = { key: string; label: string; Icon: LucideIcon };
 
@@ -17,56 +31,119 @@ type Props = {
 
 const { tabs, focusRing } = tokens.components;
 
-// R1 (pill-nav-and-dialog): above this font scale five labels no longer fit, so inactive items keep only their icon.
-const MAX_FONT_SCALE_WITH_LABELS = 1.3;
-
-// Floating pill tabs (design-context §8.14, pill-nav-and-dialog D1, D2, D4): a capsule detached from the bottom edge on
-// the elevated surface at elevation level 2 (a border in dark mode, §5.2). The selected item sits in a `brand.tint`
-// capsule with `text.brand` icon and label, so selection is colour and shape. The capsule fades in over `duration.standard`
-// (§7.3 selected-tab indicator; instantly with reduce motion, §7.4). The wrapper lets touches through everywhere except the pill.
+// Floating tabs (design-context §8.14, places-legal-navbar A5): one shared pill (`surface.elevated`, level 2 elevation, a
+// border in dark mode §5.2, 8 dp padding) under the whole row. Inside, one `brand.primary` indicator slides behind the
+// items to the selected one; the selected item shows icon and label, the others are icon-only 48 dp tabs with no
+// background of their own (D18). The container is taller than the pill so its shadow is not cut, and lets touches
+// through except on the pill.
 export function PillNav({ items, activeKey, onSelect }: Props) {
-  const theme = useTheme();
   const bottomOffset = usePillBottomOffset();
-  const { width, fontScale } = useWindowDimensions();
+  const { width } = useWindowDimensions();
+  const theme = useTheme();
   const animate = useReduceMotion() === false;
+  // The capsule's width change animates natively (new architecture: no experimental flag needed); skipped with reduce motion.
+  const lastKey = useRef(activeKey);
+  useLayoutEffect(() => {
+    const changed = lastKey.current !== activeKey;
+    lastKey.current = activeKey;
+    if (changed && animate) {
+      LayoutAnimation.configureNext({
+        duration: tokens.motion.duration.standard,
+        update: { type: LayoutAnimation.Types.easeInEaseOut },
+      });
+    }
+  }, [activeKey, animate]);
 
-  const labelsForAll = fontScale <= MAX_FONT_SCALE_WITH_LABELS;
+  // The sliding indicator follows the active item's onLayout (x, width). The first layout and reduce motion set it at once.
+  const left = useSharedValue(0);
+  const indicatorWidth = useSharedValue(0);
+  const placed = useRef(false);
+  const activeRef = useRef(activeKey);
+  const animateRef = useRef(animate);
+  useLayoutEffect(() => {
+    activeRef.current = activeKey;
+    animateRef.current = animate;
+  }, [activeKey, animate]);
+  // The pill remounts on a theme change (border shifts item x): the next placement snaps instead of animating.
+  useLayoutEffect(() => {
+    placed.current = false;
+  }, [theme]);
+  // Absolute `left` is measured inside the border, a layout x from the outside of it (dark mode has a 1 dp border).
+  const border = StyleSheet.flatten(theme.elevation.level2).borderWidth ?? 0;
+  const place = (key: string, x: number, w: number) => {
+    if (key !== activeRef.current) return;
+    if (!placed.current || !animateRef.current) {
+      placed.current = true;
+      left.value = x - border;
+      indicatorWidth.value = w;
+      return;
+    }
+    const config = {
+      duration: tokens.motion.duration.standard,
+      easing: Easing.bezier(...tokens.motion.easing.standard),
+    };
+    left.value = withTiming(x - border, config);
+    indicatorWidth.value = withTiming(w, config);
+  };
+  // Reanimated runs on the UI thread: a later React commit cannot re-apply stale left/width/opacity (Fabric).
+  const indicatorStyle = useAnimatedStyle(() => ({
+    left: left.value,
+    width: indicatorWidth.value,
+  }));
+
   return (
     <View
       testID="pill-nav-container"
       pointerEvents="box-none"
       style={{
-        position: 'absolute',
+        position: "absolute",
         left: 0,
         right: 0,
-        bottom: bottomOffset,
-        alignItems: 'center',
+        // The extra vertical padding is the room for the shadow; subtracting it keeps the items at the usual offset.
+        bottom: bottomOffset - tokens.spacing[2],
+        paddingVertical: tokens.spacing[2],
+        alignItems: "center",
       }}
     >
       <View
         testID="pill-nav"
-        style={[
-          {
-            width: Math.min(width - 2 * tokens.spacing[4], tokens.layout.maxContentWidth),
-            height: tabs.height,
-            flexDirection: 'row',
-            alignItems: 'center',
-            paddingHorizontal: tabs.horizontalPadding,
-            borderRadius: tabs.radius,
-            backgroundColor: theme.surface.elevated,
-          },
-          theme.elevation.level2,
-        ]}
+        // Remount on a scheme change: Android keeps a stale square shadow outline when elevation/border change in place.
+        key={theme === darkTheme ? "dark" : "light"}
+        style={{
+          flexDirection: "row",
+          alignItems: "center",
+          justifyContent: "space-between",
+          gap: tokens.spacing[1],
+          padding: tabs.containerPadding,
+          borderRadius: tokens.radii.pill,
+          backgroundColor: theme.surface.elevated,
+          // Fixed width (D10, D18): the row never resizes on a tab switch, only the indicator slides.
+          width: Math.min(tabs.pillWidth, width - 2 * tokens.spacing[4]),
+          ...theme.elevation.level2,
+        }}
       >
+        <ReAnimated.View
+          testID="pill-nav-indicator"
+          pointerEvents="none"
+          style={[
+            {
+              position: "absolute",
+              top: tabs.containerPadding, // layout y includes the border, absolute top is inside it, so no compensation
+              height: tabs.height,
+              borderRadius: tokens.radii.pill,
+              backgroundColor: theme.brand.primary,
+            },
+            indicatorStyle,
+          ]}
+        />
         {items.map((item) => (
           <PillNavTab
             key={item.key}
             item={item}
             selected={item.key === activeKey}
-            showLabel={labelsForAll || item.key === activeKey}
             animate={animate}
-            minWidth={width < tokens.layout.compactBreakpoint ? tokens.layout.touchTarget : tabs.itemMinWidth}
             onPress={() => onSelect(item.key)}
+            onLayout={(x, w) => place(item.key, x, w)}
           />
         ))}
       </View>
@@ -77,99 +154,106 @@ export function PillNav({ items, activeKey, onSelect }: Props) {
 type TabProps = {
   item: PillNavItem;
   selected: boolean;
-  showLabel: boolean;
   animate: boolean;
-  minWidth: number;
   onPress: () => void;
+  onLayout: (x: number, width: number) => void;
 };
 
-function PillNavTab({ item, selected, showLabel, animate, minWidth, onPress }: TabProps) {
+function PillNavTab({ item, selected, animate, onPress, onLayout }: TabProps) {
   const { Icon, label, key } = item;
   const theme = useTheme();
   const [focused, setFocused] = useState(false);
-  // Opacity of the selected capsule behind icon and label: when this item becomes the selected one, it fades from 0 to 1.
-  const [fade] = useState(() => new Animated.Value(1));
+  // Opacity of the label: when this item becomes the selected one, the label fades in from 0 to 1.
+  const fade = useSharedValue(1);
   const wasSelected = useRef(selected);
   useLayoutEffect(() => {
     const changed = wasSelected.current !== selected;
     wasSelected.current = selected;
-    // Also settles a fade that was running when reduce motion came on (its cleanup stopped it mid-way).
-    if (!animate) {
-      fade.setValue(1);
+    if (!animate || !changed || !selected) {
+      fade.value = 1; // never leave a label part-transparent
       return;
     }
-    if (!changed || !selected) return;
-    fade.setValue(0);
-    // JS driver: only an opacity moves, for 180 ms, and the native driver does not update the rendered style under Jest.
-    const fadeIn = Animated.timing(fade, {
-      toValue: 1,
+    fade.value = 0;
+    fade.value = withTiming(1, {
       duration: tokens.motion.duration.standard,
       easing: Easing.bezier(...tokens.motion.easing.standard),
-      useNativeDriver: false,
     });
-    fadeIn.start();
-    return () => fadeIn.stop();
   }, [selected, animate, fade]);
+  const labelStyle = useAnimatedStyle(() => ({ opacity: fade.value }));
 
-  const iconColor = selected ? theme.text.brand : theme.icon.secondary;
-  const labelColor = selected ? theme.text.brand : theme.text.tertiary;
+  const { style: motionStyle, ...pressHandlers } = usePressScale();
+  const color = selected ? theme.brand.onBrand : theme.icon.secondary;
+  // The wrapper carries the press scale (like every button) and the layout the indicator follows.
   return (
-    <Pressable
-      accessibilityRole="button"
-      accessibilityLabel={label}
-      accessibilityState={{ selected }}
-      onPress={onPress}
-      onFocus={() => setFocused(true)}
-      onBlur={() => setFocused(false)}
-      style={({ pressed }) => [
-        {
-          flex: 1,
-          minWidth,
-          minHeight: tokens.layout.touchTarget,
-          justifyContent: 'center',
-          paddingVertical: tokens.spacing[1],
-          borderRadius: tabs.radius,
-          backgroundColor: pressed ? theme.background.sunken : undefined,
-        },
-        focused && {
-          outlineStyle: 'solid',
-          outlineWidth: focusRing.width,
-          outlineColor: theme.border.focus,
-          outlineOffset: -focusRing.width,
-        },
-      ]}
+    <ReAnimated.View
+      testID={`pill-nav-motion-${key}`}
+      style={[motionStyle, selected && { flexShrink: 1 }]}
+      onLayout={(event) =>
+        onLayout(event.nativeEvent.layout.x, event.nativeEvent.layout.width)
+      }
     >
-      {({ pressed }) => (
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel={label}
+        accessibilityState={{ selected }}
+        onPress={onPress}
+        {...pressHandlers}
+        onFocus={() => setFocused(true)}
+        onBlur={() => setFocused(false)}
+        style={({ pressed }) => [
+          {
+            height: tabs.height,
+            borderRadius: tokens.radii.pill,
+            alignItems: "center",
+            justifyContent: "center",
+          },
+          selected
+            ? {
+                flexShrink: 1,
+                paddingHorizontal: tabs.horizontalPadding,
+                // The brand.primary indicator is behind; pressing paints the item itself with brand.pressed.
+                backgroundColor: pressed ? theme.brand.pressed : undefined,
+              }
+            : {
+                width: tabs.height,
+              },
+          focused && {
+            outlineStyle: "solid",
+            outlineWidth: focusRing.width,
+            outlineColor: theme.border.focus,
+            outlineOffset: focusRing.offset,
+          },
+        ]}
+      >
         <View
           testID={`pill-nav-content-${key}`}
           style={{
-            alignItems: 'center',
-            gap: tabs.labelGap,
-            paddingVertical: tokens.spacing[1],
+            flexDirection: "row",
+            alignItems: "center",
+            gap: tabs.gap,
+            minWidth: 0,
           }}
         >
+          <Icon
+            testID={`pill-nav-icon-${key}`}
+            size={tabs.iconSize}
+            strokeWidth={tokens.iconography.strokeWidth}
+            color={color}
+          />
           {selected && (
-            <Animated.View
-              testID={`pill-nav-capsule-${key}`}
-              pointerEvents="none"
+            <ReAnimated.Text
+              numberOfLines={1}
               style={[
-                StyleSheet.absoluteFill,
-                {
-                  borderRadius: tabs.radius,
-                  backgroundColor: pressed ? theme.background.sunken : theme.brand.tint,
-                  opacity: fade,
-                },
+                tokens.typography.styles.labelSM,
+                { color, flexShrink: 1 },
+                labelStyle,
               ]}
-            />
-          )}
-          <Icon testID={`pill-nav-icon-${key}`} size={tabs.iconSize} strokeWidth={tokens.iconography.strokeWidth} color={iconColor} />
-          {showLabel && (
-            <Text numberOfLines={1} style={[tokens.typography.styles.labelSM, { color: labelColor }]}>
+            >
               {label}
-            </Text>
+            </ReAnimated.Text>
           )}
         </View>
-      )}
-    </Pressable>
+      </Pressable>
+    </ReAnimated.View>
   );
 }

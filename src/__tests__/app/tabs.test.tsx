@@ -5,7 +5,6 @@ import { Text } from 'react-native';
 import TabsLayout from '@/app/(drawer)/(tabs)/_layout';
 import ExpensesScreen from '@/app/(drawer)/(tabs)/expenses';
 import HomeScreen from '@/app/(drawer)/(tabs)/index';
-import PlacesScreen from '@/app/(drawer)/(tabs)/places';
 import PlanScreen from '@/app/(drawer)/(tabs)/plan';
 import ProfileScreen from '@/app/(drawer)/(tabs)/profile';
 import DrawerLayout from '@/app/(drawer)/_layout';
@@ -16,6 +15,7 @@ jest.mock('expo-font', () => ({ ...jest.requireActual('expo-font'), useFonts: je
 jest.mocked(useFonts).mockReturnValue([true, null]);
 
 jest.mock('expo-status-bar', () => ({ ...jest.requireActual('expo-status-bar'), StatusBar: () => null }));
+jest.mock('@/data/app-places', () => ({ fetchAppPlaceRecommendations: jest.fn() })); // the Plan tab now hosts Discover
 
 const ROUTES = {
   _layout: RootLayout,
@@ -23,18 +23,17 @@ const ROUTES = {
   '(drawer)/(tabs)/_layout': TabsLayout,
   '(drawer)/(tabs)/index': HomeScreen,
   '(drawer)/(tabs)/expenses': ExpensesScreen,
-  '(drawer)/(tabs)/places': PlacesScreen,
   '(drawer)/(tabs)/plan': PlanScreen,
   '(drawer)/(tabs)/profile': ProfileScreen,
   'trips/new/index': () => <Text>wizard</Text>,
   'trips/[tripId]/photos': () => <Text>photo viewer</Text>,
 };
 
-const PL = { index: 'Podróż', expenses: 'Wydatki', places: 'Miejsca', plan: 'Plan', profile: 'Profil' };
-const EN = { index: 'Trip', expenses: 'Expenses', places: 'Places', plan: 'Plan', profile: 'Profile' };
-const PATHS = { index: '/', expenses: '/expenses', places: '/places', plan: '/plan', profile: '/profile' };
+const PL = { index: 'Podróż', expenses: 'Wydatki', plan: 'Plan', profile: 'Profil' };
+const EN = { index: 'Trip', expenses: 'Expenses', plan: 'Plan', profile: 'Profile' };
+const PATHS = { index: '/', expenses: '/expenses', plan: '/plan', profile: '/profile' };
 // Screens that are still placeholders; the profile and expenses screens have their own tests.
-const EMPTY = ['places', 'plan'] as const;
+const EMPTY = ['plan'] as const;
 const SCREENS = ['expenses', ...EMPTY, 'profile'] as const;
 const SOON_PL = 'Ten ekran pojawi się wkrótce.';
 
@@ -66,12 +65,19 @@ describe('Pill navigation routes (pill-nav-and-dialog step 4)', () => {
     });
   });
 
+  it('has exactly four tab buttons and no "Miejsca" / "Places" button', async () => {
+    await renderRouter(ROUTES);
+    expect(Object.values(PL).map((name) => screen.getAllByRole('button', { name }).length)).toEqual([1, 1, 1, 1]);
+    expect(screen.queryByRole('button', { name: 'Miejsca' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Places' })).toBeNull();
+  });
+
   it('shows the English title and sentence', async () => {
     await i18n.changeLanguage('en');
-    await renderRouter(ROUTES, { initialUrl: '/places' });
-    expect(screen.getByRole('header', { name: EN.places })).toBeTruthy();
+    await renderRouter(ROUTES, { initialUrl: '/plan' });
+    expect(screen.getByRole('header', { name: EN.plan })).toBeTruthy();
     expect(screen.getByText('This screen is coming soon.')).toBeTruthy();
-    expect(tab(EN.places)).toBeSelected();
+    expect(tab(EN.plan)).toBeSelected();
   });
 
   it('shows the real profile screen at "/profile", not a placeholder', async () => {

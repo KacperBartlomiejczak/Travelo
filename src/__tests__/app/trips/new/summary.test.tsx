@@ -18,6 +18,7 @@ import { emptyFriend, emptySegment, withCompanionCount, withFoundFriend } from '
 import { useTripDraft } from '@/features/trip-create/TripDraftContext';
 import { useCurrentTrip } from '@/hooks/useTrips';
 import i18n from '@/i18n';
+import { formatMoney } from '@/lib/money';
 import { tokens } from '@/theme/tokens';
 
 jest.mock('expo-font', () => ({ ...jest.requireActual('expo-font'), useFonts: jest.fn() }));
@@ -73,8 +74,8 @@ function TripsProbe() {
   );
 }
 
-// Stand-in for steps 1–3: WAW → DXB → BKK, back BKK → WAW, `companions` friends, 3000 THB per person.
-function filledSteps(companions: number, linkedFirstFriend = false) {
+// Stand-in for steps 1–3: WAW → DXB → BKK, back BKK → WAW, `companions` friends, 3000 THB a day per person.
+function filledSteps(companions: number, linkedFirstFriend = false, individualBudget = false) {
   return function FilledFlights() {
     const { setDraft } = useTripDraft();
     const router = useRouter();
@@ -94,7 +95,9 @@ function filledSteps(companions: number, linkedFirstFriend = false) {
             if (i === 0 && linkedFirstFriend) return withFoundFriend(emptyFriend(), '5ZMRX8', { username: 'ola_b', interests: ['museums'] });
             return i === 0 ? { ...emptyFriend(), displayName: 'Kasia', interests: ['beaches', 'nightlife'] } : { ...emptyFriend(), displayName: 'Ola' };
           }),
-          budget: { amountText: '3000', currency: '' },
+          budget: individualBudget
+            ? { mode: 'individual', amountText: '3000', friendAmountTexts: ['2000', '1000'], currency: '' }
+            : { mode: 'shared', amountText: '3000', friendAmountTexts: [], currency: '' },
         };
       });
       router.push('/trips/new/summary');
@@ -107,7 +110,7 @@ function filledSteps(companions: number, linkedFirstFriend = false) {
   };
 }
 
-async function openSummary(companions = 2, home: () => ReactElement | null = TripsProbe, linkedFirstFriend = false) {
+async function openSummary(companions = 2, home: () => ReactElement | null = TripsProbe, linkedFirstFriend = false, individualBudget = false) {
   const rendered = await renderRouter(
     {
       _layout: RootLayout,
@@ -115,7 +118,7 @@ async function openSummary(companions = 2, home: () => ReactElement | null = Tri
       '(drawer)/(tabs)/_layout': TabsLayout,
       '(drawer)/(tabs)/index': home,
       'trips/new/_layout': NewTripLayout,
-      'trips/new/index': filledSteps(companions, linkedFirstFriend),
+      'trips/new/index': filledSteps(companions, linkedFirstFriend, individualBudget),
       'trips/new/friends': FriendsStep,
       'trips/new/budget': BudgetStep,
       'trips/new/summary': SummaryStep,
@@ -126,6 +129,8 @@ async function openSummary(companions = 2, home: () => ReactElement | null = Tri
   return { getPathname: () => rendered.getPathname(), getSearchParams: () => rendered.getSearchParams() };
 }
 
+// Amounts of 5+ digits are grouped in Polish, so expectations come from the formatter.
+const thb = (major: number) => formatMoney({ amountMinor: major * 100, currency: 'THB' }, 'pl');
 const section = (name: string) => within(screen.getByTestId(`summary-${name}`));
 
 beforeEach(async () => {
@@ -206,7 +211,7 @@ describe('Summary step', () => {
     expect(screen.getByRole('header', { name: 'Check your trip' })).toBeTruthy();
     expect(section('trip').getByText('Nov 3 – Nov 15, 2026 · 13 days')).toBeTruthy();
     expect(section('travellers').getByText('Travellers · 3 people')).toBeTruthy();
-    expect(section('budget').getByText('Total 9,000\u00a0THB · ~231\u00a0THB per person a day')).toBeTruthy();
+    expect(section('budget').getByText(`Total ${formatMoney({ amountMinor: 11700000, currency: 'THB' }, 'en')} for the trip`)).toBeTruthy();
   });
 
   it('shows a solo trip as one traveller', async () => {
@@ -214,14 +219,36 @@ describe('Summary step', () => {
     expect(section('travellers').getByText('Podróżni · 1 osoba')).toBeTruthy();
   });
 
-  it('shows the budget per person, the group total and per day', async () => {
+  it('shows the daily budget per person and the group total for the trip', async () => {
     await openSummary();
     const budget = section('budget');
     // Only the amount is large (Numeric L); the label is body text.
-    expect(budget.getByText('3000\u00a0THB')).toBeTruthy();
-    expect(budget.getByText('na osobę')).toBeTruthy();
-    // The daily figure is per person (D35), not for the group.
-    expect(budget.getByText('Razem 9000\u00a0THB · ~231\u00a0THB dziennie na osobę')).toBeTruthy();
+    expect(budget.getByText('3000 THB')).toBeTruthy();
+    expect(budget.getByText('dziennie na osobę')).toBeTruthy();
+    expect(budget.getByText(`Razem ${thb(117000)} na podróż`)).toBeTruthy();
+  });
+
+  it('shows a solo daily budget without "per person" and its total for the trip', async () => {
+    await openSummary(0);
+    const budget = section('budget');
+    expect(budget.getByText('dziennie')).toBeTruthy();
+    expect(budget.getByText(`${thb(39000)} na podróż`)).toBeTruthy();
+  });
+
+  it('lists each person with their daily amount when budgets are separate, and sends them', async () => {
+    await openSummary(2, TripsProbe, false, true);
+    const budget = section('budget');
+    expect(budget.getByText('Ty: 3000 THB dziennie')).toBeTruthy();
+    expect(budget.getByText('Kasia: 2000 THB dziennie')).toBeTruthy();
+    expect(budget.getByText('Ola: 1000 THB dziennie')).toBeTruthy();
+    expect(budget.getByText(`Razem ${thb(78000)} na podróż`)).toBeTruthy();
+    await fireEvent.press(screen.getByRole('button', { name: 'Utwórz podróż' }));
+    expect(await screen.findByText('trips: Warsaw → Bangkok')).toBeTruthy();
+    expect(mockCreateInput).toEqual(
+      expect.objectContaining({
+        budget: { mode: 'individual', currency: 'THB', organizerDailyMinor: 300000, friendDailyMinor: [200000, 100000] },
+      }),
+    );
   });
 
   it.each([
@@ -397,7 +424,7 @@ describe('Summary step', () => {
           return: [
             { ...emptySegment(), fromIata: 'NLI', departTz: 'Asia/Vladivostok', toIata: 'PKY', arriveTz: 'Asia/Pontianak', departAt: '2026-11-10T09:00', arriveAt: '2026-11-10T15:00' },
           ],
-          budget: { amountText: '3000', currency: '' },
+          budget: { mode: 'shared', amountText: '3000', friendAmountTexts: [], currency: '' },
         }));
         router.push('/trips/new/summary');
       }

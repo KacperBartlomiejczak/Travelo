@@ -34,7 +34,7 @@ const overviewOf = (tripId: string): TripOverview => ({
     startDate: '2026-11-02',
     endDate: '2026-11-09',
     baseCurrency: 'EUR',
-    budgetPerPerson: { amountMinor: 300000, currency: 'EUR' },
+    dailyBudget: { amountMinor: 300000, currency: 'EUR' },
     createdAt: '2026-10-04T12:00:00+00:00',
     budgetUpdatedAt: '2026-10-04T12:00:00+00:00',
     travellerCount: 1,
@@ -51,7 +51,7 @@ const profile: Profile = {
   createdAt: '2026-10-18T10:00:00+00:00',
   updatedAt: '2026-10-18T10:00:00+00:00',
 };
-const change = { tripId: TRIP_ID, budgetPerPerson: { amountMinor: 250000, currency: 'EUR' }, updatedAt: '2026-10-06T09:30:00.000Z' };
+const change = { tripId: TRIP_ID, organizerDailyBudget: { amountMinor: 250000, currency: 'EUR' }, members: [], updatedAt: '2026-10-06T09:30:00.000Z' };
 const TABLES = ['trip_overview_cache', 'trip_list_cache', 'selected_trip', 'trip_budget_changes', 'trip_photos_cache', 'my_profile_cache'];
 const NONE = [0, 0, 0, 0, 0, 0];
 

@@ -54,7 +54,8 @@ const TRIP_ID = '0b9e7c4e-6a43-4c4b-9a55-2f6f0f7e1a01';
 const { spacing, size } = lightTheme;
 // The pill floats 12dp above the inset (§8.14, sunline-redesign D23; was 16).
 const PILL_GAP = tokens.spacing[3];
-const CLEARANCE = INSET_BOTTOM + PILL_GAP + size.navPill;
+const PILL_HEIGHT = tokens.components.tabs.height + 2 * tokens.components.tabs.containerPadding;
+const CLEARANCE = INSET_BOTTOM + PILL_GAP + PILL_HEIGHT;
 const OFFLINE = { isConnected: false, isInternetReachable: false };
 const CREATE = 'Utwórz podróż';
 
@@ -69,7 +70,7 @@ function overview(): TripOverview {
       startDate: '2026-11-03',
       endDate: '2026-11-15',
       baseCurrency: 'THB',
-      budgetPerPerson: { amountMinor: 300000, currency: 'THB' },
+      dailyBudget: { amountMinor: 300000, currency: 'THB' },
       createdAt: '2026-10-04T12:00:00.000Z',
       budgetUpdatedAt: '2026-10-04T12:00:00.000Z',
       travellerCount: 1,
@@ -140,7 +141,7 @@ describe('Home screen above the floating pill (pill-nav-and-dialog step 5)', () 
       await renderHome();
       await screen.findByTestId('home-screen');
       // The snackbar adds the inset and 16dp itself, so its offset is the pill's height and 16dp.
-      expect(mockSnackbarOffset).toBe(size.navPill + spacing[4]);
+      expect(mockSnackbarOffset).toBe(PILL_HEIGHT + spacing[4]);
       // The route file still uses the old 16dp pill gap until step 10 moves it to the new theme, so for now the snackbar
       // sits (16 - 12) = 4dp higher above the pill than intended.
       expect(INSET_BOTTOM + spacing[4] + (mockSnackbarOffset ?? 0)).toBe(CLEARANCE + spacing[4] + (spacing[4] - PILL_GAP));
@@ -169,7 +170,14 @@ describe('Home screen above the floating pill (pill-nav-and-dialog step 5)', () 
       mockCurrent = () => new Promise(() => {});
       await renderHome();
       await screen.findByTestId('trips-loading');
-      expect(mockSnackbarOffset).toBe(size.navPill + spacing[4]);
+      expect(mockSnackbarOffset).toBe(PILL_HEIGHT + spacing[4]);
+    });
+
+    it('has no Discover action while loading (D16: empty state only)', async () => {
+      mockCurrent = () => new Promise(() => {});
+      await renderHome();
+      await screen.findByTestId('trips-loading');
+      expect(screen.queryByRole('button', { name: 'Odkryj miejsca' })).toBeNull();
     });
   });
 
@@ -188,10 +196,18 @@ describe('Home screen above the floating pill (pill-nav-and-dialog step 5)', () 
       expect(StyleSheet.flatten(screen.getByTestId('trips-screen').props.style).paddingBottom).toBe(CLEARANCE + spacing[4]);
     });
 
+    it(state === 'error' ? 'has no Discover action in the error state (D16: empty state only)' : 'has the Discover action in the empty state', async () => {
+      await show();
+      const discover = screen.queryByRole('button', { name: 'Odkryj miejsca' });
+      if (state === 'error') expect(discover).toBeNull();
+      else expect(discover).toBeTruthy();
+    });
+
     it('lifts the snackbar above the button, which sits above the pill', async () => {
       await show();
-      // Clear of the button: its height and 12dp above the snackbar's usual place (the clearance and 16dp).
-      expect(mockSnackbarOffset).toBe(size.navPill + spacing[4] + size.buttonPrimary + spacing[3]);
+      // Clear of every pinned button (error: create; empty: create and Discover): each its height and 12dp above the snackbar's usual place (the clearance and 16dp).
+      const pinnedButtons = state === 'empty' ? 2 : 1;
+      expect(mockSnackbarOffset).toBe(PILL_HEIGHT + spacing[4] + pinnedButtons * (size.buttonPrimary + spacing[3]));
     });
 
     it('offline: puts the banner right above the button, so both clear the pill', async () => {

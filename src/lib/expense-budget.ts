@@ -9,13 +9,14 @@ const sum = (expenses: Expense[]) => expenses.reduce((s, e) => s + e.amount.amou
 /** The organizer (memberId null) plus the trip members; unknown memberIds count only toward group totals. */
 export type ExpenseBudgetInput = {
   expenses: Expense[];
-  budgetPerPersonMinor: number;
+  /** The organizer's daily amount; each member carries their own. */
+  organizerDailyMinor: number;
   startDate: string;
   endDate: string;
   /** Today as YYYY-MM-DD; passed in so the math stays pure. */
   today: string;
   organizerName: string;
-  members: { id: string; displayName: string }[];
+  members: { id: string; displayName: string; dailyBudgetMinor: number }[];
 };
 
 function personToday(own: Expense[], budget: number, input: ExpenseBudgetInput): TodayBudget | undefined {
@@ -34,7 +35,12 @@ function personToday(own: Expense[], budget: number, input: ExpenseBudgetInput):
 
 export function computeExpenseBudget(input: ExpenseBudgetInput): { group: GroupBudget; people: PersonBudget[] } {
   const live = input.expenses.filter((e) => e.deletedAt === null);
-  const travelers = [{ id: null as string | null, displayName: input.organizerName }, ...input.members.map((m) => ({ id: m.id, displayName: m.displayName }))];
+  const days = tripDayCount(input.startDate, input.endDate);
+  // B3: the daily amount is fixed, so the trip length sets the pool
+  const travelers = [
+    { id: null as string | null, displayName: input.organizerName, pool: input.organizerDailyMinor * days },
+    ...input.members.map((m) => ({ id: m.id, displayName: m.displayName, pool: m.dailyBudgetMinor * days })),
+  ];
   const people = travelers.map((t): PersonBudget => {
     const own = live.filter((e) => e.memberId === t.id);
     const spentMinor = sum(own);
@@ -42,16 +48,16 @@ export function computeExpenseBudget(input: ExpenseBudgetInput): { group: GroupB
       memberId: t.id,
       displayName: t.displayName,
       spentMinor,
-      leftMinor: input.budgetPerPersonMinor - spentMinor,
+      leftMinor: t.pool - spentMinor,
       byCategory: Object.fromEntries(CATEGORIES.map((c) => [c, sum(own.filter((e) => e.category === c))])) as Record<ExpenseCategory, number>,
-      today: personToday(own, input.budgetPerPersonMinor, input),
+      today: personToday(own, t.pool, input),
     };
   });
   const spentMinor = sum(live);
   const todays = people.map((p) => p.today);
   const group: GroupBudget = {
     spentMinor,
-    leftMinor: input.budgetPerPersonMinor * travelers.length - spentMinor,
+    leftMinor: travelers.reduce((s, t) => s + t.pool, 0) - spentMinor,
     today: todays.every((t) => t !== undefined)
       ? {
           allowedMinor: todays.reduce((s, t) => s + t.allowedMinor, 0),

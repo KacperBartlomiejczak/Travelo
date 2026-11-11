@@ -32,7 +32,7 @@ describe('emptyDraft', () => {
     expect(draft.outbound[0].key).not.toBe(draft.return[0].key);
     expect(draft.companionCount).toBe(0);
     expect(draft.friends).toEqual([]);
-    expect(draft.budget).toEqual({ amountText: '', currency: '' });
+    expect(draft.budget).toEqual({ mode: 'shared', amountText: '', friendAmountTexts: [], currency: '' });
   });
 
   it('has no name of its own yet, and starts on the default cover (trip-covers D4, D7)', () => {
@@ -78,6 +78,14 @@ describe('withCompanionCount', () => {
     const two = withCompanionCount(three, 2);
     expect(two.friends.map((friend) => friend.displayName)).toEqual(['Kasia', 'Ola']);
     expect(withCompanionCount(two, 4).friends.map((friend) => friend.displayName)).toEqual(['Kasia', 'Ola', '', '']);
+  });
+
+  it('trims and resizes the per-friend budget amounts with the count, so a removed friend never pre-fills a new one', () => {
+    const three = withCompanionCount(emptyDraft(), 3);
+    three.budget = { ...three.budget, friendAmountTexts: ['100', '200', '300'] };
+    const one = withCompanionCount(three, 1);
+    expect(one.budget.friendAmountTexts).toEqual(['100']);
+    expect(withCompanionCount(one, 3).budget.friendAmountTexts).toEqual(['100', '', '']);
   });
 
   it('does not change the draft it was given', () => {
@@ -204,15 +212,15 @@ describe('budget currency (D8, D34, D36)', () => {
 
   it("uses the destination's currency until the user picks one", () => {
     expect(budgetCurrency(bkk)).toBe('THB');
-    expect(budgetCurrency({ ...bkk, budget: { amountText: '', currency: 'PLN' } })).toBe('PLN');
+    expect(budgetCurrency({ ...bkk, budget: { ...emptyDraft().budget, currency: 'PLN' } })).toBe('PLN');
   });
 
   it('keeps a hand-picked PLN/EUR/USD when the destination changes', () => {
-    expect(budgetCurrency({ ...bcn, budget: { amountText: '', currency: 'PLN' } })).toBe('PLN');
+    expect(budgetCurrency({ ...bcn, budget: { ...emptyDraft().budget, currency: 'PLN' } })).toBe('PLN');
   });
 
   it("falls back to the new destination's currency when the pick is no longer offered", () => {
-    expect(budgetCurrency({ ...bcn, budget: { amountText: '', currency: 'THB' } })).toBe('EUR');
+    expect(budgetCurrency({ ...bcn, budget: { ...emptyDraft().budget, currency: 'THB' } })).toBe('EUR');
   });
 });
 
@@ -222,10 +230,10 @@ describe('toCreateTripInput', () => {
       ...withCompanionCount(emptyDraft(), 1),
       outbound: [{ ...emptySegment(), fromIata: 'WAW', departTz: 'Europe/Warsaw', toIata: 'BKK', arriveTz: 'Asia/Bangkok', departAt: '2026-11-02T22:00', arriveAt: '2026-11-03T14:00' }],
       friends: [{ displayName: 'Kasia', interests: ['beaches' as const] }],
-      budget: { amountText: '2 500,50', currency: '' },
+      budget: { ...emptyDraft().budget, amountText: '2 500,50' },
     };
     const input = toCreateTripInput(draft, 'pl');
-    expect(input.budget).toEqual({ budgetPerPerson: { amountMinor: 250050, currency: 'THB' } });
+    expect(input.budget).toEqual({ mode: 'shared', currency: 'THB', organizerDailyMinor: 250050, friendDailyMinor: [250050] });
     expect(input.flights.companionCount).toBe(1);
     expect(input.friends).toEqual({ friends: [{ displayName: 'Kasia', interests: ['beaches'] }] });
     expect(input.flights.outbound[0]).toEqual(expect.objectContaining({ fromIata: 'WAW', toIata: 'BKK' }));
@@ -255,7 +263,28 @@ describe('toCreateTripInput', () => {
 
 describe('toCreateTripInput with an amount that does not parse', () => {
   it('uses 0, which the schema rejects', () => {
-    const draft = { ...emptyDraft(), budget: { amountText: 'abc', currency: '' } };
-    expect(toCreateTripInput(draft, 'pl').budget.budgetPerPerson.amountMinor).toBe(0);
+    const draft = { ...emptyDraft(), budget: { ...emptyDraft().budget, amountText: 'abc' } };
+    expect(toCreateTripInput(draft, 'pl').budget.organizerDailyMinor).toBe(0);
+  });
+});
+
+describe('toCreateTripInput with separate budgets', () => {
+  const individual = {
+    ...withCompanionCount(emptyDraft(), 2),
+    budget: { mode: 'individual' as const, amountText: '100', friendAmountTexts: ['200', 'x'], currency: 'PLN' },
+  };
+
+  it('sends one amount per friend, in order, 0 for one that does not parse', () => {
+    expect(toCreateTripInput(individual, 'pl').budget).toEqual({
+      mode: 'individual',
+      currency: 'PLN',
+      organizerDailyMinor: 10000,
+      friendDailyMinor: [20000, 0],
+    });
+  });
+
+  it('in shared mode sends the organizer amount for every friend, whatever the friend fields hold', () => {
+    const shared = { ...individual, budget: { ...individual.budget, mode: 'shared' as const } };
+    expect(toCreateTripInput(shared, 'pl').budget.friendDailyMinor).toEqual([10000, 10000]);
   });
 });

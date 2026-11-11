@@ -17,7 +17,7 @@ Definitions live in `.claude/agents/`.
 | **planner** (read-only) | opus | Drafts a plan in the plan template format, every step tagged `[backend]` or `[frontend]` | nothing — returns the plan to the orchestrator | Start implementing, edit any `plan.md` |
 | **backend** | sonnet | Executes **one approved backend step**: tests first (red), then code (green) | `src/schemas/` (target: `packages/schemas/`), the data layer (`src/data/`, `src/lib/`, `src/providers/`, `src/test/`; Kacper 2026-10-20), `supabase/migrations/`, `supabase/functions/` | Touch `apps/mobile/`, return with any failing test |
 | **frontend** | sonnet | Executes **one approved frontend step** following `context/design-context.md`: tests first, then code | `src/` outside `src/schemas/` and the data layer (target: `apps/mobile/`) | Change Zod schemas or `supabase/` (stop and report instead), return with any failing test |
-| **verifier** (fresh context) | Haiku 5.5 (`claude-haiku-5-5`) | Checks a finished step against the plan, Rules, design context and Verification loop; runs the checks itself | nothing | Fix things itself — it reports PASS / FAIL |
+| **verifier** (fresh context) | Haiku 5.5 (`claude-haiku-5-5`) per step; Sonnet 5.5, effort medium at the end of a plan (set in the call) | **Step mode:** checks a finished step against the plan, Rules, design context and Verification loop; runs the checks itself. **End-of-plan mode:** the same for the whole branch, plus a CodeRabbit review (`coderabbit review --agent --base <base>`, skill `code-review` from CodeRabbit) whose findings it confirms or rejects in the code | nothing | Fix things itself, sign in to CodeRabbit — it reports PASS / FAIL (or blocked when CodeRabbit could not run) |
 | **tester** (device, via `mobile-mcp`) | Haiku 5.5 (`claude-haiku-5-5`), effort high | Drives the app on a connected phone/emulator and walks the plan's manual test steps; checks the screens match the plan | nothing | Fix things itself, guess undefined behavior, use real personal data — it reports PASS / FAIL per scenario |
 
 The model column mirrors the `model:` field in `.claude/agents/*.md`; change both together.
@@ -39,7 +39,8 @@ The model column mirrors the `model:` field in `.claude/agents/*.md`; change bot
    - one commit with the step's code, tests and its `plan.md` update, English message `<type>(<feature-name>): <what> (step N)`, using `git-workflow-and-versioning`;
    - `git push` to that branch; the next step continues on it.
    No commit or push before PASS, and never with a failing test.
-5. The orchestrator updates `docs/architecture/` as part of the last step, before that step's verifier run, then reports the task as done after PASS.
+5. The orchestrator updates `docs/architecture/` as part of the last step, before that step's verifier run.
+6. **End of plan (Kacper, 2026-11-05):** after the last step's PASS and before the final push / opening the PR, the orchestrator runs the **verifier in end-of-plan mode** — Agent call with `model: sonnet`, `effort: medium`, the base branch in the brief. It runs the checklist on the whole branch and a CodeRabbit review. Confirmed `critical` / `major` findings → FAIL → new steps in the plan (backend / frontend, tests first, verifier). Confirmed `minor` and lower → the orchestrator asks Kacper whether to fix them. CodeRabbit not signed in or the run failed → blocked: Kacper runs `coderabbit auth login` in his terminal. Only after PASS is the task reported as done.
 
 ## Rules for delegation
 - Every brief is self-contained: the step, files allowed, relevant Zod schemas, tests to write first, acceptance criteria.
@@ -57,6 +58,6 @@ The model column mirrors the `model:` field in `.claude/agents/*.md`; change bot
 | `planner` | opus | Read, Grep, Glob | Read-only: drafts a plan in the plan template format |
 | `backend` | sonnet | Read, Edit, Write, Grep, Glob, Bash | Executes one backend step test-first (schemas, migrations, RLS, Edge Functions) |
 | `frontend` | sonnet | Read, Edit, Write, Grep, Glob, Bash | Executes one frontend step test-first, following the design context |
-| `verifier` | `claude-haiku-5-5` (Haiku 5.5) | Read, Grep, Glob, Bash | Independent PASS/FAIL review of a finished step; never fixes |
+| `verifier` | `claude-haiku-5-5` (Haiku 5.5); end-of-plan mode: `model: sonnet`, `effort: medium` passed in the Agent call (Codex: no per-call override, runs on its default) | Read, Grep, Glob, Bash (`coderabbit` runs outside the sandbox: `sandbox.excludedCommands` in `.claude/settings.json`, because the CLI's sign-in is not visible inside it) | Independent PASS/FAIL review of a finished step, and of the whole branch with CodeRabbit at the end of a plan; never fixes |
 | `tester` | `claude-haiku-5-5` (Haiku 5.5), effort high | Read, Grep, Glob, Bash, `mcp__mobile-mcp` | Walks a plan's manual steps on a connected phone / emulator (MCP server `mobile-mcp`, `.mcp.json`); PASS / FAIL per scenario; never fixes |
 

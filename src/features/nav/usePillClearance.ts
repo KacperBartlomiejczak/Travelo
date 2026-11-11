@@ -2,6 +2,9 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { tokens } from '@/theme/tokens';
 
+// The shared pill: the items plus the padding around them (places-legal-navbar D6).
+export const PILL_HEIGHT = tokens.components.tabs.height + 2 * tokens.components.tabs.containerPadding;
+
 // Where the floating pill navigation starts: safe-area inset + the 12 dp gap above it (§8.14, sunline-redesign D23).
 export function usePillBottomOffset(): number {
   const insets = useSafeAreaInsets();
@@ -11,5 +14,5 @@ export function usePillBottomOffset(): number {
 // The space the pill takes from the bottom of the screen: its offset + its height. Screens add their own spacing
 // on top of it so that content is never hidden under the pill.
 export function usePillClearance(): number {
-  return usePillBottomOffset() + tokens.components.tabs.height;
+  return usePillBottomOffset() + PILL_HEIGHT;
 }

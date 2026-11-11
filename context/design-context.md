@@ -4,7 +4,7 @@
 **Applies to:** React Native + Expo mobile app  
 **Canonical token file:** `src/theme/tokens.ts`  
 **Direction:** Sunline Editorial  
-**Theme support:** Light + Dark. Every screen, the `/` “Podróż” trip view included, follows the phone's theme (`theme-split-and-profile-prefill` D1). Only the welcome screen and the photo viewer are drawn dark in both themes, through `DarkThemeScope`.
+**Theme support:** Light + Dark. Every screen, the `/` “Podróż” trip view included, follows the theme the user chose in Settings; the default choice, "Systemowy", follows the phone's theme (`theme-split-and-profile-prefill` D1, `profile-settings` D3). Only the welcome screen, the photo viewer and the avatar preview are drawn dark in both themes, through `DarkThemeScope`.
 
 > Implementation contract: every color, spacing value, radius, type style, elevation and motion value must come from `tokens.ts`. No component-level hex values or magic numbers.
 
@@ -22,6 +22,8 @@
 - **Skeletons pulse** (opacity 1 → 0.5 → 1 over 1200 ms, static under reduced motion) in `skeleton.base` instead of the §8.19 shimmer, until a later task replaces it (D5, profile-screen D9).
 - **Copy:** Section 11 (voice and canonical strings) is not applied yet; today's i18n texts stay until a copy task (D7).
 - **Expense category icons:** §2.8 and §8.6 name different icons; the choice is made with the expenses UI (D8).
+- **Settings screen** (`profile-settings` D7): one scrolling list with sections Konto ("Edytuj profil"), Wygląd ("Motyw" and "Język", each a three-option `SegmentedControl` changed in place), O aplikacji (version), then "Wyloguj się" and "Usuń konto" at the bottom. "Usuń konto" is destructive and opens a dialog whose confirm button stays disabled until the user types their own nick (D2). Both are disabled offline, with the reason shown.
+- **Avatar preview** (`profile-settings` D13): `/avatar`, drawn dark in both themes; the whole photo (`contain`), a close `HeroIconButton` top-left and a three-dot `HeroIconButton` top-right, which opens a bottom sheet "Zmień zdjęcie" / "Usuń zdjęcie".
 - Components the app does not have yet (FAB, Avatar Group, Activity Card, Flight Card, Daily-Budget Meter, timeline, quick-add, share summary) are specified here for their future features; they are not built by the redesign (D1).
 
 ---
@@ -1216,20 +1218,20 @@ Sticky footer action region
 
 ### Geometry
 
-- Container height `64`.
-- Radius pill.
-- Horizontal padding `8`.
-- 5 equal flex items, each minimum interactive width `56`.
-- Icon 22 dp.
-- Label gap 3 dp; label uses `labelSM`.
-- Position: 12 dp above bottom safe-area inset; screen content reserves at least `tripOverview.bottomContentInset = 92`.
+- One shared pill: `surface.elevated`, radius pill, `elevation.level2` in Light, 1 dp border in Dark; padding `8` → height `64`; fixed width `components.tabs.pillWidth` (296), at most viewport − 32, centred, so it never resizes on a tab switch. The container leaves vertical room for the shadow.
+- Items spread evenly in a row inside the pill (min gap `4`).
+- Unselected items: icon 22 dp only, straight on the pill background, no circle of their own; touch target stays `48 × 48` (the label stays as the accessibility label).
+- Selected item: height `48`, horizontal padding `16`, icon 22 dp + `labelSM` label in a row, gap `8`; only it shrinks, the label truncates.
+- Selected indicator: one `brand.primary` capsule behind the selected item.
+- Position: 12 dp above bottom safe-area inset; screen content reserves at least the clearance (inset + 12 + 64).
 
 ### States
 
-- Default: `icon.secondary`, `text.tertiary`.
-- Selected: `brand.tint` capsule inside item + `text.brand` + icon; selection includes both color and container shape.
-- Pressed: selected or default item gains `background.sunken` underlay.
-- Focused: 2 dp `border.focus`.
+- Default: icon in `icon.secondary` on the pill background.
+- Selected: `brand.primary` indicator, icon and label in `brand.onBrand`; selection is colour, shape and the visible label.
+- Pressed: every item scales to `motion.press.scale`; the selected indicator also turns `brand.pressed`; unselected items get no background.
+- Focused: 2 dp `border.focus` at the standard focus offset.
+- Motion: on selection change the indicator slides to the new item and resizes, the items resize and the label fades in, over `duration.standard`; instant with reduce motion.
 - Disabled: only permitted for a genuinely inaccessible route; do not disable placeholder tabs—open their placeholder state as current product specifies.
 - Loading/error are screen states, never represented by spinning/erroring tab icons.
 

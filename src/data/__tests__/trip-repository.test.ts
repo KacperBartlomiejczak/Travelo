@@ -46,7 +46,7 @@ describe('buildTrip', () => {
       startDate: '2026-11-03',
       endDate: '2026-11-15',
       baseCurrency: 'THB',
-      budgetPerPerson: { amountMinor: 3000000, currency: 'THB' },
+      dailyBudget: { amountMinor: 100000, currency: 'THB' },
       createdAt: '2026-10-04T12:00:00.000Z',
       budgetUpdatedAt: '2026-10-04T12:00:00.000Z',
     });
@@ -158,6 +158,7 @@ describe('in-memory trip repository', () => {
       const input = createTripInputFixture();
       input.friends.friends = codes.map((friendCode, i) => ({ displayName: `Friend ${i}`, interests: [], friendCode }));
       input.flights.companionCount = codes.length;
+      input.budget.friendDailyMinor = codes.map(() => input.budget.organizerDailyMinor);
       return input;
     };
 
@@ -208,6 +209,7 @@ describe('in-memory trip repository', () => {
       ];
       input.flights.companionCount = 1;
       input.friends.friends = [{ displayName: 'Ola', interests: [] }];
+      input.budget.friendDailyMinor = [input.budget.organizerDailyMinor];
       input.details.name = name;
       return input;
     }
@@ -330,17 +332,28 @@ describe('in-memory trip repository', () => {
   it('changes the budget in the trip\'s base currency, and rejects a non-positive amount', async () => {
     const repo = repository();
     const created = await repo.create(createTripInputFixture());
-    await repo.setBudget(created, 250000);
-    expect((await repo.current())?.overview.trip.budgetPerPerson).toEqual({ amountMinor: 250000, currency: 'THB' });
-    await expect(repo.setBudget(created, 0)).rejects.toThrow();
+    await repo.setBudget(created, { organizerDailyMinor: 250000, members: [] });
+    expect((await repo.current())?.overview.trip.dailyBudget).toEqual({ amountMinor: 250000, currency: 'THB' });
+    await expect(repo.setBudget(created, { organizerDailyMinor: 0, members: [] })).rejects.toThrow();
     await expect(repo.syncBudgets()).resolves.toEqual({ nextAttemptAt: null });
+  });
+
+  it("sets the members' daily amounts together with the organizer's (daily-budget step 4)", async () => {
+    const repo = repository();
+    const created = await repo.create(createTripInputFixture());
+    const members = (await repo.current())!.overview.members;
+    await repo.setBudget(created, { organizerDailyMinor: 250000, members: [{ memberId: members[1].id, dailyMinor: 777 }] });
+    const after = (await repo.current())!.overview.members;
+    expect(after[1].dailyBudgetMinor).toBe(777);
+    expect(after[0].dailyBudgetMinor).toBe(members[0].dailyBudgetMinor);
+    await expect(repo.setBudget(created, { organizerDailyMinor: 1, members: [{ memberId: members[1].id, dailyMinor: 0 }] })).rejects.toThrow();
   });
 
   it('never holds unsent changes: a budget change applies at once, with no device copy waiting to be sent (profile-screen D5)', async () => {
     const repo = repository();
     await expect(repo.hasUnsentChanges()).resolves.toBe(false);
     const created = await repo.create(createTripInputFixture());
-    await repo.setBudget(created, 250000);
+    await repo.setBudget(created, { organizerDailyMinor: 250000, members: [] });
     await expect(repo.hasUnsentChanges()).resolves.toBe(false);
   });
 
@@ -598,6 +611,7 @@ describe('in-memory trip repository', () => {
     const solo = createTripInputFixture();
     solo.flights.companionCount = 0;
     solo.friends.friends = [];
+    solo.budget.friendDailyMinor = [];
     await repo.create(solo);
     expect((await repo.current())?.overview.trip.travellerCount).toBe(1);
   });

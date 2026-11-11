@@ -1,5 +1,7 @@
 import { act, fireEvent, render, screen } from '@testing-library/react-native';
-import { AccessibilityInfo, Animated, StyleSheet } from 'react-native';
+import { useRef } from 'react';
+import { AccessibilityInfo, LayoutAnimation, StyleSheet } from 'react-native';
+import * as Reanimated from 'react-native-reanimated';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import { PillNav } from '@/components/PillNav';
@@ -11,6 +13,8 @@ import { DarkThemeScope } from '@/theme/useTheme';
 
 let mockFontScale = 1;
 let mockWindowWidth = 360;
+let mockScheme: 'light' | 'dark' = 'light';
+jest.mock('react-native/Libraries/Utilities/useColorScheme', () => ({ __esModule: true, default: () => mockScheme }));
 jest.mock('react-native/Libraries/Utilities/useWindowDimensions', () => ({
   __esModule: true,
   default: () => ({ width: mockWindowWidth, height: 812, scale: 2, fontScale: mockFontScale }),
@@ -20,7 +24,8 @@ const { tabs, focusRing } = tokens.components;
 const { styles } = tokens.typography;
 
 const metrics = { frame: { x: 0, y: 0, width: 360, height: 812 }, insets: { top: 47, left: 0, right: 0, bottom: 34 } };
-const PL = ['Podróż', 'Wydatki', 'Miejsca', 'Plan', 'Profil'];
+const PL = ['Podróż', 'Wydatki', 'Plan', 'Profil'];
+const UNSELECTED = ['Podróż', 'Plan', 'Profil'];
 
 function items() {
   return NAV_TABS.map(({ key, labelKey, Icon }) => ({ key, label: i18n.t(labelKey), Icon }));
@@ -38,20 +43,26 @@ const style = (element: ReturnType<typeof screen.getByTestId>) => StyleSheet.fla
 const navButton = (name: string) => screen.getByRole('button', { name });
 const icon = (key: string) => screen.getByTestId(`pill-nav-icon-${key}`, { includeHiddenElements: true });
 const content = (key: string) => screen.getByTestId(`pill-nav-content-${key}`);
-const capsule = (key: string) => screen.getByTestId(`pill-nav-capsule-${key}`);
-const hasCapsule = (key: string) => screen.queryByTestId(`pill-nav-capsule-${key}`) !== null;
+const scaleOf = (key: string) => {
+  const transform = style(screen.getByTestId(`pill-nav-motion-${key}`)).transform as { scale: number }[] | undefined;
+  return transform?.[0]?.scale;
+};
+// Only the PillNav motions run for duration.standard (the press scale uses duration.pressIn).
+const standardTimings = (spy: jest.SpyInstance) => spy.mock.calls.filter(([, config]) => config?.duration === tokens.motion.duration.standard);
 const pass = async (ms: number) => {
   await act(async () => {
     jest.advanceTimersByTime(ms);
   });
 };
-const opacityOf = (key: string) => style(capsule(key)).opacity as number;
 
 beforeEach(async () => {
   jest.useFakeTimers();
   mockFontScale = 1;
   mockWindowWidth = 360;
+  mockScheme = 'light';
   await i18n.changeLanguage('pl');
+  // The Reanimated mock creates a new shared value on every render; a stable one lets values survive re-renders like on a device.
+  jest.spyOn(Reanimated, 'useSharedValue').mockImplementation(<T,>(init: T) => useRef({ value: init }).current as never);
 });
 
 afterEach(() => {
@@ -59,27 +70,22 @@ afterEach(() => {
   jest.restoreAllMocks();
 });
 
-describe('PillNav (design-context §8.14, pill-nav-and-dialog D1, D2, D4)', () => {
+describe('PillNav (design-context §8.14, places-legal-navbar A2)', () => {
   describe('items', () => {
-    it('shows five buttons in order with Polish labels', async () => {
+    it('shows four buttons in order with Polish accessibility labels, and only the selected label as text', async () => {
       await render(ui());
       expect(screen.getAllByRole('button').map((item) => item.props.accessibilityLabel)).toEqual(PL);
-      PL.forEach((label) => expect(screen.getByText(label)).toBeTruthy());
+      expect(screen.getByText('Podróż')).toBeTruthy();
+      ['Wydatki', 'Plan', 'Profil'].forEach((label) => expect(screen.queryByText(label)).toBeNull());
     });
 
     it('shows English labels', async () => {
       await i18n.changeLanguage('en');
       await render(ui());
-      expect(screen.getAllByRole('button').map((item) => item.props.accessibilityLabel)).toEqual([
-        'Trip',
-        'Expenses',
-        'Places',
-        'Plan',
-        'Profile',
-      ]);
+      expect(screen.getAllByRole('button').map((item) => item.props.accessibilityLabel)).toEqual(['Trip', 'Expenses', 'Plan', 'Profile']);
     });
 
-    it('has no role on the container and keeps it non-accessible, so every item is its own screen-reader stop', async () => {
+    it('has no role on the row and keeps it non-accessible, so every item is its own screen-reader stop', async () => {
       await render(ui());
       expect(screen.getByTestId('pill-nav').props.accessibilityRole).toBeUndefined();
       expect(screen.getByTestId('pill-nav').props.accessible).not.toBe(true);
@@ -88,9 +94,9 @@ describe('PillNav (design-context §8.14, pill-nav-and-dialog D1, D2, D4)', () =
     it('calls onSelect with the key of the pressed item', async () => {
       const onSelect = jest.fn();
       await render(ui('index', onSelect));
-      await fireEvent.press(navButton('Miejsca'));
+      await fireEvent.press(navButton('Plan'));
       expect(onSelect).toHaveBeenCalledTimes(1);
-      expect(onSelect).toHaveBeenCalledWith('places');
+      expect(onSelect).toHaveBeenCalledWith('plan');
     });
 
     it('still calls onSelect when the active item is pressed (the router decides)', async () => {
@@ -103,227 +109,323 @@ describe('PillNav (design-context §8.14, pill-nav-and-dialog D1, D2, D4)', () =
     it('exposes only the active item as selected', async () => {
       await render(ui('plan'));
       PL.forEach((label) => expect(navButton(label).props.accessibilityState).toEqual(expect.objectContaining({ selected: label === 'Plan' })));
-      expect(screen.getByRole('button', { name: 'Plan', selected: true })).toBeTruthy();
       expect(screen.getAllByRole('button', { selected: true })).toHaveLength(1);
     });
 
-    it('is at least 44dp high and 56dp wide from 390dp screens up, and shares the width equally (D27)', async () => {
-      mockWindowWidth = tokens.layout.compactBreakpoint;
-      await render(ui());
-      screen.getAllByRole('button').forEach((item) => {
-        expect(style(item).minHeight).toBeGreaterThanOrEqual(tokens.layout.touchTarget);
-        expect(style(item).minWidth).toBe(tabs.itemMinWidth);
-        expect(style(item).flex).toBe(1);
+    it('unselected items keep a 48x48 touch target (>= 44dp, D18); the selected one is a 48dp high capsule with 16dp side padding', async () => {
+      await render(ui('expenses'));
+      UNSELECTED.forEach((label) => {
+        expect(navButton(label)).toHaveStyle({ width: 48, height: 48, borderRadius: tokens.radii.pill });
       });
-      expect(tabs.itemMinWidth).toBe(56);
-    });
-
-    it('drops the minimum width to the 44dp touch target below 390dp, so five items fit a 320dp phone (D27)', async () => {
-      mockWindowWidth = tokens.layout.compactBreakpoint - 1;
-      await render(ui());
-      screen.getAllByRole('button').forEach((item) => {
-        expect(style(item).minWidth).toBe(tokens.layout.touchTarget);
-        expect(style(item).minHeight).toBeGreaterThanOrEqual(tokens.layout.touchTarget);
-        expect(style(item).flex).toBe(1);
-      });
-      expect(tokens.layout.touchTarget).toBe(44);
-      mockWindowWidth = 320;
-      await screen.unmount();
-      await render(ui());
-      screen.getAllByRole('button').forEach((item) => expect(style(item).minWidth).toBe(tokens.layout.touchTarget));
-      // 5 x 44 + 2 x 8 side padding fits the pill (320 - 2 x 16).
-      expect(5 * tokens.layout.touchTarget + 2 * tabs.horizontalPadding).toBeLessThanOrEqual(320 - 2 * tokens.spacing[4]);
+      expect(tabs.height).toBe(48);
+      expect(tabs.height).toBeGreaterThanOrEqual(tokens.layout.touchTarget);
+      expect(navButton('Wydatki')).toHaveStyle({ height: tabs.height, paddingHorizontal: tabs.horizontalPadding, borderRadius: tokens.radii.pill });
+      expect(tabs.horizontalPadding).toBe(16);
     });
   });
 
   describe('look (§8.14)', () => {
-    it('selected item: brand.tint capsule with text.brand label and icon; the others icon.secondary / text.tertiary (light)', async () => {
+    it('selected: label and icon in brand.onBrand over the sliding brand.primary indicator; the others icon-only with no background of their own (light, D18)', async () => {
       await render(ui('expenses'));
-      expect(screen.getByText('Wydatki')).toHaveStyle({ color: lightTheme.text.brand, ...styles.labelSM });
-      expect(icon('expenses').props.stroke).toBe(lightTheme.text.brand);
-      expect(capsule('expenses')).toHaveStyle({ backgroundColor: lightTheme.brand.tint, borderRadius: tokens.radii.pill });
-      ['Podróż', 'Miejsca', 'Plan', 'Profil'].forEach((label) => {
-        expect(screen.getByText(label)).toHaveStyle({ color: lightTheme.text.tertiary, ...styles.labelSM });
+      expect(style(screen.getByTestId('pill-nav-indicator')).backgroundColor).toBe(lightTheme.brand.primary);
+      expect(screen.getByText('Wydatki')).toHaveStyle({ color: lightTheme.brand.onBrand, ...styles.labelSM });
+      expect(icon('expenses').props.stroke).toBe(lightTheme.brand.onBrand);
+      UNSELECTED.forEach((label) => {
+        expect(screen.queryByText(label)).toBeNull();
+        expect(style(navButton(label)).backgroundColor).toBeUndefined();
       });
-      ['index', 'places', 'plan', 'profile'].forEach((key) => {
-        expect(icon(key).props.stroke).toBe(lightTheme.icon.secondary);
-        // The capsule is the selection's container shape: only the selected item has it.
-        expect(hasCapsule(key)).toBe(false);
-      });
+      ['index', 'plan', 'profile'].forEach((key) => expect(icon(key).props.stroke).toBe(lightTheme.icon.secondary));
     });
 
-    it('uses the dark colours in dark mode', async () => {
-      await render(ui('expenses'), { wrapper: DarkThemeScope });
-      expect(darkTheme.brand.tint).not.toBe(lightTheme.brand.tint);
-      expect(capsule('expenses')).toHaveStyle({ backgroundColor: darkTheme.brand.tint });
-      expect(screen.getByText('Wydatki')).toHaveStyle({ color: darkTheme.text.brand });
-      expect(icon('expenses').props.stroke).toBe(darkTheme.text.brand);
-      expect(screen.getByText('Plan')).toHaveStyle({ color: darkTheme.text.tertiary });
-      expect(icon('plan').props.stroke).toBe(darkTheme.icon.secondary);
+    it('lays the selected icon and label in a row with an 8dp gap', async () => {
+      await render(ui('expenses'));
+      expect(content('expenses')).toHaveStyle({ flexDirection: 'row', gap: tabs.gap });
+      expect(tabs.gap).toBe(8);
+      expect(screen.getByText('Wydatki').props.numberOfLines).toBe(1);
     });
 
-    it('shows every icon at 22dp with the 1.75 stroke, selected or not, with a 3dp gap to the label', async () => {
+    it('shows every icon at 22dp with the 1.75 stroke', async () => {
       await render(ui('expenses'));
       NAV_TABS.forEach(({ key }) => {
         expect(icon(key).props.width).toBe(tabs.iconSize);
-        expect(icon(key).props.height).toBe(tabs.iconSize);
         expect(icon(key).props.strokeWidth).toBe(tokens.iconography.strokeWidth);
-        expect(content(key)).toHaveStyle({ gap: tabs.labelGap });
       });
-      expect([tabs.iconSize, tabs.labelGap, tokens.iconography.strokeWidth]).toEqual([22, 3, 1.75]);
     });
 
-    it('is a floating capsule: 64dp high, 8dp side padding, fully rounded, elevated surface, level 2 shadow (light)', async () => {
-      await render(ui());
-      expect(screen.getByTestId('pill-nav')).toHaveStyle({
-        height: tabs.height,
-        paddingHorizontal: tabs.horizontalPadding,
-        borderRadius: tabs.radius,
-        backgroundColor: lightTheme.surface.elevated,
+    it('uses the dark colours in dark mode, with a level 2 border instead of a shadow on the shared pill only', async () => {
+      await render(ui('expenses'), { wrapper: DarkThemeScope });
+      expect(style(screen.getByTestId('pill-nav-indicator')).backgroundColor).toBe(darkTheme.brand.primary);
+      expect(screen.getByText('Wydatki')).toHaveStyle({ color: darkTheme.brand.onBrand });
+      expect(style(navButton('Plan')).backgroundColor).toBeUndefined();
+      expect(style(screen.getByTestId('pill-nav'))).toMatchObject({ backgroundColor: darkTheme.surface.elevated, borderWidth: 1, shadowOpacity: 0, elevation: 0 });
+      screen.getAllByRole('button').forEach((item) => expect(style(item).borderWidth).toBeUndefined());
+    });
+
+    it('draws one shared pill under the row: surface.elevated, radius.pill, level 2 shadow, 8dp padding, 4dp gap (D18) -> 64dp high; items have no own shadow', async () => {
+      await render(ui('expenses'));
+      expect(style(screen.getByTestId('pill-nav'))).toMatchObject({
         ...lightTheme.elevation.level2,
+        backgroundColor: lightTheme.surface.elevated,
+        borderRadius: tokens.radii.pill,
+        padding: tabs.containerPadding,
+        gap: tokens.spacing[1],
       });
-      expect([tabs.height, tabs.horizontalPadding, tabs.radius]).toEqual([64, 8, tokens.radii.pill]);
       expect(style(screen.getByTestId('pill-nav')).shadowOpacity).toBeGreaterThan(0);
+      expect(tabs.containerPadding).toBe(8);
+      expect(tabs.height + 2 * tabs.containerPadding).toBe(64);
+      screen.getAllByRole('button').forEach((item) => expect(style(item).shadowOpacity).toBeUndefined());
     });
 
-    it('takes its depth from a level 2 border, not a shadow, in dark mode', async () => {
-      await render(ui(), { wrapper: DarkThemeScope });
-      expect(screen.getByTestId('pill-nav')).toHaveStyle({ backgroundColor: darkTheme.surface.elevated, ...darkTheme.elevation.level2 });
-      expect(style(screen.getByTestId('pill-nav'))).toMatchObject({ borderWidth: 1, shadowOpacity: 0, elevation: 0 });
-    });
-
-    it('sits 12dp above the bottom safe area (§8.14, D23), centred, 16dp from each side', async () => {
+    it('leaves vertical room for the shadow: the container is taller than the items and does not clip', async () => {
       await render(ui());
-      expect(screen.getByTestId('pill-nav-container')).toHaveStyle({
-        position: 'absolute',
-        bottom: metrics.insets.bottom + tokens.spacing[3],
-        left: 0,
-        right: 0,
-        alignItems: 'center',
-      });
-      expect(screen.getByTestId('pill-nav')).toHaveStyle({ width: 360 - 2 * tokens.spacing[4] });
+      const container = style(screen.getByTestId('pill-nav-container'));
+      expect(container).toMatchObject({ position: 'absolute', left: 0, right: 0, alignItems: 'center', paddingVertical: tokens.spacing[2] });
+      // The items themselves start 12dp above the safe area, as usePillClearance assumes.
+      expect(container.bottom).toBe(metrics.insets.bottom + tokens.spacing[3] - tokens.spacing[2]);
+      expect(container.overflow).not.toBe('hidden');
+      expect(style(screen.getByTestId('pill-nav')).overflow).not.toBe('hidden');
+      expect(navButton('Plan')).not.toHaveStyle({ overflow: 'hidden' });
     });
 
-    it('is capped at the maximum content width on a wide screen', async () => {
+    it('keeps the row within the container on a 320dp screen with a large font scale, truncating the label', async () => {
+      mockWindowWidth = 320;
+      mockFontScale = 2;
+      await render(ui('expenses'));
+      expect(style(screen.getByTestId('pill-nav')).width).toBe(320 - 2 * tokens.spacing[4]);
+      expect(screen.getByText('Wydatki').props.numberOfLines).toBe(1);
+      expect(navButton('Wydatki')).toHaveStyle({ flexShrink: 1 });
+      const fixed = 3 * tabs.height + 3 * tokens.spacing[1] + 2 * tabs.containerPadding + 2 * tabs.horizontalPadding + tabs.iconSize + tabs.gap;
+      expect(fixed).toBeLessThan(320 - 2 * tokens.spacing[4]);
+    });
+
+    it('is capped at the fixed pill width on a wide screen (D10)', async () => {
       mockWindowWidth = 1000;
       await render(ui());
-      expect(screen.getByTestId('pill-nav')).toHaveStyle({ width: tokens.layout.maxContentWidth });
+      expect(tabs.pillWidth).toBe(296);
+      expect(style(screen.getByTestId('pill-nav')).width).toBe(296);
     });
 
-    it('lets touches through everywhere except the capsule (box-none)', async () => {
+    it('has a fixed width of min(pillWidth, window - 2 * spacing[4]), items spread evenly, unchanged by a selection change (D10, D18: 296)', async () => {
+      mockWindowWidth = 411;
+      const view = await render(ui('index'));
+      const pill = () => style(screen.getByTestId('pill-nav'));
+      expect(pill()).toMatchObject({ width: 296, justifyContent: 'space-between' });
+      await view.rerender(ui('expenses'));
+      expect(pill().width).toBe(296);
+      expect(pill().maxWidth).toBeUndefined();
+    });
+
+    it('keeps the view with the elevation on the same view as the radius and background (rounded shadow)', async () => {
+      await render(ui('index'));
+      const pill = style(screen.getByTestId('pill-nav'));
+      expect(pill.elevation).toBeGreaterThan(0);
+      expect(pill).toMatchObject({ borderRadius: tokens.radii.pill, backgroundColor: lightTheme.surface.elevated });
+    });
+
+    it('mounts a new pill view when the colour scheme changes (Android keeps a stale square shadow outline otherwise)', async () => {
+      mockScheme = 'dark';
+      const view = await render(ui());
+      const hostOf = () => (screen.getByTestId('pill-nav') as unknown as { instance: unknown }).instance;
+      const before = hostOf();
+      mockScheme = 'light';
+      await view.rerender(ui());
+      expect(style(screen.getByTestId('pill-nav')).borderWidth).toBeUndefined();
+      expect(hostOf()).not.toBe(before);
+    });
+
+    it('lets touches through everywhere except the items (box-none)', async () => {
       await render(ui());
       expect(screen.getByTestId('pill-nav-container').props.pointerEvents).toBe('box-none');
     });
 
-    it('shows a pressed item, selected or not, with a background.sunken underlay', async () => {
+    it('shows a pressed selected item with brand.pressed and a pressed unselected one only scaled, with no background (D18), scaled like every button (D8)', async () => {
       await render(ui('expenses'));
-      expect(navButton('Plan')).not.toHaveStyle({ backgroundColor: lightTheme.background.sunken });
       // currentTarget is what Pressability remembers as its responder; without it a later release is ignored.
       await fireEvent(navButton('Plan'), 'responderGrant', { nativeEvent: { timestamp: Date.now() }, currentTarget: 1, persist: jest.fn() });
-      expect(navButton('Plan')).toHaveStyle({ backgroundColor: lightTheme.background.sunken, borderRadius: tokens.radii.pill });
+      expect(style(navButton('Plan')).backgroundColor).toBeUndefined();
+      expect(scaleOf('plan')).toBe(tokens.motion.press.scale);
       await fireEvent(navButton('Plan'), 'responderRelease', { nativeEvent: { timestamp: Date.now() }, persist: jest.fn() });
       await pass(500);
-      expect(navButton('Plan')).not.toHaveStyle({ backgroundColor: lightTheme.background.sunken });
+      expect(scaleOf('plan')).toBe(1);
       await fireEvent(navButton('Wydatki'), 'responderGrant', { nativeEvent: { timestamp: Date.now() }, currentTarget: 2, persist: jest.fn() });
-      // The selected tint capsule covers the underlay, so what the user sees on a pressed selected tab is the capsule itself.
-      expect(capsule('expenses')).toHaveStyle({ backgroundColor: lightTheme.background.sunken });
+      expect(navButton('Wydatki')).toHaveStyle({ backgroundColor: lightTheme.brand.pressed });
       await fireEvent(navButton('Wydatki'), 'responderRelease', { nativeEvent: { timestamp: Date.now() }, persist: jest.fn() });
       await pass(500);
-      expect(capsule('expenses')).toHaveStyle({ backgroundColor: lightTheme.brand.tint });
-    });
-
-    it('uses the dark underlay in dark mode', async () => {
-      await render(ui(), { wrapper: DarkThemeScope });
-      await fireEvent(navButton('Plan'), 'responderGrant', { nativeEvent: { timestamp: Date.now() }, currentTarget: 1, persist: jest.fn() });
-      expect(navButton('Plan')).toHaveStyle({ backgroundColor: darkTheme.background.sunken });
+      expect(style(navButton('Wydatki')).backgroundColor).toBeUndefined();
     });
 
     it('shows a 2dp border.focus ring while focused', async () => {
       await render(ui());
       expect(navButton('Plan')).not.toHaveStyle({ outlineWidth: focusRing.width });
       await fireEvent(navButton('Plan'), 'focus');
-      expect(navButton('Plan')).toHaveStyle({ outlineWidth: focusRing.width, outlineColor: lightTheme.border.focus });
+      expect(navButton('Plan')).toHaveStyle({ outlineWidth: focusRing.width, outlineColor: lightTheme.border.focus, outlineOffset: focusRing.offset });
       await fireEvent(navButton('Plan'), 'blur');
       expect(navButton('Plan')).not.toHaveStyle({ outlineWidth: focusRing.width });
     });
   });
 
-  describe('large text (R1)', () => {
-    it('shows every label up to a font scale of 1.3', async () => {
-      mockFontScale = 1.3;
-      await render(ui('index'));
-      PL.forEach((label) => expect(screen.getByText(label)).toBeTruthy());
+  describe('sliding indicator (D7)', () => {
+    const indicator = () => style(screen.getByTestId('pill-nav-indicator'));
+    const layout = (name: string, x: number, width: number) =>
+      fireEvent(navButton(name), 'layout', { nativeEvent: { layout: { x, y: 8, width, height: tabs.height } } });
+    // The Reanimated mock re-evaluates animated styles only on render, so a re-render stands in for the UI thread.
+    const flush = (view: Awaited<ReturnType<typeof render>>, key: string) => view.rerender(ui(key));
+
+    it('takes the active item x and width after onLayout, without animating the first time', async () => {
+      const timing = jest.spyOn(Reanimated, 'withTiming');
+      const view = await render(ui('index'));
+      await layout('Podróż', 8, 120);
+      await flush(view, 'index');
+      expect(indicator()).toMatchObject({ position: 'absolute', left: 8, width: 120, height: tabs.height, top: tabs.containerPadding, borderRadius: tokens.radii.pill });
+      expect(standardTimings(timing)).toHaveLength(0);
     });
 
-    it('above 1.3 shows only the active label and keeps the accessibility labels', async () => {
-      mockFontScale = 2;
-      await render(ui('expenses'));
-      expect(screen.getByText('Wydatki')).toBeTruthy();
-      ['Podróż', 'Miejsca', 'Plan', 'Profil'].forEach((label) => {
-        expect(screen.queryByText(label)).toBeNull();
-        expect(navButton(label)).toBeTruthy();
-      });
-      expect(screen.getAllByRole('button').map((item) => item.props.accessibilityLabel)).toEqual(PL);
+    it('animates left and width to the new item over duration.standard when the selection changes', async () => {
+      jest.spyOn(AccessibilityInfo, 'isReduceMotionEnabled').mockResolvedValue(false);
+      const view = await render(ui('index'));
+      await layout('Podróż', 8, 120);
+      const timing = jest.spyOn(Reanimated, 'withTiming');
+      await view.rerender(ui('expenses'));
+      await layout('Wydatki', 184, 140);
+      await flush(view, 'expenses');
+      expect(timing).toHaveBeenCalledWith(184, expect.objectContaining({ duration: tokens.motion.duration.standard }));
+      expect(timing).toHaveBeenCalledWith(140, expect.objectContaining({ duration: tokens.motion.duration.standard }));
+      expect(indicator()).toMatchObject({ left: 184, width: 140 });
+    });
+
+    it('in dark mode lines up with the active item: left compensates the 1 dp border, top does not', async () => {
+      const view = await render(ui('index'), { wrapper: DarkThemeScope });
+      await layout('Podróż', 9, 120);
+      await flush(view, 'index');
+      expect(indicator()).toMatchObject({ left: 8, top: tabs.containerPadding });
+    });
+
+    it('snaps, not animates, to the first layout after a theme switch remounts the pill', async () => {
+      jest.spyOn(AccessibilityInfo, 'isReduceMotionEnabled').mockResolvedValue(false);
+      const view = await render(ui('index'));
+      await layout('Podróż', 8, 120);
+      mockScheme = 'dark';
+      await view.rerender(ui('index'));
+      const timing = jest.spyOn(Reanimated, 'withTiming');
+      await layout('Podróż', 9, 120);
+      await flush(view, 'index');
+      expect(standardTimings(timing)).toHaveLength(0);
+      expect(indicator()).toMatchObject({ left: 8, width: 120 });
+    });
+
+    it('moves at once with reduce motion', async () => {
+      jest.spyOn(AccessibilityInfo, 'isReduceMotionEnabled').mockResolvedValue(true);
+      const view = await render(ui('index'));
+      await layout('Podróż', 8, 120);
+      const timing = jest.spyOn(Reanimated, 'withTiming');
+      await view.rerender(ui('expenses'));
+      await layout('Wydatki', 184, 140);
+      await flush(view, 'expenses');
+      expect(standardTimings(timing)).toHaveLength(0);
+      expect(indicator()).toMatchObject({ left: 184, width: 140 });
     });
   });
 
-  describe('motion (§7.3 selected-tab indicator, §7.4, D4)', () => {
+  describe('motion (§7.3, §7.4)', () => {
+    const labelOpacity = () => style(screen.getByText('Wydatki')).opacity as number;
+
     it('does not animate on first render', async () => {
-      const timing = jest.spyOn(Animated, 'timing');
+      const timing = jest.spyOn(Reanimated, 'withTiming');
       await render(ui('index'));
-      expect(timing).not.toHaveBeenCalled();
-      expect(opacityOf('index')).toBe(1);
-      expect(hasCapsule('expenses')).toBe(false);
+      expect(standardTimings(timing)).toHaveLength(0);
+      expect(style(screen.getByText('Podróż')).opacity).toBe(1);
     });
 
-    it('fades the new selected capsule in over duration.standard (180 ms); the one left just loses its capsule', async () => {
+    it('fades the new selected label in over duration.standard (180 ms)', async () => {
       jest.spyOn(AccessibilityInfo, 'isReduceMotionEnabled').mockResolvedValue(false);
-      const timing = jest.spyOn(Animated, 'timing');
+      const timing = jest.spyOn(Reanimated, 'withTiming');
       const view = await render(ui('index'));
       await view.rerender(ui('expenses'));
-      expect(timing).toHaveBeenCalledTimes(1);
-      expect(timing).toHaveBeenCalledWith(
-        expect.anything(),
-        expect.objectContaining({ toValue: 1, duration: tokens.motion.duration.standard, useNativeDriver: false }),
-      );
+      expect(timing).toHaveBeenCalledWith(1, expect.objectContaining({ duration: tokens.motion.duration.standard }));
       expect(tokens.motion.duration.standard).toBe(180);
-      expect(opacityOf('expenses')).toBe(0);
-      expect(hasCapsule('index')).toBe(false);
-      // Only the capsule fades: icon and label of the new item stay fully visible.
-      expect(style(content('expenses')).opacity).toBeUndefined();
       await pass(tokens.motion.duration.standard + 50);
-      expect(opacityOf('expenses')).toBe(1);
+      expect(labelOpacity()).toBe(1);
+    });
+
+    it('starts the fade of the new selected label at 0, then times it to 1', async () => {
+      jest.spyOn(AccessibilityInfo, 'isReduceMotionEnabled').mockResolvedValue(false);
+      const assigned: number[] = [];
+      jest.spyOn(Reanimated, 'useSharedValue').mockImplementation(<T,>(init: T) => {
+        const value = useRef({ current: init, set(next: T) { this.current = next; if (init === 1) assigned.push(next as number); } }).current;
+        return useRef({ get value() { return value.current; }, set value(next: T) { value.set(next); } }).current as never;
+      });
+      const view = await render(ui('index'));
+      await pass(0);
+      assigned.length = 0;
+      await view.rerender(ui('expenses'));
+      const zero = assigned.indexOf(0);
+      expect(zero).toBeGreaterThanOrEqual(0);
+      expect(assigned[zero + 1]).toBe(1);
+    });
+
+    it('animates the capsule width change with LayoutAnimation over duration.standard, once per selection change', async () => {
+      jest.spyOn(AccessibilityInfo, 'isReduceMotionEnabled').mockResolvedValue(false);
+      const configure = jest.spyOn(LayoutAnimation, 'configureNext').mockImplementation(() => {});
+      const view = await render(ui('index'));
+      expect(configure).not.toHaveBeenCalled();
+      await view.rerender(ui('expenses'));
+      expect(configure).toHaveBeenCalledTimes(1);
+      expect(configure).toHaveBeenCalledWith(expect.objectContaining({ duration: tokens.motion.duration.standard }));
+      await view.rerender(ui('expenses'));
+      expect(configure).toHaveBeenCalledTimes(1);
+    });
+
+    it('does not use LayoutAnimation with reduce motion', async () => {
+      jest.spyOn(AccessibilityInfo, 'isReduceMotionEnabled').mockResolvedValue(true);
+      const configure = jest.spyOn(LayoutAnimation, 'configureNext').mockImplementation(() => {});
+      const view = await render(ui('index'));
+      await view.rerender(ui('expenses'));
+      expect(configure).not.toHaveBeenCalled();
     });
 
     it('switches at once, with no animation, when the system asks to reduce motion', async () => {
       jest.spyOn(AccessibilityInfo, 'isReduceMotionEnabled').mockResolvedValue(true);
       const view = await render(ui('index'));
-      const timing = jest.spyOn(Animated, 'timing');
+      const timing = jest.spyOn(Reanimated, 'withTiming');
       await view.rerender(ui('expenses'));
-      expect(timing).not.toHaveBeenCalled();
-      expect(opacityOf('expenses')).toBe(1);
-      expect(capsule('expenses')).toHaveStyle({ backgroundColor: lightTheme.brand.tint });
+      expect(standardTimings(timing)).toHaveLength(0);
+      expect(labelOpacity()).toBe(1);
     });
 
     it('when the system cannot say whether to reduce motion, it shows without animation', async () => {
       jest.spyOn(AccessibilityInfo, 'isReduceMotionEnabled').mockRejectedValue(new Error('no native module'));
       const view = await render(ui('index'));
-      const timing = jest.spyOn(Animated, 'timing');
+      const timing = jest.spyOn(Reanimated, 'withTiming');
       await view.rerender(ui('expenses'));
-      expect(timing).not.toHaveBeenCalled();
-      expect(opacityOf('expenses')).toBe(1);
+      expect(standardTimings(timing)).toHaveLength(0);
+      expect(labelOpacity()).toBe(1);
     });
 
     it('does not animate while the answer is still unknown', async () => {
       jest.spyOn(AccessibilityInfo, 'isReduceMotionEnabled').mockReturnValue(new Promise(() => {}));
       const view = await render(ui('index'));
-      const timing = jest.spyOn(Animated, 'timing');
+      const timing = jest.spyOn(Reanimated, 'withTiming');
       await view.rerender(ui('expenses'));
-      expect(timing).not.toHaveBeenCalled();
-      expect(opacityOf('expenses')).toBe(1);
+      expect(standardTimings(timing)).toHaveLength(0);
+      expect(labelOpacity()).toBe(1);
     });
 
-    it('settles the capsule at full opacity when reduce motion switches on while the fade runs', async () => {
+    it('ends with the selected label at opacity 1 after fast successive switches', async () => {
+      jest.spyOn(AccessibilityInfo, 'isReduceMotionEnabled').mockResolvedValue(false);
+      const view = await render(ui('index'));
+      await pass(0);
+      await view.rerender(ui('expenses'));
+      await pass(90);
+      await view.rerender(ui('plan'));
+      await pass(60);
+      await view.rerender(ui('expenses'));
+      await pass(40);
+      await view.rerender(ui('plan'));
+      await pass(tokens.motion.duration.standard + 50);
+      expect(style(screen.getByText('Plan')).opacity).toBe(1);
+    });
+
+    it('settles the label at full opacity when reduce motion switches on while the fade runs', async () => {
       let setReduceMotion: (enabled: boolean) => void = () => {};
       jest.spyOn(AccessibilityInfo, 'isReduceMotionEnabled').mockResolvedValue(false);
       // The overloads of addEventListener are per event name; the stand-in only serves 'reduceMotionChanged'.
@@ -334,13 +436,12 @@ describe('PillNav (design-context §8.14, pill-nav-and-dialog D1, D2, D4)', () =
       jest.spyOn(AccessibilityInfo, 'addEventListener').mockImplementation(addListener as unknown as typeof AccessibilityInfo.addEventListener);
       const view = await render(ui('index'));
       await view.rerender(ui('expenses'));
-      expect(opacityOf('expenses')).toBeLessThan(1);
       await act(async () => {
         setReduceMotion(true);
       });
-      expect(opacityOf('expenses')).toBe(1);
+      expect(labelOpacity()).toBe(1);
       await pass(tokens.motion.duration.standard + 50);
-      expect(opacityOf('expenses')).toBe(1);
+      expect(labelOpacity()).toBe(1);
     });
   });
 });

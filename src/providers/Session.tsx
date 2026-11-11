@@ -24,6 +24,13 @@ type SessionContextValue = {
   retry: () => void;
   /** Signs out on this phone only; rejects with the error Supabase returns. The `signedOut` state comes from the session ending, not from this call. */
   signOut: () => Promise<void>;
+  /** True from a sign-out that followed a deleted account until the next sign-in; the welcome screen says so (profile-settings D12). Memory only. */
+  accountDeleted: boolean;
+  /**
+   * The same local sign-out, for an account the server has just deleted. Never rejects: the account is gone, so this phone ends on `signedOut`
+   * (its data cleared) even when the sign-out request fails.
+   */
+  signOutAfterDelete: () => Promise<void>;
 };
 
 const SessionContext = createContext<SessionContextValue | null>(null);
@@ -48,6 +55,7 @@ export function SessionProvider({ source, children }: Props) {
   const queryClient = useQueryClient();
   const requestBudgetSync = useRequestBudgetSync();
   const [state, setState] = useState<SessionState>(LOADING);
+  const [accountDeleted, setAccountDeleted] = useState(false);
   // Handlers run outside of renders: they read the latest state and helpers through refs.
   const current = useRef<SessionState>(LOADING);
   const latestSync = useRef(requestBudgetSync);
@@ -80,6 +88,7 @@ export function SessionProvider({ source, children }: Props) {
     (userId: string | null) => {
       // The previous queries are marked stale first, so what the new user opens is read again for them.
       void queryClient.invalidateQueries();
+      setAccountDeleted(false);
       apply({ status: 'signedIn', userId });
       latestSync.current();
     },
@@ -186,6 +195,19 @@ export function SessionProvider({ source, children }: Props) {
     void start();
   }, [apply, start]);
   const signOut = useCallback(() => source.signOut(), [source]);
-  const value = useMemo(() => ({ state, retry, signOut }), [state, retry, signOut]);
+  const signOutAfterDelete = useCallback(async () => {
+    setAccountDeleted(true);
+    try {
+      await source.signOut();
+    } catch {
+      // The request failed, but the account is gone: do not leave the user signed in to nothing. (A failed request also ends the stored session,
+      // whose `signedOut` change may arrive too; the clear is joined, not run twice at once.)
+      if (current.current.status === 'signedIn') await leave('signedOut');
+    }
+  }, [source, leave]);
+  const value = useMemo(
+    () => ({ state, retry, signOut, accountDeleted, signOutAfterDelete }),
+    [state, retry, signOut, accountDeleted, signOutAfterDelete],
+  );
   return <SessionContext.Provider value={value}>{children}</SessionContext.Provider>;
 }

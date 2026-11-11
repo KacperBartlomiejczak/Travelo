@@ -20,7 +20,7 @@ Travelo is a mobile app for **the one person who organizes a trip for a group of
 - A friend who does have an account can optionally be added by their **friend code** as a **linked member**, to follow the trip read-only (except their own expenses, which they add and edit — `prompts/expenses/plan.md` D15).
 - The app helps the organizer set up the trip, plan the days from real places, and keep the money under control during the trip.
 
-Platforms: iOS and Android (Expo / React Native). Languages: Polish (`pl`) and English (`en`), picked from the device language (English as fallback). Light and dark mode.
+Platforms: iOS and Android (Expo / React Native). Languages: Polish (`pl`) and English (`en`), following the choice in Settings, by default the device language (English as fallback). Light and dark mode, by default following the phone.
 
 ### Out of scope — do not build
 - Flight / hotel booking, a social feed, user reviews.
@@ -31,29 +31,31 @@ Platforms: iOS and Android (Expo / React Native). Languages: Polish (`pl`) and E
 ## 2. Roadmap
 
 ### Done (works in the app today)
-1. **Trip setup (create-trip wizard)** — flights, friends, budget per person, name and cover photo.
+1. **Trip setup (create-trip wizard)** — flights, friends, a daily budget per person („Razem” one amount for all / „Osobno” per person), name and cover photo.
 2. **Members** — friends with interests (17 interest tags in 6 groups).
 3. **Flights and layovers** — manual entry of flight segments; layovers are derived from consecutive segments.
 4. **Trips in Supabase** — Postgres with RLS, trip list and the current trip.
 5. **Side panel with all trips** — "Nadchodzące" / "Minione", choose the current trip, start a new trip.
 6. **Trip menu** — rename, change the cover, change the budget, delete the trip.
 7. **Trip photos** — photo strip under the hero, full-screen viewer, upload to private Supabase Storage.
-8. **Offline budget** — the budget per person can be changed without internet and syncs later.
+8. **Offline budget** — the daily budgets can be changed without internet and syncs later.
 9. **Offline reading** — the trip list and every trip opened on the phone are kept in SQLite.
-10. **Pill navigation** — a floating bottom pill with five screens (two of them are placeholders).
+10. **Pill navigation** — a floating bottom pill with four screens (one placeholder); „Miejsca” removed (places-legal-navbar D3).
 11. **Confirm dialog** — in-app dialog used when leaving the wizard with entered data.
 12. **Trip covers** (`prompts/trip-covers/`) — every trip has a cover: one of five bundled photos (Auckland by default) or a photo from the gallery, uploaded to Storage.
-13. **Profile tab** (`prompts/profile-tab/`) — the fifth pill item is "Profil" (route `/profile`, title "Profil użytkownika", `CircleUser` icon); since profile-screen it is the profile screen (title "Profil").
+13. **Profile tab** (`prompts/profile-tab/`) — the last pill item is "Profil" (route `/profile`, title "Profil użytkownika", `CircleUser` icon); since profile-screen it is the profile screen (title "Profil").
 14. **Sign-in and profile** (`prompts/auth-onboarding/`) — a required account: Google, Discord or e-mail with a 6-digit code; on first sign-in a profile with a unique nick, interests and an optional photo; a server-generated friend code, not shown yet. The device run (step 9) is partly done.
 15. **Friend invite** (`prompts/friend-invite/`) — in the wizard's friends step a friend can be added by their 6-character friend code: the card fills with their nick and interests and the account is linked to the trip at once, read-only except their own expenses, which they add and edit (`prompts/expenses/plan.md` D15). The linked friend sees the rest of the trip without edit controls. Layover labels line up with the flight lines on the home screen and the summary. On the hosted Supabase; device check passed.
 16. **Profile screen and sign-out** (`prompts/profile-screen/`) — "Profil" shows the photo, the nick and five numbers of the past trips (trips, countries, days travelled, flights, km flown), also offline; the gear opens Settings with "Wyloguj się" (a confirmation, disabled offline). The device run is done except the stats of a past trip (scenario 7).
+17. **Avatar and settings** (`prompts/profile-settings/`) — a full-screen avatar preview with change and remove, theme and language, profile editing, and account deletion. Done: the `delete-account` function is deployed and the device run partly passed on Android (iOS and a few deletion cases are not checked yet, see the plan).
 17. **Expenses** (`prompts/expenses/`, done 2026-11-02). The "Wydatki" screen has a trip bar (opens the side panel), budget left for the group or "Ja" with today's amount and carryover from earlier days, a bar per person split by category, a timeline by day, and adding by the button in the empty state, then a floating button. One person per expense, the trip's base currency only, offline. The organizer edits anyone's expenses; a linked friend adds and edits only their own.
+18. **Discover places** (`prompts/places-legal-navbar/`, stream C, 2026-11-07) — from the home screen's empty state, "Odkryj miejsca" opens `/discover`, and with a trip the Plan tab's „Odkryj” switch shows it inside the tab (`prompts/plan-discover-switch/`): pick a city (airport search) and interests, get up to 10 real places from Google Places with a short AI reason why they fit its Google rating, and up to 3 swipeable photos with the author's credit (`prompts/places-photo-carousel/`), open each in Google Maps. 5 searches per user per day; needs internet.
 
 ### In progress (plans in `prompts/`)
 - None.
 
 ### Not started (MVP)
-- **AI day plans** — per-day schedule from real places, cost ranges, group splits (the "Plan" and "Miejsca" screens).
+- **AI day plans** — per-day schedule from real places, cost ranges, group splits (the "Plan" screen).
 - **Expenses, later parts** — other currencies with FX rates, split a bill equally between people, receipt photo, quick-add from every screen.
 - **Plan vs reality** — the daily budget comes with Expenses; still to do: plan ↔ expense link and the end-of-trip summary shareable as an image.
 
@@ -78,19 +80,20 @@ Root Stack (a gate decides which group exists)
 │   ├── /email             E-mail address
 │   └── /code              6-digit code from the e-mail
 ├── /onboarding            Signed in without a profile: profile setup
-├── /settings              Settings: "Wyloguj się" (signed in, above the drawer, no pill)
+├── /settings              Settings (signed in, above the drawer, no pill)
+├── /edit-profile          Nick and interests
+├── /avatar                Full-screen avatar preview, always dark
 ├── /auth/callback         OAuth redirect landing (redirects by state)
 ├── (drawer)               Signed in with a profile. Side panel with all trips (swipe from the left edge only on "Podróż")
-│   └── (tabs)             Floating pill with five screens
+│   └── (tabs)             Floating pill with four screens
 │       ├── /              Podróż    — the current trip (home screen)
 │       ├── /expenses      Wydatki   — budget, who spent what, timeline, add expense
-│       ├── /places        Miejsca   — placeholder
-│       ├── /plan          Plan      — placeholder
+│       ├── /plan          Plan      — placeholder; with a trip a „Plan” / „Odkryj” switch (Discover inside the tab)
 │       └── /profile       Profil    — photo, nick, travel stats; gear → /settings
 ├── /trips/new/*           Create-trip wizard (nested Stack, 4 steps)
 └── /trips/[tripId]/photos Full-screen photo viewer
 ```
-The pill is not shown in the wizard or in the photo viewer. The two placeholder screens ("Miejsca", "Plan") show only a title and "Ten ekran pojawi się wkrótce." (a deliberate exception to design-context §10.13, §10.19 and §12 until their features exist).
+The pill is not shown in the wizard or in the photo viewer. The placeholder screen "Plan" shows only a title and "Ten ekran pojawi się wkrótce."; when there is a current trip, the title is replaced by a „Plan” / „Odkryj” switch and „Odkryj” shows Discover places inside the tab (`prompts/plan-discover-switch/`) (a deliberate exception to design-context §10.13, §10.19 and §12 until their features exist).
 
 ### 3.2 Home screen — "Podróż" (`/`)
 Shows the **current trip**: the one chosen in the side panel (remembered on the phone), else the **default trip** (the soonest upcoming or ongoing one, else the most recently ended). Always dark.
@@ -103,7 +106,7 @@ The trip view, top to bottom:
 - **"Loty"** — outbound and return flights in airport-local time, with layover labels.
 - **"Podróżni · N"** — "Ty" plus the friends' names. A linked friend sees "<organizer's nick> (organizator)" (or "Organizator" without a nick), "Ty", then the others.
 - **A linked friend's view** is read-only (their own expenses excepted, D15 in `prompts/expenses/plan.md`): no ⋮, no "Zmień" on the budget, no "+" photo tile, no delete in the photo viewer, and no photo strip on a trip without photos.
-- **"Budżet"** — budget per person, group total and the derived ~per person per day; "Zmień" opens the budget sheet; a sync indicator shows while a change has not been sent.
+- **"Budżet"** — the daily budget (per person, or the group's sum per day when amounts differ) and the total for the trip; "Zmień" opens the budget sheet; a sync indicator shows while a change has not been sent.
 
 ### 3.3 Side panel
 "Twoje podróże", with sections "Nadchodzące" (not ended yet, soonest first) and "Minione" (most recently ended first). A row has a thumbnail, the name (2 lines) and the dates; the open trip is marked. Tapping another trip makes it the current trip and closes the panel. Footer: "Nowa podróż" (starts the wizard). Loading, error, empty and offline states exist.
@@ -119,11 +122,11 @@ Four steps. Each step validates its slice with a Zod schema on "Dalej". Leaving 
    - The code is uppercased and checked after the 6th character ("Sprawdzam kod…"). A found code fills the card with the friend's nick and interests, not editable; editing the code gives back an empty card.
    - Messages: "To Twój kod.", "Nie ma użytkownika z tym kodem.", "Ten znajomy jest już dodany.", "Połącz się z internetem, żeby sprawdzić kod." (the field is disabled offline), "Nie udało się sprawdzić kodu. Spróbuj ponownie.", "Kod ma 6 znaków.".
    - "Dalej" waits until every typed code is found or cleared.
-3. **Budget** — amount per person for the whole trip (without flights) and a currency (destination currency, PLN, EUR, USD); shows the group total and ~per person per day.
+3. **Budget** — a daily amount per person (without flights) and a currency (destination currency, PLN, EUR, USD); with friends a „Razem / Osobno” switch (one amount for everyone / an amount per person); shows each person's total and the group total for the trip.
 4. **Summary** — the trip name (default "<from city> → <destination city>", max 60), the cover, and cards with "Zmień" back to each step. "Utwórz podróż" saves (needs internet) and returns home; the new trip becomes the current trip.
 
 ### 3.6 Budget sheet
-Changes the budget per person (currency fixed to the trip's base currency). Works **with or without internet**; the indicator shows "Czeka na wysłanie" (pending) or "Nie udało się wysłać" (failed, with retry).
+Changes the daily budgets with the same „Razem / Osobno” switch as the wizard (currency fixed to the trip's base currency). Works **with or without internet**; the indicator shows "Czeka na wysłanie" (pending) or "Nie udało się wysłać" (failed, with retry).
 
 ### 3.7 Photos
 - Add up to 20 photos at a time from the gallery. Each is downscaled (longer side ≤ 2048 px), re-encoded as JPEG **without EXIF (so without GPS)**, and uploaded with a 480 px thumbnail, one at a time. It appears at once with its sending or failed state.
@@ -147,14 +150,18 @@ Changes the budget per person (currency fixed to the trip's base currency). Work
   - at least one of the 17 interests;
   - then "Zapisz i zaczynamy" → "Podróż". A failed save scrolls to the first error.
 - **Offline:** the banner shows and the sign-in and save buttons are disabled. A signed-in user with a profile opens the app offline normally.
-- **Signing out:** everything of the previous user is erased from the phone, then the welcome screen shows. It happens when the server ends the session, or when the account was deleted (checked once at startup in the background), and when the user signs out in Settings (see 3.9).
+- **Signing out:** everything of the previous user is erased from the phone (including cached images and files; theme and language stay), then the welcome screen shows. It happens when the server ends the session, or when the account was deleted (checked once at startup in the background), and when the user signs out in Settings (see 3.9).
 
 ### 3.9 Profile and Settings (`/profile`, `/settings`)
 - **Profil:** the title "Profil" with a gear (→ Settings), the round photo and the nick, then the card "Twoje podróże" with Podróże, Kraje, Dni w podróży, Loty, Przelecone km.
   - The numbers count trips that already ended (end date before today on the phone); an ongoing trip does not count yet. A trip's country is its destination airport's country; days are inclusive; every flight segment is one flight; km is the great-circle distance between the airports, summed.
   - They come from the trip list, so they show offline too. Loading: pulsing blocks; no list and no copy: "–"; no past trips: "0".
   - The photo: a pulsing circle until it is shown (also offline), a person placeholder without a photo; after an offline start it loads when the phone is back online.
-- **Ustawienia:** one button, "Wyloguj się", at the bottom. It asks "Wylogować się?" first; the message warns when budget changes were not sent yet (they are lost). Disabled offline with "Połącz się z internetem, żeby się wylogować.". Signing out ends the session on this phone only.
+  - Tapping the photo opens a full-screen dark preview (close, three dots → "Zmień zdjęcie" / "Usuń zdjęcie"). Without a photo it opens the gallery directly. After a change the preview stays with the new photo; a removal needs no confirmation and closes it. Offline the preview works, but the dots are disabled with the reason; without a photo the circle is disabled.
+- **Ustawienia:** one scrolling list: Konto ("Edytuj profil"), Wygląd ("Motyw" and "Język": Systemowy plus two options, applied at once and kept on the phone), O aplikacji (version, "Polityka prywatności" and "Regulamin", which open `/legal/privacy` and `/legal/terms`), then the two buttons below.
+- **Edytuj profil:** nick and interests as in the profile setup; save is disabled without a change, offline and with an invalid nick; no limit on nick changes.
+- **Usuń konto:** disabled offline with "Połącz się z internetem, żeby usunąć konto.". A dialog warns what disappears and enables the button only after the user types their own nick. It erases the account, profile, photo and every trip the user organizes with its plans, expenses and photos, also for linked friends. In other people's trips the user's nick and expenses stay as a friend without an account. Afterwards the welcome screen says "Konto usunięte.". A failure says photos may already be gone and allows a retry; a nick changed on another phone asks for the current one and erases nothing.
+- **Wyloguj się:** at the bottom. It asks "Wylogować się?" first; the message warns when budget changes were not sent yet (they are lost). Disabled offline with "Połącz się z internetem, żeby się wylogować.". Signing out ends the session on this phone only.
 
 ---
 
@@ -169,7 +176,7 @@ CostEstimate   { minMinor: int, maxMinor: int, currency: ISO4217, perPerson: boo
 Trip           { id, ownerId, name (1–60), destination: IATA,       // destination = outbound's final airport
                  coverImageUri,                                     // required: 'preset:<id>' | 'photo:<uuid>'
                  startDate, endDate,                                // dates derived from flights
-                 baseCurrency, budgetPerPerson: Money,              // whole trip, without flights
+                 baseCurrency, dailyBudget: Money,                  // organizer's per day, without flights; friends' on TripMember.dailyBudgetMinor
                  budgetUpdatedAt, createdAt }                       // last write wins on sync
 
 TripMember     { id, tripId, userId: string | null,                 // null = friend without an account
@@ -195,7 +202,7 @@ Profile        { id (= auth user id), username (unique, 3–20, a–z 0–9 _ .)
 Key facts:
 - The **organizer is not a `TripMember` row**; traveller count = members + 1.
 - Members are shown sorted by name (no stored order).
-- Budget is **one amount per person for the whole trip, without flights**. The daily budget is derived.
+- Budget is **a daily amount per person, without flights** (the organizer's on the trip, each friend's on the member). Totals for the trip = daily × trip days; unspent money carries over to the next day.
 - Trip dates come from the flights. Times are stored as airport-local wall clock + IANA zone, never converted through the device time zone. A local time that does not exist (DST gap) is rejected, not shifted.
 - Money is **integer minor units + ISO 4217 code**, with digits from a static table. No floats for money.
 
@@ -208,7 +215,7 @@ Key facts:
 | Create a trip | Supabase (`create_trip` RPC) | **No** — needs internet |
 | Rename, cover, delete trip | Supabase | **No** — disabled offline |
 | Trip photos (add, delete) | Supabase Storage + `trip_photos` | **No** |
-| **Budget per person** | SQLite first, synced to Supabase | **Yes** — last write wins by `budgetUpdatedAt` |
+| **Daily budgets** | SQLite first, synced to Supabase | **Yes** — last write wins by `budgetUpdatedAt` |
 | Read the trip list and any trip opened before | SQLite copies of Supabase data | **Yes** — read-only |
 | Chosen (current) trip | SQLite only, never sent to Supabase | **Yes** |
 | Photo list | SQLite copy | Yes (read-only; signed URLs expire after 1 h, images stay in the image cache) |
@@ -218,9 +225,9 @@ Key facts:
 | Profile stats | Computed on the phone from the trip list copy | **Yes** |
 | **Expenses** | SQLite, the local row is its own outbox entry, synced to Supabase | **Yes** (decided; see below) |
 
-**Offline scope (MVP decision):** expenses and changes to a trip's budget per person work offline. Everything else is server-first. Read-only copies cover the trip list (with each trip's destination and flight routes, for the profile stats — profile-screen D11), every trip opened on the phone, and the user's own profile (auth-onboarding D9). Extending offline to other entities is a new decision for Kacper.
+**Offline scope (MVP decision):** expenses and changes to a trip's daily budgets work offline. Everything else is server-first. Read-only copies cover the trip list (with each trip's destination and flight routes, for the profile stats — profile-screen D11), every trip opened on the phone, and the user's own profile (auth-onboarding D9). Extending offline to other entities is a new decision for Kacper.
 
-**Budget sync:** `setBudget` writes a `pending` row to `trip_budget_changes` in SQLite with no network. A sync worker sends it with `update … where budget_updated_at < updatedAt` (last write wins). Unreachable → stays `pending` and retries with backoff (1 s × 2ⁿ, max 5 min); refused → `failed` and visible. It runs on start, on reconnect, on app foreground, after each save and on a timer.
+**Budget sync:** `setBudget` writes a `pending` row to `trip_budget_changes` in SQLite with no network. A sync worker sends it with `rpc('set_trip_budget')` (organizer + friends in one call, last write wins by `budget_updated_at`). Unreachable → stays `pending` and retries with backoff (1 s × 2ⁿ, max 5 min); refused → `failed` and visible. It runs on start, on reconnect, on app foreground, after each save and on a timer.
 
 **Reading when unreachable:** a request that gets no answer within 20 s counts as "unreachable" and falls back to the SQLite copy. A trip never opened on the phone has no copy, so choosing it offline shows the error state.
 
@@ -232,7 +239,7 @@ Key facts:
 
 ## 6. Backend
 
-- **Supabase:** Postgres, Auth (Google and Discord OAuth with PKCE, e-mail OTP code; anonymous sign-ins off), Row Level Security, Storage. Edge Functions: none yet.
+- **Supabase:** Postgres, Auth (Google and Discord OAuth with PKCE, e-mail OTP code; anonymous sign-ins off), Row Level Security, Storage. Edge Functions: `delete-account` (the only way to erase an account).
 - **Tables:** `trips`, `trip_members`, `flight_segments`, `trip_photos`. RLS on all of them: the owner can read and write; a linked member (`trip_members.user_id`) can only read.
 - **`profiles`:** one row per user. The user reads, creates and updates only their own row, and never deletes it. The friend code is set by a server trigger and cannot be changed by the app.
 - **Storage:**
@@ -251,7 +258,7 @@ Key facts:
 | An FX rates API | Multi-currency expenses | Edge Function |
 | Google Gemini (Gemini API, AI Studio key) | Day plans, with JSON-schema structured output generated from Zod | Edge Function only |
 
-Open decision: the exact Gemini model ID (it comes from config, never hardcoded) and free vs paid tier — no shipping to real users on the free tier without Kacper's decision.
+Gemini model: `gemini-3.8-flash` from the `GEMINI_MODEL` secret (never hardcoded; places-legal-navbar D20). Free tier only in development, paid before release (D17). Google Places and Gemini are already used by Discover places (`recommend-places`).
 
 ### AI rules (when built)
 - The model **never invents places**: Places candidates → the model selects and orders them by `placeId` → output parsed with Zod → any `placeId` outside the candidate set is rejected.
@@ -284,7 +291,7 @@ Open decision: the exact Gemini model ID (it comes from config, never hardcoded)
 ## 9. Known gaps (short list)
 
 The full list is in `docs/architecture/known-limitations.md`. The ones that matter for product decisions:
-- Two of five pill screens are placeholders.
+- One of four pill screens ("Plan") is a placeholder.
 - Photos not yet sent are lost if the app closes.
 - Sign-in:
   - Sign in with Apple is needed before an iOS release;

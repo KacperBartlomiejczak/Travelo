@@ -1,4 +1,4 @@
-import { REQUEST_TIMEOUT_MS, withTimeout } from '@/data/fetch-timeout';
+import { RECOMMEND_PLACES_TIMEOUT_MS, REQUEST_TIMEOUT_MS, withTimeout } from '@/data/fetch-timeout';
 
 const URL = 'https://example.supabase.co/rest/v1/trips';
 
@@ -73,4 +73,35 @@ it('sends the method, headers and body as given', async () => {
     URL,
     expect.objectContaining({ method: 'PATCH', headers: { apikey: 'key' }, body: '{"a":1}', signal: expect.any(AbortSignal) }),
   );
+});
+
+describe('recommend-places call (places-legal-navbar D22)', () => {
+  const FUNCTION_URL = 'https://example.supabase.co/functions/v1/recommend-places';
+
+  it('waits up to 45 s', () => {
+    expect(RECOMMEND_PLACES_TIMEOUT_MS).toBe(45_000);
+  });
+
+  it('is not aborted at 20 s, still resolves, and is aborted at 45 s', async () => {
+    const slow = new Promise<Response>((resolve) => setTimeout(() => resolve(new Response('{}')), 30_000));
+    await expect(Promise.all([withTimeout(jest.fn(() => slow), REQUEST_TIMEOUT_MS)(FUNCTION_URL), jest.advanceTimersByTimeAsync(30_000)])).resolves.toBeDefined();
+
+    const request = withTimeout(neverAnswers(), REQUEST_TIMEOUT_MS)(FUNCTION_URL);
+    let settled = false;
+    request.then(
+      () => (settled = true),
+      () => (settled = true),
+    );
+    await jest.advanceTimersByTimeAsync(RECOMMEND_PLACES_TIMEOUT_MS - 1);
+    expect(settled).toBe(false);
+    await jest.advanceTimersByTimeAsync(1);
+    await expect(request).rejects.toMatchObject({ name: 'AbortError' });
+  });
+
+  it('other functions keep the 20 s timeout', async () => {
+    const request = withTimeout(neverAnswers(), REQUEST_TIMEOUT_MS)('https://example.supabase.co/functions/v1/other');
+    const assertion = expect(request).rejects.toMatchObject({ name: 'AbortError' });
+    await jest.advanceTimersByTimeAsync(REQUEST_TIMEOUT_MS);
+    await assertion;
+  });
 });

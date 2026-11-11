@@ -51,6 +51,13 @@ If instructions conflict, this order wins: **Kacper's current message → `CLAUD
 | `javascript-typescript-jest` | Writing or fixing Jest tests: structure, mocking, async, snapshots. Supports the TDD rule and the project test setup in `docs/development/testing.md`; it never relaxes them. Where it disagrees with the existing tests or `jest.setup.ts`, the repo wins. | backend, frontend |
 | `using-agent-skills` | Picking which of the skills above fits a piece of work. Its "proceed unless corrected" rule does **not** apply here: the approval gate always wins. | orchestrator |
 
+### CodeRabbit skills (`coderabbitai/skills`, installed 2026-11-05)
+
+| Skill | Use it when | Used by |
+|---|---|---|
+| `code-review` | The verifier's end-of-plan mode (`coderabbit review --agent --base <base> --committed`), or Kacper asks for a CodeRabbit review. Needs the CodeRabbit CLI signed in on Kacper's machine. Findings are input to a fix plan in the feature's `plan.md`, never edits on their own. Not the same as the built-in `/code-review` command. | verifier, orchestrator |
+| `autofix` | Working through unresolved CodeRabbit threads on the current PR. Each fix still follows the approval gate and TDD; its single `fix: apply CodeRabbit auto-fixes` commit gives way to the project's commit rules (`docs/development/git-workflow.md`), and it posts a PR comment or pushes only after Kacper says so. | orchestrator |
+
 ## Rules
 - **Design skills are subordinate to `context/design-context.md`.** They may improve how a screen is built or reviewed, but they must not introduce new colors, fonts, spacing, gradients or any visual rule that is not in the design context. If the design context has no answer, ask Kacper.
 - **Architecture suggestions are not changes.** `improve-codebase-architecture` produces proposals only. Each proposal becomes a normal plan that Kacper approves, then runs through tests-first. This keeps the "surgical changes" rule intact.
@@ -75,4 +82,5 @@ If instructions conflict, this order wins: **Kacper's current message → `CLAUD
 | `javascript-typescript-jest` | github/awesome-copilot (installed 2026-11-03, `pnpm dlx skills add`) | Jest testing practices |
 | `expo-upgrade` | expo/skills (installed 2026-11-06, `npx skills add expo/skills -s expo-upgrade`, copied) | Expo SDK upgrade guidelines |
 | `migrate-to-strict-api` | react-native-community/skills (installed 2026-11-06, `npx skills add react-native-community/skills -s migrate-to-strict-api`, copied) | React Native Strict TypeScript API migration |
+| `code-review`, `autofix` | coderabbitai/skills (installed 2026-11-05, `pnpm dlx skills add`) | CodeRabbit CLI reviews; fixing CodeRabbit PR threads. Copied into `.claude/skills/` like `javascript-typescript-jest` |
 

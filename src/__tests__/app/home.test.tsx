@@ -1,3 +1,4 @@
+import { formatMoney } from '@/lib/money';
 import { useFonts } from 'expo-font';
 import { router } from 'expo-router';
 import { act, fireEvent, renderRouter, screen, waitFor, within } from 'expo-router/testing-library';
@@ -37,7 +38,7 @@ jest.mock('expo-status-bar', () => ({
 let mockCurrent: () => Promise<TripOverview | null> = () => Promise.resolve(null);
 let mockSyncStatus: SyncStatus = 'synced';
 let mockFromCache = false;
-const mockSetBudget = jest.fn(async (_trip: { id: string; baseCurrency: string }, _amountMinor: number) => {});
+const mockSetBudget = jest.fn(async (_trip: { id: string; baseCurrency: string }, _budget: { organizerDailyMinor: number; members: unknown[] }) => {});
 const mockSyncBudgets = jest.fn(async () => ({ nextAttemptAt: null }));
 const mockUpdateDetails = jest.fn(async (_tripId: string, _input: { name: string; coverImageUri?: string }) => {});
 const mockDelete = jest.fn(async (_tripId: string) => {});
@@ -51,7 +52,7 @@ jest.mock('@/data/app-trip-repository', () => ({
       return overview && { overview, budgetSyncStatus: mockSyncStatus, fromCache: mockFromCache };
     },
     create: () => Promise.reject(new Error('unused')),
-    setBudget: (trip: { id: string; baseCurrency: string }, amountMinor: number) => mockSetBudget(trip, amountMinor),
+    setBudget: (trip: { id: string; baseCurrency: string }, budget: { organizerDailyMinor: number; members: unknown[] }) => mockSetBudget(trip, budget),
     syncBudgets: () => mockSyncBudgets(),
     updateDetails: (tripId: string, input: { name: string; coverImageUri?: string }) => mockUpdateDetails(tripId, input),
     delete: (tripId: string) => mockDelete(tripId),
@@ -81,15 +82,15 @@ function overview(patch: Partial<TripOverview['trip']> = {}): TripOverview {
       startDate: '2026-11-03',
       endDate: '2026-11-15',
       baseCurrency: 'THB',
-      budgetPerPerson: { amountMinor: 300000, currency: 'THB' },
+      dailyBudget: { amountMinor: 300000, currency: 'THB' },
       createdAt: '2026-10-04T12:00:00.000Z',
       budgetUpdatedAt: '2026-10-04T12:00:00.000Z',
       travellerCount: 3,
       ...patch,
     },
     members: [
-      { id: id(), tripId: TRIP_ID, userId: null, displayName: 'Kasia', role: 'viewer', interests: [] },
-      { id: id(), tripId: TRIP_ID, userId: null, displayName: 'Ola', role: 'viewer', interests: [] },
+      { id: id(), tripId: TRIP_ID, userId: null, displayName: 'Kasia', role: 'viewer', interests: [], dailyBudgetMinor: 300000 },
+      { id: id(), tripId: TRIP_ID, userId: null, displayName: 'Ola', role: 'viewer', interests: [], dailyBudgetMinor: 300000 },
     ],
     segments: [
       segment('outbound', 0, ['WAW', '2026-11-02T10:00:00+01:00', 'Europe/Warsaw'], ['DXB', '2026-11-02T18:30:00+04:00', 'Asia/Dubai']),
@@ -168,6 +169,7 @@ describe('Home screen — current trip (D4)', () => {
     expect(await screen.findByRole('header', { name: 'Warsaw → Bangkok' })).toBeTruthy();
     expect(within(screen.getByTestId('trip-hero')).getByText('3 lis – 15 lis 2026 · 13 dni')).toBeTruthy();
     expect(screen.queryByText('Nie masz jeszcze żadnej podróży.')).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Odkryj miejsca' })).toBeNull();
   });
 
   it('aligns the layover label with the flight lines, no left inset (friend-invite D8)', async () => {
@@ -208,14 +210,41 @@ describe('Home screen — current trip (D4)', () => {
     expect(people.getByText('Ty')).toBeTruthy();
   });
 
-  it('shows the budget per person, the group total and per day', async () => {
+  it('shows the daily budget per person', async () => {
     mockCurrent = () => Promise.resolve(overview());
     await renderHome();
     const budget = within(await screen.findByTestId('home-budget'));
     expect(budget.getByRole('header', { name: 'Budżet' })).toBeTruthy();
     expect(budget.getByText('3000 THB')).toBeTruthy();
-    expect(budget.getByText('na osobę')).toBeTruthy();
-    expect(budget.getByText('Razem 9000 THB · ~231 THB dziennie na osobę')).toBeTruthy();
+    expect(budget.getByText('dziennie na osobę')).toBeTruthy();
+  });
+
+  it('shows the trip total next to the daily amount (13 days x 3 people)', async () => {
+    mockCurrent = () => Promise.resolve(overview());
+    await renderHome();
+    const budget = within(await screen.findByTestId('home-budget'));
+    expect(budget.getByText(`Razem ${formatMoney({ amountMinor: 11700000, currency: 'THB' }, 'pl')} na podróż`)).toBeTruthy();
+  });
+
+  it('shows the trip total without "Razem" on a solo trip (13 days x 1 person)', async () => {
+    mockCurrent = () => Promise.resolve({ ...overview({ travellerCount: 1 }), members: [] });
+    await renderHome();
+    const budget = within(await screen.findByTestId('home-budget'));
+    expect(budget.getByText(`${formatMoney({ amountMinor: 3900000, currency: 'THB' }, 'pl')} na podróż`)).toBeTruthy();
+    expect(budget.queryByText(/^Razem/)).toBeNull();
+  });
+
+  it('shows the group amount per day when the amounts differ', async () => {
+    mockCurrent = () => {
+      const base = overview();
+      return Promise.resolve({ ...base, members: [base.members[0], { ...base.members[1], dailyBudgetMinor: 100000 }] });
+    };
+    await renderHome();
+    const budget = within(await screen.findByTestId('home-budget'));
+    expect(budget.getByText(formatMoney({ amountMinor: 700000, currency: 'THB' }, 'pl'))).toBeTruthy();
+    expect(budget.getByText('dziennie dla grupy')).toBeTruthy();
+    expect(budget.queryByText('dziennie na osobę')).toBeNull();
+    expect(budget.getByText(`Razem ${formatMoney({ amountMinor: 9100000, currency: 'THB' }, 'pl')} na podróż`)).toBeTruthy();
   });
 
   it.each([
@@ -265,8 +294,7 @@ describe('Home screen — current trip (D4)', () => {
     expect(flights.getByText('WAW 2 lis, 10:00 → DXB 2 lis, 18:30')).toHaveStyle({ ...styles.bodyMD, color: sunlineLightTheme.text.primary });
     const budget = within(screen.getByTestId('home-budget'));
     expect(budget.getByText('3000 THB')).toHaveStyle({ ...styles.moneyLG, color: sunlineLightTheme.text.primary });
-    expect(budget.getByText('na osobę')).toHaveStyle({ ...styles.bodyMD, color: sunlineLightTheme.text.secondary });
-    expect(budget.getByText('Razem 9000 THB · ~231 THB dziennie na osobę')).toHaveStyle({ ...styles.bodyMD, color: sunlineLightTheme.text.secondary });
+    expect(budget.getByText('dziennie na osobę')).toHaveStyle({ ...styles.bodyMD, color: sunlineLightTheme.text.secondary });
   });
 
   it.each([
@@ -355,21 +383,21 @@ describe('Home screen — changing the budget (trips-supabase D5, D10–D13)', (
     mockCurrent = () => Promise.resolve(overview());
     await renderHome();
     await openSheet();
-    expect(screen.getByRole('header', { name: 'Ile chcecie wydać na osobę?' })).toBeTruthy();
-    expect(screen.getByText('Na cały wyjazd, bez lotów: noclegi, jedzenie, atrakcje, transport na miejscu.')).toHaveStyle({
+    expect(screen.getByRole('header', { name: 'Ile każdy może wydać dziennie?' })).toBeTruthy();
+    expect(screen.getByText('Bez lotów: noclegi, jedzenie, atrakcje, transport na miejscu. Czego nie wydasz danego dnia, przechodzi na następny.')).toHaveStyle({
       ...tokens.typography.styles.bodyMD,
       color: sunlineLightTheme.text.secondary,
     });
-    expect(screen.getByLabelText('Kwota na osobę').props.value).toBe('3000');
+    expect(screen.getByLabelText('Kwota dziennie na osobę').props.value).toBe('3000');
     expect(within(screen.getByTestId('amount-field-box')).getByText('THB')).toBeTruthy();
   });
 
-  it('asks "Ile chcesz wydać?" on a solo trip', async () => {
+  it('asks "Ile chcesz wydać dziennie?" on a solo trip', async () => {
     mockCurrent = () => Promise.resolve({ ...overview({ travellerCount: 1 }), members: [] });
     await renderHome();
     await openSheet();
-    expect(screen.getByRole('header', { name: 'Ile chcesz wydać?' })).toBeTruthy();
-    expect(screen.getByLabelText('Kwota')).toBeTruthy();
+    expect(screen.getByRole('header', { name: 'Ile chcesz wydać dziennie?' })).toBeTruthy();
+    expect(screen.getByLabelText('Kwota dziennie')).toBeTruthy();
   });
 
   it.each([
@@ -380,7 +408,7 @@ describe('Home screen — changing the budget (trips-supabase D5, D10–D13)', (
     mockCurrent = () => Promise.resolve(overview());
     await renderHome();
     await openSheet();
-    await fireEvent.changeText(screen.getByLabelText('Kwota na osobę'), typed);
+    await fireEvent.changeText(screen.getByLabelText('Kwota dziennie na osobę'), typed);
     await fireEvent.press(screen.getByRole('button', { name: 'Zapisz' }));
     expect(screen.getByText(message)).toBeTruthy();
     expect(mockSetBudget).not.toHaveBeenCalled();
@@ -388,18 +416,21 @@ describe('Home screen — changing the budget (trips-supabase D5, D10–D13)', (
 
   it('saves the new amount on the device, closes, and shows it on the card', async () => {
     let amountMinor = 300000;
-    mockCurrent = () => Promise.resolve(overview({ budgetPerPerson: { amountMinor, currency: 'THB' } }));
+    mockCurrent = () => {
+      const base = overview({ dailyBudget: { amountMinor, currency: 'THB' } });
+      return Promise.resolve({ ...base, members: base.members.map((member) => ({ ...member, dailyBudgetMinor: amountMinor })) });
+    };
     mockSetBudget.mockImplementation(async (_trip, next) => {
-      amountMinor = next;
+      amountMinor = next.organizerDailyMinor;
       mockSyncStatus = 'pending';
     });
     await renderHome();
     await openSheet();
-    await fireEvent.changeText(screen.getByLabelText('Kwota na osobę'), '2500,50');
+    await fireEvent.changeText(screen.getByLabelText('Kwota dziennie na osobę'), '2500,50');
     await fireEvent.press(screen.getByRole('button', { name: 'Zapisz' }));
 
-    expect(mockSetBudget).toHaveBeenCalledWith(expect.objectContaining({ id: TRIP_ID, baseCurrency: 'THB' }), 250050);
-    expect(screen.queryByRole('header', { name: 'Ile chcecie wydać na osobę?' })).toBeNull();
+    expect(mockSetBudget).toHaveBeenCalledWith(expect.objectContaining({ id: TRIP_ID, baseCurrency: 'THB' }), { organizerDailyMinor: 250050, members: [{ memberId: expect.any(String), dailyMinor: 250050 }, { memberId: expect.any(String), dailyMinor: 250050 }] });
+    expect(screen.queryByRole('header', { name: 'Ile każdy może wydać dziennie?' })).toBeNull();
     const budget = within(screen.getByTestId('home-budget'));
     expect(await budget.findByText('2500,50 THB')).toBeTruthy();
     expect(budget.getByText('Czeka na wysłanie')).toBeTruthy();
@@ -412,9 +443,9 @@ describe('Home screen — changing the budget (trips-supabase D5, D10–D13)', (
     await openSheet();
     // From now on reading the trip never answers, like a request hanging on a captive portal.
     mockCurrent = () => new Promise(() => {});
-    await fireEvent.changeText(screen.getByLabelText('Kwota na osobę'), '2500');
+    await fireEvent.changeText(screen.getByLabelText('Kwota dziennie na osobę'), '2500');
     await fireEvent.press(screen.getByRole('button', { name: 'Zapisz' }));
-    expect(screen.queryByRole('header', { name: 'Ile chcecie wydać na osobę?' })).toBeNull();
+    expect(screen.queryByRole('header', { name: 'Ile każdy może wydać dziennie?' })).toBeNull();
     expect(mockSyncBudgets).toHaveBeenCalled();
   });
 
@@ -424,14 +455,14 @@ describe('Home screen — changing the budget (trips-supabase D5, D10–D13)', (
     mockSetBudget.mockRejectedValue(new Error('disk full'));
     await renderHome();
     await openSheet();
-    await fireEvent.changeText(screen.getByLabelText('Kwota na osobę'), '2500');
+    await fireEvent.changeText(screen.getByLabelText('Kwota dziennie na osobę'), '2500');
     await fireEvent.press(screen.getByRole('button', { name: 'Zapisz' }));
     expect(await screen.findByText('Nie udało się zapisać. Spróbuj ponownie.')).toHaveStyle({
       ...tokens.typography.styles.bodySM,
       color: sunlineLightTheme.semantic.error.foreground,
     });
     expect(announce).toHaveBeenCalledWith('Nie udało się zapisać. Spróbuj ponownie.');
-    expect(screen.getByRole('header', { name: 'Ile chcecie wydać na osobę?' })).toBeTruthy();
+    expect(screen.getByRole('header', { name: 'Ile każdy może wydać dziennie?' })).toBeTruthy();
   });
 
   it('closes without saving from the backdrop', async () => {
@@ -440,7 +471,7 @@ describe('Home screen — changing the budget (trips-supabase D5, D10–D13)', (
     await openSheet();
     // The sheet's backdrop; the side panel's scrim has the same label (hidden on a device while the panel is closed).
     await fireEvent.press(within(screen.getByTestId('bottom-sheet-modal')).getByRole('button', { name: 'Zamknij' }));
-    expect(screen.queryByRole('header', { name: 'Ile chcecie wydać na osobę?' })).toBeNull();
+    expect(screen.queryByRole('header', { name: 'Ile każdy może wydać dziennie?' })).toBeNull();
     expect(mockSetBudget).not.toHaveBeenCalled();
   });
 
@@ -504,9 +535,9 @@ describe('Home screen — offline (D6, D11)', () => {
     mockCurrent = () => Promise.resolve(overview());
     await renderHome();
     await fireEvent.press(within(await screen.findByTestId('home-budget')).getByRole('button', { name: 'Zmień budżet' }));
-    await fireEvent.changeText(screen.getByLabelText('Kwota na osobę'), '2500');
+    await fireEvent.changeText(screen.getByLabelText('Kwota dziennie na osobę'), '2500');
     await fireEvent.press(screen.getByRole('button', { name: 'Zapisz' }));
-    expect(mockSetBudget).toHaveBeenCalledWith(expect.objectContaining({ id: TRIP_ID }), 250000);
+    expect(mockSetBudget).toHaveBeenCalledWith(expect.objectContaining({ id: TRIP_ID }), { organizerDailyMinor: 250000, members: [{ memberId: expect.any(String), dailyMinor: 250000 }, { memberId: expect.any(String), dailyMinor: 250000 }] });
   });
 
   it('shows the banner on the empty screen too', async () => {
@@ -655,7 +686,7 @@ describe('Home screen — trip menu ⋮ (trip-edit-menu D3, D4, D6, D8, D15)', (
     await openMenu();
     await fireEvent.press(sheet().getByRole('button', { name: 'Zmień budżet' }));
     expect(screen.queryByRole('header', { name: 'Podróż' })).toBeNull();
-    expect(screen.getByRole('header', { name: 'Ile chcecie wydać na osobę?' })).toBeTruthy();
+    expect(screen.getByRole('header', { name: 'Ile każdy może wydać dziennie?' })).toBeTruthy();
     expect(screen.getAllByTestId('bottom-sheet')).toHaveLength(1);
   });
 
@@ -663,7 +694,7 @@ describe('Home screen — trip menu ⋮ (trip-edit-menu D3, D4, D6, D8, D15)', (
     mockCurrent = () => Promise.resolve(overview());
     await renderHome();
     await fireEvent.press(within(await screen.findByTestId('home-budget')).getByRole('button', { name: 'Zmień budżet' }));
-    expect(screen.getByRole('header', { name: 'Ile chcecie wydać na osobę?' })).toBeTruthy();
+    expect(screen.getByRole('header', { name: 'Ile każdy może wydać dziennie?' })).toBeTruthy();
     expect(screen.queryByRole('header', { name: 'Podróż' })).toBeNull();
   });
 
@@ -719,7 +750,7 @@ describe('Home screen — trip menu ⋮ (trip-edit-menu D3, D4, D6, D8, D15)', (
     expect(screen.getByText('Bez internetu nie zmienisz nazwy ani nie usuniesz podróży.')).toBeTruthy();
     expect(sheet().getByRole('button', { name: 'Zmień budżet' })).toBeEnabled();
     await fireEvent.press(sheet().getByRole('button', { name: 'Zmień budżet' }));
-    expect(screen.getByRole('header', { name: 'Ile chcecie wydać na osobę?' })).toBeTruthy();
+    expect(screen.getByRole('header', { name: 'Ile każdy może wydać dziennie?' })).toBeTruthy();
   });
 
   it('reads in English', async () => {
@@ -871,9 +902,9 @@ describe('Home screen — deleting the trip (trip-edit-menu D7, D8, D9, D11, D19
     await confirm();
     expect(await screen.findByText('Nie masz jeszcze żadnej podróży.')).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Utwórz podróż' })).toBeTruthy();
-    // Clear of the button: its height and a spacing[3] gap above the usual place.
+    // Clear of the whole pinned block: the create and Discover buttons (both default height), each with a spacing[3] gap.
     const emptyBottom = StyleSheet.flatten(screen.getByTestId('snackbar-container').props.style).bottom;
-    expect(emptyBottom - tripBottom).toBe(lightTheme.size.buttonPrimary + lightTheme.spacing[3]);
+    expect(emptyBottom - tripBottom).toBe(2 * (lightTheme.size.buttonPrimary + lightTheme.spacing[3]));
   });
 
   it('draws the snackbar in the theme of the screen behind it: the system theme over both the trip view and the empty state (D11, theme-split D1)', async () => {
@@ -1142,8 +1173,8 @@ describe('Home screen — linked member, read-only (friend-invite A2, A3, D4, D1
     return {
       ...base,
       members: [
-        { id: id(), tripId: TRIP_ID, userId: LOCAL_PROFILE_ID, displayName: 'kacper', role: 'viewer', interests: [] },
-        { id: id(), tripId: TRIP_ID, userId: null, displayName: 'Kasia', role: 'viewer', interests: [] },
+        { id: id(), tripId: TRIP_ID, userId: LOCAL_PROFILE_ID, displayName: 'kacper', role: 'viewer', interests: [], dailyBudgetMinor: 300000 },
+        { id: id(), tripId: TRIP_ID, userId: null, displayName: 'Kasia', role: 'viewer', interests: [], dailyBudgetMinor: 300000 },
       ],
       ...(organizerUsername ? { organizerUsername } : {}),
     };
@@ -1210,7 +1241,7 @@ describe('Home screen — linked member, read-only (friend-invite A2, A3, D4, D1
   });
 
   it('still lists "Ty" when the viewer\'s own row is missing from the members', async () => {
-    mockCurrent = () => Promise.resolve({ ...shared(), members: [{ id: id(), tripId: TRIP_ID, userId: null, displayName: 'Kasia', role: 'viewer', interests: [] }] });
+    mockCurrent = () => Promise.resolve({ ...shared(), members: [{ id: id(), tripId: TRIP_ID, userId: null, displayName: 'Kasia', role: 'viewer', interests: [], dailyBudgetMinor: 300000 }] });
     await renderHome();
     await screen.findByTestId('home-travellers');
     expect(travellers()).toEqual(['ola.k (organizator)', 'Ty', 'Kasia']);

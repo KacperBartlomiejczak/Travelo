@@ -5,7 +5,7 @@ import type { ReactNode } from 'react';
 import { ServerUnreachableError } from '@/data/errors';
 import { startNewUserEpoch } from '@/data/local-store';
 import { createInMemoryProfileRepository, UsernameTakenError, type ProfileRepository } from '@/data/profile-repository';
-import { useCreateProfile, useMyProfile } from '@/hooks/useProfile';
+import { useChangeAvatar, useCreateProfile, useMyProfile, useRemoveAvatar } from '@/hooks/useProfile';
 import { AppProviders } from '@/providers/AppProviders';
 import { createFakeSessionSource } from '@/test/fake-session-source';
 import { reopenUserEpoch } from '@/test/user-epoch';
@@ -148,5 +148,42 @@ describe('useCreateProfile', () => {
     });
 
     expect(queryClient.getQueryData(['profile', 'me'])).toBeUndefined();
+  });
+});
+
+describe('photo mutations: refetch when the photo URL could not be signed', () => {
+  const AVATAR_ID = '00000000-0000-4000-8000-0000000000bb';
+
+  async function run(reply: { avatarId: string | null; avatarUrl?: string }, which: 'change' | 'remove') {
+    const base = createInMemoryProfileRepository();
+    const created = await base.createProfile(SETUP);
+    const answer = { ...created, ...reply };
+    const myProfile = jest.fn(() => base.myProfile());
+    const repository = { ...base, myProfile, changeAvatar: async () => answer, removeAvatar: async () => answer };
+    const { result } = await renderHook(() => ({ me: useMyProfile(), change: useChangeAvatar(), remove: useRemoveAvatar() }), {
+      wrapper: setup(repository).wrapper,
+    });
+    await waitFor(() => expect(result.current.me.isSuccess).toBe(true));
+    myProfile.mockClear();
+    await act(async () => {
+      if (which === 'change') await result.current.change.mutateAsync('file:///new.jpg');
+      else await result.current.remove.mutateAsync();
+    });
+    return myProfile;
+  }
+
+  it.each(['change', 'remove'] as const)('%s: an avatarId without avatarUrl invalidates the profile query', async (which) => {
+    const myProfile = await run({ avatarId: AVATAR_ID }, which);
+    await waitFor(() => expect(myProfile).toHaveBeenCalledTimes(1));
+  });
+
+  it('a profile with avatarUrl is not read again', async () => {
+    const myProfile = await run({ avatarId: AVATAR_ID, avatarUrl: 'https://avatars.invalid/a.jpg' }, 'change');
+    expect(myProfile).not.toHaveBeenCalled();
+  });
+
+  it('a removed photo (avatarId null) is not read again', async () => {
+    const myProfile = await run({ avatarId: null }, 'remove');
+    expect(myProfile).not.toHaveBeenCalled();
   });
 });

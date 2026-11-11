@@ -21,9 +21,10 @@ const tripShape = {
   startDate: IsoDateSchema,
   endDate: IsoDateSchema,
   baseCurrency: CurrencyCodeSchema,
-  budgetPerPerson: MoneySchema,
+  /** The organizer's daily budget (friends' are on their members); positive, in the base currency (daily-budget B1, A2). */
+  dailyBudget: MoneySchema.extend({ amountMinor: z.int().positive() }),
   createdAt: IsoDateTimeSchema,
-  /** When budgetPerPerson last changed; on sync the newer change wins (trips-supabase D1). */
+  /** When any budget amount of the trip last changed; on sync the newer change wins (trips-supabase D1, daily-budget A3). */
   budgetUpdatedAt: IsoDateTimeSchema,
 };
 
@@ -40,8 +41,8 @@ function addTripIssues(trip: TripShape, ctx: z.RefinementCtx) {
   if (trip.endDate < trip.startDate) {
     ctx.addIssue({ code: 'custom', path: ['endDate'], message: 'End date is before start date' });
   }
-  if (trip.budgetPerPerson.currency !== trip.baseCurrency) {
-    ctx.addIssue({ code: 'custom', path: ['budgetPerPerson', 'currency'], message: 'Budget must be in the base currency' });
+  if (trip.dailyBudget.currency !== trip.baseCurrency) {
+    ctx.addIssue({ code: 'custom', path: ['dailyBudget', 'currency'], message: 'Budget must be in the base currency' });
   }
 }
 

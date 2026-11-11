@@ -63,17 +63,17 @@ insert into auth.users (id) values
 
 -- Fixtures are written as the superuser (links included: user_id is not writable by owners); the policies under test run after login.
 -- Trip e1 (A): Kasia e1 (no account), Celina e2 (linked to C). Trip e2 (B): Bartek e3. Trip e3 (A): Ola e4. Trip e4 (D): Dan e5.
-insert into public.trips (id, owner_id, name, destination, start_date, end_date, base_currency, budget_per_person_minor, budget_updated_at) values
+insert into public.trips (id, owner_id, name, destination, start_date, end_date, base_currency, daily_budget_minor, budget_updated_at) values
   ('10000000-0000-4000-8000-0000000000e1', '00000000-0000-4000-a000-0000000000a1', 'A trip', 'BKK', '2026-11-03', '2026-11-15', 'THB', 3000000, '2026-10-04T12:00:00Z'),
   ('10000000-0000-4000-8000-0000000000e2', '00000000-0000-4000-a000-0000000000b1', 'B trip', 'BKK', '2026-11-03', '2026-11-15', 'THB', 3000000, '2026-10-04T12:00:00Z'),
   ('10000000-0000-4000-8000-0000000000e3', '00000000-0000-4000-a000-0000000000a1', 'A second trip', 'BKK', '2026-11-03', '2026-11-15', 'THB', 3000000, '2026-10-04T12:00:00Z'),
   ('10000000-0000-4000-8000-0000000000e4', '00000000-0000-4000-a000-0000000000d1', 'D trip', 'BKK', '2026-11-03', '2026-11-15', 'THB', 3000000, '2026-10-04T12:00:00Z');
-insert into public.trip_members (id, trip_id, user_id, display_name, role, interests) values
-  ('20000000-0000-4000-8000-0000000000e1', '10000000-0000-4000-8000-0000000000e1', null, 'Kasia', 'viewer', '{}'),
-  ('20000000-0000-4000-8000-0000000000e2', '10000000-0000-4000-8000-0000000000e1', '00000000-0000-4000-a000-0000000000c1', 'Celina', 'viewer', '{}'),
-  ('20000000-0000-4000-8000-0000000000e3', '10000000-0000-4000-8000-0000000000e2', null, 'Bartek', 'viewer', '{}'),
-  ('20000000-0000-4000-8000-0000000000e4', '10000000-0000-4000-8000-0000000000e3', null, 'Ola', 'viewer', '{}'),
-  ('20000000-0000-4000-8000-0000000000e5', '10000000-0000-4000-8000-0000000000e4', null, 'Dan', 'viewer', '{}');
+insert into public.trip_members (id, trip_id, user_id, display_name, role, interests, daily_budget_minor) values
+  ('20000000-0000-4000-8000-0000000000e1', '10000000-0000-4000-8000-0000000000e1', null, 'Kasia', 'viewer', '{}', 100000),
+  ('20000000-0000-4000-8000-0000000000e2', '10000000-0000-4000-8000-0000000000e1', '00000000-0000-4000-a000-0000000000c1', 'Celina', 'viewer', '{}', 100000),
+  ('20000000-0000-4000-8000-0000000000e3', '10000000-0000-4000-8000-0000000000e2', null, 'Bartek', 'viewer', '{}', 100000),
+  ('20000000-0000-4000-8000-0000000000e4', '10000000-0000-4000-8000-0000000000e3', null, 'Ola', 'viewer', '{}', 100000),
+  ('20000000-0000-4000-8000-0000000000e5', '10000000-0000-4000-8000-0000000000e4', null, 'Dan', 'viewer', '{}', 100000);
 
 -- ---------------------------------------------------------------------------
 -- Owner A: writes any expense of their trip

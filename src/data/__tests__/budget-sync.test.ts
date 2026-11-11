@@ -1,6 +1,6 @@
 import { RETRY_MAX_MS, retryDelayMs, syncBudgetChanges } from '@/data/budget-sync';
 import { migrateLocalDb } from '@/data/local-db';
-import { createLocalStore } from '@/data/local-store';
+import { createLocalStore, type LocalStore } from '@/data/local-store';
 import { fakeSupabase } from '@/test/fake-supabase';
 import { openTestDb } from '@/test/node-sqlite';
 
@@ -20,7 +20,8 @@ describe('retry delay (backoff)', () => {
 describe('syncBudgetChanges when nobody is signed in (auth-onboarding D2)', () => {
   const CHANGE = {
     tripId: '00000000-0000-4000-8000-000000000001',
-    budgetPerPerson: { amountMinor: 250000, currency: 'THB' },
+    organizerDailyBudget: { amountMinor: 250000, currency: 'THB' },
+    members: [],
     updatedAt: '2026-10-06T09:30:00.000Z',
   };
   const NOW = new Date('2026-10-06T10:00:00.000Z');
@@ -40,6 +41,7 @@ describe('syncBudgetChanges when nobody is signed in (auth-onboarding D2)', () =
 
     await expect(syncBudgetChanges({ supabase: supabase.client, local, now: () => NOW })).resolves.toEqual({ nextAttemptAt: null });
 
+    expect(supabase.rpc).not.toHaveBeenCalled();
     expect(supabase.queries).toEqual([]);
     await expect(local.budgetChange(CHANGE.tripId)).resolves.toEqual({ ...CHANGE, syncStatus: 'pending', attempts: 0 });
   });
@@ -50,10 +52,43 @@ describe('syncBudgetChanges when nobody is signed in (auth-onboarding D2)', () =
     await syncBudgetChanges({ supabase: supabase.client, local, now: () => NOW });
 
     supabase.storedSession('signed-in');
-    supabase.respond('trips', { data: [{ id: CHANGE.tripId }] });
     await syncBudgetChanges({ supabase: supabase.client, local, now: () => NOW });
 
-    expect(supabase.queries).toHaveLength(1);
+    expect(supabase.rpc).toHaveBeenCalledTimes(1);
     await expect(local.budgetChange(CHANGE.tripId)).resolves.toBeNull();
+  });
+});
+
+describe('syncBudgetChanges sends the amounts of the friends (daily-budget A3)', () => {
+  it('maps every member of the change to the set_trip_budget payload', async () => {
+    const supabase = fakeSupabase();
+    const change = {
+      tripId: '00000000-0000-4000-8000-000000000001',
+      organizerDailyBudget: { amountMinor: 250000, currency: 'THB' },
+      members: [{ memberId: '00000000-0000-4000-8000-000000000002', dailyBudgetMinor: 90000 }],
+      updatedAt: '2026-10-06T09:30:00.000Z',
+      syncStatus: 'pending' as const,
+      attempts: 0,
+    };
+    const local = {
+      unsyncedBudgetChanges: jest.fn(async () => [change]),
+      markBudgetSynced: jest.fn(async () => {}),
+      recordBudgetAttempt: jest.fn(async () => {}),
+    } as unknown as LocalStore;
+
+    await syncBudgetChanges({ supabase: supabase.client, local, now: () => new Date('2026-10-06T10:00:00.000Z') });
+
+    expect(supabase.rpc.mock.calls).toEqual([
+      [
+        'set_trip_budget',
+        {
+          trip_id: change.tripId,
+          organizer_daily_minor: 250000,
+          members: [{ member_id: '00000000-0000-4000-8000-000000000002', daily_budget_minor: 90000 }],
+          updated_at: change.updatedAt,
+        },
+      ],
+    ]);
+    expect(local.markBudgetSynced).toHaveBeenCalledWith(change);
   });
 });

@@ -41,6 +41,7 @@ async function setup() {
     _layout: Layout,
     index: () => <SignInSheet onClose={onClose} />,
     email: () => <Text>email screen</Text>,
+    'legal/[doc]': () => <Text>legal screen</Text>,
   });
   return { onClose, getPathname: () => rendered.getPathname() };
 }
@@ -291,5 +292,37 @@ describe('SignInSheet (auth-onboarding D6, D10, D13, P5)', () => {
       expect(google()).toBeEnabled();
       expect(screen.queryByTestId('offline-banner')).toBeNull();
     });
+  });
+});
+
+describe('SignInSheet — legal line', () => {
+  it('shows the acceptance line as one plain text', async () => {
+    await setup();
+    expect(screen.getByText('Kontynuując, akceptujesz Regulamin i Politykę prywatności.')).toBeTruthy();
+    expect(screen.queryByRole('link')).toBeNull();
+  });
+
+  it('speaks English on an English phone', async () => {
+    await i18n.changeLanguage('en');
+    await setup();
+    expect(screen.getByText('By continuing, you accept the Terms of Use and the Privacy Policy.')).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Terms of Use' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Privacy Policy' })).toBeTruthy();
+  });
+
+  it('wraps the two buttons onto separate lines at large font scale, keeping a gap', async () => {
+    await setup();
+    expect(screen.getByTestId('sign-in-legal-links')).toHaveStyle({ flexWrap: 'wrap', gap: tokens.spacing[2] });
+  });
+
+  it.each([
+    ['Regulamin', '/legal/terms'],
+    ['Polityka prywatności', '/legal/privacy'],
+  ])('the button "%s" is at least 44dp tall, closes the sheet and opens %s', async (name, path) => {
+    const { onClose, getPathname } = await setup();
+    expect(screen.getByRole('button', { name })).toHaveStyle({ minHeight: tokens.layout.touchTarget });
+    await fireEvent.press(screen.getByRole('button', { name }));
+    expect(onClose).toHaveBeenCalledTimes(1);
+    await waitFor(() => expect(getPathname()).toBe(path));
   });
 });

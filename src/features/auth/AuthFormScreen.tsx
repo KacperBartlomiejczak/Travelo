@@ -22,6 +22,10 @@ type Props = {
   topInset?: boolean;
   /** Lets a screen scroll the fields, e.g. to the first one with an error. */
   scrollRef?: Ref<ScrollViewInstance>;
+  /** Replaces the default offline banner text, for a screen where the default would promise a later sync. */
+  offlineText?: string;
+  /** Replaces the safe-area bottom inset under the footer, for a screen hosted above the floating pill. */
+  bottomInset?: number;
 };
 
 /**
@@ -29,7 +33,7 @@ type Props = {
  * scroll view, and the actions pinned at the bottom. Like the wizard, the frame is padded by the keyboard's height on both
  * platforms (with edge-to-edge Android does not resize the window), so the action stays above the keyboard.
  */
-export function AuthFormScreen({ testID, title, hint, children, footer, topInset = false, scrollRef }: Props) {
+export function AuthFormScreen({ testID, title, hint, children, footer, topInset = false, scrollRef, offlineText, bottomInset }: Props) {
   const theme = useTheme();
   const insets = useSafeAreaInsets();
   // The frame sits under the stack header; the keyboard's position is measured from the top of the window.
@@ -63,13 +67,14 @@ export function AuthFormScreen({ testID, title, hint, children, footer, topInset
           </Text>
           {hint && <Text style={[typography.styles.bodyMD, { color: theme.text.secondary }]}>{hint}</Text>}
         </View>
-        {offline && <OfflineBanner />}
+        {offline && <OfflineBanner text={offlineText} />}
         {children}
       </ScrollView>
       <View
+        testID={`${testID}-footer`}
         style={[
           styles.column,
-          { maxWidth: tokens.layout.maxContentWidth, paddingHorizontal: side, paddingTop: spacing[3], paddingBottom: insets.bottom + spacing[4], gap: spacing[3] },
+          { maxWidth: tokens.layout.maxContentWidth, paddingHorizontal: side, paddingTop: spacing[3], paddingBottom: (bottomInset ?? insets.bottom) + spacing[4], gap: spacing[3] },
         ]}
       >
         {footer}

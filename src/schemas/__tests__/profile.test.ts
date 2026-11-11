@@ -4,6 +4,7 @@ import {
   FriendCodeInputSchema,
   FriendCodeSchema,
   FoundFriendSchema,
+  ProfileEditInputSchema,
   ProfileSchema,
   ProfileSetupInputSchema,
   ShownProfileSchema,
@@ -257,5 +258,29 @@ describe('FoundFriend (friend-invite)', () => {
     ['an unknown interest', { interests: ['knitting'] }],
   ])('rejects %s', (_, patch) => {
     expect(FoundFriendSchema.safeParse({ ...found, ...patch }).success).toBe(false);
+  });
+});
+
+describe('ProfileEditInputSchema', () => {
+  it('trims and lowercases the nick and keeps the interests', () => {
+    const result = ProfileEditInputSchema.parse({ username: '  Kacper_B ', interests: ['museums'] });
+    expect(result).toEqual({ username: 'kacper_b', interests: ['museums'] });
+  });
+
+  it('ignores the avatar field of the setup form', () => {
+    const result = ProfileEditInputSchema.parse({ username: 'kacper_b', interests: ['museums'], avatarUri: 'file://a.jpg' });
+    expect(result).not.toHaveProperty('avatarUri');
+  });
+
+  it('rejects an empty interests list', () => {
+    const result = ProfileEditInputSchema.safeParse({ username: 'kacper_b', interests: [] });
+    expect(messages(result)).toContain('validation.interestsRequired');
+  });
+
+  it('rejects an empty or malformed nick', () => {
+    expect(messages(ProfileEditInputSchema.safeParse({ username: '   ', interests: ['museums'] }))).toContain(
+      'validation.usernameRequired',
+    );
+    expect(ProfileEditInputSchema.safeParse({ username: '1abc', interests: ['museums'] }).success).toBe(false);
   });
 });

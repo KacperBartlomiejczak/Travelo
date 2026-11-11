@@ -1,19 +1,25 @@
 import { randomUUID } from 'expo-crypto';
 
-import { avatarPath } from '@/lib/avatar';
+import { AvatarUriSchema, avatarPath } from '@/lib/avatar';
 import {
   FRIEND_CODE_ALPHABET,
   FRIEND_CODE_LENGTH,
+  DeleteAccountInputSchema,
   FriendCodeInputSchema,
+  ProfileEditInputSchema,
   ProfileSetupInputSchema,
   ShownProfileSchema,
   type FoundFriend,
+  type ProfileEditInputValues,
   type ProfileSetupInputValues,
   type ShownProfile,
 } from '@/schemas';
 
 /** The nick is already used by another account (auth-onboarding D3). */
 export class UsernameTakenError extends Error {}
+
+/** The nick typed to confirm account deletion is not the account's nick (profile-settings D16). */
+export class UsernameMismatchError extends Error {}
 
 /** The signed-in user's profile; `fromCache` is true when the server could not be reached and the copy on the phone is shown (D9). */
 export type MyProfile = { profile: ShownProfile; fromCache: boolean };
@@ -34,6 +40,25 @@ export interface ProfileRepository {
    * telling the user "that is your code" is the caller's job (it knows its own code).
    */
   findByFriendCode(code: string): Promise<FoundFriend | null>;
+  /**
+   * Changes the own nick and interests (profile-settings). The nick is normalised; the answer is kept as the copy on the phone.
+   * Rejects with `UsernameTakenError` when another account has the nick and with `ZodError` for invalid input, before any request. Online only.
+   */
+  updateProfile(input: ProfileEditInputValues): Promise<ShownProfile>;
+  /**
+   * Replaces the photo with the picked one (A6): reads the current avatar id, uploads under a new id, updates the row, then removes the old
+   * file; failing to remove it is not a failure. A refused update (4xx) removes the new file; no answer or a 5xx keeps it, since the row may have changed.
+   * Rejects with `ZodError` for a uri that is not a file, before any request. Online only.
+   */
+  changeAvatar(pickedUri: string): Promise<ShownProfile>;
+  /** Removes the photo (A6): the row first (avatar id null), then the file; failing to remove the file is not a failure. Online only. */
+  removeAvatar(): Promise<ShownProfile>;
+  /**
+   * Deletes the account and all its data through the `delete-account` Edge Function; `confirmUsername` is the nick as typed. Resolves when the
+   * server confirmed; signing out is the caller's job. Rejects with `ServerUnreachableError` when the function gave no answer (the deletion may
+   * have happened, retrying is safe), with `ZodError` for an empty nick or an unexpected answer, and with a plain error for any other failure.
+   */
+  deleteAccount(confirmUsername: string): Promise<void>;
 }
 
 /** The only user of the in-memory repository, which only tests use. */
@@ -86,6 +111,36 @@ export function createInMemoryProfileRepository({
       const normalised = FriendCodeInputSchema.parse(code);
       if (stored?.friendCode === normalised) return { username: stored.username, interests: stored.interests };
       return friendAccounts[normalised] ?? null;
+    },
+    async updateProfile(input) {
+      const { username, interests } = ProfileEditInputSchema.parse(input);
+      if (!stored) throw new Error('no-profile');
+      if (takenUsernames.some((taken) => taken.toLowerCase() === username)) throw new UsernameTakenError('username-taken');
+      stored = ShownProfileSchema.parse({ ...stored, username, interests, updatedAt: now().toISOString() });
+      return stored;
+    },
+    async changeAvatar(pickedUri) {
+      AvatarUriSchema.parse(pickedUri);
+      if (!stored) throw new Error('no-profile');
+      const avatarId = newId();
+      stored = ShownProfileSchema.parse({
+        ...stored,
+        avatarId,
+        avatarUrl: `https://avatars.invalid/${avatarPath(LOCAL_PROFILE_ID, avatarId)}`,
+        updatedAt: now().toISOString(),
+      });
+      return stored;
+    },
+    async removeAvatar() {
+      if (!stored) throw new Error('no-profile');
+      const { avatarUrl: _gone, ...rest } = stored;
+      stored = ShownProfileSchema.parse({ ...rest, avatarId: null, updatedAt: now().toISOString() });
+      return stored;
+    },
+    async deleteAccount(confirmUsername) {
+      DeleteAccountInputSchema.parse({ confirmUsername });
+      if (stored?.username !== confirmUsername.trim().toLowerCase()) throw new UsernameMismatchError('username-mismatch');
+      stored = null;
     },
   };
 }

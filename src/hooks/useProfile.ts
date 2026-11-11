@@ -4,7 +4,7 @@ import { currentUserEpoch, isEpochCurrent } from '@/data/local-store';
 import type { MyProfile } from '@/data/profile-repository';
 import { useProfileRepository } from '@/providers/AppProviders';
 import { useSession } from '@/providers/Session';
-import type { ProfileSetupInputValues } from '@/schemas';
+import type { ProfileEditInputValues, ProfileSetupInputValues, ShownProfile } from '@/schemas';
 
 const PROFILE_KEY = ['profile', 'me'] as const;
 
@@ -62,4 +62,46 @@ export function useCreateProfile() {
       queryClient.setQueryData(PROFILE_KEY, mine);
     },
   });
+}
+
+/** Saves the edited nick and interests; like `useCreateProfile`, the result goes into the profile query only if the same user is still signed in. */
+export function useUpdateProfile() {
+  const repository = useProfileRepository();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (input: ProfileEditInputValues) => repository.updateProfile(input),
+    onMutate: () => ({ epoch: currentUserEpoch() }),
+    onSuccess: (profile, _input, context) => {
+      if (!isEpochCurrent(context.epoch)) return;
+      const mine: MyProfile = { profile, fromCache: false };
+      queryClient.setQueryData(PROFILE_KEY, mine);
+    },
+  });
+}
+
+/** The same epoch rule as `useUpdateProfile`, for the two photo changes: the answer goes into the profile query only for the user who started it. */
+function usePhotoMutation<V>(run: (repository: ReturnType<typeof useProfileRepository>, variables: V) => Promise<ShownProfile>) {
+  const repository = useProfileRepository();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (variables: V) => run(repository, variables),
+    onMutate: () => ({ epoch: currentUserEpoch() }),
+    onSuccess: (profile, _variables, context) => {
+      if (!isEpochCurrent(context.epoch)) return;
+      const mine: MyProfile = { profile, fromCache: false };
+      queryClient.setQueryData(PROFILE_KEY, mine);
+      // The photo URL could not be signed: read again instead of leaving a photo that cannot load.
+      if (profile.avatarId && !profile.avatarUrl) void queryClient.invalidateQueries({ queryKey: PROFILE_KEY });
+    },
+  });
+}
+
+/** Replaces the profile photo with a picked `file://` photo (profile-settings D4, A6). Callers use `mutateAsync`: the viewer may unmount before it settles. */
+export function useChangeAvatar() {
+  return usePhotoMutation((repository, pickedUri: string) => repository.changeAvatar(pickedUri));
+}
+
+/** Removes the profile photo (profile-settings D4, A6). */
+export function useRemoveAvatar() {
+  return usePhotoMutation((repository, _: void) => repository.removeAvatar());
 }

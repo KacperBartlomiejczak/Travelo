@@ -60,7 +60,7 @@ create function test_helpers.trip_payload(trip_id uuid, overrides jsonb default 
     'start_date', '2026-11-03',
     'end_date', '2026-11-15',
     'base_currency', 'THB',
-    'budget_per_person_minor', 3000000,
+    'daily_budget_minor', 3000000,
     'budget_updated_at', '2026-10-04T12:00:00Z',
     'created_at', '2026-10-04T12:00:00Z'
   ) || overrides
@@ -69,9 +69,9 @@ $$;
 create function test_helpers.members_payload(trip_id uuid) returns jsonb language sql as $$
   select jsonb_build_array(
     jsonb_build_object('id', '20000000-0000-4000-8000-000000000001', 'trip_id', trip_id, 'user_id', null,
-      'display_name', 'Kasia', 'role', 'viewer', 'interests', jsonb_build_array('beaches', 'nightlife')),
+      'display_name', 'Kasia', 'role', 'viewer', 'interests', jsonb_build_array('beaches', 'nightlife'), 'daily_budget_minor', 100000),
     jsonb_build_object('id', '20000000-0000-4000-8000-000000000002', 'trip_id', trip_id, 'user_id', null,
-      'display_name', 'Ola', 'role', 'viewer', 'interests', jsonb_build_array())
+      'display_name', 'Ola', 'role', 'viewer', 'interests', jsonb_build_array(), 'daily_budget_minor', 150000)
   )
 $$;
 
@@ -131,9 +131,9 @@ select test_helpers.ok(
 -- C is a linked read-only member of A's trip. The owner cannot write user_id any more (friend-invite D12: the server
 -- links only by friend code), so the fixture row is written as the superuser; friend_invite.sql covers the real path.
 reset role;
-insert into public.trip_members (id, trip_id, user_id, display_name, role, interests)
+insert into public.trip_members (id, trip_id, user_id, display_name, role, interests, daily_budget_minor)
 values ('20000000-0000-4000-8000-000000000003', '10000000-0000-4000-8000-000000000001',
-        '00000000-0000-4000-a000-00000000000c', 'Celina', 'viewer', '{}');
+        '00000000-0000-4000-a000-00000000000c', 'Celina', 'viewer', '{}', 100000);
 select test_helpers.login('00000000-0000-4000-a000-00000000000a');
 
 -- The owner cannot hand the trip to someone else.
@@ -144,22 +144,64 @@ select test_helpers.throws(
 -- ---------------------------------------------------------------------------
 -- Last write wins on the budget
 -- ---------------------------------------------------------------------------
-update public.trips set budget_per_person_minor = 1, budget_updated_at = '2026-10-01T00:00:00Z'
-where id = '10000000-0000-4000-8000-000000000001' and budget_updated_at < '2026-10-01T00:00:00Z';
 select test_helpers.ok(
-  (select budget_per_person_minor from public.trips) = 3000000,
-  'an older budget change does not overwrite a newer one'
+  (select daily_budget_minor from public.trips) = 3000000
+    and (select daily_budget_minor from public.trip_members where display_name = 'Ola') = 150000,
+  'create_trip stores the organizer''s and each friend''s daily budget'
 );
 
-update public.trips set budget_per_person_minor = 2500000, budget_updated_at = '2026-10-06T09:30:00Z'
-where id = '10000000-0000-4000-8000-000000000001' and budget_updated_at < '2026-10-06T09:30:00Z';
-update public.trips set budget_per_person_minor = 2500000, budget_updated_at = '2026-10-06T09:30:00Z'
-where id = '10000000-0000-4000-8000-000000000001' and budget_updated_at < '2026-10-06T09:30:00Z';
+select public.set_trip_budget('10000000-0000-4000-8000-000000000001', 1, jsonb_build_array(
+  jsonb_build_object('member_id', '20000000-0000-4000-8000-000000000002', 'daily_budget_minor', 1)), '2026-10-01T00:00:00Z');
 select test_helpers.ok(
-  (select budget_per_person_minor from public.trips) = 2500000
-    and (select budget_updated_at from public.trips) = '2026-10-06T09:30:00Z',
-  'a newer budget change wins, and sending it twice changes nothing more'
+  (select daily_budget_minor from public.trips) = 3000000
+    and (select daily_budget_minor from public.trip_members where display_name = 'Ola') = 150000,
+  'an older budget change does not overwrite a newer one, members included'
 );
+
+select public.set_trip_budget('10000000-0000-4000-8000-000000000001', 2500000, jsonb_build_array(
+  jsonb_build_object('member_id', '20000000-0000-4000-8000-000000000001', 'daily_budget_minor', 2500000),
+  jsonb_build_object('member_id', '20000000-0000-4000-8000-000000000002', 'daily_budget_minor', 90000)), '2026-10-06T09:30:00Z');
+select public.set_trip_budget('10000000-0000-4000-8000-000000000001', 2500000, jsonb_build_array(
+  jsonb_build_object('member_id', '20000000-0000-4000-8000-000000000001', 'daily_budget_minor', 2500000),
+  jsonb_build_object('member_id', '20000000-0000-4000-8000-000000000002', 'daily_budget_minor', 90000)), '2026-10-06T09:30:00Z');
+select test_helpers.ok(
+  (select daily_budget_minor from public.trips) = 2500000
+    and (select budget_updated_at from public.trips) = '2026-10-06T09:30:00Z'
+    and (select daily_budget_minor from public.trip_members where display_name = 'Kasia') = 2500000
+    and (select daily_budget_minor from public.trip_members where display_name = 'Ola') = 90000,
+  'a newer budget change wins for the trip and its friends, and sending it twice changes nothing more'
+);
+
+-- Same timestamp, different amounts: the guard is strict, so the first applied change stays.
+select public.set_trip_budget('10000000-0000-4000-8000-000000000001', 111, jsonb_build_array(
+  jsonb_build_object('member_id', '20000000-0000-4000-8000-000000000001', 'daily_budget_minor', 111),
+  jsonb_build_object('member_id', '20000000-0000-4000-8000-000000000002', 'daily_budget_minor', 222)), '2026-10-06T09:30:00Z');
+select test_helpers.ok(
+  (select daily_budget_minor from public.trips) = 2500000
+    and (select daily_budget_minor from public.trip_members where display_name = 'Kasia') = 2500000
+    and (select daily_budget_minor from public.trip_members where display_name = 'Ola') = 90000,
+  'a change with the same timestamp but other amounts does not overwrite the applied one (strict guard)'
+);
+
+-- A member of another trip is rejected, and nothing at all is changed.
+reset role;
+insert into public.trips (id, owner_id, name, destination, start_date, end_date, base_currency, daily_budget_minor, budget_updated_at)
+values ('10000000-0000-4000-8000-0000000000a9', '00000000-0000-4000-a000-00000000000a', 'Other trip', 'BKK',
+        '2026-11-03', '2026-11-15', 'THB', 100, '2026-10-04T12:00:00Z');
+insert into public.trip_members (id, trip_id, display_name, role, interests, daily_budget_minor)
+values ('20000000-0000-4000-8000-0000000000a9', '10000000-0000-4000-8000-0000000000a9', 'Elsewhere', 'viewer', '{}', 100);
+select test_helpers.login('00000000-0000-4000-a000-00000000000a');
+select test_helpers.throws(
+  $$select public.set_trip_budget('10000000-0000-4000-8000-000000000001', 7, jsonb_build_array(
+    jsonb_build_object('member_id', '20000000-0000-4000-8000-0000000000a9', 'daily_budget_minor', 7)), '2026-10-07T00:00:00Z')$$,
+  '22023', 'set_trip_budget rejects a member who is not in the trip');
+select test_helpers.ok(
+  (select daily_budget_minor from public.trips where id = '10000000-0000-4000-8000-000000000001') = 2500000
+    and (select daily_budget_minor from public.trip_members where display_name = 'Elsewhere') = 100,
+  'a rejected set_trip_budget changes nothing');
+reset role;
+delete from public.trips where id = '10000000-0000-4000-8000-0000000000a9';
+select test_helpers.login('00000000-0000-4000-a000-00000000000a');
 
 -- ---------------------------------------------------------------------------
 -- Constraints mirror the Zod schemas
@@ -178,8 +220,8 @@ select test_helpers.throws(
   '23514', 'an end date before the start date is rejected');
 select test_helpers.throws(
   format('select public.create_trip(%L, %L, %L)',
-    test_helpers.trip_payload('10000000-0000-4000-8000-0000000000f4', '{"budget_per_person_minor": -1}'), '[]', '[]'),
-  '23514', 'a negative budget is rejected');
+    test_helpers.trip_payload('10000000-0000-4000-8000-0000000000f4', '{"daily_budget_minor": 0}'), '[]', '[]'),
+  '23514', 'a zero daily budget is rejected');
 select test_helpers.throws(
   format('select public.create_trip(%L, %L, %L)',
     test_helpers.trip_payload('10000000-0000-4000-8000-0000000000f5', '{"base_currency": "thb"}'), '[]', '[]'),
@@ -189,12 +231,12 @@ select test_helpers.throws(
     test_helpers.trip_payload('10000000-0000-4000-8000-0000000000f6', '{"destination": "Bangkok"}'), '[]', '[]'),
   '23514', 'a destination that is not an IATA code is rejected');
 select test_helpers.throws(
-  $$insert into public.trip_members (id, trip_id, display_name, role, interests)
-    values ('20000000-0000-4000-8000-0000000000f1', '10000000-0000-4000-8000-000000000001', 'Ewa', 'viewer', '{golf}')$$,
+  $$insert into public.trip_members (id, trip_id, display_name, role, interests, daily_budget_minor)
+    values ('20000000-0000-4000-8000-0000000000f1', '10000000-0000-4000-8000-000000000001', 'Ewa', 'viewer', '{golf}', 100000)$$,
   '23514', 'an unknown interest is rejected');
 select test_helpers.throws(
-  $$insert into public.trip_members (id, trip_id, display_name, role, interests)
-    values ('20000000-0000-4000-8000-0000000000f2', '10000000-0000-4000-8000-000000000001', '   ', 'viewer', '{}')$$,
+  $$insert into public.trip_members (id, trip_id, display_name, role, interests, daily_budget_minor)
+    values ('20000000-0000-4000-8000-0000000000f2', '10000000-0000-4000-8000-000000000001', '   ', 'viewer', '{}', 100000)$$,
   '23514', 'a blank display name is rejected');
 select test_helpers.throws(
   $$insert into public.flight_segments (id, trip_id, direction, position, from_iata, to_iata, depart_at, depart_tz, arrive_at, arrive_tz)
@@ -225,14 +267,14 @@ delete from public.flight_segments;
 
 select test_helpers.throws(
   $$insert into public.trips (id, owner_id, name, destination, start_date, end_date, base_currency,
-                              budget_per_person_minor, budget_updated_at)
+                              daily_budget_minor, budget_updated_at)
     values ('10000000-0000-4000-8000-0000000000b9', '00000000-0000-4000-a000-00000000000a', 'Planted', 'BKK',
             '2026-11-03', '2026-11-15', 'THB', 1, now())$$,
   '42501', 'B cannot create a trip owned by A');
 
 select test_helpers.throws(
-  $$insert into public.trip_members (id, trip_id, display_name, role, interests)
-    values ('20000000-0000-4000-8000-0000000000b1', '10000000-0000-4000-8000-000000000001', 'Intruder', 'viewer', '{}')$$,
+  $$insert into public.trip_members (id, trip_id, display_name, role, interests, daily_budget_minor)
+    values ('20000000-0000-4000-8000-0000000000b1', '10000000-0000-4000-8000-000000000001', 'Intruder', 'viewer', '{}', 100000)$$,
   '42501', 'B cannot add a member to A''s trip');
 select test_helpers.throws(
   $$insert into public.flight_segments (id, trip_id, direction, position, from_iata, to_iata, depart_at, depart_tz, arrive_at, arrive_tz)
@@ -243,9 +285,13 @@ select test_helpers.throws(
   format('select public.create_trip(%L, %L, %L)',
     test_helpers.trip_payload('10000000-0000-4000-8000-000000000001'),
     jsonb_build_array(jsonb_build_object('id', '20000000-0000-4000-8000-0000000000b2', 'trip_id', '10000000-0000-4000-8000-000000000001',
-      'display_name', 'Intruder', 'role', 'viewer', 'interests', jsonb_build_array())),
+      'display_name', 'Intruder', 'role', 'viewer', 'interests', jsonb_build_array(), 'daily_budget_minor', 100000)),
     '[]'),
   '42501', 'B cannot reuse A''s trip id to add members through create_trip');
+
+select test_helpers.throws(
+  $$select public.set_trip_budget('10000000-0000-4000-8000-000000000001', 1, '[]', '2030-01-01T00:00:00Z')$$,
+  '42501', 'B cannot change A''s budget through set_trip_budget');
 
 -- ---------------------------------------------------------------------------
 -- Linked viewer C reads, never writes
@@ -256,7 +302,7 @@ select test_helpers.ok((select count(*) from public.trips) = 1, 'C sees the trip
 select test_helpers.ok((select count(*) from public.trip_members) = 3, 'C sees the trip''s members');
 select test_helpers.ok((select count(*) from public.flight_segments) = 3, 'C sees the trip''s segments');
 
-update public.trips set name = 'Changed by C', budget_per_person_minor = 1;
+update public.trips set name = 'Changed by C', daily_budget_minor = 1;
 delete from public.trips;
 update public.trip_members set display_name = 'Changed by C';
 delete from public.trip_members;
@@ -264,8 +310,11 @@ update public.flight_segments set flight_number = 'XX1';
 delete from public.flight_segments;
 
 select test_helpers.throws(
-  $$insert into public.trip_members (id, trip_id, display_name, role, interests)
-    values ('20000000-0000-4000-8000-0000000000c1', '10000000-0000-4000-8000-000000000001', 'Friend of C', 'viewer', '{}')$$,
+  $$select public.set_trip_budget('10000000-0000-4000-8000-000000000001', 1, '[]', '2030-01-01T00:00:00Z')$$,
+  '42501', 'C cannot change the budget through set_trip_budget');
+select test_helpers.throws(
+  $$insert into public.trip_members (id, trip_id, display_name, role, interests, daily_budget_minor)
+    values ('20000000-0000-4000-8000-0000000000c1', '10000000-0000-4000-8000-000000000001', 'Friend of C', 'viewer', '{}', 100000)$$,
   '42501', 'C cannot add a member');
 select test_helpers.throws(
   $$insert into public.flight_segments (id, trip_id, direction, position, from_iata, to_iata, depart_at, depart_tz, arrive_at, arrive_tz)
@@ -279,7 +328,7 @@ select test_helpers.throws(
 select test_helpers.login('00000000-0000-4000-a000-00000000000a');
 
 select test_helpers.ok(
-  (select name from public.trips) = 'Warsaw → Bangkok' and (select budget_per_person_minor from public.trips) = 2500000,
+  (select name from public.trips) = 'Warsaw → Bangkok' and (select daily_budget_minor from public.trips) = 2500000,
   'A''s trip is unchanged'
 );
 select test_helpers.ok(
@@ -305,7 +354,7 @@ select public.create_trip(
   test_helpers.trip_payload('10000000-0000-4000-8000-0000000000e1', '{"name": "Old name", "cover_image_uri": "preset:bali"}'),
   jsonb_build_array(
     jsonb_build_object('id', '20000000-0000-4000-8000-0000000000e1', 'trip_id', '10000000-0000-4000-8000-0000000000e1',
-      'user_id', null, 'display_name', 'Basia', 'role', 'viewer', 'interests', jsonb_build_array('museums'))),
+      'user_id', null, 'display_name', 'Basia', 'role', 'viewer', 'interests', jsonb_build_array('museums'), 'daily_budget_minor', 100)),
   jsonb_build_array(
     jsonb_build_object('id', '30000000-0000-4000-8000-0000000000e1', 'trip_id', '10000000-0000-4000-8000-0000000000e1',
       'direction', 'outbound', 'position', 0, 'flight_number', null, 'from_iata', 'WAW', 'to_iata', 'BKK',
@@ -346,6 +395,17 @@ select test_helpers.ok(
     and (select count(*) from public.trip_members where trip_id = '10000000-0000-4000-8000-000000000001') = 3
     and (select count(*) from public.flight_segments where trip_id = '10000000-0000-4000-8000-000000000001') = 3,
   'deleting one trip leaves the owner''s other trip, its members and segments alone'
+);
+
+-- ---------------------------------------------------------------------------
+-- Existing trips are converted by the migration (daily-budget B5): floor(total / days), at least 1.
+-- The migration's UPDATE calls private.daily_from_total, so this tests the real formula.
+-- ---------------------------------------------------------------------------
+select test_helpers.ok(
+  private.daily_from_total(700, '2026-11-03', '2026-11-09') = 100
+    and private.daily_from_total(3000000, '2026-11-03', '2026-11-15') = 230769
+    and private.daily_from_total(5, '2026-11-03', '2026-11-09') = 1,
+  'the backfill is floor(total / days), and at least 1'
 );
 
 -- ---------------------------------------------------------------------------

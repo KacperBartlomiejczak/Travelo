@@ -17,6 +17,8 @@ export const TripMemberSchema = z.object({
   budgetLevel: z.enum(['low', 'mid', 'high']).optional(),
   pace: z.enum(['relaxed', 'normal', 'intense']).optional(),
   dietaryNotes: z.string().max(200).optional(),
+  /** The friend's daily budget in minor units of the trip's base currency (daily-budget B1, A2). */
+  dailyBudgetMinor: z.int().positive(),
 });
 export type TripMember = z.infer<typeof TripMemberSchema>;
 
@@ -34,6 +36,7 @@ export const CreateTripMemberPayloadSchema = z.object({
   budget_level: TripMemberSchema.shape.budgetLevel.nullish(),
   pace: TripMemberSchema.shape.pace.nullish(),
   dietary_notes: TripMemberSchema.shape.dietaryNotes.nullish(),
+  daily_budget_minor: TripMemberSchema.shape.dailyBudgetMinor,
   /** null or absent = friend without an account. */
   friend_code: FriendCodeSchema.nullish(),
 });

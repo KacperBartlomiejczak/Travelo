@@ -51,7 +51,7 @@ function Seed() {
         outbound: [{ ...emptySegment(), fromIata: 'WAW', departTz: 'Europe/Warsaw', toIata: 'BKK', arriveTz: 'Asia/Bangkok', departAt: inDays(29, '22:00'), arriveAt: inDays(30, '14:00') }],
         return: [{ ...emptySegment(), fromIata: 'BKK', departTz: 'Asia/Bangkok', toIata: 'WAW', arriveTz: 'Europe/Warsaw', departAt: inDays(42, '09:00'), arriveAt: inDays(42, '17:00') }],
         friends: [{ ...emptyFriend(), displayName: 'Kasia', interests: ['beaches'] }, { ...emptyFriend(), displayName: 'Ola' }],
-        budget: { amountText: '3000', currency: '' },
+        budget: { mode: 'shared', amountText: '3000', friendAmountTexts: [], currency: '' },
       };
     });
     router.push(`/trips/new/${step}`);
@@ -213,19 +213,21 @@ describe('Friends step look', () => {
 describe('Budget step look', () => {
   it('has a headingLG heading, a bodyMD secondary hint, a labelMD currency label and bodyMD totals', async () => {
     await open('budget');
-    expect(screen.getByRole('header', { name: 'Ile chcecie wydać na osobę?' })).toHaveStyle({ ...styles.headingLG, color: lightTheme.text.primary });
-    expect(screen.getByText(/^Na cały wyjazd/)).toHaveStyle({ ...styles.bodyMD, color: lightTheme.text.secondary });
+    expect(screen.getByRole('header', { name: 'Ile każdy może wydać dziennie?' })).toHaveStyle({ ...styles.headingLG, color: lightTheme.text.primary });
+    expect(screen.getByText(/^Bez lotów/)).toHaveStyle({ ...styles.bodyMD, color: lightTheme.text.secondary });
     // The label above the segmented control (the control itself is a radiogroup with the same name).
     expect(screen.getByText('Waluta')).toHaveStyle({ ...styles.labelMD, color: lightTheme.text.primary });
+    await fireEvent.changeText(screen.getByLabelText('Kwota dziennie na osobę'), '3000');
     expect(screen.getByText(/^Razem dla 3 osób/)).toHaveStyle({ ...styles.bodyMD, color: lightTheme.text.primary });
-    expect(screen.getByText(/dziennie na osobę$/)).toHaveStyle({ ...styles.bodyMD, color: lightTheme.text.secondary });
+    expect(screen.getByText(/na osobę na podróż$/)).toHaveStyle({ ...styles.bodyMD, color: lightTheme.text.secondary });
   });
 
   it('draws the texts in the dark theme', async () => {
     mockScheme = 'dark';
     await open('budget');
-    expect(screen.getByRole('header', { name: 'Ile chcecie wydać na osobę?' })).toHaveStyle({ color: darkTheme.text.primary });
-    expect(screen.getByText(/dziennie na osobę$/)).toHaveStyle({ color: darkTheme.text.secondary });
+    expect(screen.getByRole('header', { name: 'Ile każdy może wydać dziennie?' })).toHaveStyle({ color: darkTheme.text.primary });
+    await fireEvent.changeText(screen.getByLabelText('Kwota dziennie na osobę'), '3000');
+    expect(screen.getByText(/na osobę na podróż$/)).toHaveStyle({ color: darkTheme.text.secondary });
   });
 });
 
@@ -253,7 +255,7 @@ describe('Summary step look', () => {
     expect(section('trip').getByText(/dni$|dzień$|dnia$/)).toHaveStyle({ ...styles.bodyMD, color: lightTheme.text.secondary });
     expect(section('trip').getByText(/^WAW /)).toHaveStyle({ ...styles.bodyMD, color: lightTheme.text.primary });
     expect(section('travellers').getByText('Ty')).toHaveStyle({ ...styles.bodyMD, color: lightTheme.text.primary });
-    expect(section('budget').getByText('na osobę')).toHaveStyle({ ...styles.bodyMD, color: lightTheme.text.secondary });
+    expect(section('budget').getByText('dziennie na osobę')).toHaveStyle({ ...styles.bodyMD, color: lightTheme.text.secondary });
   });
 
   it('shows the budget amount in moneyLG', async () => {
@@ -267,6 +269,6 @@ describe('Summary step look', () => {
     await open('summary');
     expect(screen.getByTestId('summary-budget')).toHaveStyle({ backgroundColor: darkTheme.surface.primary });
     expect(section('travellers').getByText('Ty')).toHaveStyle({ color: darkTheme.text.primary });
-    expect(section('budget').getByText('na osobę')).toHaveStyle({ color: darkTheme.text.secondary });
+    expect(section('budget').getByText('dziennie na osobę')).toHaveStyle({ color: darkTheme.text.secondary });
   });
 });

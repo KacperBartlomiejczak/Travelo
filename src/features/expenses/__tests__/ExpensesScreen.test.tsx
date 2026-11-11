@@ -40,6 +40,7 @@ const member = (id: string, userId: string | null, displayName: string) => ({
   displayName,
   role: 'viewer' as const,
   interests: ['local_cuisine' as const],
+  dailyBudgetMinor: 10000,
 });
 const overview: TripOverview = {
   trip: {
@@ -51,7 +52,7 @@ const overview: TripOverview = {
     startDate: '2026-11-03',
     endDate: '2026-11-12',
     baseCurrency: 'PLN',
-    budgetPerPerson: { amountMinor: 100000, currency: 'PLN' },
+    dailyBudget: { amountMinor: 10000, currency: 'PLN' },
     createdAt: '2026-10-04T12:00:00.000Z',
     budgetUpdatedAt: '2026-10-04T12:00:00.000Z',
     travellerCount: 3,

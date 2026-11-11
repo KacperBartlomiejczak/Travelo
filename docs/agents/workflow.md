@@ -59,7 +59,7 @@ After **each** completed step, the orchestrator updates the feature's `plan.md`:
 If a step shows the plan is wrong, **stop**: update the plan, explain what changed, and get approval again before continuing.
 
 ## 5. Update the docs in the last step — always
-As part of the last step, **before** its verifier run, the orchestrator **always** updates the matching file(s) in `docs/architecture/`. The verifier then checks them together with the code, so the step is marked `[x]` and the task reported as done only when the docs match the code and the full suite is green.
+As part of the last step, **before** its verifier run, the orchestrator **always** updates the matching file(s) in `docs/architecture/`. The verifier then checks them together with the code, so the step is marked `[x]` only when the docs match the code and the full suite is green. The task is reported as done only after the verifier's end-of-plan run (whole branch + CodeRabbit review) passes — see Step flow point 6 in [`subagents.md`](subagents.md).
 
 - Describe the app **as it is now**, not as planned. Planned work stays in `prompts/<feature-name>/plan.md`.
 - Update only the parts the task changed, and remove anything that is no longer true.

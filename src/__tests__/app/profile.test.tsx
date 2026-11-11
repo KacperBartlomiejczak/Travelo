@@ -17,7 +17,7 @@ import type { TripListItem } from '@/schemas';
 import { setAppProfileRepository, withMyProfile } from '@/test/fake-profile-repository';
 import { setNetwork } from '@/test/mock-network';
 import { darkTheme, lightTheme } from '@/theme/legacy/theme';
-import { colors } from '@/theme/tokens';
+import { colors, tokens } from '@/theme/tokens';
 
 jest.mock('expo-font', () => ({ ...jest.requireActual('expo-font'), useFonts: jest.fn() }));
 jest.mocked(useFonts).mockReturnValue([true, null]);
@@ -71,7 +71,6 @@ const ROUTES = {
   '(drawer)/(tabs)/_layout': TabsLayout,
   '(drawer)/(tabs)/index': () => <Text>home</Text>,
   '(drawer)/(tabs)/expenses': () => <Text>expenses</Text>,
-  '(drawer)/(tabs)/places': () => <Text>places</Text>,
   '(drawer)/(tabs)/plan': () => <Text>plan</Text>,
   '(drawer)/(tabs)/profile': ProfileScreen,
   // Opening it mounts one more reader of the profile, which reads it again without the phone going offline and online.
@@ -102,6 +101,7 @@ async function profileWithPhoto() {
 // What stands in the photo's place: the skeleton while the photo is not shown yet (D20), the person placeholder when
 // the profile has no photo (A3).
 const photoSkeleton = () => screen.queryByTestId('profile-photo-skeleton', { includeHiddenElements: true });
+const photoInitial = () => screen.queryByTestId('profile-photo-initial', { includeHiddenElements: true });
 // expo-image decorates the event it is given, so each `fireEvent` gets a fresh one.
 const loadEvent = () => ({ nativeEvent: { source: { url: 'https://avatars.invalid/a.jpg', width: 96, height: 96 } } });
 const errorEvent = () => ({ nativeEvent: { error: 'cannot load' } });
@@ -201,7 +201,7 @@ describe('Profile screen — photo and nick (A3)', () => {
     await renderProfile();
     const photo = await screen.findByTestId('profile-photo', { includeHiddenElements: true });
     await fireEvent(photo, 'error', { nativeEvent: { error: 'cannot load' } });
-    expect(photoSkeleton()).toBeTruthy();
+    expect(photoInitial()).toBeTruthy();
     expect(screen.queryByTestId('profile-photo-placeholder', { includeHiddenElements: true })).toBeNull();
     expect(screen.queryByTestId('profile-photo', { includeHiddenElements: true })).toBeNull();
   });
@@ -209,7 +209,6 @@ describe('Profile screen — photo and nick (A3)', () => {
   describe('retries a failed photo when the phone comes back online (D18)', () => {
     const photo = () => screen.queryByTestId('profile-photo', { includeHiddenElements: true });
     const placeholder = () => screen.queryByTestId('profile-photo-placeholder', { includeHiddenElements: true });
-    const skeleton = photoSkeleton;
     const failPhoto = async () => {
       const shown = await screen.findByTestId('profile-photo', { includeHiddenElements: true });
       await fireEvent(shown, 'error', { nativeEvent: { error: 'cannot load' } });
@@ -223,7 +222,7 @@ describe('Profile screen — photo and nick (A3)', () => {
       await go(false);
       await renderProfile();
       await failPhoto();
-      expect(skeleton()).toBeTruthy();
+      expect(photoInitial()).toBeTruthy();
       expect(placeholder()).toBeNull();
       expect(photo()).toBeNull();
     });
@@ -249,7 +248,7 @@ describe('Profile screen — photo and nick (A3)', () => {
       await failPhoto();
       // A report of the same offline state again (e.g. the connection type changes) is not a reconnect.
       await go(false);
-      expect(skeleton()).toBeTruthy();
+      expect(photoInitial()).toBeTruthy();
       expect(photo()).toBeNull();
     });
 
@@ -262,17 +261,17 @@ describe('Profile screen — photo and nick (A3)', () => {
       await go(true);
       expect(photo()).toBeTruthy();
       await failPhoto();
-      expect(skeleton()).toBeTruthy();
+      expect(photoInitial()).toBeTruthy();
       expect(photo()).toBeNull();
 
       // Another report of "online" is not a transition: still the skeleton.
       await go(true);
-      expect(skeleton()).toBeTruthy();
+      expect(photoInitial()).toBeTruthy();
       expect(photo()).toBeNull();
 
       // The next real reconnect tries again.
       await go(false);
-      expect(skeleton()).toBeTruthy();
+      expect(photoInitial()).toBeTruthy();
       await go(true);
       expect(photo()).toBeTruthy();
     });
@@ -284,7 +283,6 @@ describe('Profile screen — photo and nick (A3)', () => {
   describe('fetches the profile again when the phone comes back online after an offline start (D18)', () => {
     const photo = () => screen.queryByTestId('profile-photo', { includeHiddenElements: true });
     const placeholder = () => screen.queryByTestId('profile-photo-placeholder', { includeHiddenElements: true });
-    const skeleton = photoSkeleton;
     const go = (online: boolean) => act(async () => setNetwork({ isConnected: online, isInternetReachable: online }));
     // TanStack hands its updates to React on a timer (setTimeout 0, faked here): this runs what is pending, so a read
     // that has been attempted has also reached the screen, and a read that is still to come would have started by now.
@@ -323,7 +321,7 @@ describe('Profile screen — photo and nick (A3)', () => {
 
     it('an offline start with a copy without a photo url shows the skeleton', async () => {
       await startOffline();
-      expect(skeleton()).toBeTruthy();
+      expect(photoInitial()).toBeTruthy();
       expect(placeholder()).toBeNull();
       expect(photo()).toBeNull();
     });
@@ -355,7 +353,7 @@ describe('Profile screen — photo and nick (A3)', () => {
       expect(screen.getByTestId('profile-screen')).toBeTruthy();
       expect(screen.getByText('kacper')).toBeTruthy();
       expect(screen.getByLabelText('3 Podróże')).toBeTruthy();
-      expect(skeleton()).toBeTruthy();
+      expect(photoInitial()).toBeTruthy();
       expect(placeholder()).toBeNull();
       expect(photo()).toBeNull();
     });
@@ -367,7 +365,7 @@ describe('Profile screen — photo and nick (A3)', () => {
       await disconnect();
       await flushTimers();
       expect(reads()).toBe(0);
-      expect(skeleton()).toBeTruthy();
+      expect(photoInitial()).toBeTruthy();
     });
 
     it('is one read per reconnect: online again is not a transition, the next reconnect reads again', async () => {
@@ -403,7 +401,7 @@ describe('Profile screen — photo and nick (A3)', () => {
       return found;
     };
 
-    it('a profile with a photo but no signed url (an offline start) shows the skeleton, 96dp round, and no placeholder', async () => {
+    it('a profile with a photo but no signed url (an offline start) shows the initial, 96dp round, and no skeleton or placeholder (D22)', async () => {
       const base = await profileWithPhoto();
       setAppProfileRepository(
         withMyProfile(base, async () => {
@@ -416,13 +414,39 @@ describe('Profile screen — photo and nick (A3)', () => {
       );
       await go(false);
       await renderProfile();
-      expect(style(theSkeleton())).toMatchObject({
+      const initial = photoInitial();
+      expect(initial).toBeTruthy();
+      expect(style(initial!)).toMatchObject({
         width: lightTheme.size.avatarSetup,
         height: lightTheme.size.avatarSetup,
         borderRadius: lightTheme.radius.full,
+        backgroundColor: colors.light.background.sunken,
       });
+      expect(within(initial!).getByText('K', { includeHiddenElements: true })).toBeTruthy();
+      expect(photoSkeleton()).toBeNull();
       expect(placeholder()).toBeNull();
       expect(photo()).toBeNull();
+    });
+
+    it('the initial is one uppercase letter in labelLG, and the circle is hidden from screen readers (D22)', async () => {
+      setAppProfileRepository(await profileWithPhoto());
+      await renderProfile();
+      await fireEvent(await findPhoto(), 'error', errorEvent());
+      const letter = within(photoInitial()!).getByText('K', { includeHiddenElements: true });
+      expect(style(letter)).toMatchObject({ fontSize: tokens.typography.styles.labelLG.fontSize, fontWeight: tokens.typography.styles.labelLG.fontWeight });
+      expect(isHiddenFromAccessibility(photoInitial()!)).toBe(true);
+      expect(screen.getByRole('button', { name: 'Otwórz zdjęcie profilowe' })).toBeDisabled();
+    });
+
+    it('the photo loads when the phone comes back online after an offline start; the initial goes away (D22)', async () => {
+      setAppProfileRepository(await profileWithPhoto());
+      await go(false);
+      await renderProfile();
+      await fireEvent(await findPhoto(), 'error', errorEvent());
+      expect(photoInitial()).toBeTruthy();
+      await go(true);
+      expect(photo()).toBeTruthy();
+      expect(photoInitial()).toBeNull();
     });
 
     it('with a url, the skeleton shows until the Image has loaded, then only the photo remains', async () => {
@@ -470,7 +494,7 @@ describe('Profile screen — photo and nick (A3)', () => {
       setAppProfileRepository(await profileWithPhoto());
       await renderProfile();
       await fireEvent(await findPhoto(), 'error', errorEvent());
-      expect(photoSkeleton()).toBeTruthy();
+      expect(photoInitial()).toBeTruthy();
       expect(placeholder()).toBeNull();
       expect(photo()).toBeNull();
     });
@@ -599,11 +623,37 @@ describe('Profile screen — photo and nick (A3)', () => {
         expect(photoSkeleton()).toBeNull();
       });
 
+      // Step 20: the shown photo stays (D21), but a newer url that failed must not open the viewer on that url.
+      it('a newer url that fails after the photo loaded keeps the photo but disables the circle; a url that loads enables it', async () => {
+        await signedAgainOnEveryRead();
+        await showPhotoThenReconnect();
+        await fireEvent(photo() as NonNullable<ReturnType<typeof photo>>, 'error', errorEvent());
+        await act(async () => {});
+        expect(photo()).toBeTruthy();
+        expect(photoInitial()).toBeNull();
+        const circle = screen.getByRole('button', { name: 'Otwórz zdjęcie profilowe' });
+        expect(circle).toBeDisabled();
+        const push = jest.spyOn(router, 'push').mockImplementation(() => undefined); // the test routes have no /avatar
+        await fireEvent.press(circle);
+        expect(push).not.toHaveBeenCalled();
+
+        const failedUrl = urlOfPhoto();
+        await go(false);
+        await go(true);
+        await waitFor(() => expect(urlOfPhoto()).not.toBe(failedUrl));
+        await fireEvent(photo() as NonNullable<ReturnType<typeof photo>>, 'load', loadEvent());
+        const open = screen.getByRole('button', { name: 'Otwórz zdjęcie profilowe' });
+        expect(open).toBeEnabled();
+        await fireEvent.press(open);
+        expect(push).toHaveBeenCalledWith(expect.objectContaining({ pathname: '/avatar' }));
+        push.mockRestore();
+      });
+
       it('a photo that was never shown and fails is still the skeleton (D20)', async () => {
         await signedAgainOnEveryRead();
         await renderProfile();
         await fireEvent(await findPhoto(), 'error', errorEvent());
-        expect(photoSkeleton()).toBeTruthy();
+        expect(photoInitial()).toBeTruthy();
         expect(photo()).toBeNull();
         expect(placeholder()).toBeNull();
       });
@@ -642,7 +692,7 @@ describe('Profile screen — photo and nick (A3)', () => {
 
         // x fails: the skeleton, and x is remembered as failed.
         await fireEvent(await findPhoto(), 'error', errorEvent());
-        expect(photoSkeleton()).toBeTruthy();
+        expect(photoInitial()).toBeTruthy();
         // y is read and loads: the photo is shown.
         await readOnceMore('y');
         expect(urlOfPhoto()).toMatch(/v=y$/);
@@ -724,7 +774,7 @@ describe('Profile screen — photo and nick (A3)', () => {
           newPhoto = true;
           urlAvailable = false;
           await reconnectRead(reads);
-          expect(photoSkeleton()).toBeTruthy();
+          expect(photoInitial()).toBeTruthy();
           expect(photo()).toBeNull();
           expect(placeholder()).toBeNull();
         });
@@ -842,7 +892,7 @@ describe('Profile screen — photo and nick (A3)', () => {
       });
     });
 
-    it('pulses offline too: with a photo and no url the skeleton starts a pulse (reduced motion off)', async () => {
+    it('offline with a photo and no url the circle is the initial, so it does not pulse (D22)', async () => {
       jest.spyOn(AccessibilityInfo, 'isReduceMotionEnabled').mockResolvedValue(false);
       await go(false);
       // The same offline screen for a user without a photo: only the stats skeletons pulse.
@@ -864,9 +914,9 @@ describe('Profile screen — photo and nick (A3)', () => {
       );
       await renderProfile();
       await act(async () => {});
-      expect(theSkeleton()).toBeTruthy();
-      expect(withRepeatSpy.mock.calls.length).toBeGreaterThan(statsOnly);
-      expect(withRepeatSpy).toHaveBeenLastCalledWith(expect.anything(), -1);
+      expect(photoInitial()).toBeTruthy();
+      expect(photoSkeleton()).toBeNull();
+      expect(withRepeatSpy.mock.calls.length).toBe(statsOnly);
     });
 
     // The skeleton starts to pulse when it mounts, so a photo is shown first, the recorders are cleared, and then a different
@@ -911,22 +961,6 @@ describe('Profile screen — photo and nick (A3)', () => {
     );
     await renderProfile();
     expect(await screen.findByText('kacper')).toBeTruthy();
-  });
-
-  it('is not tappable: the photo is no button', async () => {
-    setAppProfileRepository(await profileWithPhoto());
-    await renderProfile();
-    await screen.findByTestId('profile-photo', { includeHiddenElements: true });
-    const row = screen.getByTestId('profile-row');
-    expect(within(row).queryAllByRole('button', { includeHiddenElements: true })).toHaveLength(0);
-    // Nothing from the photo up to the screen can take a touch: a Pressable renders a view with responder handlers.
-    const touchHandlers = ['onPress', 'onClick', 'onResponderGrant', 'onStartShouldSetResponder'];
-    let node: ReturnType<typeof screen.getByTestId> | null = screen.getByTestId('profile-photo', { includeHiddenElements: true });
-    while (node && node.props.testID !== 'profile-screen') {
-      touchHandlers.forEach((handler) => expect(node?.props[handler]).toBeUndefined());
-      node = node.parent;
-    }
-    expect(node).not.toBeNull();
   });
 });
 
