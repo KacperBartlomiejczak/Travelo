@@ -8,6 +8,7 @@
 - When to switch the Gemini key to the paid tier (before release, D17).
 
 ## Key decisions
+- 2026-11-10…11 — Settings redesign (`prompts/settings-redesign/plan.md` D1–D13): layout from Kacper's picture in Sunline tokens only (no new tokens); "Motyw" / "Język" move into rows opening a bottom sheet; two untitled cards; account e-mail read from the stored session; a "Przejdź na PRO" banner shown to everyone until the subscription task (tap → "Wkrótce" snackbar), its `brand.primary` → `accent.sun` gradient is the one allowed exception to "no decorative gradients"; 64 dp non-tappable avatar local to Settings.
 - 2026-11-07…09 — Plan / Discover switch (`prompts/plan-discover-switch/plan.md` D1–D10): a two-option `SegmentedControl` at the top of the Plan tab, shown only with a current trip; „Odkryj” renders Discover inside the tab (second entry next to the home empty state, extends places-legal-navbar D16); no animation; mode not persisted; changing or reloading the current trip keeps the switch and the Discover form (D8).
 - 2026-11-09 — Plural forms on phones (`prompts/places-photo-carousel/plan.md` D8): `@formatjs/intl-pluralrules` (pl, en) polyfills `Intl.PluralRules`, which Hermes on Android lacks — before it every plural key used `_other` (seen: „77 034 opinii”).
 - 2026-11-07 — Discover place rating (`prompts/places-photo-carousel/plan.md` D7, replaces "no ratings" from places-legal-navbar D15): Google `rating` + `userRatingCount` in the type row; Nearby Search moves from the Pro to the Enterprise SKU.
