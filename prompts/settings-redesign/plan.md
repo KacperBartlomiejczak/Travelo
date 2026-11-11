@@ -170,14 +170,15 @@ Ręczne scenariusze dla testera (po krokach 2, 4, 6): wejście z „Profilu" i p
 
 ## Dziennik postępu
 - 2026-11-11: plan zaakceptowany (D11–D13 dopisane), start realizacji.
-- 2026-11-11: krok 2 (nagłówek: `IconButton` 44×44, `headerTitleAlign: center`) — weryfikator PASS. Test na urządzeniu (przycinanie na Androidzie) odłożony na przebieg testera po kroku 6.
-- 2026-11-11: krok 1 (`SessionSource.email()` + `useSession().email()` + fałszywe źródło) — weryfikator PASS.
+- 2026-11-11: krok 2 (nagłówek: `IconButton` 44×44, `headerTitleAlign: center`) — weryfikator PASS. Red: 4 zmienione/nowe testy padły na starym `HeaderBackButton` i braku `headerTitleAlign`. Test na urządzeniu (przycinanie na Androidzie) odłożony na przebieg testera po kroku 6.
+- 2026-11-11: krok 1 — red: nowe testy padły na „source.email is not a function” (test providera dopisany razem z kodem, bez osobnego red). Krok 1 (`SessionSource.email()` + `useSession().email()` + fałszywe źródło) — weryfikator PASS.
 - 2026-11-11: krok 3 (karty A/B, lokalne `SettingsRow`/`SettingsGroup`, blok przycisków `marginTop: auto`, usunięte 3 klucze i18n) — weryfikator PASS. Uwaga: agent napisał kod przed testami; „red” potwierdzony potem przez przywrócenie plików z HEAD (3 nowe testy padły z oczekiwanego powodu).
 - 2026-11-11: krok 4 (wiersze Motyw/Język z wartością, jeden `BottomSheet` z `SegmentedControl`, stan `{kind, open}` żeby treść nie migała przy zamykaniu) — weryfikator PASS. Red: 9/15 testów padło przed kodem.
 - 2026-11-11: krok 5 (blok tożsamości: lokalny awatar 64 dp z inicjałem i szkieletem, nick, e-mail przez nowy `useAccountEmail`) — weryfikator PASS. Red: brak modułu hooka, 10/11 testów ekranu.
 - 2026-11-11: krok 6 (baner PRO: `proGradient(theme)` z komentarzem `shortcut:`, ilustracja `Crown`/`Plane`, `Snackbar` „Wkrótce”, klucze `settings.pro.*`; przy okazji usunięty `eslint-disable` w teście i naprawiony niestabilny test „no nick block”) — weryfikator PASS. Red: 11 testów banera. Przesunięcie gradientu 0.4 to geometria z planu („ok. 40 %”), nie token.
 - 2026-11-11: tester na emulatorze Android (Medium Phone API 37, Expo Go, Metro z TEGO worktree na porcie 8082 — potwierdzone ramkami stosu z `src/` worktree i nowym układem; Metro Kacpra na 8081 z `main` nieużywane i nietknięte): 5/5 PASS — przycisk wstecz ~44 dp bez przycięcia, tytuł na środku, blok tożsamości, baner → „Wkrótce”, arkusze Motyw/Język, ciemny motyw. Niesprawdzone na urządzeniu: trwałość po restarcie, awatar z inicjałem, offline, iOS, duża czcionka, mały ekran.
 - 2026-11-11: krok 7 — dokumenty zaktualizowane: `app-context.md` §3.9, `design-context.md` (notatka „Settings screen” + wyjątek gradientu PRO), `frontend.md`, `overview.md` (`useSession.email`), `flows/features/profile-settings.md`, `decisions.md`, `known-limitations.md`.
+- 2026-11-11: weryfikator końca planu (Haiku zamiast Sonneta) — FAIL: brak szkieletu podczas pobierania zdjęcia awatara (plan „Stany”), nieaktualny opis Ustawień w `overview.md`, zapis TDD kroku 3 (kod przed testem — zostaje do oceny Kacpra). Poprawki: szkielet `settings-avatar-photo-skeleton` do `onLoad` (red → green), `overview.md` poprawiony, red kroków 1–2 dopisany do dziennika.
 
 ## Ryzyka i otwarte pytania
 
