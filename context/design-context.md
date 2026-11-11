@@ -19,6 +19,8 @@
 - **Empty-state illustration size** (D22): `components.emptyState.illustrationSize` (96 dp, §8.20).
 - **Sync status, pending** (D20): the clock icon is `sync.pending`, the text `text.secondary` (light `sync.pending` text is below AA); failed keeps icon and text in `sync.failed`.
 - **App-specific sizes** not covered by the system (drawer width, drawer thumbnail, photo tile, cover tile, profile-setup avatar, welcome entrance duration, hero fade start) are tokens in `tokens.ts` under `components` / `screenMetrics` / `motion`, each with a comment naming its decision.
+- **PRO badge gradient** (profile-upgrade D4, D7): the only decorative gradient, `brand.primary` → `accent.sun`, text `brand.onBrand` (≥ 4.5:1 on both ends in both themes), `radii.pill`.
+- **Past-trip cards on the Profile tab** (profile-upgrade D1, D8, D20): the name sits on the photo in `hero.text`, over a ramp from transparent to full `hero.scrim` at half the card height; the place pill uses the hero control tokens.
 - **Skeletons pulse** (opacity 1 → 0.5 → 1 over 1200 ms, static under reduced motion) in `skeleton.base` instead of the §8.19 shimmer, until a later task replaces it (D5, profile-screen D9).
 - **Copy:** Section 11 (voice and canonical strings) is not applied yet; today's i18n texts stay until a copy task (D7).
 - **Expense category icons:** §2.8 and §8.6 name different icons; the choice is made with the expenses UI (D8).

@@ -92,6 +92,16 @@ describe('trip list copy (trips-drawer D3)', () => {
     expect(copy?.[1].flights).toEqual([]);
   });
 
+  it('keeps the traveller count, and a copy from before it existed still reads (profile-upgrade D1)', async () => {
+    const { local } = await store();
+    await local.cacheList([{ ...list[0], travellerCount: 3 }], '2026-10-08T09:00:00.000Z');
+    expect((await local.cachedList())?.[0].travellerCount).toBe(3);
+    await local.cacheList(list, '2026-10-08T09:05:00.000Z');
+    const old = await local.cachedList();
+    expect(old).not.toBeNull();
+    expect(old?.[0]).not.toHaveProperty('travellerCount');
+  });
+
   it('reads a copy saved before destination and flights existed as no copy, not a crash (profile-screen R1)', async () => {
     const { db, local } = await store();
     const beforeStep2 = [{ id: TRIP_ID, name: 'Barcelona', coverImageUri: 'preset:auckland', startDate: '2026-11-02', endDate: '2026-11-09' }];

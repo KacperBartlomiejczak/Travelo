@@ -217,11 +217,12 @@ export function createInMemoryTripRepository(
   const list = (): TripList =>
     [...stored]
       .sort((a, b) => a.trip.startDate.localeCompare(b.trip.startDate) || a.trip.createdAt.localeCompare(b.trip.createdAt))
-      .map(({ trip, segments }) =>
+      .map(({ trip, segments, members }) =>
         TripListItemSchema.parse({
           ...trip,
           ...fakeCoverUrls(trip),
           flights: segments.map(({ fromIata, toIata }) => ({ fromIata, toIata })),
+          travellerCount: members.length + 1,
         }),
       );
   return {

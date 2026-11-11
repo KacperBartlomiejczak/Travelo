@@ -270,6 +270,7 @@ describe('listItemFromRow (trips-drawer D4)', () => {
       { from_iata: 'DOH', to_iata: 'BKK' },
       { from_iata: 'BKK', to_iata: 'WAW' },
     ],
+    trip_members: [{ id: 'm1' }, { id: 'm2' }],
   };
   const photoCover = 'photo:5b1f0f6a-2c7d-4a8e-9b3c-1d2e3f4a5b6c';
   const urls = { url: 'https://example.supabase.co/a.jpg?token=1', thumbnailUrl: 'https://example.supabase.co/a_thumb.jpg?token=2' };
@@ -287,7 +288,13 @@ describe('listItemFromRow (trips-drawer D4)', () => {
       ],
       startDate: '2026-11-03',
       endDate: '2026-11-15',
+      travellerCount: 3,
     });
+  });
+
+  it('counts the organizer plus the members; a solo trip is 1 (profile-upgrade D1)', () => {
+    expect(listItemFromRow(row).travellerCount).toBe(3);
+    expect(listItemFromRow({ ...row, trip_members: [] }).travellerCount).toBe(1);
   });
 
   it('maps the nested segments to routes; a trip without segments has no flights (profile-screen D11)', () => {

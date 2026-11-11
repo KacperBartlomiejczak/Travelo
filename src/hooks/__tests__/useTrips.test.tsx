@@ -96,6 +96,7 @@ describe('useTripList (trips-drawer D4)', () => {
         ],
         startDate: '2026-11-03',
         endDate: '2026-11-15',
+        travellerCount: 3,
       },
     ]);
   });

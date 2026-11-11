@@ -190,13 +190,14 @@ function listRow({ row }: ReturnType<typeof serverTrip>) {
     start_date: row.start_date,
     end_date: row.end_date,
     flight_segments: row.flight_segments.map(({ from_iata, to_iata }) => ({ from_iata, to_iata })),
+    trip_members: row.trip_members.map(({ id }) => ({ id })),
   };
 }
 
 const LIST_QUERY = {
   table: 'trips',
   ops: [
-    ['select', ['id, name, cover_image_uri, destination, start_date, end_date, flight_segments(from_iata, to_iata)']],
+    ['select', ['id, name, cover_image_uri, destination, start_date, end_date, flight_segments(from_iata, to_iata), trip_members(id)']],
     ['order', ['start_date']],
     ['order', ['created_at']],
   ],
@@ -258,11 +259,25 @@ describe('list (trips-drawer D4)', () => {
     const list = await repository.list();
 
     expect(supabase.queries).toEqual([LIST_QUERY]);
+    const travellerCount = past().row.trip_members.length + 1;
     expect(list).toEqual([
-      { id: PAST_ID, name: 'Lisbon', coverImageUri: 'preset:auckland', destination: 'BKK', flights: FIXTURE_ROUTES, startDate: '2026-05-01', endDate: '2026-05-08' },
-      { id: ONGOING_ID, name: 'Rome', coverImageUri: 'preset:auckland', destination: 'BKK', flights: FIXTURE_ROUTES, startDate: '2026-10-01', endDate: '2026-10-07' },
+      { id: PAST_ID, name: 'Lisbon', coverImageUri: 'preset:auckland', destination: 'BKK', flights: FIXTURE_ROUTES, startDate: '2026-05-01', endDate: '2026-05-08', travellerCount },
+      { id: ONGOING_ID, name: 'Rome', coverImageUri: 'preset:auckland', destination: 'BKK', flights: FIXTURE_ROUTES, startDate: '2026-10-01', endDate: '2026-10-07', travellerCount },
     ]);
     expect(supabase.storageCalls).toEqual([]); // presets have nothing to sign
+    await expect(local.cachedList()).resolves.toEqual(list);
+  });
+
+  it('counts the organizer plus the members, also for a trip where the caller is a linked member (profile-upgrade D1)', async () => {
+    const { supabase, local, repository } = await setup();
+    const member = (id: string, user_id: string | null) => ({ id, user_id } as MemberRow);
+    const linked = { ...past(), row: { ...past().row, owner_id: 'someone-else', trip_members: [member('m1', SIGNED_IN_USER_ID), member('m2', null)] } };
+    const solo = { ...ongoing(), row: { ...ongoing().row, trip_members: [] } };
+    supabase.respond('trips', { data: [listRow(linked), listRow(solo)] });
+
+    const list = await repository.list();
+
+    expect(list.map((trip) => trip.travellerCount)).toEqual([3, 1]);
     await expect(local.cachedList()).resolves.toEqual(list);
   });
 
