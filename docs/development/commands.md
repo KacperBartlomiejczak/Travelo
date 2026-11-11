@@ -48,13 +48,18 @@ Docs: https://docs.expo.dev/eas/index.md
 |---|---|
 | Runtime | Expo SDK 58, React Native 0.88 (Strict TypeScript API), React 19.3, New Architecture, React Compiler and typed routes enabled in `app.json` |
 | Language | TypeScript 6 strict; `types: ["jest"]` (TS 6 no longer includes `@types/*` automatically); aliases `@/*` → `src/*`, `@/assets/*` → `assets/*` |
-| Package manager | **pnpm** (`pnpm-lock.yaml`, `.npmrc` with `node-linker=hoisted`). Add dependencies with `npx expo install` (it detects pnpm); where it cannot reach the Expo API, `pnpm add <pkg>@<version from node_modules/expo/bundledNativeModules.json>`. |
+| Package manager | **pnpm 12** pinned in `package.json` → `packageManager` (`pnpm-lock.yaml`; `nodeLinker: hoisted` in `pnpm-workspace.yaml` — pnpm 12 ignores pnpm settings in `.npmrc`). Add dependencies with `npx expo install` (it detects pnpm); where it cannot reach the Expo API, `pnpm add <pkg>@<version from node_modules/expo/bundledNativeModules.json>`. |
 | Lint | `pnpm lint` (`expo lint`) |
 | Typecheck | `pnpm typecheck` (`tsc --noEmit`) |
+| Doctor | `pnpm doctor` (`npx expo-doctor`, not a dependency) — run after every Expo / dependency bump, then `npx expo start -c` and open the app before committing |
+| Metro | `metro.config.js` = Expo defaults + `resolver.blockList` for `.claude/worktrees/` (also the watcher's ignore list) |
 | Tests | `pnpm test` (Jest); `pnpm test:db` (SQL tests, needs `DB_URL`) |
 | Supabase | `pnpm supabase …` (CLI, devDependency); `pnpm db:types` (types from local Supabase) |
 | Web preview | `.claude/launch.json` → `expo-web` (Expo web on :8081) |
 | Native projects | `ios/` and `android/` are generated (Continuous Native Generation) and git-ignored |
+
+### Metro does not start
+Read the **first** error in the Metro log, not the last. `Failed to construct transformer: Error: Failed to start watch mode.` means the file watcher did not start within 4 minutes; Metro keeps serving, but every request then fails (e.g. `Cannot read properties of undefined (reading 'exists')` on assets). On Windows Metro uses the slow `fallback` watcher, so the cause is almost always too many files under the project root: start Metro with debug logs — bash / Git Bash: `DEBUG=Metro:* npx expo start -c`; PowerShell: `$env:DEBUG='Metro:*'; npx expo start -c` — and read `Crawler "node" returned N` (healthy: ~40 k). Big folders inside the project (worktrees, a nested `node_modules`) go into `resolver.blockList` in `metro.config.js`; the `.claude/worktrees/` entry is anchored to the project root, so Metro started from inside a worktree still sees its own files.
 
 ### Dependencies in use
 `expo-router` (incl. `expo-router/drawer`, on `react-native-drawer-layout` + `react-native-gesture-handler` + `react-native-reanimated` / `react-native-worklets`, already installed), `expo-font`, `expo-splash-screen`, `expo-localization`, `i18next`, `react-i18next`, `@expo-google-fonts/dm-sans`, `@expo-google-fonts/fraunces`, `lucide-react-native`, `react-native-svg`, `react-native-safe-area-context`, `zod`, `@tanstack/react-query`, `@expo/ui` (date/time pickers), `expo-crypto` (UUIDs), `expo-image-picker` (cover photo and trip photos from the gallery), `expo-image` (cover preview, trip hero, side panel thumbnails, trip photos and their disk cache), `expo-status-bar` (light bar over the hero), `@supabase/supabase-js` (trips, auth), `expo-sqlite` (auth session `localStorage`, and the database for budget changes, trip copies and the chosen trip), `expo-network` (offline detection, reconnect), `react-native-url-polyfill` (Supabase on React Native), `expo-image-manipulator` (downscale and re-encode trip photos without EXIF), `expo-file-system` (read the photo bytes for upload), `expo-web-browser` (the OAuth browser session), `expo-linking` (the OAuth redirect URL), `lottie-react-native` 7.5 (the animated splash). Dev: `supabase` (CLI), `@types/node` (tests: `fs`, `node:sqlite`).

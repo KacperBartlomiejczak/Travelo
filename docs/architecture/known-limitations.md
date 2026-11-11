@@ -1,5 +1,6 @@
 # Known limitations and tech debt
 
+- Metro on Windows (`prompts/metro-watch-mode-fix/plan.md`): Metro uses the `fallback` file watcher, which must start within 4 minutes (`@expo/metro-file-map`, `MAX_WAIT_TIME`) or Metro serves only errors. `.claude/worktrees/` is blocked in `metro.config.js`; any other large folder added under the project root needs the same. Watchman is not used.
 - Daily budget (`prompts/daily-budget/plan.md`, review decisions R-D1–R-D4, 2026-11-05):
   - No compatibility for older app builds: the migration drops `trips.budget_per_person_minor` and requires `daily_budget_minor`, so an older build cannot create a trip or change a budget against the migrated database. Accepted because the app is installed only on Kacper's devices; there is no minimum-version gate.
   - After the upgrade, a trip copy cached in SQLite in the old shape no longer parses, so offline that trip is unavailable until it is opened online once (SQLite v6 does not convert old copies).

@@ -2,6 +2,7 @@
   "name": "traveling",
   "main": "expo-router/entry",
   "version": "1.0.0",
+  "packageManager": "pnpm@12.11.2",
   "dependencies": {
     "@expo-google-fonts/dm-sans": "^0.4.2",
     "@expo-google-fonts/fraunces": "^0.4.1",
@@ -67,6 +68,7 @@
     "web": "expo start --web",
     "lint": "expo lint",
     "typecheck": "tsc --noEmit",
+    "doctor": "npx -y expo-doctor",
     "test": "jest",
     "test:db": "sh scripts/test-db.sh",
     "db:types": "supabase gen types typescript --local --schema public > src/data/database.types.ts"
