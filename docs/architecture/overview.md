@@ -45,7 +45,7 @@ Travelo/
 ├── .agents/skills/             Real skill files (installed by the `skills` CLI)
 ├── .claude/
 │   ├── agents/                 Subagent definitions (Explorer, Planner, Backend, Frontend, Verifier, Tester)
-│   ├── skills/                 Symlinks to ../.agents/skills/* so Claude Code finds them, plus the addyosmani/agent-skills copied in place
+│   ├── skills/                 A few symlinks to ../.agents/skills/*; the rest are copied in place (addyosmani/agent-skills, `expo-upgrade`, `migrate-to-strict-api`, …; which is which: docs/agents/skills.md)
 │   ├── launch.json             Preview config: Expo web on port 8081 (dev tooling only)
 │   └── settings.json           Enables the official `expo` Claude plugin
 ├── .vscode/                    Editor settings + recommended Expo extension

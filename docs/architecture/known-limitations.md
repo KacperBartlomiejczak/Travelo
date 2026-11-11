@@ -27,6 +27,12 @@
   - The snackbar covers the offline banner while visible (pre-existing).
   - The older route test maps omit the other tab screens, so expo-router logs "Route … is extraneous" warnings.
   - Leaving the wizard with `router.navigate('/')` bypasses the guard (`dismissTo` and `back` are guarded); no code does it today.
+- Expo SDK 58 upgrade (`prompts/expo-58-upgrade/plan.md`):
+  - Not yet run on a device: the local Android dev build needs Windows long paths on (`LongPathsEnabled` = 1, then a restart; CMake/ninja paths > 260 chars). The expo-router 58 navigation changes (wizard leave guard with `repeat()`, pill tab switch via `navigateToTab`, explicit `Drawer.Screen`, `redirectTo` on sign-out) are covered only by Jest.
+  - The wizard guard sets `leaving` and never resets it; if `repeat()` does not unmount the wizard on a device, the leave dialog stops showing.
+  - iOS 26+: expo-router headers default to `headerTransparent` and system fonts. Android release builds: R8 is on by default (Supabase / Lottie may need keep rules). Check at the first iOS / release build.
+  - SDK patch versions trail the latest (`expo-doctor` patch mismatches) until the new patches pass the pnpm minimum release age.
+  - `src/__tests__/app/*` route suites can fail under parallel load (5 s timeouts, elements not found in time); they pass in isolation.
 - Wizard keyboard (`prompts/wizard-keyboard/plan.md`, checked by Kacper on iPhone and Android): while the keyboard is open, "Dalej" and the bottom sheet keep their safe-area bottom padding above the keyboard (kept, D8). On iOS the wizard scrolls to the focused field only when the keyboard shows, not when focus moves to another field while it stays open (left as is, D7). If the sheet's `Modal` ever loses `statusBarTranslucent`, the sheet needs a status-bar `keyboardVerticalOffset` on Android.
 - Sign-in and profile (`prompts/auth-onboarding/plan.md` Risks):
   - **Old data:** trips made by anonymous accounts before this change are no longer visible (R1).
