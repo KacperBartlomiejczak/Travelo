@@ -31,6 +31,8 @@ type SessionContextValue = {
    * (its data cleared) even when the sign-out request fails.
    */
   signOutAfterDelete: () => Promise<void>;
+  /** The signed-in account's e-mail from the stored session, or null (see `SessionSource.email`). Never rejects. */
+  email: () => Promise<string | null>;
 };
 
 const SessionContext = createContext<SessionContextValue | null>(null);
@@ -205,9 +207,10 @@ export function SessionProvider({ source, children }: Props) {
       if (current.current.status === 'signedIn') await leave('signedOut');
     }
   }, [source, leave]);
+  const email = useCallback(() => source.email(), [source]);
   const value = useMemo(
-    () => ({ state, retry, signOut, accountDeleted, signOutAfterDelete }),
-    [state, retry, signOut, accountDeleted, signOutAfterDelete],
+    () => ({ state, retry, signOut, accountDeleted, signOutAfterDelete, email }),
+    [state, retry, signOut, accountDeleted, signOutAfterDelete, email],
   );
   return <SessionContext.Provider value={value}>{children}</SessionContext.Provider>;
 }

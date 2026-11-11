@@ -27,7 +27,9 @@ function Layout() {
   );
 }
 
-async function open(trip: Partial<ReturnType<typeof useCurrentTrip>> = { isPending: false, isError: false, data: { overview: {} } as never }) {
+const tripData = (destination = 'LIS') => ({ overview: { trip: { destination } } }) as never;
+
+async function open(trip: Partial<ReturnType<typeof useCurrentTrip>> = { isPending: false, isError: false, data: tripData() }) {
   jest.mocked(useCurrentTrip).mockReturnValue({ isPending: false, isError: false, data: null, ...trip } as never);
   setAppProfileRepository(await repositoryWithProfile());
   await renderRouter({ _layout: Layout, plan: PlanScreen }, { initialUrl: '/plan' });
@@ -134,6 +136,14 @@ describe('PlanScreen (plan-discover-switch D1-D6)', () => {
   });
 });
 
+describe('PlanScreen trip destination in Discover', () => {
+  it("prefills Discover with the current trip's destination city", async () => {
+    await open({ data: tripData('WAW') });
+    await fireEvent.press(radio('Odkryj'));
+    expect(screen.getByLabelText('Miasto').props.value).toBe('Warsaw · WAW');
+  });
+});
+
 describe('PlanScreen while the current trip reloads (D8)', () => {
   const reload = async (trip: Partial<ReturnType<typeof useCurrentTrip>>) => {
     jest.mocked(useCurrentTrip).mockReturnValue({ isPending: false, isError: false, data: null, ...trip } as never);
@@ -150,7 +160,7 @@ describe('PlanScreen while the current trip reloads (D8)', () => {
     await reload({ isPending: true, data: undefined });
     expect(radio('Discover')).toBeChecked();
     expect(screen.getByLabelText('City').props.value).toBe('Lisbon');
-    await reload({ data: { overview: {} } as never });
+    await reload({ data: tripData() });
     expect(radio('Discover')).toBeChecked();
     expect(screen.getByLabelText('City').props.value).toBe('Lisbon');
   });

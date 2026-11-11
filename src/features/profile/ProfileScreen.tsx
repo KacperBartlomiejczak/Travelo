@@ -15,14 +15,17 @@ import { usePillClearance } from '@/features/nav/usePillClearance';
 import { usePickAvatar } from '@/hooks/usePickAvatar';
 import { useChangeAvatar, useMyProfile } from '@/hooks/useProfile';
 import { useReduceMotion } from '@/hooks/useReduceMotion';
-import { useTripList } from '@/hooks/useTrips';
+import { useCurrentTrip, useSelectTrip, useTripList } from '@/hooks/useTrips';
 import { travelStats } from '@/lib/travel-stats';
-import { deviceToday } from '@/lib/trip-sections';
+import { deviceToday, tripSections } from '@/lib/trip-sections';
 import { useIsOffline } from '@/providers/BudgetSync';
 import { useTheme } from '@/theme/legacy/useTheme';
 import { tokens } from '@/theme/tokens';
 import { useTheme as useSunlineTheme } from '@/theme/useTheme';
 
+import { FriendCode } from './FriendCode';
+import { PastTrips } from './PastTrips';
+import { ProBadge } from './ProBadge';
 import { TravelStatsCard } from './TravelStatsCard';
 
 // The "Profil" screen (profile-screen D10): the title with the settings gear, the round photo and the nick, and the
@@ -42,6 +45,8 @@ export function ProfileScreen() {
   const profile = myProfile.data?.profile;
   const { refetch: refetchProfile } = myProfile;
   const trips = useTripList();
+  const currentId = useCurrentTrip().data?.overview.trip.id;
+  const { mutate: select } = useSelectTrip();
   const openSettings = () => router.push('/settings');
 
   // Without a photo a tap opens the gallery and uploads the pick; with one it opens the preview (profile-settings D13).
@@ -72,6 +77,13 @@ export function ProfileScreen() {
     wasOffline.current = offline;
   }, [offline, refetchProfile]);
   const stats = useMemo(() => (trips.data ? travelStats(trips.data, deviceToday(new Date()), AIRPORTS) : undefined), [trips.data]);
+
+  const pastTrips = useMemo(() => (trips.data ? tripSections(trips.data, deviceToday(new Date())).past : []), [trips.data]);
+  // Like the trips drawer: the open trip is not selected again, only shown.
+  const openTrip = (tripId: string) => {
+    if (tripId !== currentId) select(tripId);
+    router.navigate('/');
+  };
 
   return (
     <View
@@ -106,15 +118,20 @@ export function ProfileScreen() {
                 onAdd={addPhoto}
                 onOpen={openPhoto}
               />
-              <Text style={[typography.heading2, { color: colors.text.primary, flexShrink: 1 }]}>{profile.username}</Text>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing[2], flexShrink: 1 }}>
+                <Text style={[typography.heading2, { color: colors.text.primary, flexShrink: 1 }]}>{profile.username}</Text>
+                <ProBadge />
+              </View>
             </View>
           )}
+          {profile && <FriendCode code={profile.friendCode} />}
           {addError && (
             <Text accessibilityRole="alert" style={[typography.bodyS, { color: colors.status.error }]}>
               {t(`avatar.${addError}`)}
             </Text>
           )}
           <TravelStatsCard stats={stats} loading={trips.isPending} />
+          <PastTrips trips={pastTrips} state={trips.data ? 'ready' : trips.isError ? 'error' : 'loading'} onOpen={openTrip} />
         </ScrollView>
 
         {offline && (

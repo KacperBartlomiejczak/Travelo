@@ -238,6 +238,7 @@ describe('in-memory trip repository', () => {
           ],
           startDate: '2026-10-20',
           endDate: '2026-10-25',
+          travellerCount: expect.any(Number),
         },
         {
           id: later.id,
@@ -251,8 +252,23 @@ describe('in-memory trip repository', () => {
           ],
           startDate: '2026-11-03',
           endDate: '2026-11-15',
+          travellerCount: expect.any(Number),
         },
       ]);
+    });
+
+    it('counts the organizer plus the members; a solo trip is 1 (profile-upgrade D1)', async () => {
+      const repo = repository();
+      const input = createTripInputFixture();
+      const withFriends = await repo.create(input);
+      const solo = createTripInputFixture();
+      solo.flights.companionCount = 0;
+      solo.friends.friends = [];
+      solo.budget.friendDailyMinor = [];
+      const alone = await repo.create(solo);
+      const counts = new Map((await repo.list()).map((trip) => [trip.id, trip.travellerCount]));
+      expect(counts.get(withFriends.id)).toBe(input.friends.friends.length + 1);
+      expect(counts.get(alone.id)).toBe(1);
     });
 
     it('carries the destination and the route of every segment of the trip (profile-screen D11)', async () => {

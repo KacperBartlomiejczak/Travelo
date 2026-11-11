@@ -626,3 +626,23 @@ describe('SessionProvider — the background check with the real session source 
     expect(clearUserData).not.toHaveBeenCalled();
   });
 });
+
+describe('SessionProvider — email()', () => {
+  it('passes through what the source gives', async () => {
+    const captured: { email: () => Promise<string | null> } = { email: async () => 'unset' };
+    function Capture() {
+      const { email } = useSession();
+      useEffect(() => {
+        captured.email = email;
+      }, [email]);
+      return null;
+    }
+    const fake = createFakeSessionSource(signedIn);
+    fake.setEmail('anna@example.com');
+    await setup({ fake, extra: <Capture /> });
+    await expectStatus('signedIn');
+    await expect(captured.email()).resolves.toBe('anna@example.com');
+    fake.setEmail(null);
+    await expect(captured.email()).resolves.toBeNull();
+  });
+});

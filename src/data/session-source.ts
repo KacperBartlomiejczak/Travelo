@@ -1,5 +1,7 @@
 import { isAuthRetryableFetchError, isAuthSessionMissingError, type SupabaseClient } from '@supabase/supabase-js';
 
+import { EmailSchema } from '@/schemas/auth';
+
 import { dropAnonymousSession, ensureSession, NotSignedInError, type SessionAuth } from './auth';
 
 /** Who is signed in on this phone. `userId` is null when a session is stored but cannot be read now (no connection to refresh its token). */
@@ -30,6 +32,8 @@ export interface SessionSource {
    * and the provider clears the phone's user data on that path (auth-onboarding D14). Rejects with the error Supabase returns.
    */
   signOut(): Promise<void>;
+  /** The signed-in account's e-mail, from the stored session (works offline). Null: no session, anonymous, unreadable or not a valid address. Never rejects. */
+  email(): Promise<string | null>;
 }
 
 type Deps = {
@@ -105,6 +109,17 @@ export function createSupabaseSessionSource({ auth, checkAuth, clearUserData }: 
       // error) it ALSO removes the stored session before returning the error, so the app can end up signed out although this rejects.
       const { error } = await auth.signOut({ scope: 'local' });
       if (error) throw error;
+    },
+
+    async email() {
+      try {
+        const { data, error } = await auth.getSession();
+        if (error || !data.session || data.session.user.is_anonymous === true) return null;
+        const parsed = EmailSchema.safeParse(data.session.user.email);
+        return parsed.success ? parsed.data : null;
+      } catch {
+        return null;
+      }
     },
   };
 }

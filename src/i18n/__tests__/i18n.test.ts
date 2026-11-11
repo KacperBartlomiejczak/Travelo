@@ -71,3 +71,33 @@ describe('i18n saved language (profile-settings step 7)', () => {
     expect(loadI18nFor('de-DE', 'de').language).toBe('en');
   });
 });
+
+describe('i18n profile upgrade keys', () => {
+  const keys = [
+    'pastTitle', 'pastLoading', 'pastEmpty', 'pastError', 'pastSolo', 'pastTripLabel', 'pastTripHint',
+    'friendCode', 'friendCodeSpoken', 'shareCode', 'shareMessage', 'pro', 'proLabel',
+  ];
+
+  it.each(keys)('has profile.%s in pl and en', (key) => {
+    expect(pl.profile).toHaveProperty(key);
+    expect(en.profile).toHaveProperty(key);
+  });
+
+  it('pluralises pastFriends in Polish', () => {
+    const i18n = loadI18nFor('pl-PL', 'pl');
+    expect(i18n.t('profile.pastFriends', { count: 1 })).toBe('1 znajomy');
+    expect(i18n.t('profile.pastFriends', { count: 2 })).toBe('2 znajomych');
+    expect(i18n.t('profile.pastFriends', { count: 5 })).toBe('5 znajomych');
+  });
+
+  it('pluralises pastFriends in English', () => {
+    const i18n = loadI18nFor('en-US', 'en');
+    expect(i18n.t('profile.pastFriends', { count: 1 })).toBe('1 friend');
+    expect(i18n.t('profile.pastFriends', { count: 2 })).toBe('2 friends');
+  });
+
+  it('interpolates the code in shareMessage', () => {
+    expect(loadI18nFor('en-US', 'en').t('profile.shareMessage', { code: 'ABC123' })).toContain('ABC123');
+    expect(loadI18nFor('pl-PL', 'pl').t('profile.shareMessage', { code: 'ABC123' })).toContain('ABC123');
+  });
+});

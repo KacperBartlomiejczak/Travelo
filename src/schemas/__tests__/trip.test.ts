@@ -35,8 +35,14 @@ describe('TripListItem (trips-drawer D4)', () => {
   });
 
   it('keeps only what the side panel needs', () => {
-    const parsed = TripListItemSchema.parse({ ...item, travellerCount: 3, baseCurrency: 'THB' });
+    const parsed = TripListItemSchema.parse({ ...item, baseCurrency: 'THB' });
     expect(Object.keys(parsed).sort()).toEqual(['coverImageUri', 'destination', 'endDate', 'flights', 'id', 'name', 'startDate']);
+  });
+
+  it('keeps an optional traveller count of at least 1 (profile-upgrade D1)', () => {
+    expect(TripListItemSchema.parse({ ...item, travellerCount: 3 }).travellerCount).toBe(3);
+    expect(TripListItemSchema.parse(item)).not.toHaveProperty('travellerCount');
+    for (const travellerCount of [0, -1, 1.5]) expect(TripListItemSchema.safeParse({ ...item, travellerCount }).success).toBe(false);
   });
 
   it('carries the destination and the route of every flight segment (profile-screen D11)', () => {

@@ -134,7 +134,7 @@ export function createSupabaseTripRepository({
     await signedIn();
     const { data, error, status } = await supabase
       .from('trips')
-      .select('id, name, cover_image_uri, destination, start_date, end_date, flight_segments(from_iata, to_iata)')
+      .select('id, name, cover_image_uri, destination, start_date, end_date, flight_segments(from_iata, to_iata), trip_members(id)')
       .order('start_date')
       .order('created_at');
     if (error) throw failure(error, status);
