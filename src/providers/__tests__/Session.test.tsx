@@ -381,6 +381,71 @@ describe('SessionProvider — a sign-in later', () => {
     expect(fake.clearUserData).not.toHaveBeenCalled();
   });
 
+  it('a token refresh after an offline start fills the user id in: nothing is cleared or synced again', async () => {
+    const trips = createInMemoryTripRepository();
+    const syncBudgets = jest.fn(() => trips.syncBudgets());
+    const { fake } = await setup({ fake: createFakeSessionSource({ status: 'signedIn', userId: null }), trips: { ...trips, syncBudgets } });
+    await expectStatus('signedIn');
+    await waitFor(() => expect(syncBudgets).toHaveBeenCalledTimes(1));
+
+    await act(async () => fake.emit({ type: 'refreshed', userId: SIGNED_IN_USER_ID }));
+    await waitFor(() => expect(screen.getByTestId('user')).toHaveTextContent(SIGNED_IN_USER_ID));
+    expect(syncBudgets).toHaveBeenCalledTimes(1);
+    expect(fake.clearUserData).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ['the same user', SIGNED_IN_USER_ID],
+    ['another user', OTHER_USER_ID],
+  ])('a token refresh of %s while the user is known changes nothing and clears nothing', async (_name, userId) => {
+    const { fake } = await setup();
+    await expectStatus('signedIn');
+
+    await act(async () => fake.emit({ type: 'refreshed', userId }));
+
+    expect(screen.getByTestId('user')).toHaveTextContent(SIGNED_IN_USER_ID);
+    expect(status()).toHaveTextContent('signedIn');
+    expect(fake.clearUserData).not.toHaveBeenCalled();
+  });
+
+  it('a token refresh while the session is still being read changes nothing and clears nothing', async () => {
+    const fake = createFakeSessionSource(signedIn);
+    const release = fake.holdCurrent();
+    await setup({ fake });
+    await expectStatus('loading');
+
+    await act(async () => fake.emit({ type: 'refreshed', userId: OTHER_USER_ID }));
+
+    expect(status()).toHaveTextContent('loading');
+    expect(fake.clearUserData).not.toHaveBeenCalled();
+    await act(async () => release());
+    await expectStatus('signedIn');
+    expect(screen.getByTestId('user')).toHaveTextContent(SIGNED_IN_USER_ID);
+    expect(fake.clearUserData).not.toHaveBeenCalled();
+  });
+
+  it('a token refresh while the session could not be read changes nothing and clears nothing', async () => {
+    const fake = createFakeSessionSource(new Error('storage broken'));
+    await setup({ fake });
+    await expectStatus('error');
+
+    await act(async () => fake.emit({ type: 'refreshed', userId: OTHER_USER_ID }));
+
+    expect(status()).toHaveTextContent('error');
+    expect(fake.clearUserData).not.toHaveBeenCalled();
+  });
+
+  it('a token refresh while signed out changes nothing and clears nothing more', async () => {
+    const { fake } = await setup({ fake: createFakeSessionSource(signedOut) });
+    await expectStatus('signedOut');
+    const clears = fake.clearUserData.mock.calls.length;
+
+    await act(async () => fake.emit({ type: 'refreshed', userId: OTHER_USER_ID }));
+
+    expect(status()).toHaveTextContent('signedOut');
+    expect(fake.clearUserData).toHaveBeenCalledTimes(clears);
+  });
+
   it('a different user signing in without a sign-out first: the previous user is cleared first, then the new one is signed in', async () => {
     const { fake, queryClient } = await setup();
     await expectStatus('signedIn');

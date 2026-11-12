@@ -1,7 +1,7 @@
 # Zadanie: Subskrypcja PRO przez RevenueCat (revenuecat)
-Status: w trakcie (kroki 6–7 zrobione; krok 5: zostaje sprawdzenie na telefonie)
+Status: w trakcie (kroki 6–7 zrobione; krok 5: zostaje sprawdzenie na telefonie; kroki 8–9 w trakcie)
 
-Akceptacja: Kacper, 2026-11-11, „Akceptuję” (na pytanie o plan z P1 = gałąź od `fix/profile-pro-badge`). Kroki 6–7 (D6, Z6–Z8, P5 = bez tekstu): Kacper, 2026-11-12, „Akceptuję”.
+Akceptacja: Kacper, 2026-11-11, „Akceptuję” (na pytanie o plan z P1 = gałąź od `fix/profile-pro-badge`). Kroki 6–7 (D6, Z6–Z8, P5 = bez tekstu): Kacper, 2026-11-12, „Akceptuję”. Kroki 8–9 (D7, Z9–Z10): Kacper, 2026-11-12, „Akceptuję”.
 
 Gałąź: `feature/revenuecat`, odgałęziona od `fix/profile-pro-badge` (P1); jedyna gałąź zadania.
 
@@ -15,6 +15,7 @@ Travelo dostaje prawdziwą subskrypcję PRO przez RevenueCat (`react-native-purc
 - **D3. Offline:** baner i wiersz „Subskrypcja” są wyłączone z powodem pod spodem (jak „Wyloguj się”). Status PRO (odznaka) działa offline z pamięci podręcznej SDK RevenueCat.
 - **D5 (P2, 2026-11-11, po zablokowaniu kroku 2).** Gdy `userId` jest znany, a SDK ma już zalogowanego tego samego użytkownika (`Purchases.getAppUserID() === userId`), od razu pokazujemy jego status z pamięci SDK (`getCustomerInfo`, działa offline); `logIn` tylko go odświeża, a jego błąd nie kasuje statusu. Inny użytkownik w SDK → „bez PRO” do odpowiedzi `logIn`.
 - **D6 (2026-11-12, po uwadze Major od CodeRabbit w PR #39).** Paywall jest zablokowany, dopóki tożsamość w SDK nie jest potwierdzona (użytkownik SDK = użytkownik sesji). Powód: gdy `logOut` przy wylogowaniu A i `logIn(B)` po zalogowaniu B oba się nie udadzą (błędy są dziś połykane), SDK zostaje na koncie A i zakup B trafia na A. Świadomie zmienia D3 / `known-limitations.md:116`: baner jest też wyłączony przez krótką chwilę, póki trwa `logIn` świeżo zalogowanego użytkownika.
+- **D7 (2026-11-12, po odpowiedzi CodeRabbit w wątku D6 w PR #39; Kacper: „Tak, dopisz krok”).** Start offline (`userId = null`) **nie** liczy się już jako potwierdzona tożsamość — zastępuje Z6. Po powrocie sieci sesja ma poznać `userId`, a provider przejść zwykłą ścieżkę z porównaniem i `logIn`. Odznaka PRO offline zostaje bez zmian (D3).
 - **D4. Klucz:** zmienna `EXPO_PUBLIC_REVENUECAT_API_KEY` (Kacper zmienia nazwę w `.env`; ja dopisuję samą nazwę do `.env.example`). To publiczny klucz SDK, więc może być w aplikacji.
 
 ### Co ustaliłem w kodzie (fakty)
@@ -84,6 +85,8 @@ Klucz `settings.pro.comingSoon` znika. `settings.pro.title` / `subtitle` zostaj�
 - [ ] 5. [orkiestrator] Dokumenty (lista w „Pliki”), wpis w roadmapie. Kacper: konfiguracja panelu (niżej) i dev build. — weryfikacja: tester na emulatorze Android: bez PRO baner → paywall → zakup `monthly` w Test Store → odznaka PRO, baner znika, „Subskrypcja” otwiera Customer Center; wylogowanie i logowanie innym kontem → bez PRO; offline → przyciski wyłączone, odznaka zostaje. Na końcu verifier całej gałęzi z CodeRabbit.
 - [x] 6. [backend] D6: `PurchasesProvider` wystawia `useIsProIdentityConfirmed()` (stan wiązany z `session.id`). — skill: test-driven-development — najpierw testy: nowe przypadki w `Purchases.test.tsx` (sekcja „Poprawka D6”) — weryfikacja: verifier + pełny zestaw, typecheck, lint.
 - [x] 7. [frontend] D6: baner PRO w Ustawieniach wyłączony i `present()` paywalla zablokowane bez potwierdzonej tożsamości. — skill: test-driven-development — najpierw testy: `SettingsScreen.test.tsx` — weryfikacja: verifier; potem dokumenty (orkiestrator), odpowiedź na wątek CodeRabbit w PR #39 i verifier całej gałęzi z CodeRabbit.
+- [x] 8. [backend] D7: sesja poznaje `userId` po odświeżeniu tokenu, gdy po starcie offline był `null` (`session-source.ts`, `Session.tsx`). — skill: test-driven-development, source-driven-development (kiedy `auth-js` wysyła `TOKEN_REFRESHED` w React Native) — najpierw testy: `session-source.test.ts`, `Session.test.tsx` — weryfikacja: verifier + pełny zestaw, typecheck, lint.
+- [ ] 9. [backend] D7: `PurchasesProvider` nie potwierdza tożsamości przy `userId === null`. — skill: test-driven-development — najpierw testy: `Purchases.test.tsx` — weryfikacja: verifier; potem dokumenty (orkiestrator), odpowiedź w wątku CodeRabbit w PR #39 (po zgodzie Kacpra) i verifier całej gałęzi z CodeRabbit.
 
 ### Poprawka D6: paywall tylko przy potwierdzonej tożsamości (kroki 6–7)
 
@@ -101,6 +104,32 @@ Klucz `settings.pro.comingSoon` znika. `settings.pro.title` / `subtitle` zostaj�
 - `src/features/profile/__tests__/SettingsScreen.test.tsx` (mock nowego hooka obok `mockPro`, domyślnie true): niepotwierdzona tożsamość online → baner widoczny, ale wyłączony, tap nie woła `presentPaywall`; brak tekstu `settings.pro.offline`; potwierdzona → jak dotąd.
 
 **Pliki:** `src/providers/Purchases.tsx`, `src/providers/__tests__/Purchases.test.tsx` (krok 6); `src/features/profile/SettingsScreen.tsx`, `src/features/profile/__tests__/SettingsScreen.test.tsx` (krok 7); dokumenty: `docs/architecture/flows/features/subscription.md`, `docs/architecture/known-limitations.md` (zastąpienie wpisu `:116`, nowy wpis o Z7), `docs/architecture/decisions.md` (D6). Bez zmian w Zod, bazie i i18n.
+
+### Poprawka D7: start offline nie potwierdza tożsamości (kroki 8–9)
+
+**Fakty z kodu (orkiestrator, 2026-11-12):**
+- `Purchases.tsx:72` ustawia potwierdzenie przy `signedIn` + `userId === null` bez `getAppUserID()`.
+- `session-source.ts:86-87` przekazuje dalej tylko `SIGNED_IN` i `SIGNED_OUT`; `TOKEN_REFRESHED` jest pomijany. Po starcie offline `userId` zostaje więc `null` do końca działania aplikacji, także po powrocie sieci. Wpis w dzienniku z przeglądu kroków 6–7 („po powrocie sieci nowy `userId` przechodzi pełną ścieżkę”) był błędny.
+- `SettingsScreen.tsx:295`: `disabled={offline || !confirmed}` — po powrocie sieci oba warunki puszczają i paywall otwiera się dla użytkownika zapamiętanego w SDK.
+- `Session.tsx:156-162` już obsługuje „sesja `signedIn` z `userId = null` poznaje `userId`” (bez czyszczenia danych) i ignoruje zdarzenie z tym samym `userId`. Ale z `loading` / `error` zdarzenie `signedIn` uruchamia `leave()` i **czyści dane z telefonu** (`:169-171`).
+
+**Podejście:**
+- Krok 8: `session-source.ts` przekazuje `TOKEN_REFRESHED` jako **osobny** typ zmiany (nie `signedIn`), a `Session.tsx` reaguje na niego tylko wtedy, gdy stan to `signedIn` z `userId === null` — wtedy ustawia `userId`. W każdym innym stanie nic nie robi, więc odświeżenie tokenu nigdy nie uruchomi `leave()` ani czyszczenia danych.
+- Krok 9: z `Purchases.tsx` znika `setConfirmedState({ id, value: true })` w gałęzi startu offline. `live.current.confirmed` dla tej gałęzi zostaje (steruje tylko statusem PRO z pamięci SDK, czyli odznaką offline z D3, nie zakupem).
+- `SettingsScreen.tsx` bez zmian.
+
+Odrzucone: przekazać `TOKEN_REFRESHED` jako zwykłe `signedIn` (mniej kodu, ale w stanie `loading` / `error` wyczyściłoby dane z telefonu); samo usunięcie potwierdzenia bez kroku 8 (każdy, kto uruchomił aplikację offline, nie kupi PRO do restartu).
+
+**Założenia (potwierdzasz akceptacją):**
+- Z9. Jeśli po powrocie sieci `logIn` się nie uda albo `TOKEN_REFRESHED` nie przyjdzie, baner zostaje wyłączony do zmiany sesji albo restartu, bez tekstu z powodem (jak Z7 / Z8).
+- Z10. Bez zmian w i18n, bazie i migracjach. Jeśli `SessionChange` jest schematem Zod, nowy typ zmiany dochodzi najpierw tam.
+
+**Testy (najpierw, red przed green):**
+- `src/data/__tests__/session-source.test.ts`: `TOKEN_REFRESHED` z sesją nieanonimową → nowy typ zmiany z `userId`; z sesją anonimową albo bez sesji → nic.
+- `src/providers/__tests__/Session.test.tsx`: start offline (`userId = null`) + odświeżenie → `signedIn` z `userId`, bez czyszczenia danych; odświeżenie przy znanym `userId`, w `loading`, `error` i `signedOut` → stan bez zmian, `clearUserData` niewołane.
+- `src/providers/__tests__/Purchases.test.tsx`: start offline → `useIsProIdentityConfirmed()` = false, `useIsPro()` nadal z pamięci SDK (zmiana istniejącego testu Z6 — zmiana wymagań, nie osłabienie); start offline, potem `userId` znany i ten sam użytkownik SDK → true; inny użytkownik SDK i nieudany `logIn` → false (scenariusz CodeRabbit).
+
+**Pliki:** krok 8: `src/data/session-source.ts`, `src/providers/Session.tsx`, ewentualnie schemat `SessionChange` w `src/schemas/`, ich testy i atrapy w `src/test/`; krok 9: `src/providers/Purchases.tsx` i jego test. Dokumenty (orkiestrator): `known-limitations.md` (`:118` zastąpiony przez Z9), `decisions.md` (D7), `flows/features/subscription.md`, opis sesji w `docs/architecture/flows/`.
 
 ## Konfiguracja panelu RevenueCat (robi Kacper, przed krokiem 5)
 1. Projekt → Test Store (klucz `test_…` już masz).
@@ -135,9 +164,12 @@ Klucz `settings.pro.comingSoon` znika. `settings.pro.title` / `subtitle` zostaj�
 - Krok 6 (2026-11-12): 6 testów (red ✓: `useIsProIdentityConfirmed is not a function`) · `IdentityConfirmedContext` + `useIsProIdentityConfirmed()`, stan `{ id, value }` wiązany z `session.id`, ustawiany przy tym samym użytkowniku SDK, po udanym `logIn` i przy starcie offline (Z6); `useIsPro()` bez zmian · green ✓ (4122 testy, typecheck, lint) · verifier PASS (7/7 mutacji złapanych; drobne: brak testu „bez ponawiania” `toHaveBeenCalledTimes(1)` i testu rzucania poza providerem — jak dla `useIsPro`) · użyty skill: test-driven-development.
 - Krok 7 (2026-11-12): 1 test (red ✓: baner nie był wyłączony) · `SettingsScreen` czyta `useIsProIdentityConfirmed()`, baner `disabled={offline || !confirmed}`, `onPress` woła paywall tylko przy `confirmed`; Customer Center, tekst offline i i18n bez zmian · green ✓ (4123 testy, typecheck, lint) · verifier PASS (drobne: strażnik `confirmed &&` w `onPress` nie ma osobnego testu, bo `fireEvent.press` respektuje `disabled`; czyta tę samą wartość z renderu co `disabled`) · użyty skill: test-driven-development · dokumenty: `decisions.md`, `flows/features/subscription.md`, `known-limitations.md` (wpis o banerze w trakcie `logIn` zastąpiony D6 / Z7 / Z8). Zostaje: odpowiedź na wątek CodeRabbit i verifier całej gałęzi.
 - Przegląd kroków 6–7 (2026-11-12): verifier (Sonnet 5.5) + CodeRabbit — PASS (4123 testy, typecheck, lint). CodeRabbit: 2 uwagi „major”, verifier ich nie potwierdził — (a) `Purchases.tsx:97`: spóźniony `logIn(A)` po wylogowaniu i zalogowaniu B mógłby natywnie przełączyć SDK z powrotem na A (wymaga nakładania się `logIn` / `logOut` w SDK, niesprawdzone; możliwe utwardzenie: kolejkowanie operacji tożsamości); (b) `Purchases.tsx:72`: start offline liczony jako potwierdzony — to zaplanowane Z6, po powrocie sieci nowy `userId` przechodzi pełną ścieżkę. Kacper (2026-11-12, „Wpisz, push, odpowiedz”): obie zapisane w `known-limitations.md`, bez zmian w kodzie; push i odpowiedź w wątku CodeRabbit w PR #39.
+- Odpowiedź CodeRabbit w wątku D6 (2026-11-12): start offline nadal potwierdza tożsamość bez porównania. Sprawdzone w kodzie — uwaga słuszna: `session-source.ts` pomijał `TOKEN_REFRESHED`, więc `userId` zostawał `null` także po powrocie sieci, a baner się odblokowywał. Zdanie z przeglądu kroków 6–7 („nowy `userId` przechodzi pełną ścieżkę”) było błędne. Kacper: „Tak, dopisz krok” → D7, kroki 8–9.
+- Krok 8 (2026-11-12): testy (red ✓: 5 padło — brak zdarzenia `refreshed`, brak uzupełnienia `userId`, stary kod wołał `leave` przy innym id / `loading` / `error`) · `SessionChange` ma wariant `{ type: 'refreshed'; userId }` dla `TOKEN_REFRESHED` (sesja nieanonimowa); `Session.tsx` ustawia `userId` tylko w stanie `signedIn` z `userId === null`, w każdym innym nic nie robi · green ✓ (4130 testów, typecheck, lint) · verifier PASS (4/4 mutacje złapane, w tym odrzucona alternatywa „zwykłe `signedIn`”; wyścigi z `leave()` sprawdzone) · użyty skill: test-driven-development, source-driven-development · zmiana testu: `TOKEN_REFRESHED` usunięty z listy zdarzeń ignorowanych w `session-source.test.ts` (zmiana wymagań, verifier potwierdził) · **R6 rozstrzygnięte:** `auth-js` wysyła `TOKEN_REFRESHED` po powrocie sieci, zwykle w 30–60 s (tyknięcie co 30 s, blokada po błędzie 60 s), tylko gdy aplikacja jest na pierwszym planie; `SIGNED_IN` w tej sytuacji nie przychodzi · drobne (verifier): `refreshed` użytkownika A czekające w kolejce 0 ms mogłoby uzupełnić świeży stan offline użytkownika B — wymaga wylogowania i nowego startu offline w tym samym tyknięciu, ten sam kształt co istniejące `signedIn`.
 
 ## Ryzyka i otwarte pytania
 - **P5 (otwarte, krok 7).** Czy wyłączony baner przy niepotwierdzonej tożsamości ma mieć tekst z powodem? Rekomendacja: nie (Z8) — zwykle trwa to ułamek sekundy, a długi stan to rzadki podwójny błąd. Alternatywa: osobny tekst tylko po nieudanym `logIn` (wymaga rozróżnienia „trwa” / „nie udało się” w providerze i nowego klucza i18n pl/en).
+- R6 (kroki 8–9). Nie sprawdzone: czy `auth-js` w React Native na pewno wysyła `TOKEN_REFRESHED` po powrocie sieci i kiedy `ensureSession` zwraca błąd sieci. Jeśli zdarzenie nie przychodzi, po kroku 9 baner zostaje wyłączony do restartu (Z9) — bezpieczne, ale gorsze dla użytkownika; krok 8 ma to ustalić z dokumentacji, a jeśli się nie da, wraca jako pytanie.
 - R5. Nie sprawdzone w dokumentacji RevenueCat: czy SDK po nieudanym `logIn` zostaje na poprzednim koncie i czy `logOut` wymaga sieci. Poprawka D6 chroni niezależnie od odpowiedzi.
 - **P4 (rozstrzygnięte: kopia robocza w `C:\td`).** Jak zbudować dev build mimo limitu ścieżek w Windows.
 - **P3 (otwarte).** Czy `PAYWALL_RESULT.NOT_PRESENTED` (np. brak bieżącej oferty w panelu) ma pokazywać Snackbar `settings.pro.error`? Rekomendacja: tak (jedna linia + test).
