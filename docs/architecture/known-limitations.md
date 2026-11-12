@@ -114,5 +114,7 @@
   - The paywall and Customer Center use RevenueCat's own look, not Sunline (R4); the disabled banner only greys its text, the gradient art is not dimmed.
   - Not covered by tests: a listener update during the same-user `logIn` window is dropped (`logIn` refreshes anyway); `logOut` and a quick next `logIn` are not serialized by the app (order left to the SDK).
   - The banner stays disabled until the RevenueCat identity is confirmed (D6, 2026-11-12): briefly while `logIn` for a just-signed-in user is pending, and, if that `logIn` fails, until the next session change or app restart (no automatic retry, Z7). The disabled banner shows no reason text (Z8).
+  - Identity calls are not serialized: a late `logIn(A)` still running across a sign-out and a sign-in as B could, in theory, switch the native SDK back to A after B is confirmed (CodeRabbit on D6, not reproduced; would need native overlap of `logIn` / `logOut`). Hardening option: queue `logIn` / `logOut`.
+  - An offline start (`userId` null) trusts the SDK's cached user as confirmed (Z6); a session that stays without a `userId` after reconnect keeps that trust until the next session change.
   - `PAYWALL_RESULT.NOT_PRESENTED` (e.g. no current offering) shows nothing, like a cancel.
   - Not checked on a device yet: purchase in Test Store, Customer Center, offline behaviour.
