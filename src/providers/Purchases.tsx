@@ -39,7 +39,7 @@ export function PurchasesProvider({ children }: { children: ReactNode }) {
   const [confirmedState, setConfirmedState] = useState({ id: 0, value: false });
   const isConfirmed = confirmedState.id === session.id && confirmedState.value;
 
-  // What async answers and listener updates are checked against; `confirmed` = the SDK user is known to be this session's user.
+  // What async answers and listener updates are checked against; `confirmed` = PRO status may be taken from the SDK (the SDK user is this session's user, or an offline start showing the cache).
   const live = useRef({ id: 0, signedIn: false, confirmed: false });
 
   useEffect(() => {
@@ -69,8 +69,8 @@ export function PurchasesProvider({ children }: { children: ReactNode }) {
       // The SDK may still remember the previous account, and rejects when its user is already anonymous.
       Purchases.logOut().catch(() => {});
     } else if (status === 'signedIn' && userId === null) {
-      setConfirmedState({ id, value: true }); // Z6: offline start trusts the cached SDK user.
-      // Offline start: whatever the SDK has cached. Any SDK error: not PRO.
+      // Offline start: identity stays unconfirmed (D7) until a token refresh gives a user id; the PRO badge is whatever the SDK
+      // has cached. Any SDK error: not PRO.
       Purchases.getCustomerInfo().then((info) => apply(hasPro(info)), () => apply(false));
     } else if (userId !== null) {
       void (async () => {

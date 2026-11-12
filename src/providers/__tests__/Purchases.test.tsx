@@ -77,9 +77,33 @@ describe('PurchasesProvider identity confirmation', () => {
     await expectConfirmed(true);
   });
 
-  it('offline start (no user id): true', async () => {
+  it('offline start (no user id): not confirmed, while the PRO status still comes from the SDK cache', async () => {
+    purchasesMock.getCustomerInfo.mockResolvedValueOnce(proInfo);
     await setup(createFakeSessionSource({ status: 'signedIn', userId: null }));
+    await expectPro(true);
+    await expectConfirmed(false);
+  });
+
+  it('offline start, then a known user id and the same SDK user: confirmed', async () => {
+    purchasesMock.getAppUserID.mockResolvedValue(SIGNED_IN_USER_ID);
+    purchasesMock.logIn.mockReturnValue(new Promise(() => {}));
+    const { fake } = await setup(createFakeSessionSource({ status: 'signedIn', userId: null }));
+    await expectConfirmed(false);
+    await act(async () => fake.emit({ type: 'signedIn', userId: SIGNED_IN_USER_ID }));
     await expectConfirmed(true);
+  });
+
+  it('offline start, then a known user id with a different SDK user and a failing logIn: stays unconfirmed and not pro', async () => {
+    purchasesMock.getCustomerInfo.mockResolvedValueOnce(proInfo);
+    purchasesMock.getAppUserID.mockResolvedValue(OTHER_USER_ID);
+    purchasesMock.logIn.mockRejectedValue(new Error('offline'));
+    const { fake } = await setup(createFakeSessionSource({ status: 'signedIn', userId: null }));
+    await expectPro(true);
+    await act(async () => fake.emit({ type: 'signedIn', userId: SIGNED_IN_USER_ID }));
+    await waitFor(() => expect(Purchases.logIn).toHaveBeenCalledWith(SIGNED_IN_USER_ID));
+    await act(async () => {});
+    await expectConfirmed(false);
+    await expectPro(false);
   });
 
   it('session change to a different user: false while its logIn is pending', async () => {
