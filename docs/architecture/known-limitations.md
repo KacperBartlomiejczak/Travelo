@@ -113,6 +113,6 @@
   - The key is a Test Store `test_` key; release builds need the App Store / Google Play apps and `appl_` / `goog_` keys (R1). A missing or invalid key does not crash the app: everyone is silently non-PRO.
   - The paywall and Customer Center use RevenueCat's own look, not Sunline (R4); the disabled banner only greys its text, the gradient art is not dimmed.
   - Not covered by tests: a listener update during the same-user `logIn` window is dropped (`logIn` refreshes anyway); `logOut` and a quick next `logIn` are not serialized by the app (order left to the SDK).
-  - The banner is enabled while `logIn` for a just-signed-in user is still pending; a purchase in that window is made by the anonymous SDK user (after the sign-out `logOut`) and relies on RevenueCat merging it on `logIn` (CodeRabbit, end-of-plan review).
+  - The banner stays disabled until the RevenueCat identity is confirmed (D6, 2026-11-12): briefly while `logIn` for a just-signed-in user is pending, and, if that `logIn` fails, until the next session change or app restart (no automatic retry, Z7). The disabled banner shows no reason text (Z8).
   - `PAYWALL_RESULT.NOT_PRESENTED` (e.g. no current offering) shows nothing, like a cancel.
   - Not checked on a device yet: purchase in Test Store, Customer Center, offline behaviour.

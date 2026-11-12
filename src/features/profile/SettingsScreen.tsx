@@ -23,7 +23,7 @@ import { useMyProfile } from '@/hooks/useProfile';
 import { useSignOut } from '@/hooks/useSignOut';
 import { useTripRepository } from '@/providers/AppProviders';
 import { useIsOffline } from '@/providers/BudgetSync';
-import { useIsPro } from '@/providers/Purchases';
+import { useIsPro, useIsProIdentityConfirmed } from '@/providers/Purchases';
 import type { ShownProfile } from '@/schemas';
 import { tokens } from '@/theme/tokens';
 import type { Theme } from '@/theme/theme';
@@ -239,6 +239,7 @@ export function SettingsScreen() {
   const hasProfile = Boolean(myProfile.data);
   const email = useAccountEmail();
   const isPro = useIsPro();
+  const confirmed = useIsProIdentityConfirmed();
   // Ignores taps while a RevenueCat screen is open, so a double tap cannot open two.
   const presenting = useRef(false);
 
@@ -291,7 +292,7 @@ export function SettingsScreen() {
       >
         <IdentityBlock loading={myProfile.isPending && myProfile.fetchStatus !== 'idle'} profile={myProfile.data?.profile} email={email} />
         <View style={{ gap: spacing[4] }}>
-          {!isPro && <ProBanner disabled={offline} onPress={() => void present(async () => (await RevenueCatUI.presentPaywall()) === PAYWALL_RESULT.ERROR, 'settings.pro.error')} />}
+          {!isPro && <ProBanner disabled={offline || !confirmed} onPress={() => confirmed && void present(async () => (await RevenueCatUI.presentPaywall()) === PAYWALL_RESULT.ERROR, 'settings.pro.error')} />}
           {!isPro && offline && (
             <Text style={[typography.styles.bodySM, { color: theme.text.secondary }]} accessibilityLiveRegion="polite">
               {t('settings.pro.offline')}

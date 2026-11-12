@@ -21,8 +21,9 @@ let mockScheme: 'light' | 'dark' = 'light';
 jest.mock('react-native/Libraries/Utilities/useColorScheme', () => ({ __esModule: true, default: () => mockScheme }));
 
 let mockPro = false;
+let mockConfirmed = true;
 // Only the status hook is faked: AppProviders still needs the real PurchasesProvider from the same module.
-jest.mock('@/providers/Purchases', () => ({ ...jest.requireActual('@/providers/Purchases'), useIsPro: () => mockPro }));
+jest.mock('@/providers/Purchases', () => ({ ...jest.requireActual('@/providers/Purchases'), useIsPro: () => mockPro, useIsProIdentityConfirmed: () => mockConfirmed }));
 
 const METRICS = { frame: { x: 0, y: 0, width: 375, height: 812 }, insets: { top: 47, left: 0, right: 0, bottom: 34 } };
 const EMAIL = 'kacper@example.com';
@@ -67,6 +68,7 @@ beforeEach(async () => {
   session = useFakeAppSession();
   mockScheme = 'light';
   mockPro = false;
+  mockConfirmed = true;
   purchasesUiMock.presentPaywall.mockReset();
   purchasesUiMock.presentCustomerCenter.mockReset();
   purchasesUiMock.presentPaywall.mockResolvedValue(PAYWALL_RESULT.CANCELLED);
@@ -270,6 +272,16 @@ describe('Settings PRO banner (settings-redesign step 6)', () => {
     const banner = await screen.findByRole('button', { name: LABEL.pl });
     expect(banner.props.accessibilityState).toMatchObject({ disabled: true });
     expect(await screen.findByText('Połącz się z internetem, żeby przejść na PRO.')).toBeTruthy();
+    await fireEvent.press(banner);
+    expect(purchasesUiMock.presentPaywall).not.toHaveBeenCalled();
+  });
+
+  it('is disabled while the RevenueCat identity is unconfirmed, with no offline reason, and a press opens nothing', async () => {
+    mockConfirmed = false;
+    await renderSettings();
+    const banner = await screen.findByRole('button', { name: LABEL.pl });
+    expect(banner.props.accessibilityState).toMatchObject({ disabled: true });
+    expect(screen.queryByText('Połącz się z internetem, żeby przejść na PRO.')).toBeNull();
     await fireEvent.press(banner);
     expect(purchasesUiMock.presentPaywall).not.toHaveBeenCalled();
   });
