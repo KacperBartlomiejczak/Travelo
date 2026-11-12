@@ -363,6 +363,16 @@ describe('Settings subscription row for PRO (revenuecat step 4)', () => {
     expect(purchasesUiMock.presentCustomerCenter).not.toHaveBeenCalled();
   });
 
+  it('is disabled while the RevenueCat identity is unconfirmed, without the offline reason, and a press opens nothing', async () => {
+    mockConfirmed = false;
+    await renderSettings();
+    const row = await screen.findByRole('button', { name: ROW.pl });
+    expect(row.props.accessibilityState).toMatchObject({ disabled: true });
+    expect(screen.queryByText('Połącz się z internetem, żeby zarządzać subskrypcją.')).toBeNull();
+    await fireEvent.press(row);
+    expect(purchasesUiMock.presentCustomerCenter).not.toHaveBeenCalled();
+  });
+
   it('shows the offline reason in English', async () => {
     await i18n.changeLanguage('en');
     setNetwork({ isConnected: false, isInternetReachable: false });

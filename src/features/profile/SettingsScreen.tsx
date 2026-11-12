@@ -303,8 +303,8 @@ export function SettingsScreen() {
               <SettingsRow
                 icon={Crown}
                 label={t('settings.subscription.title')}
-                disabled={offline}
-                onPress={() => void present(async () => { await RevenueCatUI.presentCustomerCenter(); return false; }, 'settings.subscription.error')}
+                disabled={offline || !confirmed}
+                onPress={() => confirmed && void present(async () => { await RevenueCatUI.presentCustomerCenter(); return false; }, 'settings.subscription.error')}
                 divider
               />
             )}
