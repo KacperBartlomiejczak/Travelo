@@ -15,6 +15,15 @@ export function useIsPro(): boolean {
   return value;
 }
 
+const IdentityConfirmedContext = createContext<boolean | null>(null);
+
+/** True only when the SDK user is confirmed to be the session user, so a purchase cannot be credited to another account. */
+export function useIsProIdentityConfirmed(): boolean {
+  const value = useContext(IdentityConfirmedContext);
+  if (value === null) throw new Error('useIsProIdentityConfirmed must be used inside AppProviders');
+  return value;
+}
+
 /** Keeps the RevenueCat user in step with the session (`logIn` / `logOut`) and exposes the PRO status. Must sit inside `SessionProvider`. */
 export function PurchasesProvider({ children }: { children: ReactNode }) {
   const { state } = useSession();
@@ -27,6 +36,8 @@ export function PurchasesProvider({ children }: { children: ReactNode }) {
   if (session.key !== key) setSession({ key, id: session.id + 1 });
   const [pro, setPro] = useState({ id: 0, value: false });
   const isPro = pro.id === session.id && pro.value;
+  const [confirmedState, setConfirmedState] = useState({ id: 0, value: false });
+  const isConfirmed = confirmedState.id === session.id && confirmedState.value;
 
   // What async answers and listener updates are checked against; `confirmed` = the SDK user is known to be this session's user.
   const live = useRef({ id: 0, signedIn: false, confirmed: false });
@@ -58,6 +69,7 @@ export function PurchasesProvider({ children }: { children: ReactNode }) {
       // The SDK may still remember the previous account, and rejects when its user is already anonymous.
       Purchases.logOut().catch(() => {});
     } else if (status === 'signedIn' && userId === null) {
+      setConfirmedState({ id, value: true }); // Z6: offline start trusts the cached SDK user.
       // Offline start: whatever the SDK has cached. Any SDK error: not PRO.
       Purchases.getCustomerInfo().then((info) => apply(hasPro(info)), () => apply(false));
     } else if (userId !== null) {
@@ -70,6 +82,7 @@ export function PurchasesProvider({ children }: { children: ReactNode }) {
         let loggedIn = false;
         if (sameUser) {
           live.current.confirmed = true;
+          setConfirmedState({ id, value: true });
           // logIn may already have answered with fresher data.
           Purchases.getCustomerInfo().then(
             (info) => loggedIn || apply(hasPro(info)),
@@ -81,6 +94,7 @@ export function PurchasesProvider({ children }: { children: ReactNode }) {
           loggedIn = true;
           if (live.current.id !== id) return;
           live.current.confirmed = true;
+          setConfirmedState({ id, value: true });
           apply(hasPro(customerInfo));
         } catch {
           if (!sameUser) apply(false);
@@ -89,5 +103,9 @@ export function PurchasesProvider({ children }: { children: ReactNode }) {
     }
   }, [session.id, status, userId]);
 
-  return <PurchasesContext.Provider value={isPro}>{children}</PurchasesContext.Provider>;
+  return (
+    <PurchasesContext.Provider value={isPro}>
+      <IdentityConfirmedContext.Provider value={isConfirmed}>{children}</IdentityConfirmedContext.Provider>
+    </PurchasesContext.Provider>
+  );
 }

@@ -8,7 +8,7 @@ import * as purchasesData from '@/data/purchases';
 import { createInMemoryProfileRepository } from '@/data/profile-repository';
 import { createInMemoryTripRepository } from '@/data/trip-repository';
 import { AppProviders } from '@/providers/AppProviders';
-import { useIsPro } from '@/providers/Purchases';
+import { useIsPro, useIsProIdentityConfirmed } from '@/providers/Purchases';
 import { createFakeSessionSource, type FakeSession } from '@/test/fake-session-source';
 import { SIGNED_IN_USER_ID } from '@/test/fake-supabase';
 import { customerInfoFixture, emitCustomerInfo, purchasesMock } from '@/test/mock-purchases';
@@ -19,7 +19,12 @@ const OTHER_USER_ID = '1b2c3d4e-0000-4000-8000-00000000abcd';
 const signedIn = { status: 'signedIn', userId: SIGNED_IN_USER_ID } as const;
 
 function Probe() {
-  return <Text testID="pro">{String(useIsPro())}</Text>;
+  return (
+    <>
+      <Text testID="pro">{String(useIsPro())}</Text>
+      <Text testID="confirmed">{String(useIsProIdentityConfirmed())}</Text>
+    </>
+  );
 }
 
 async function setup(fake: FakeSession = createFakeSessionSource(signedIn)) {
@@ -38,7 +43,63 @@ async function setup(fake: FakeSession = createFakeSessionSource(signedIn)) {
 }
 
 const expectPro = (expected: boolean) => waitFor(() => expect(screen.getByTestId('pro')).toHaveTextContent(String(expected)));
+const expectConfirmed = (expected: boolean) => waitFor(() => expect(screen.getByTestId('confirmed')).toHaveTextContent(String(expected)));
 const proInfo = customerInfoFixture({ pro: true });
+
+describe('PurchasesProvider identity confirmation', () => {
+  it('different SDK user: false while logIn is pending, true once it resolves', async () => {
+    let resolveLogIn = (_: { customerInfo: CustomerInfo; created: boolean }) => {};
+    purchasesMock.getAppUserID.mockResolvedValue(OTHER_USER_ID);
+    purchasesMock.logIn.mockReturnValueOnce(new Promise((resolve) => { resolveLogIn = resolve; }));
+    await setup();
+    await waitFor(() => expect(Purchases.logIn).toHaveBeenCalledTimes(1));
+    await expectConfirmed(false);
+    await act(async () => resolveLogIn({ customerInfo: proInfo, created: false }));
+    await expectConfirmed(true);
+  });
+
+  it('different SDK user: stays false when logIn rejects', async () => {
+    purchasesMock.getAppUserID.mockResolvedValue(OTHER_USER_ID);
+    purchasesMock.logIn.mockRejectedValueOnce(new Error('offline'));
+    await setup();
+    await waitFor(() => expect(Purchases.logIn).toHaveBeenCalled());
+    await act(async () => {});
+    await expectConfirmed(false);
+  });
+
+  it('same SDK user: true at once, even when logIn later rejects', async () => {
+    purchasesMock.getAppUserID.mockResolvedValue(SIGNED_IN_USER_ID);
+    purchasesMock.logIn.mockRejectedValueOnce(new Error('offline'));
+    await setup();
+    await expectConfirmed(true);
+    await waitFor(() => expect(Purchases.logIn).toHaveBeenCalled());
+    await act(async () => {});
+    await expectConfirmed(true);
+  });
+
+  it('offline start (no user id): true', async () => {
+    await setup(createFakeSessionSource({ status: 'signedIn', userId: null }));
+    await expectConfirmed(true);
+  });
+
+  it('session change to a different user: false while its logIn is pending', async () => {
+    purchasesMock.logIn.mockResolvedValueOnce({ customerInfo: proInfo, created: false });
+    purchasesMock.logIn.mockReturnValueOnce(new Promise(() => {}));
+    const { fake } = await setup();
+    await expectConfirmed(true);
+    await act(async () => fake.emit({ type: 'signedIn', userId: OTHER_USER_ID }));
+    await waitFor(() => expect(Purchases.logIn).toHaveBeenCalledTimes(2));
+    await expectConfirmed(false);
+  });
+
+  it('signed out: false', async () => {
+    purchasesMock.logIn.mockResolvedValueOnce({ customerInfo: proInfo, created: false });
+    const { fake } = await setup();
+    await expectConfirmed(true);
+    await act(async () => fake.emit({ type: 'signedOut' }));
+    await expectConfirmed(false);
+  });
+});
 
 describe('PurchasesProvider', () => {
   // The once-per-run guard and the key check are tested in src/data/__tests__/purchases.test.ts.

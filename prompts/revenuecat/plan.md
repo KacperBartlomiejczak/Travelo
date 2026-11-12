@@ -1,7 +1,7 @@
 # Zadanie: Subskrypcja PRO przez RevenueCat (revenuecat)
-Status: w trakcie (krok 2 odblokowany decyzją D5)
+Status: w trakcie (kroki 6–7, poprawka z przeglądu CodeRabbit w PR #39)
 
-Akceptacja: Kacper, 2026-11-11, „Akceptuję” (na pytanie o plan z P1 = gałąź od `fix/profile-pro-badge`).
+Akceptacja: Kacper, 2026-11-11, „Akceptuję” (na pytanie o plan z P1 = gałąź od `fix/profile-pro-badge`). Kroki 6–7 (D6, Z6–Z8, P5 = bez tekstu): Kacper, 2026-11-12, „Akceptuję”.
 
 Gałąź: `feature/revenuecat`, odgałęziona od `fix/profile-pro-badge` (P1); jedyna gałąź zadania.
 
@@ -14,6 +14,7 @@ Travelo dostaje prawdziwą subskrypcję PRO przez RevenueCat (`react-native-purc
 - **D2. Customer Center = wiersz w Ustawieniach.** Dla PRO baner znika, a w pierwszej karcie wierszy pojawia się „Subskrypcja” → otwiera Customer Center.
 - **D3. Offline:** baner i wiersz „Subskrypcja” są wyłączone z powodem pod spodem (jak „Wyloguj się”). Status PRO (odznaka) działa offline z pamięci podręcznej SDK RevenueCat.
 - **D5 (P2, 2026-11-11, po zablokowaniu kroku 2).** Gdy `userId` jest znany, a SDK ma już zalogowanego tego samego użytkownika (`Purchases.getAppUserID() === userId`), od razu pokazujemy jego status z pamięci SDK (`getCustomerInfo`, działa offline); `logIn` tylko go odświeża, a jego błąd nie kasuje statusu. Inny użytkownik w SDK → „bez PRO” do odpowiedzi `logIn`.
+- **D6 (2026-11-12, po uwadze Major od CodeRabbit w PR #39).** Paywall jest zablokowany, dopóki tożsamość w SDK nie jest potwierdzona (użytkownik SDK = użytkownik sesji). Powód: gdy `logOut` przy wylogowaniu A i `logIn(B)` po zalogowaniu B oba się nie udadzą (błędy są dziś połykane), SDK zostaje na koncie A i zakup B trafia na A. Świadomie zmienia D3 / `known-limitations.md:116`: baner jest też wyłączony przez krótką chwilę, póki trwa `logIn` świeżo zalogowanego użytkownika.
 - **D4. Klucz:** zmienna `EXPO_PUBLIC_REVENUECAT_API_KEY` (Kacper zmienia nazwę w `.env`; ja dopisuję samą nazwę do `.env.example`). To publiczny klucz SDK, więc może być w aplikacji.
 
 ### Co ustaliłem w kodzie (fakty)
@@ -81,6 +82,25 @@ Klucz `settings.pro.comingSoon` znika. `settings.pro.title` / `subtitle` zostaj�
 - [x] 3. [frontend] `ProBadge` czyta `useIsPro()`, usunięcie `IS_PRO`. — skill: test-driven-development — najpierw testy: `ProBadge.test.tsx`, `ProfileScreen.test.tsx` — weryfikacja: verifier.
 - [x] 4. [frontend] Ustawienia: baner tylko bez PRO → `RevenueCatUI.presentPaywall()`; wiersz „Subskrypcja” dla PRO → `RevenueCatUI.presentCustomerCenter()`; offline wyłączone z powodem; błąd → Snackbar; teksty pl/en. — skill: test-driven-development, frontend-ui-engineering — najpierw testy: `SettingsScreen.test.tsx`, `i18n.test.ts` — weryfikacja: verifier.
 - [ ] 5. [orkiestrator] Dokumenty (lista w „Pliki”), wpis w roadmapie. Kacper: konfiguracja panelu (niżej) i dev build. — weryfikacja: tester na emulatorze Android: bez PRO baner → paywall → zakup `monthly` w Test Store → odznaka PRO, baner znika, „Subskrypcja” otwiera Customer Center; wylogowanie i logowanie innym kontem → bez PRO; offline → przyciski wyłączone, odznaka zostaje. Na końcu verifier całej gałęzi z CodeRabbit.
+- [x] 6. [backend] D6: `PurchasesProvider` wystawia `useIsProIdentityConfirmed()` (stan wiązany z `session.id`). — skill: test-driven-development — najpierw testy: nowe przypadki w `Purchases.test.tsx` (sekcja „Poprawka D6”) — weryfikacja: verifier + pełny zestaw, typecheck, lint.
+- [ ] 7. [frontend] D6: baner PRO w Ustawieniach wyłączony i `present()` paywalla zablokowane bez potwierdzonej tożsamości. — skill: test-driven-development — najpierw testy: `SettingsScreen.test.tsx` — weryfikacja: verifier; potem dokumenty (orkiestrator), odpowiedź na wątek CodeRabbit w PR #39 i verifier całej gałęzi z CodeRabbit.
+
+### Poprawka D6: paywall tylko przy potwierdzonej tożsamości (kroki 6–7)
+
+**Fakty z kodu (explorer, 2026-11-12):** `Purchases.tsx` trzyma potwierdzenie tożsamości tylko w `useRef` (`live.current.confirmed`, `:32`), a kontekst wystawia samo `boolean` (`useIsPro`, `:9-12`). Po nieudanym `logIn` dla innego użytkownika SDK wynik to „bez PRO”, ale nic nie mówi „tożsamość niepotwierdzona”. `SettingsScreen.tsx:294` włącza baner tylko na podstawie `offline`, a `present()` (`:245-256`) nie sprawdza tożsamości. Customer Center nie wymaga zmian: wiersz renderuje się tylko przy `isPro` (`:301`), a `isPro` = true wymaga potwierdzonej tożsamości.
+
+**Podejście:** `PurchasesProvider` trzyma potwierdzenie tożsamości także w stanie (wiązanym z `session.id`, jak `pro`) i wystawia je hookiem `useIsProIdentityConfirmed(): boolean`. `useIsPro()` bez zmian, więc `ProBadge` i jego testy zostają. W Ustawieniach baner ma `disabled={offline || !confirmed}`, a `present()` dla paywalla nic nie robi bez potwierdzenia (obrona przed szybkim tapnięciem).
+
+**Założenia (potwierdzasz akceptacją):**
+- Z6. Start offline z zapamiętaną sesją (`userId = null`) liczy się jako potwierdzony (jak dziś w `Purchases.tsx:52`, Z1/D5). Baner i tak jest wtedy wyłączony przez `offline`.
+- Z7. Bez automatycznego ponawiania `logIn`. Po nieudanym `logIn` baner zostaje wyłączony do zmiany sesji albo restartu aplikacji (provider wtedy próbuje znowu). Zapisane w `known-limitations.md`.
+- Z8. Wyłączony baner przy niepotwierdzonej tożsamości **nie ma tekstu z powodem** (zwykle trwa to ułamek sekundy po zalogowaniu, tekst by mignął). Patrz P5.
+
+**Testy (najpierw, red przed green):**
+- `src/providers/__tests__/Purchases.test.tsx`: inny użytkownik SDK i `logIn` jeszcze trwa → `useIsProIdentityConfirmed()` = false; `logIn` się udał → true; `logIn` się nie udał → false; ten sam użytkownik SDK (`getAppUserID() === userId`) → true od razu; start offline (`userId = null`) → true; zmiana sesji resetuje do false (nie przecieka potwierdzenie poprzedniego konta).
+- `src/features/profile/__tests__/SettingsScreen.test.tsx` (mock nowego hooka obok `mockPro`, domyślnie true): niepotwierdzona tożsamość online → baner widoczny, ale wyłączony, tap nie woła `presentPaywall`; brak tekstu `settings.pro.offline`; potwierdzona → jak dotąd.
+
+**Pliki:** `src/providers/Purchases.tsx`, `src/providers/__tests__/Purchases.test.tsx` (krok 6); `src/features/profile/SettingsScreen.tsx`, `src/features/profile/__tests__/SettingsScreen.test.tsx` (krok 7); dokumenty: `docs/architecture/flows/features/subscription.md`, `docs/architecture/known-limitations.md` (zastąpienie wpisu `:116`, nowy wpis o Z7), `docs/architecture/decisions.md` (D6). Bez zmian w Zod, bazie i i18n.
 
 ## Konfiguracja panelu RevenueCat (robi Kacper, przed krokiem 5)
 1. Projekt → Test Store (klucz `test_…` już masz).
@@ -112,8 +132,11 @@ Klucz `settings.pro.comingSoon` znika. `settings.pro.title` / `subtitle` zostaj�
 - Paywall (2026-11-12, Kacper: „Tak, zaprojektuj”): szkic `pw1f69ab4177454172` przez Paywall AI w RevenueCat, podpięty do oferty `default`, **nieopublikowany**. Kremowe tło, gradient koral → złoty z koroną i samolotem, 3 korzyści (bez obiecywania funkcji, D1), roczny „Best value” + miesięczny, pl i en. Braki: brak wersji ciemnej (w trybie ciemnym zostaje jasny), czcionka systemowa zamiast Fraunces / DM Sans, linki Terms / Privacy bez adresów — do publikacji potrzebne adresy (proponowane z `docs/legal/README.md`: GitHub Pages).
 - Paywall opublikowany (2026-11-12, Kacper: „Tak, dopnij i publikuj”): linki Terms / Privacy na GitHub Pages (pl i en), wersja ciemna z palety Sunline, `published_at` 2026-11-11T23:02:43Z, rewizja 2, oferta `default`. Czcionka nadal systemowa (Fraunces / DM Sans nie są dodane w RevenueCat).
 - Paywall rewizja 4 (2026-11-12, Kacper: „Tak, publikuj”): na iPhonie 17 Pro kafelek z koroną chował się pod Dynamic Island (paywall RevenueCat nie respektuje górnego bezpiecznego obszaru, brak takiego ustawienia) → stały odstęp 72 pt nad kafelkiem; opublikowany 2026-11-11T23:07:46Z. Do sprawdzenia na iPhonie; na ekranach bez wyspy jest więcej miejsca u góry.
+- Krok 6 (2026-11-12): 6 testów (red ✓: `useIsProIdentityConfirmed is not a function`) · `IdentityConfirmedContext` + `useIsProIdentityConfirmed()`, stan `{ id, value }` wiązany z `session.id`, ustawiany przy tym samym użytkowniku SDK, po udanym `logIn` i przy starcie offline (Z6); `useIsPro()` bez zmian · green ✓ (4122 testy, typecheck, lint) · verifier PASS (7/7 mutacji złapanych; drobne: brak testu „bez ponawiania” `toHaveBeenCalledTimes(1)` i testu rzucania poza providerem — jak dla `useIsPro`) · użyty skill: test-driven-development.
 
 ## Ryzyka i otwarte pytania
+- **P5 (otwarte, krok 7).** Czy wyłączony baner przy niepotwierdzonej tożsamości ma mieć tekst z powodem? Rekomendacja: nie (Z8) — zwykle trwa to ułamek sekundy, a długi stan to rzadki podwójny błąd. Alternatywa: osobny tekst tylko po nieudanym `logIn` (wymaga rozróżnienia „trwa” / „nie udało się” w providerze i nowego klucza i18n pl/en).
+- R5. Nie sprawdzone w dokumentacji RevenueCat: czy SDK po nieudanym `logIn` zostaje na poprzednim koncie i czy `logOut` wymaga sieci. Poprawka D6 chroni niezależnie od odpowiedzi.
 - **P4 (rozstrzygnięte: kopia robocza w `C:\td`).** Jak zbudować dev build mimo limitu ścieżek w Windows.
 - **P3 (otwarte).** Czy `PAYWALL_RESULT.NOT_PRESENTED` (np. brak bieżącej oferty w panelu) ma pokazywać Snackbar `settings.pro.error`? Rekomendacja: tak (jedna linia + test).
 - **P2 (rozstrzygnięte: D5).** Jak ustalać status PRO, gdy `userId` jest znany, a `logIn` jeszcze nie odpowiedział albo się nie udał (offline / wolna sieć)? Rekomendacja: jeśli SDK ma już zalogowanego tego samego użytkownika (`Purchases.getAppUserID() === userId`), od razu pokazać jego status z pamięci SDK (`getCustomerInfo`, działa offline), a `logIn` tylko go odświeża; dla innego użytkownika czekać na `logIn`. Alternatywa: zostawić „bez PRO” do odpowiedzi `logIn` i zapisać odstępstwo od D3.
