@@ -4,7 +4,7 @@
   - **Session** (`SessionProvider` over `SessionSource`):
     - `current()` first signs out locally any leftover anonymous session (D2). Then it reads the stored session: none → `signedOut`; a user → `signedIn`.
     - When the token cannot be refreshed offline → `signedIn` with `userId: null`.
-    - `onChange` maps `SIGNED_IN` / `SIGNED_OUT`. It is deferred with `setTimeout`, because of Supabase's deadlock warning about calling the client inside its callback.
+    - `onChange` maps `SIGNED_IN` / `SIGNED_OUT`, and `TOKEN_REFRESHED` to a separate `refreshed` change. `refreshed` only fills in the `userId` of a `signedIn` session that has none (offline start); in every other state it does nothing and never clears (revenuecat D7). auth-js sends it within about 30–60 s after the network returns, only while the app is in the foreground. It is deferred with `setTimeout`, because of Supabase's deadlock warning about calling the client inside its callback.
   - **Leaving (D14).** Every path to `signedOut` goes through `leave()`:
     1. close the user epoch;
     2. `clearUserData()`;
