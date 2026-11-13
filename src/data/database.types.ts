@@ -7,13 +7,13 @@ export type Database = {
           Tables: {
             "ai_usage": {
                   Row: {
-                    "count": number,"day": string,"user_id": string
+                    "count": number,"day": string,"kind": string,"user_id": string
                   }
                   Insert: {
-                    "count": number,"day": string,"user_id": string
+                    "count": number,"day": string,"kind"?: string,"user_id": string
                   }
                   Update: {
-                    "count"?: number,"day"?: string,"user_id"?: string
+                    "count"?: number,"day"?: string,"kind"?: string,"user_id"?: string
                   }
                   Relationships: [
                     
@@ -113,6 +113,25 @@ isOneToOne: false
       referencedColumns: ["id"]
     }
                   ]
+                },"trip_plans": {
+                  Row: {
+                    "created_at": string,"days": NonNullable<Json>,"model": string,"trip_id": string
+                  }
+                  Insert: {
+                    "created_at"?: string,"days": NonNullable<Json>,"model": string,"trip_id": string
+                  }
+                  Update: {
+                    "created_at"?: string,"days"?: NonNullable<Json>,"model"?: string,"trip_id"?: string
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "trip_plans_trip_id_fkey"
+      columns: ["trip_id"]
+isOneToOne: true
+      referencedRelation: "trips"
+      referencedColumns: ["id"]
+    }
+                  ]
                 },"trips": {
                   Row: {
                     "base_currency": string,"budget_updated_at": string,"cover_image_uri": string,"created_at": string,"daily_budget_minor": number,"destination": string,"end_date": string,"id": string,"name": string,"owner_id": string,"start_date": string
@@ -134,6 +153,8 @@ isOneToOne: false
           Functions: {
             "consume_ai_quota":
 { Args: { "p_limit": number,"p_user_id": string }; Returns: number
+                           } |
+{ Args: { "p_kind": string,"p_limit": number,"p_user_id": string }; Returns: number
                            },
 "create_trip":
 { Args: { "members": Json,"segments": Json,"trip": Json }; Returns: undefined
@@ -142,6 +163,9 @@ isOneToOne: false
 { Args: { "code": string }; Returns: {
               "interests": (string)[],"username": string
             }[]
+                           },
+"refund_ai_quota":
+{ Args: { "p_kind": string,"p_user_id": string }; Returns: undefined
                            },
 "set_trip_budget":
 { Args: { "members": Json,"organizer_daily_minor": number,"trip_id": string,"updated_at": string }; Returns: undefined

@@ -24,18 +24,19 @@ describe('ai_usage database parity', () => {
 
   it('the generated Row type has the ai_usage columns', () => {
     const block = generatedTypes.match(/"ai_usage": \{\s*Row: \{([^}]*)\}/)?.[1] ?? '';
-    expect([...block.matchAll(/"([a-z_]+)"\??:/g)].map((m) => m[1]).sort()).toEqual(['count', 'day', 'user_id']);
+    expect([...block.matchAll(/"([a-z_]+)"\??:/g)].map((m) => m[1]).sort()).toEqual(['count', 'day', 'kind', 'user_id']);
   });
 
   it('the Row type is compatible at compile time', () => {
     type Row = Database['public']['Tables']['ai_usage']['Row'];
-    const columns: Record<keyof Row, true> = { count: true, day: true, user_id: true };
-    expect(Object.keys(columns).sort()).toEqual(['count', 'day', 'user_id']);
+    const columns: Record<keyof Row, true> = { count: true, day: true, kind: true, user_id: true };
+    expect(Object.keys(columns).sort()).toEqual(['count', 'day', 'kind', 'user_id']);
   });
 
   it('the generated Functions entry has consume_ai_quota with p_limit and p_user_id', () => {
     const args = generatedTypes.match(/"consume_ai_quota":\s*\{ Args: \{([^}]*)\}/)?.[1] ?? '';
     expect([...args.matchAll(/"([a-z_]+)":/g)].map((m) => m[1]).sort()).toEqual(['p_limit', 'p_user_id']);
+    expect(generatedTypes).toMatch(/"refund_ai_quota":\s*\{ Args: \{ "p_kind": string,"p_user_id": string \}/);
   });
 
   it('consume_ai_quota is service_role only and takes the limit from the caller', () => {
