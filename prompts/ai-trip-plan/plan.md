@@ -205,7 +205,7 @@ Fala C (równolegle, po 2 i 3)
 - [x] 7. [frontend] `PlanGenerating` (pasek nieokreślony + teksty co kilka sekund, D1) i `PlanResult` (dni, miejsca, pora, uzasadnienie, „Wygenerowane przez AI”, animacja §7.5) — komponenty prezentacyjne, klucze i18n.
 
 Fala D (równolegle, po 5 i 6)
-- [ ] 8. [backend] `src/data/trip-plan.ts`: generowanie (timeout 60 s, mapowanie błędów jak `places.ts`), odczyt `trip_plans` z Supabase, `place-details`; fake w `src/test/`.
+- [x] 8. [backend] `src/data/trip-plan.ts`: generowanie (timeout 60 s, mapowanie błędów jak `places.ts`), odczyt `trip_plans` z Supabase, `place-details`; fake w `src/test/`.
 
 Fala E
 - [ ] 9. [frontend] Hooki + podpięcie w `PlanScreen`: stan pusty z „Ułóż plan z AI”, kreator → generowanie → wynik, zapisany plan z nazwami, „Ułóż ponownie” z `ConfirmDialog` (D15), stany offline / błąd / limit, linked friend tylko czyta; orchestrator aktualizuje `docs/architecture/` i `context/app-context.md`.
@@ -257,6 +257,7 @@ Tabela `trip_plans` (PK `trip_id`, `days jsonb`, `model`, `created_at`): RLS —
 - Krok 6: `supabase/functions/place-details/**` · red 21/23 na stubach → green 23/23 · typecheck ✓, lint ✓, suite ✓ poza plikami kroku 7 w toku · verifier PASS · minor (nie poprawiane): brak testu `encodeURIComponent` dla id ze znakami specjalnymi · ryzyko do `known-limitations.md`: brak limitu na `place-details` (do 40 wywołań Google na żądanie, każdy zalogowany user).
 - Krok 7: `PlanGenerating`, `PlanResult` + copy D17 · red 17 na stubach → green · verifier FAIL (brak testów animacji wejścia §7.5) → poprawki red-first: testy animacji (lokalny mock Reanimated nagrywający `Keyframe`/`FadeIn`), nagłówek D18, kolor D19, sweep = token `skeletonPulse.duration`, crossfade tekstu 180 ms, `=== true` dla reduce motion, ikony z tokenów, `openURL().catch`, dokładniejszy test timera · suite 4247 ✓, typecheck ✓, lint ✓ · re-verify PASS · na urządzeniu: animacja wejścia (mock nie sprawdza kształtu keyframe), tempo paska 1,2 s · nie robione (nie zlecone): pauza paska w tle, podpis §12.2.
 - Krok 3: migracja `20261113120000_trip_plans.sql` (`trip_plans` z RLS tylko SELECT dla ownera i linked membera, zapis service role; `ai_usage.kind`, 3-arg `consume_ai_quota`, `refund_ai_quota`; stara 2-arg funkcja jako wrapper) + `supabase/tests/trip_plans.sql` + typy + parity · agent bez Dockera napisał wszystko, potem Kacper włączył Dockera · red (orchestrator): bez nowych obiektów `trip_plans.sql` pada na „relation public.trip_plans does not exist” · green: wszystkie pliki `supabase/tests/` przez `docker exec … psql` (na hoście brak `psql`) · `database.types.ts` identyczny z `supabase gen types` · suite 4247 ✓, typecheck ✓, lint ✓ · verifier PASS · push migracji na hosted robi Kacper.
+- Krok 8: `src/data/trip-plan.ts` (`generateTripPlan`, `fetchTripPlan`, `fetchPlaceDetails` z dzieleniem po 40), `app-trip-plan.ts`, `fetch-timeout.ts` (60 s dla `generate-trip-plan`) · red 21 na stubach → green · verifier PASS · po PASS: klasa `TripPlanError` → `TripPlanCallError` (kolizja z typem ze schematów) · cache nazw miejsc w pamięci → hook w kroku 9.
 
 ## Ryzyka i otwarte pytania
 - Rozstrzygnięte: P1 → D6, P2 → D1, P3 → D2, P4 → D4, P5 → D3, P6 → D10, P7 → D8, P9 → D9, P11 → D5, P13 → D7. P8 → D11, P10 → D12, P12 → D13. Wszystkie pytania zamknięte.
