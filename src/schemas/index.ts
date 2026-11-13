@@ -19,3 +19,4 @@ export * from './sync';
 export * from './trip';
 export * from './trip-budget';
 export * from './trip-photo';
+export * from './trip-plan';
