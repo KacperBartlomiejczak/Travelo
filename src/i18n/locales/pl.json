@@ -129,6 +129,40 @@
     "decrease": "Zmniejsz",
     "close": "Zamknij"
   },
+  "plan": {
+    "wizard": {
+      "scope": {
+        "title": "Tylko {{city}}?",
+        "only": "Tylko {{city}}",
+        "nearby": "Też inne miasta",
+        "label": "Zakres planu"
+      },
+      "radius": {
+        "title": "Jak daleko od {{city}}?",
+        "option": "{{km}} km",
+        "label": "Promień"
+      },
+      "cities": {
+        "title": "Własne miasta",
+        "hint": "Opcjonalnie, do {{max}}. Dodaj miasta, które chcesz uwzględnić.",
+        "field": "Dodaj miasto",
+        "invalid": "To miasto jest już w planie",
+        "remove": "Usuń miasto, {{city}}"
+      },
+      "preferences": {
+        "title": "Jakiego planu chcesz?",
+        "hint": "Opcjonalnie, możesz wybrać kilka.",
+        "relaxed": "Spokojne tempo",
+        "intense": "Intensywnie",
+        "food": "Dużo jedzenia",
+        "noMuseums": "Bez muzeów"
+      },
+      "next": "Dalej",
+      "back": "Wstecz",
+      "cancel": "Anuluj",
+      "submit": "Ułóż plan"
+    }
+  },
   "airportField": {
     "placeholder": "Miasto lub kod lotniska",
     "noResults": "Nie znaleziono lotniska"

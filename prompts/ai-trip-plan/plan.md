@@ -197,7 +197,7 @@ Fala A
 Fala B (równolegle, po kroku 1)
 - [ ] 2. [backend] Czysta logika `src/lib/`: miasta w promieniu + limit 3 (D11, Z6), kategorie z typów (D13), osoby P1…Pn ↔ `owner`/member id, chipy → stałe zdania (D5), walidacja wyjścia modelu (whitelist `placeId`/miast, bez powtórzeń, dni = daty podróży) — testy brzegowe.
 - [ ] 3. [backend] Migracja: `trip_plans` z RLS (D3, D14) + `ai_usage` per rodzaj z limitem planów 3/dzień i zwrotem jednostki (D8, D9) + `pnpm db:types` + parity — najpierw testy SQL (`supabase/tests/`). Push robi Kacper.
-- [ ] 4. [frontend] `PlanWizard`: karty D6 + chipy D7 + animacja `SlideInRight`/`SlideOutLeft` (wstecz odwrotnie, reduced motion → crossfade 80 ms), `AirportField` dla własnych miast (max 3); zwraca `GenerateTripPlanRequest` przez `onSubmit`; klucze i18n pl/en **tylko w tym kroku w tej fali**.
+- [x] 4. [frontend] `PlanWizard`: karty D6 + chipy D7 + animacja `SlideInRight`/`SlideOutLeft` (wstecz odwrotnie, reduced motion → crossfade 80 ms), `AirportField` dla własnych miast (max 3); zwraca `GenerateTripPlanRequest` przez `onSubmit`; klucze i18n pl/en **tylko w tym kroku w tej fali**.
 
 Fala C (równolegle, po 2 i 3)
 - [ ] 5. [backend] Edge Function `generate-trip-plan` (handler + prompt z planu + porty, sekret `GEMINI_PLAN_MODEL`, zapis do `trip_plans`, zwrot limitu przy błędzie) — testy handlera z fake'ami.
@@ -249,6 +249,7 @@ export const PlaceDetailsRequestSchema = z.object({ placeIds: z.array(z.string()
 export const PlaceDetailsSchema = z.object({ placeId: z.string(), name: z.string(), address: z.string().nullable(), googleMapsUri: z.url() });
 ```
 Tabela `trip_plans` (PK `trip_id`, `days jsonb`, `model`, `created_at`): RLS — owner podróży czyta; linked member czyta; **zapis tylko przez Edge Function (service role)**, app nie pisze.
+- Krok 4: `PlanWizard.tsx` + 10 testów, red 10/10 na stubie null · green 10/10 · suite ✓ (jeden flaky `local-store-queue` pod obciążeniem, sam przechodzi 21/21), typecheck ✓, lint ✓ · verifier PASS · `eslint-disable react-hooks/set-state-in-effect` z uzasadnieniem (kierunek wyjścia karty musi być zacommitowany przed zmianą klucza) · do sprawdzenia na urządzeniu: kierunek wyjścia karty, pierwsza karta wjeżdża przy otwarciu · copy do decyzji Kacpra (P14).
 
 ## Ryzyka i otwarte pytania
 - Rozstrzygnięte: P1 → D6, P2 → D1, P3 → D2, P4 → D4, P5 → D3, P6 → D10, P7 → D8, P9 → D9, P11 → D5, P13 → D7. P8 → D11, P10 → D12, P12 → D13. Wszystkie pytania zamknięte.

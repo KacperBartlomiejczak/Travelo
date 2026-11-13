@@ -129,6 +129,40 @@
     "decrease": "Decrease",
     "close": "Close"
   },
+  "plan": {
+    "wizard": {
+      "scope": {
+        "title": "Only {{city}}?",
+        "only": "Only {{city}}",
+        "nearby": "Other cities too",
+        "label": "Plan scope"
+      },
+      "radius": {
+        "title": "How far from {{city}}?",
+        "option": "{{km}} km",
+        "label": "Radius"
+      },
+      "cities": {
+        "title": "Your own cities",
+        "hint": "Optional, up to {{max}}. Add cities you want included.",
+        "field": "Add a city",
+        "invalid": "This city is already in the plan",
+        "remove": "Remove city, {{city}}"
+      },
+      "preferences": {
+        "title": "What kind of plan?",
+        "hint": "Optional, pick as many as you like.",
+        "relaxed": "Relaxed pace",
+        "intense": "Intense",
+        "food": "Lots of food",
+        "noMuseums": "No museums"
+      },
+      "next": "Next",
+      "back": "Back",
+      "cancel": "Cancel",
+      "submit": "Build the plan"
+    }
+  },
   "airportField": {
     "placeholder": "City or airport code",
     "noResults": "No airport found"
