@@ -136,5 +136,5 @@ Project skills live in `.claude/skills/`; **before work that a skill covers, loa
 ## Learned rules
 - Delegate frontend work, including its tests, to frontend sub-agents and backend work to backend sub-agents, rather than implementing it directly.
 - Create one git branch per task in this repository; do not spread a task across multiple branches.
-- Write plans only in Polish; the backend subagent may run several instances concurrently, each with a different task.
+- Write plans only in Polish; backend and frontend subagents may each run several instances concurrently, each with a different independent task, and each finished step gets its own verifier (verifiers may run in parallel).
 <!-- end claude-reflect -->
