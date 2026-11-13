@@ -201,7 +201,7 @@ Fala B (równolegle, po kroku 1)
 
 Fala C (równolegle, po 2 i 3)
 - [ ] 5. [backend] Edge Function `generate-trip-plan` (handler + prompt z planu + porty, sekret `GEMINI_PLAN_MODEL`, zapis do `trip_plans`, zwrot limitu przy błędzie) — testy handlera z fake'ami.
-- [ ] 6. [backend] Edge Function `place-details` (D14) — testy handlera z fake'ami.
+- [x] 6. [backend] Edge Function `place-details` (D14) — testy handlera z fake'ami.
 - [ ] 7. [frontend] `PlanGenerating` (pasek nieokreślony + teksty co kilka sekund, D1) i `PlanResult` (dni, miejsca, pora, uzasadnienie, „Wygenerowane przez AI”, animacja §7.5) — komponenty prezentacyjne, klucze i18n.
 
 Fala D (równolegle, po 5 i 6)
@@ -252,6 +252,7 @@ export const PlaceDetailsSchema = z.object({ placeId: z.string(), name: z.string
 Tabela `trip_plans` (PK `trip_id`, `days jsonb`, `model`, `created_at`): RLS — owner podróży czyta; linked member czyta; **zapis tylko przez Edge Function (service role)**, app nie pisze.
 - Krok 4: `PlanWizard.tsx` + 10 testów, red 10/10 na stubie null · green 10/10 · suite ✓ (jeden flaky `local-store-queue` pod obciążeniem, sam przechodzi 21/21), typecheck ✓, lint ✓ · verifier PASS · `eslint-disable react-hooks/set-state-in-effect` z uzasadnieniem (kierunek wyjścia karty musi być zacommitowany przed zmianą klucza) · do sprawdzenia na urządzeniu: kierunek wyjścia karty, pierwsza karta wjeżdża przy otwarciu · copy do decyzji Kacpra (P14).
 - Krok 2: `plan-cities`, `plan-categories`, `plan-people`, `plan-validate` · red 33/36 na stubach → green 36/36 · verifier PASS z 2 minor → poprawione red-first (promień porównuje surową odległość — 50,4 km poza 50; `Object.hasOwn` dla personId `toString`/`constructor`) → 37/37, suite 4203 ✓, typecheck ✓, lint ✓ · re-verify PASS · uwaga na krok 5: `src/schemas/airport.ts` importuje `./common` bez `.ts` (Deno); własny haversine zamiast prywatnego z `travel-stats` (do wspólnego `geo.ts` później).
+- Krok 6: `supabase/functions/place-details/**` · red 21/23 na stubach → green 23/23 · typecheck ✓, lint ✓, suite ✓ poza plikami kroku 7 w toku · verifier PASS · minor (nie poprawiane): brak testu `encodeURIComponent` dla id ze znakami specjalnymi · ryzyko do `known-limitations.md`: brak limitu na `place-details` (do 40 wywołań Google na żądanie, każdy zalogowany user).
 
 ## Ryzyka i otwarte pytania
 - Rozstrzygnięte: P1 → D6, P2 → D1, P3 → D2, P4 → D4, P5 → D3, P6 → D10, P7 → D8, P9 → D9, P11 → D5, P13 → D7. P8 → D11, P10 → D12, P12 → D13. Wszystkie pytania zamknięte.
