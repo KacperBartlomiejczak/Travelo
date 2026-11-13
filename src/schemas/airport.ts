@@ -1,6 +1,6 @@
 import { z } from 'zod';
 
-import { CurrencyCodeSchema, IanaTimezoneSchema, IataCodeSchema } from './common';
+import { CurrencyCodeSchema, IanaTimezoneSchema, IataCodeSchema } from './common.ts';
 
 export const AirportSchema = z.object({
   iata: IataCodeSchema,
