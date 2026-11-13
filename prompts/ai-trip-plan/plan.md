@@ -202,7 +202,7 @@ Fala B (równolegle, po kroku 1)
 Fala C (równolegle, po 2 i 3)
 - [ ] 5. [backend] Edge Function `generate-trip-plan` (handler + prompt z planu + porty, sekret `GEMINI_PLAN_MODEL`, zapis do `trip_plans`, zwrot limitu przy błędzie) — testy handlera z fake'ami.
 - [x] 6. [backend] Edge Function `place-details` (D14) — testy handlera z fake'ami.
-- [ ] 7. [frontend] `PlanGenerating` (pasek nieokreślony + teksty co kilka sekund, D1) i `PlanResult` (dni, miejsca, pora, uzasadnienie, „Wygenerowane przez AI”, animacja §7.5) — komponenty prezentacyjne, klucze i18n.
+- [x] 7. [frontend] `PlanGenerating` (pasek nieokreślony + teksty co kilka sekund, D1) i `PlanResult` (dni, miejsca, pora, uzasadnienie, „Wygenerowane przez AI”, animacja §7.5) — komponenty prezentacyjne, klucze i18n.
 
 Fala D (równolegle, po 5 i 6)
 - [ ] 8. [backend] `src/data/trip-plan.ts`: generowanie (timeout 60 s, mapowanie błędów jak `places.ts`), odczyt `trip_plans` z Supabase, `place-details`; fake w `src/test/`.
@@ -236,6 +236,8 @@ Każdy krok: pełny suite + `pnpm typecheck` + `pnpm lint`, potem verifier. Krok
 - D14 (po akceptacji). Regulamin Google: w `trip_plans` zapisujemy **tylko `placeId`** + porę dnia + uzasadnienie + dla kogo. Nazwę, adres i link do Map przy otwarciu zapisanego planu pobiera nowa Edge Function `place-details` (Place Details (New), max 40 id na wywołanie, cache tylko w pamięci aplikacji). Świeżo wygenerowany plan wraca od razu z nazwami (z Nearby Search, bez zapisu). Otwarcie zapisanego planu wymaga internetu.
 - D15 (po akceptacji). Jeden plan na podróż; „Ułóż ponownie” **nadpisuje** go po potwierdzeniu w `ConfirmDialog` („Zastąpić obecny plan?”).
 - D17 (P14, po kroku 4). Copy kreatora: karta 1 tytuł „Gdzie zwiedzamy?” / „Where do we explore?” (przyciski bez zmian); karta zasięgu „W jakim promieniu szukać?” / „How far should we look?” (bez nazwy miasta — unika złej odmiany). Wchodzi w kroku 7 (on w fali C ma i18n).
+- D18 (po kroku 7). Nagłówek ekranu generowania: „Układam plan podróży…” / „Building your trip plan…” (nowy klucz `plan.generating.title`, nie `plan.result.ai`).
+- D19 (po kroku 7). Kolor paska generowania: `brand.primary` (koral marki), także pełny pasek przy ograniczonym ruchu — świadomy wyjątek od §1.3 „koral = akcja”, jedyny akcent na tym ekranie.
 - D16 (Kacper, 2026-11-13). Wykonanie falami: kilka subagentów backend i frontend naraz (kroki niezależne, bez wspólnych plików), każdy krok ma osobnego verifiera, verifierzy też równolegle. Zapisane w `docs/agents/subagents.md` i `CLAUDE.md`.
 
 ### Model zapisu (szkic, uzupełnia „Struktury danych”)
@@ -253,6 +255,7 @@ Tabela `trip_plans` (PK `trip_id`, `days jsonb`, `model`, `created_at`): RLS —
 - Krok 4: `PlanWizard.tsx` + 10 testów, red 10/10 na stubie null · green 10/10 · suite ✓ (jeden flaky `local-store-queue` pod obciążeniem, sam przechodzi 21/21), typecheck ✓, lint ✓ · verifier PASS · `eslint-disable react-hooks/set-state-in-effect` z uzasadnieniem (kierunek wyjścia karty musi być zacommitowany przed zmianą klucza) · do sprawdzenia na urządzeniu: kierunek wyjścia karty, pierwsza karta wjeżdża przy otwarciu · copy do decyzji Kacpra (P14).
 - Krok 2: `plan-cities`, `plan-categories`, `plan-people`, `plan-validate` · red 33/36 na stubach → green 36/36 · verifier PASS z 2 minor → poprawione red-first (promień porównuje surową odległość — 50,4 km poza 50; `Object.hasOwn` dla personId `toString`/`constructor`) → 37/37, suite 4203 ✓, typecheck ✓, lint ✓ · re-verify PASS · uwaga na krok 5: `src/schemas/airport.ts` importuje `./common` bez `.ts` (Deno); własny haversine zamiast prywatnego z `travel-stats` (do wspólnego `geo.ts` później).
 - Krok 6: `supabase/functions/place-details/**` · red 21/23 na stubach → green 23/23 · typecheck ✓, lint ✓, suite ✓ poza plikami kroku 7 w toku · verifier PASS · minor (nie poprawiane): brak testu `encodeURIComponent` dla id ze znakami specjalnymi · ryzyko do `known-limitations.md`: brak limitu na `place-details` (do 40 wywołań Google na żądanie, każdy zalogowany user).
+- Krok 7: `PlanGenerating`, `PlanResult` + copy D17 · red 17 na stubach → green · verifier FAIL (brak testów animacji wejścia §7.5) → poprawki red-first: testy animacji (lokalny mock Reanimated nagrywający `Keyframe`/`FadeIn`), nagłówek D18, kolor D19, sweep = token `skeletonPulse.duration`, crossfade tekstu 180 ms, `=== true` dla reduce motion, ikony z tokenów, `openURL().catch`, dokładniejszy test timera · suite 4247 ✓, typecheck ✓, lint ✓ · re-verify PASS · na urządzeniu: animacja wejścia (mock nie sprawdza kształtu keyframe), tempo paska 1,2 s · nie robione (nie zlecone): pauza paska w tle, podpis §12.2.
 
 ## Ryzyka i otwarte pytania
 - Rozstrzygnięte: P1 → D6, P2 → D1, P3 → D2, P4 → D4, P5 → D3, P6 → D10, P7 → D8, P9 → D9, P11 → D5, P13 → D7. P8 → D11, P10 → D12, P12 → D13. Wszystkie pytania zamknięte.

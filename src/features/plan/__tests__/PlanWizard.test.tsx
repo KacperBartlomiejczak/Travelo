@@ -35,9 +35,9 @@ async function addCity(query: string, option: RegExp) {
 }
 
 describe('PlanWizard', () => {
-  it('asks the scope question first, with the destination city', async () => {
+  it('asks the scope question first', async () => {
     await setup();
-    expect(screen.getByText(`Tylko ${destination.city}?`)).toBeOnTheScreen();
+    expect(screen.getByText("Gdzie zwiedzamy?")).toBeOnTheScreen();
     expect(screen.getByRole('radio', { name: `Tylko ${destination.city}` })).toBeOnTheScreen();
     expect(screen.getByRole('radio', { name: 'Też inne miasta' })).toBeOnTheScreen();
   });
@@ -46,7 +46,7 @@ describe('PlanWizard', () => {
     const { onSubmit } = await setup();
     await fireEvent.press(screen.getByRole('radio', { name: `Tylko ${destination.city}` }));
     await next(); // -> own cities
-    expect(screen.queryByText(/Jak daleko/)).toBeNull();
+    expect(screen.queryByText(/W jakim promieniu/)).toBeNull();
     await next(); // -> preferences
     await press('Ułóż plan');
     expect(onSubmit).toHaveBeenCalledWith({
@@ -62,7 +62,7 @@ describe('PlanWizard', () => {
     const { onSubmit } = await setup();
     await fireEvent.press(screen.getByRole('radio', { name: 'Też inne miasta' }));
     await next();
-    expect(screen.getByText(`Jak daleko od ${destination.city}?`)).toBeOnTheScreen();
+    expect(screen.getByText("W jakim promieniu szukać?")).toBeOnTheScreen();
     for (const km of [50, 100, 200, 300]) expect(screen.getByRole('radio', { name: `${km} km` })).toBeOnTheScreen();
     await fireEvent.press(screen.getByRole('radio', { name: '200 km' }));
     await next();
@@ -76,7 +76,7 @@ describe('PlanWizard', () => {
     await fireEvent.press(screen.getByRole('radio', { name: 'Też inne miasta' }));
     await next();
     await press('Wstecz');
-    expect(screen.getByText(`Tylko ${destination.city}?`)).toBeOnTheScreen();
+    expect(screen.getByText("Gdzie zwiedzamy?")).toBeOnTheScreen();
     await press('Anuluj');
     expect(onCancel).toHaveBeenCalledTimes(1);
   });
@@ -116,7 +116,7 @@ describe('PlanWizard', () => {
   it('works in English and sends the English locale', async () => {
     await i18n.changeLanguage('en');
     const { onSubmit } = await setup();
-    expect(screen.getByText(`Only ${destination.city}?`)).toBeOnTheScreen();
+    expect(screen.getByText("Where do we explore?")).toBeOnTheScreen();
     await press('Next');
     await press('Next');
     await press('Build the plan');

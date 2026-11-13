@@ -132,13 +132,13 @@
   "plan": {
     "wizard": {
       "scope": {
-        "title": "Tylko {{city}}?",
+        "title": "Gdzie zwiedzamy?",
         "only": "Tylko {{city}}",
         "nearby": "Też inne miasta",
         "label": "Zakres planu"
       },
       "radius": {
-        "title": "Jak daleko od {{city}}?",
+        "title": "W jakim promieniu szukać?",
         "option": "{{km}} km",
         "label": "Promień"
       },
@@ -161,6 +161,25 @@
       "back": "Wstecz",
       "cancel": "Anuluj",
       "submit": "Ułóż plan"
+    },
+    "generating": {
+      "title": "Układam plan podróży…",
+      "finding": "Szukam miejsc…",
+      "arranging": "Układam dni…",
+      "almost": "Już prawie gotowe…"
+    },
+    "result": {
+      "ai": "Wygenerowane przez AI",
+      "day": "Dzień {{n}} · {{date}} · {{city}}",
+      "unavailable": "Miejsce niedostępne",
+      "openMaps": "Otwórz w Mapach Google",
+      "openMapsLabel": "Otwórz w Mapach Google, {{place}}",
+      "regenerate": "Ułóż ponownie",
+      "slot": {
+        "morning": "Rano",
+        "afternoon": "Popołudnie",
+        "evening": "Wieczór"
+      }
     }
   },
   "airportField": {

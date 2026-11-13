@@ -174,7 +174,7 @@ export function PlanWizard({ tripId, destination, onSubmit, onCancel }: Props) {
           <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={{ gap: spacing[4] }}>
             {card === 'scope' && (
               <>
-                {title(t('plan.wizard.scope.title', { city: destination.city }))}
+                {title(t('plan.wizard.scope.title'))}
                 <SegmentedControl
                   label={t('plan.wizard.scope.label')}
                   options={[
@@ -188,7 +188,7 @@ export function PlanWizard({ tripId, destination, onSubmit, onCancel }: Props) {
             )}
             {card === 'radius' && (
               <>
-                {title(t('plan.wizard.radius.title', { city: destination.city }))}
+                {title(t('plan.wizard.radius.title'))}
                 <SegmentedControl
                   label={t('plan.wizard.radius.label')}
                   options={PLAN_RADII_KM.map((km) => ({ value: String(km), label: t('plan.wizard.radius.option', { km }) }))}
