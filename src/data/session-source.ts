@@ -7,8 +7,11 @@ import { dropAnonymousSession, ensureSession, NotSignedInError, type SessionAuth
 /** Who is signed in on this phone. `userId` is null when a session is stored but cannot be read now (no connection to refresh its token). */
 export type SessionSnapshot = { status: 'signedOut' } | { status: 'signedIn'; userId: string | null };
 
-/** A sign-in or a sign-out that happened after the app started (a sign-in screen finished, or the session ended). */
-export type SessionChange = { type: 'signedIn'; userId: string } | { type: 'signedOut' };
+/**
+ * A sign-in or a sign-out that happened after the app started (a sign-in screen finished, or the session ended), or a token refresh.
+ * `refreshed` is not a sign-in: it only tells who the stored session belongs to, so an offline start can learn its user id.
+ */
+export type SessionChange = { type: 'signedIn'; userId: string } | { type: 'signedOut' } | { type: 'refreshed'; userId: string };
 
 /** Where the app learns about the session: Supabase Auth in the app, a fake in tests (auth-onboarding step 5). */
 export interface SessionSource {
@@ -85,6 +88,7 @@ export function createSupabaseSessionSource({ auth, checkAuth, clearUserData }: 
         let change: SessionChange | null = null;
         if (event === 'SIGNED_OUT') change = { type: 'signedOut' };
         else if (event === 'SIGNED_IN' && session && session.user.is_anonymous !== true) change = { type: 'signedIn', userId: session.user.id };
+        else if (event === 'TOKEN_REFRESHED' && session && session.user.is_anonymous !== true) change = { type: 'refreshed', userId: session.user.id };
         if (!change) return;
         // Supabase warns against calling its client from inside this callback (it can deadlock): the listener runs after it returned.
         const timer = setTimeout(() => {

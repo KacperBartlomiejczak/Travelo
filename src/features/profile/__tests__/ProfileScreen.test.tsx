@@ -11,6 +11,8 @@ type TripsQuery = { data: unknown[] | undefined; isPending: boolean; isError: bo
 let mockTrips: TripsQuery = { data: [], isPending: false, isError: false };
 let mockOffline = false;
 jest.mock('@/providers/BudgetSync', () => ({ useIsOffline: () => mockOffline }));
+let mockPro = true;
+jest.mock('@/providers/Purchases', () => ({ useIsPro: () => mockPro }));
 let mockProfile: unknown;
 const mockSelect = jest.fn();
 const mockNavigate = jest.fn();
@@ -39,6 +41,7 @@ function renderScreen() {
 beforeEach(async () => {
   mockTrips = { data: [], isPending: false, isError: false };
   mockProfile = undefined;
+  mockPro = true;
   mockOffline = false;
   mockCurrentId = undefined;
   mockSelect.mockReset();
@@ -115,6 +118,14 @@ describe('ProfileScreen — badge and friend code', () => {
     await renderScreen();
     expect(screen.getByTestId('profile-name-row')).toHaveStyle({ flex: 1 });
     expect(screen.getByTestId('pro-badge')).toHaveStyle({ flexShrink: 0 });
+  });
+
+  it('hides the PRO badge when the account is not PRO but still shows the friend code', async () => {
+    mockPro = false;
+    mockProfile = { profile: { username: 'kacper', avatarId: null, friendCode: 'ABC234' } };
+    await renderScreen();
+    expect(screen.queryByTestId('pro-badge')).toBeNull();
+    expect(screen.getByText('ABC234')).toBeTruthy();
   });
 
   it('shows neither before the profile is there', async () => {

@@ -1,4 +1,4 @@
-import { act, fireEvent, render, screen, waitFor } from '@testing-library/react-native';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react-native';
 import { router } from 'expo-router';
 import { processColor, StyleSheet } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
@@ -9,6 +9,7 @@ import { AppProviders } from '@/providers/AppProviders';
 import { setAppProfileRepository } from '@/test/fake-profile-repository';
 import { useFakeAppSession } from '@/test/fake-session-source';
 import { setNetwork } from '@/test/mock-network';
+import { PAYWALL_RESULT, purchasesUiMock } from '@/test/mock-purchases';
 import { darkTheme, lightTheme } from '@/theme/theme';
 import { tokens } from '@/theme/tokens';
 
@@ -18,6 +19,11 @@ jest.mock('expo-router', () => ({ router: { push: jest.fn() }, useRouter: () => 
 jest.mock('expo-constants', () => ({ __esModule: true, default: { expoConfig: { version: '1.2.3' } } }));
 let mockScheme: 'light' | 'dark' = 'light';
 jest.mock('react-native/Libraries/Utilities/useColorScheme', () => ({ __esModule: true, default: () => mockScheme }));
+
+let mockPro = false;
+let mockConfirmed = true;
+// Only the status hook is faked: AppProviders still needs the real PurchasesProvider from the same module.
+jest.mock('@/providers/Purchases', () => ({ ...jest.requireActual('@/providers/Purchases'), useIsPro: () => mockPro, useIsProIdentityConfirmed: () => mockConfirmed }));
 
 const METRICS = { frame: { x: 0, y: 0, width: 375, height: 812 }, insets: { top: 47, left: 0, right: 0, bottom: 34 } };
 const EMAIL = 'kacper@example.com';
@@ -61,6 +67,12 @@ function gradientStops(): number[] {
 beforeEach(async () => {
   session = useFakeAppSession();
   mockScheme = 'light';
+  mockPro = false;
+  mockConfirmed = true;
+  purchasesUiMock.presentPaywall.mockReset();
+  purchasesUiMock.presentCustomerCenter.mockReset();
+  purchasesUiMock.presentPaywall.mockResolvedValue(PAYWALL_RESULT.CANCELLED);
+  purchasesUiMock.presentCustomerCenter.mockResolvedValue(undefined);
   setNetwork({ isConnected: true, isInternetReachable: true });
   await i18n.changeLanguage('pl');
 });
@@ -166,7 +178,7 @@ describe('Settings identity block (settings-redesign step 5)', () => {
 describe('Settings PRO banner (settings-redesign step 6)', () => {
   const TITLE = { pl: 'Przejdź na PRO', en: 'Go PRO' };
   const LABEL = { pl: 'Przejdź na PRO. Więcej możliwości w Travelo', en: 'Go PRO. More from Travelo' };
-  const SOON = { pl: 'Wkrótce! Subskrypcja PRO jest w przygotowaniu.', en: 'Coming soon! The PRO subscription is on its way.' };
+  const ERROR = { pl: 'Nie udało się otworzyć oferty. Spróbuj ponownie.', en: "Couldn't open the offer. Try again." };
 
   beforeEach(() => jest.mocked(router.push).mockClear());
 
@@ -194,37 +206,91 @@ describe('Settings PRO banner (settings-redesign step 6)', () => {
     expect(style).toMatchObject({ borderRadius: tokens.components.card.radius, backgroundColor: lightTheme.surface.primary, borderColor: lightTheme.border.subtle, borderWidth: 1 });
   });
 
-  it.each(['pl', 'en'] as const)('shows the coming-soon snackbar on tap in %s, with no navigation and no repository call', async (lang) => {
-    await i18n.changeLanguage(lang);
-    const myProfile = jest.fn();
-    await renderSettings({ patch: { myProfile: (...args) => { myProfile(); return createInMemoryProfileRepository().myProfile(...args); } } });
-    const banner = await screen.findByRole('button', { name: LABEL[lang] });
-    const before = myProfile.mock.calls.length;
-    await fireEvent.press(banner);
-    expect(await screen.findByText(SOON[lang])).toBeTruthy();
+  it('opens the paywall on tap, with no navigation and no snackbar for CANCELLED', async () => {
+    purchasesUiMock.presentPaywall.mockResolvedValue(PAYWALL_RESULT.CANCELLED);
+    await renderSettings();
+    await fireEvent.press(await screen.findByRole('button', { name: LABEL.pl }));
+    await waitFor(() => expect(purchasesUiMock.presentPaywall).toHaveBeenCalledTimes(1));
     expect(router.push).not.toHaveBeenCalled();
-    expect(myProfile.mock.calls.length).toBe(before);
+    expect(screen.queryByText(ERROR.pl)).toBeNull();
   });
 
-  it('works again after the snackbar has hidden', async () => {
-    jest.useFakeTimers({ advanceTimers: true });
-    try {
-      await renderSettings();
-      const banner = await screen.findByRole('button', { name: LABEL.pl });
-      await fireEvent.press(banner);
-      expect(await screen.findByText(SOON.pl)).toBeTruthy();
-      await act(async () => {
-        await jest.advanceTimersByTimeAsync(tokens.components.snackbar.durationShort);
-      });
-      await act(async () => {
-        await jest.advanceTimersByTimeAsync(tokens.motion.duration.standard + 50);
-      });
-      expect(screen.queryByText(SOON.pl)).toBeNull();
-      await fireEvent.press(banner);
-      expect(await screen.findByText(SOON.pl)).toBeTruthy();
-    } finally {
-      jest.useRealTimers();
-    }
+  it.each([PAYWALL_RESULT.PURCHASED, PAYWALL_RESULT.RESTORED, PAYWALL_RESULT.NOT_PRESENTED])('shows no snackbar for %s', async (result) => {
+    purchasesUiMock.presentPaywall.mockResolvedValue(result);
+    await renderSettings();
+    await fireEvent.press(await screen.findByRole('button', { name: LABEL.pl }));
+    await waitFor(() => expect(purchasesUiMock.presentPaywall).toHaveBeenCalled());
+    expect(screen.queryByText(ERROR.pl)).toBeNull();
+  });
+
+  it.each(['pl', 'en'] as const)('shows the error snackbar for an ERROR result in %s', async (lang) => {
+    await i18n.changeLanguage(lang);
+    purchasesUiMock.presentPaywall.mockResolvedValue(PAYWALL_RESULT.ERROR);
+    await renderSettings();
+    await fireEvent.press(await screen.findByRole('button', { name: LABEL[lang] }));
+    expect(await screen.findByText(ERROR[lang])).toBeTruthy();
+  });
+
+  it('shows the error snackbar when the paywall call rejects', async () => {
+    purchasesUiMock.presentPaywall.mockRejectedValue(new Error('boom'));
+    await renderSettings();
+    await fireEvent.press(await screen.findByRole('button', { name: LABEL.pl }));
+    expect(await screen.findByText(ERROR.pl)).toBeTruthy();
+  });
+
+  it.each([
+    ['an ERROR result', () => purchasesUiMock.presentPaywall.mockResolvedValue(PAYWALL_RESULT.ERROR)],
+    ['a rejection', () => purchasesUiMock.presentPaywall.mockRejectedValue(new Error('boom'))],
+  ])('opens the paywall again after %s', async (_name, arrange) => {
+    arrange();
+    await renderSettings();
+    const banner = await screen.findByRole('button', { name: LABEL.pl });
+    await fireEvent.press(banner);
+    await screen.findByText(ERROR.pl);
+    await fireEvent.press(banner);
+    await waitFor(() => expect(purchasesUiMock.presentPaywall).toHaveBeenCalledTimes(2));
+  });
+
+  it('ignores a second tap while the paywall is open', async () => {
+    purchasesUiMock.presentPaywall.mockReturnValue(new Promise(() => undefined));
+    await renderSettings();
+    const banner = await screen.findByRole('button', { name: LABEL.pl });
+    await fireEvent.press(banner);
+    await fireEvent.press(banner);
+    expect(purchasesUiMock.presentPaywall).toHaveBeenCalledTimes(1);
+  });
+
+  it('has no Subscription row for a non-PRO user', async () => {
+    await renderSettings();
+    await screen.findByRole('button', { name: LABEL.pl });
+    expect(screen.queryByText('Subskrypcja')).toBeNull();
+  });
+
+  it('is disabled offline with the reason shown, and a press opens nothing', async () => {
+    setNetwork({ isConnected: false, isInternetReachable: false });
+    await renderSettings();
+    const banner = await screen.findByRole('button', { name: LABEL.pl });
+    expect(banner.props.accessibilityState).toMatchObject({ disabled: true });
+    expect(await screen.findByText('Połącz się z internetem, żeby przejść na PRO.')).toBeTruthy();
+    await fireEvent.press(banner);
+    expect(purchasesUiMock.presentPaywall).not.toHaveBeenCalled();
+  });
+
+  it('is disabled while the RevenueCat identity is unconfirmed, with no offline reason, and a press opens nothing', async () => {
+    mockConfirmed = false;
+    await renderSettings();
+    const banner = await screen.findByRole('button', { name: LABEL.pl });
+    expect(banner.props.accessibilityState).toMatchObject({ disabled: true });
+    expect(screen.queryByText('Połącz się z internetem, żeby przejść na PRO.')).toBeNull();
+    await fireEvent.press(banner);
+    expect(purchasesUiMock.presentPaywall).not.toHaveBeenCalled();
+  });
+
+  it('is enabled online, with no offline reason', async () => {
+    await renderSettings();
+    const banner = await screen.findByRole('button', { name: LABEL.pl });
+    expect(banner.props.accessibilityState).not.toMatchObject({ disabled: true });
+    expect(screen.queryByText('Połącz się z internetem, żeby przejść na PRO.')).toBeNull();
   });
 
   it.each([
@@ -246,5 +312,71 @@ describe('Settings PRO banner (settings-redesign step 6)', () => {
     await renderSettings();
     await screen.findByRole('button', { name: LABEL.pl });
     expect(screen.getByTestId('settings-pro-art', hidden).props['aria-hidden']).toBe(true);
+  });
+});
+
+describe('Settings subscription row for PRO (revenuecat step 4)', () => {
+  const ERROR = { pl: 'Nie udało się otworzyć subskrypcji. Spróbuj ponownie.', en: "Couldn't open your subscription. Try again." };
+  const ROW = { pl: 'Subskrypcja', en: 'Subscription' };
+
+  beforeEach(() => {
+    mockPro = true;
+  });
+
+  it('shows no PRO banner', async () => {
+    await renderSettings();
+    expect(await screen.findByRole('button', { name: ROW.pl })).toBeTruthy();
+    expect(screen.queryByText('Przejdź na PRO')).toBeNull();
+  });
+
+  it.each(['pl', 'en'] as const)('shows the Subscription row first in card A in %s', async (lang) => {
+    await i18n.changeLanguage(lang);
+    await renderSettings();
+    await screen.findByRole('button', { name: ROW[lang] });
+    const rows = screen.getAllByTestId('settings-row');
+    expect(within(rows[0]).getByText(ROW[lang])).toBeTruthy();
+    expect(within(rows[1]).getByText(lang === 'pl' ? 'Edytuj profil' : 'Edit profile')).toBeTruthy();
+  });
+
+  it('opens the customer center on tap', async () => {
+    await renderSettings();
+    await fireEvent.press(await screen.findByRole('button', { name: ROW.pl }));
+    await waitFor(() => expect(purchasesUiMock.presentCustomerCenter).toHaveBeenCalledTimes(1));
+    expect(screen.queryByText(ERROR.pl)).toBeNull();
+  });
+
+  it.each(['pl', 'en'] as const)('shows the error snackbar when the customer center rejects in %s', async (lang) => {
+    await i18n.changeLanguage(lang);
+    purchasesUiMock.presentCustomerCenter.mockRejectedValue(new Error('boom'));
+    await renderSettings();
+    await fireEvent.press(await screen.findByRole('button', { name: ROW[lang] }));
+    expect(await screen.findByText(ERROR[lang])).toBeTruthy();
+  });
+
+  it('is disabled offline with the reason shown, and a press opens nothing', async () => {
+    setNetwork({ isConnected: false, isInternetReachable: false });
+    await renderSettings();
+    const row = await screen.findByRole('button', { name: ROW.pl });
+    expect(row.props.accessibilityState).toMatchObject({ disabled: true });
+    expect(await screen.findByText('Połącz się z internetem, żeby zarządzać subskrypcją.')).toBeTruthy();
+    await fireEvent.press(row);
+    expect(purchasesUiMock.presentCustomerCenter).not.toHaveBeenCalled();
+  });
+
+  it('is disabled while the RevenueCat identity is unconfirmed, without the offline reason, and a press opens nothing', async () => {
+    mockConfirmed = false;
+    await renderSettings();
+    const row = await screen.findByRole('button', { name: ROW.pl });
+    expect(row.props.accessibilityState).toMatchObject({ disabled: true });
+    expect(screen.queryByText('Połącz się z internetem, żeby zarządzać subskrypcją.')).toBeNull();
+    await fireEvent.press(row);
+    expect(purchasesUiMock.presentCustomerCenter).not.toHaveBeenCalled();
+  });
+
+  it('shows the offline reason in English', async () => {
+    await i18n.changeLanguage('en');
+    setNetwork({ isConnected: false, isInternetReachable: false });
+    await renderSettings();
+    expect(await screen.findByText('Connect to the internet to manage your subscription.')).toBeTruthy();
   });
 });

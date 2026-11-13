@@ -385,7 +385,13 @@
     "pro": {
       "title": "Go PRO",
       "subtitle": "More from Travelo",
-      "comingSoon": "Coming soon! The PRO subscription is on its way."
+      "offline": "Connect to the internet to go PRO.",
+      "error": "Couldn't open the offer. Try again."
+    },
+    "subscription": {
+      "title": "Subscription",
+      "offline": "Connect to the internet to manage your subscription.",
+      "error": "Couldn't open your subscription. Try again."
     },
     "theme": "Theme",
     "language": "Language",

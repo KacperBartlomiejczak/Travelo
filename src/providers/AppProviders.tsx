@@ -12,6 +12,7 @@ import type { SessionSource } from '@/data/session-source';
 import type { TripRepository } from '@/data/trip-repository';
 
 import { BudgetSyncProvider } from './BudgetSync';
+import { PurchasesProvider } from './Purchases';
 import { SessionProvider } from './Session';
 
 const TripRepositoryContext = createContext<TripRepository | null>(null);
@@ -59,7 +60,9 @@ export function AppProviders({ children, queryClient, tripRepository, profileRep
         <ProfileRepositoryContext.Provider value={profiles}>
           <ExpenseRepositoryContext.Provider value={expenses}>
             <BudgetSyncProvider repository={repository} expenseSync={expensesSync}>
-              <SessionProvider source={sessionSource}>{children}</SessionProvider>
+              <SessionProvider source={sessionSource}>
+                <PurchasesProvider>{children}</PurchasesProvider>
+              </SessionProvider>
             </BudgetSyncProvider>
           </ExpenseRepositoryContext.Provider>
         </ProfileRepositoryContext.Provider>

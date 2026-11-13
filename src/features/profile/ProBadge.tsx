@@ -3,17 +3,16 @@ import { useTranslation } from 'react-i18next';
 import { Text, View } from 'react-native';
 import Svg, { Defs, LinearGradient, Rect, Stop } from 'react-native-svg';
 
+import { useIsPro } from '@/providers/Purchases';
 import { radii, tokens } from '@/theme/tokens';
 import { useTheme } from '@/theme/useTheme';
 
-// Placeholder until the subscription task (RevenueCat or an alternative) replaces it with the real entitlement.
-export const IS_PRO = true;
-
 // Small "PRO" pill next to the nick (profile-upgrade D4, D7). The brand-to-sun gradient is the one allowed decorative gradient (D14).
-export function ProBadge({ pro = IS_PRO }: { pro?: boolean }) {
+export function ProBadge() {
   const { t } = useTranslation();
   const theme = useTheme();
   const gradientId = useId();
+  const pro = useIsPro();
   if (!pro) return null;
 
   return (

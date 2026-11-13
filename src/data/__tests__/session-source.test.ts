@@ -168,9 +168,25 @@ describe('onChange()', () => {
     expect(changes).toEqual([]);
   });
 
-  it.each(['INITIAL_SESSION', 'TOKEN_REFRESHED', 'USER_UPDATED', 'PASSWORD_RECOVERY'])('ignores %s (the app reads the session itself)', (event) => {
+  it.each(['INITIAL_SESSION', 'USER_UPDATED', 'PASSWORD_RECOVERY'])('ignores %s (the app reads the session itself)', (event) => {
     const { fire, changes } = subscribe();
     fire(event, { user });
+    jest.runAllTimers();
+    expect(changes).toEqual([]);
+  });
+
+  it('TOKEN_REFRESHED → refreshed with the user id (the way an offline start learns who is signed in)', () => {
+    const { fire, changes } = subscribe();
+    fire('TOKEN_REFRESHED', { user });
+    expect(changes).toEqual([]);
+    jest.runAllTimers();
+    expect(changes).toEqual([{ type: 'refreshed', userId: SIGNED_IN_USER_ID }]);
+  });
+
+  it('ignores TOKEN_REFRESHED of an anonymous session, and without a session', () => {
+    const { fire, changes } = subscribe();
+    fire('TOKEN_REFRESHED', { user: { ...user, is_anonymous: true } });
+    fire('TOKEN_REFRESHED', null);
     jest.runAllTimers();
     expect(changes).toEqual([]);
   });

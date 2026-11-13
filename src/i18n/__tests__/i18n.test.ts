@@ -72,6 +72,20 @@ describe('i18n saved language (profile-settings step 7)', () => {
   });
 });
 
+describe('i18n settings subscription keys (revenuecat step 4)', () => {
+  const keys = ['pro.offline', 'pro.error', 'subscription.title', 'subscription.offline', 'subscription.error'];
+
+  it.each(keys)('has settings.%s in pl and en', (key) => {
+    expect(keysOf(pl.settings)).toContain(key);
+    expect(keysOf(en.settings)).toContain(key);
+  });
+
+  it('no longer has settings.pro.comingSoon', () => {
+    expect(keysOf(pl.settings)).not.toContain('pro.comingSoon');
+    expect(keysOf(en.settings)).not.toContain('pro.comingSoon');
+  });
+});
+
 describe('i18n profile upgrade keys', () => {
   const keys = [
     'pastTitle', 'pastLoading', 'pastEmpty', 'pastError', 'pastSolo', 'pastTripLabel', 'pastTripHint',

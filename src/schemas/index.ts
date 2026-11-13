@@ -14,6 +14,7 @@ export * from './preferences';
 export * from './profile';
 export * from './provider-profile';
 export * from './supabase-config';
+export * from './revenuecat-config';
 export * from './sync';
 export * from './trip';
 export * from './trip-budget';

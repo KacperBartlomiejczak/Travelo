@@ -10,6 +10,9 @@ import { ProBadge } from '../ProBadge';
 let mockScheme: 'light' | 'dark' = 'light';
 jest.mock('react-native/Libraries/Utilities/useColorScheme', () => ({ __esModule: true, default: () => mockScheme }));
 
+let mockPro = true;
+jest.mock('@/providers/Purchases', () => ({ useIsPro: () => mockPro }));
+
 type JsonNode = { type: string; props: Record<string, unknown>; children: (JsonNode | string)[] | null };
 
 function findNode(node: JsonNode | string | null, type: string): JsonNode | null {
@@ -40,6 +43,7 @@ const contrast = (a: string, b: string) => {
 
 beforeEach(async () => {
   mockScheme = 'light';
+  mockPro = true;
   await i18n.changeLanguage('pl');
 });
 
@@ -88,7 +92,8 @@ describe('ProBadge (profile-upgrade D4, D7, D14)', () => {
   });
 
   it('renders nothing when the account is not PRO', async () => {
-    await render(<ProBadge pro={false} />);
+    mockPro = false;
+    await render(<ProBadge />);
     expect(screen.queryByTestId('pro-badge')).toBeNull();
     expect(screen.queryByText('PRO')).toBeNull();
   });

@@ -153,6 +153,11 @@ export function SessionProvider({ source, children }: Props) {
         void leave('signedOut');
         return;
       }
+      if (event.type === 'refreshed') {
+        // Only fills in an unknown user (offline start). Never a sign-in: from any other state it must not clear the phone's data.
+        if (now.status === 'signedIn' && now.userId === null) apply({ status: 'signedIn', userId: event.userId });
+        return;
+      }
       if (now.status === 'signedIn') {
         if (now.userId === event.userId) return;
         // Offline start, and now the user is known: it is the same person, whose session was only unreadable.
