@@ -195,7 +195,7 @@ Fala A
 - [x] 1. [backend] Schematy Zod `src/schemas/trip-plan.ts` (request z chipami, odpowiedź Gemini, plan zapisany, `place-details`, kategorie) — najpierw testy schematów.
 
 Fala B (równolegle, po kroku 1)
-- [ ] 2. [backend] Czysta logika `src/lib/`: miasta w promieniu + limit 3 (D11, Z6), kategorie z typów (D13), osoby P1…Pn ↔ `owner`/member id, chipy → stałe zdania (D5), walidacja wyjścia modelu (whitelist `placeId`/miast, bez powtórzeń, dni = daty podróży) — testy brzegowe.
+- [x] 2. [backend] Czysta logika `src/lib/`: miasta w promieniu + limit 3 (D11, Z6), kategorie z typów (D13), osoby P1…Pn ↔ `owner`/member id, chipy → stałe zdania (D5), walidacja wyjścia modelu (whitelist `placeId`/miast, bez powtórzeń, dni = daty podróży) — testy brzegowe.
 - [ ] 3. [backend] Migracja: `trip_plans` z RLS (D3, D14) + `ai_usage` per rodzaj z limitem planów 3/dzień i zwrotem jednostki (D8, D9) + `pnpm db:types` + parity — najpierw testy SQL (`supabase/tests/`). Push robi Kacper.
 - [x] 4. [frontend] `PlanWizard`: karty D6 + chipy D7 + animacja `SlideInRight`/`SlideOutLeft` (wstecz odwrotnie, reduced motion → crossfade 80 ms), `AirportField` dla własnych miast (max 3); zwraca `GenerateTripPlanRequest` przez `onSubmit`; klucze i18n pl/en **tylko w tym kroku w tej fali**.
 
@@ -235,6 +235,7 @@ Każdy krok: pełny suite + `pnpm typecheck` + `pnpm lint`, potem verifier. Krok
 - D13 (P12). Serwer mapuje typy Google na 5 kategorii: `food`, `nightlife`, `museum`, `outdoor`, `other`.
 - D14 (po akceptacji). Regulamin Google: w `trip_plans` zapisujemy **tylko `placeId`** + porę dnia + uzasadnienie + dla kogo. Nazwę, adres i link do Map przy otwarciu zapisanego planu pobiera nowa Edge Function `place-details` (Place Details (New), max 40 id na wywołanie, cache tylko w pamięci aplikacji). Świeżo wygenerowany plan wraca od razu z nazwami (z Nearby Search, bez zapisu). Otwarcie zapisanego planu wymaga internetu.
 - D15 (po akceptacji). Jeden plan na podróż; „Ułóż ponownie” **nadpisuje** go po potwierdzeniu w `ConfirmDialog` („Zastąpić obecny plan?”).
+- D17 (P14, po kroku 4). Copy kreatora: karta 1 tytuł „Gdzie zwiedzamy?” / „Where do we explore?” (przyciski bez zmian); karta zasięgu „W jakim promieniu szukać?” / „How far should we look?” (bez nazwy miasta — unika złej odmiany). Wchodzi w kroku 7 (on w fali C ma i18n).
 - D16 (Kacper, 2026-11-13). Wykonanie falami: kilka subagentów backend i frontend naraz (kroki niezależne, bez wspólnych plików), każdy krok ma osobnego verifiera, verifierzy też równolegle. Zapisane w `docs/agents/subagents.md` i `CLAUDE.md`.
 
 ### Model zapisu (szkic, uzupełnia „Struktury danych”)
@@ -250,6 +251,7 @@ export const PlaceDetailsSchema = z.object({ placeId: z.string(), name: z.string
 ```
 Tabela `trip_plans` (PK `trip_id`, `days jsonb`, `model`, `created_at`): RLS — owner podróży czyta; linked member czyta; **zapis tylko przez Edge Function (service role)**, app nie pisze.
 - Krok 4: `PlanWizard.tsx` + 10 testów, red 10/10 na stubie null · green 10/10 · suite ✓ (jeden flaky `local-store-queue` pod obciążeniem, sam przechodzi 21/21), typecheck ✓, lint ✓ · verifier PASS · `eslint-disable react-hooks/set-state-in-effect` z uzasadnieniem (kierunek wyjścia karty musi być zacommitowany przed zmianą klucza) · do sprawdzenia na urządzeniu: kierunek wyjścia karty, pierwsza karta wjeżdża przy otwarciu · copy do decyzji Kacpra (P14).
+- Krok 2: `plan-cities`, `plan-categories`, `plan-people`, `plan-validate` · red 33/36 na stubach → green 36/36 · verifier PASS z 2 minor → poprawione red-first (promień porównuje surową odległość — 50,4 km poza 50; `Object.hasOwn` dla personId `toString`/`constructor`) → 37/37, suite 4203 ✓, typecheck ✓, lint ✓ · re-verify PASS · uwaga na krok 5: `src/schemas/airport.ts` importuje `./common` bez `.ts` (Deno); własny haversine zamiast prywatnego z `travel-stats` (do wspólnego `geo.ts` później).
 
 ## Ryzyka i otwarte pytania
 - Rozstrzygnięte: P1 → D6, P2 → D1, P3 → D2, P4 → D4, P5 → D3, P6 → D10, P7 → D8, P9 → D9, P11 → D5, P13 → D7. P8 → D11, P10 → D12, P12 → D13. Wszystkie pytania zamknięte.
