@@ -81,6 +81,18 @@ describe('PlanResult', () => {
     expect(screen.queryAllByText('')).toHaveLength(0);
   });
 
+  it('hides a reason that mentions a person id (D31) but keeps the place and a normal reason', async () => {
+    const reason = 'Hard Rock Cafe offers live music for P1.';
+    const legacy: TripPlan = {
+      ...plan,
+      days: [{ ...plan.days[0], items: [{ ...plan.days[0].items[0], reason }, plan.days[0].items[1]] }],
+    };
+    await render(<PlanResult plan={legacy} places={places} cityName={cityName} onRegenerate={jest.fn()} canRegenerate />);
+    expect(screen.queryByText(reason)).not.toBeOnTheScreen();
+    expect(screen.getByText('Park Guell')).toBeOnTheScreen();
+    expect(screen.getByText('Tapas night')).toBeOnTheScreen();
+  });
+
   it('shows the AI provenance label', async () => {
     await setup();
     expect(screen.getByText('Wygenerowane przez AI')).toBeOnTheScreen();

@@ -257,6 +257,11 @@ Fala G (po F, równolegle — rozłączne pliki)
 - [x] 15. [frontend] C3 + C4: `cancelQueries` w `useGenerateTripPlan`; przycisk „Ułóż plan” zablokowany i stan „generowanie” po powrocie z Odkryj, gdy mutacja dla tej podróży trwa — testy hooka i `TripPlanSide` najpierw.
 - [ ] 16. [orchestrator] C12, C13 w `CLAUDE.md` + `docs/agents/subagents.md`; C7–C9 zgodnie z Q2/Q3 (naprawa albo `known-limitations.md`); odpowiedzi w wątkach CodeRabbit (C10, C11 z uzasadnieniem).
 
+Fala H (po teście na urządzeniu 2; 17 i 18 równolegle, 19 po 18)
+- [x] 17. [frontend] D23: domyślny promień w `PlanWizard` = 100 km (dziś `PLAN_RADII_KM[0]` = 50) — test najpierw: karta zasięgu ma zaznaczone „100 km”, a wysłany request bez zmiany wyboru ma `radiusKm: 100`.
+- [x] 18. [backend] D31: `src/lib/plan-validate.ts` eksportuje `mentionsPersonId(reason)` (ten sam regex `\bP[1-9]\d?\b`), `validateGeneratedPlan` używa go bez zmiany zachowania — test funkcji najpierw (te same przypadki co dziś: P1, P12 → true; Porto, PPP, MP3, P0 → false).
+- [x] 19. [frontend] D31: `PlanResult` nie pokazuje `reason`, gdy `mentionsPersonId(reason)` — test najpierw (zapisany plan z „ideal for P1” → brak tego tekstu, miejsce nadal widoczne).
+
 Na koniec
 - [ ] 10 (reszta). Redeploy `generate-trip-plan`; tester: PL, motyw jasny, widok znajomego, ponowny test „P1”; porównanie modeli D25; verifier end-of-plan; aktualizacja test planu w opisie PR.
 
@@ -304,6 +309,9 @@ Każdy krok: pełny suite + `pnpm typecheck` + `pnpm lint`, potem verifier. Krok
 - D28 (Q3, 2026-11-14). C8 (brak limitu `place-details`) i C9 (zwrot limitu po północy UTC) zostają — `known-limitations.md` w kroku 16, naprawa w osobnym planie.
 - D29 (Q4, 2026-11-14). `.codex/config.toml` (MCP lottiefiles) i `.agents/skills/*` zostają poza `feature/ai-trip-plan` — nie są commitowane w tym PR.
 - D30 (krok 15, 2026-11-14). Gdy generowanie skończy się błędem w czasie, gdy użytkownik jest w Odkryj, po powrocie zostaje pusty stan z „Ułóż plan z AI” (bez panelu błędu); nieudana próba nie zużywa limitu (D9).
+- D31 (po teście 2, 2026-11-14). Zapisane plany sprzed D22 (np. TEST Porto) mają „P1” w uzasadnieniach → aplikacja **przy wyświetlaniu** ukrywa `reason` z `P[1-9]\d?` (ta sama reguła co filtr na serwerze), jak pusty `reason`.
+- D32 (po teście 2). Nazwy miast w UI zostają z danych lotnisk (np. „Lisbon” także po polsku).
+- D33 (po teście 2). Tytuł karty preferencji „Jakiego planu chcesz?” zaakceptowany.
 - D16 (Kacper, 2026-11-13). Wykonanie falami: kilka subagentów backend i frontend naraz (kroki niezależne, bez wspólnych plików), każdy krok ma osobnego verifiera, verifierzy też równolegle. Zapisane w `docs/agents/subagents.md` i `CLAUDE.md`.
 
 ### Model zapisu (szkic, uzupełnia „Struktury danych”)
@@ -336,6 +344,8 @@ Tabela `trip_plans` (PK `trip_id`, `days jsonb`, `model`, `created_at`): RLS —
 - Krok 15: verifier FAIL — test C3 czytał wynik przed rerenderem (pada 2/3) → poprawka testu (flush makrozadania); red udowodniony: bez `cancelQueries` cache = `null`, bez `|| inFlight` brak widoku generowania · hook 3/3, suite 4374 ✓ · re-verify PASS · D30 · commit.
 - Krok 16: `CLAUDE.md` i `docs/agents/subagents.md` (C12, C13), `known-limitations.md` (C7–C9, usunięty nieaktualny wpis o braku deployu i o ręcznych typach). Odpowiedzi w 14 wątkach CodeRabbit wysłane za zgodą Kacpra (2026-11-14).
 - Redeploy (2026-11-14, za zgodą Kacpra): `generate-trip-plan` (D22, D26) i `place-details` (schemat z `src/schemas/place.ts`) przez `supabase functions deploy --use-api`; smoke test bez sesji → obie zwracają `401 {"error":"unauthorized"}` z handlera, więc importy Deno działają.
+- Krok 10, test na emulatorze 2 (2026-11-14, dev build przez `expo start --dev-client` + `adb reverse`; Expo Go nie uruchamia apki — brak `ExpoSQLite`): PL + motyw jasny. PASS: Wstecz systemowe (D24), błąd duplikatu znika przy pisaniu, generowanie TEST Lizbona < 60 s z przełączeniem Plan↔Odkryj bez drugiego zapytania (krok 15), brak „P1” w nowym planie (D22), przylot/wylot LIS w dniu 1 i 8 (D26), motyw jasny czytelny. FAIL: domyślny promień **50 km** zamiast 100 km (D23; `PlanWizard.tsx:99` bierze `PLAN_RADII_KM[0]`). Stary zapisany plan TEST Porto (sprzed D22) ma „P1” i angielskie uzasadnienia. Nazwy miast po angielsku („Tylko Lisbon”, „Dzień 1 · … · Lisbon”). „Ułóż ponownie” na Porto jest (pierwszy odczyt testera był błędny — nie przewinął do końca). Offline PASS na obu podróżach („Plan wymaga internetu.”, przycisk wyłączony); po powrocie sieci raz „Nie udało się wczytać planu.”, retry działa (jak w teście 1). Ustawienia przywrócone (Ciemny, English), tryb samolotowy wyłączony. Widok znajomego: brak podróży z drugim członkiem. Limit 3/3 wykorzystany dziś.
+- Fala H: krok 17 red (radiusKm 50) → green, verifier PASS, commit `b451ad5` · krok 18 red (brak eksportu) → green 18/18, `od -c` = prawdziwe `\b`, verifier PASS, commit `71e7310` · krok 19 red (tekst z „P1” widoczny) → green 14/14, suite 4380 ✓, typecheck ✓, lint ✓, verifier PASS · D32 (nazwy miast z lotnisk), D33 (tytuł karty preferencji). Bez zmian serwera → bez redeployu.
 
 ## Ryzyka i otwarte pytania
 - Rozstrzygnięte: P1 → D6, P2 → D1, P3 → D2, P4 → D4, P5 → D3, P6 → D10, P7 → D8, P9 → D9, P11 → D5, P13 → D7. P8 → D11, P10 → D12, P12 → D13. Wszystkie pytania zamknięte.

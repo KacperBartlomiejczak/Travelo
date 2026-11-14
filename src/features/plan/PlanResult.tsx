@@ -5,6 +5,7 @@ import Animated, { Easing, FadeIn, Keyframe } from 'react-native-reanimated';
 
 import { TextButton } from '@/components/TextButton';
 import { useReduceMotion } from '@/hooks/useReduceMotion';
+import { mentionsPersonId } from '@/lib/plan-validate';
 import { PlanSlotSchema, type PlaceDetails, type StoredPlanDay, type TripPlan } from '@/schemas';
 import { tokens } from '@/theme/tokens';
 import { useTheme } from '@/theme/useTheme';
@@ -63,7 +64,7 @@ export function PlanResult({ plan, places, cityName, onRegenerate, canRegenerate
                   {place?.address ? (
                     <Text style={[typography.styles.bodySM, { color: theme.text.secondary }]}>{place.address}</Text>
                   ) : null}
-                  {item.reason ? <Text style={[typography.styles.bodyMD, { color: theme.text.primary }]}>{item.reason}</Text> : null}
+                  {item.reason && !mentionsPersonId(item.reason) ? <Text style={[typography.styles.bodyMD, { color: theme.text.primary }]}>{item.reason}</Text> : null}
                   {place ? (
                     <Pressable
                       accessibilityRole="link"
