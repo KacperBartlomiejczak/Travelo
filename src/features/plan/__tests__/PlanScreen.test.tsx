@@ -2,6 +2,7 @@ import { Stack } from 'expo-router';
 import { act, fireEvent, renderRouter, screen, waitFor } from 'expo-router/testing-library';
 import { StyleSheet } from 'react-native';
 
+import { LOCAL_PROFILE_ID } from '@/data/profile-repository';
 import { useCurrentTrip } from '@/hooks/useTrips';
 import i18n from '@/i18n';
 import { AppProviders } from '@/providers/AppProviders';
@@ -18,6 +19,11 @@ jest.mock('react-native-safe-area-context', () => ({
 }));
 jest.mock('@/hooks/useTrips');
 jest.mock('@/data/app-places', () => ({ fetchAppPlaceRecommendations: jest.fn() }));
+jest.mock('@/data/app-trip-plan', () => ({
+  generateAppTripPlan: jest.fn(),
+  fetchAppTripPlan: jest.fn().mockResolvedValue(null),
+  fetchAppPlaceDetails: jest.fn(),
+}));
 
 function Layout() {
   return (
@@ -27,7 +33,7 @@ function Layout() {
   );
 }
 
-const tripData = (destination = 'LIS') => ({ overview: { trip: { destination } } }) as never;
+const tripData = (destination = 'LIS') => ({ overview: { trip: { id: '00000000-0000-4000-8000-0000000000a1', ownerId: LOCAL_PROFILE_ID, destination } } }) as never;
 
 async function open(trip: Partial<ReturnType<typeof useCurrentTrip>> = { isPending: false, isError: false, data: tripData() }) {
   jest.mocked(useCurrentTrip).mockReturnValue({ isPending: false, isError: false, data: null, ...trip } as never);
@@ -35,7 +41,8 @@ async function open(trip: Partial<ReturnType<typeof useCurrentTrip>> = { isPendi
   await renderRouter({ _layout: Layout, plan: PlanScreen }, { initialUrl: '/plan' });
 }
 
-const placeholder = () => screen.queryByText('Ten ekran pojawi się wkrótce.');
+const comingSoon = () => screen.queryByText('Ten ekran pojawi się wkrótce.');
+const placeholder = () => screen.queryByTestId('plan-side');
 const searchButton = () => screen.queryByRole('button', { name: 'Szukaj miejsc' });
 const radio = (name: string) => screen.getByRole('radio', { name });
 const clearance = insets.bottom + tokens.spacing[3] + tokens.components.tabs.height + 2 * tokens.components.tabs.containerPadding;
@@ -50,7 +57,7 @@ describe('PlanScreen without a current trip (D3)', () => {
     expect(screen.queryByRole('radiogroup')).toBeNull();
     expect(screen.queryByLabelText('Widok ekranu Plan')).toBeNull();
     expect(screen.getByRole('header', { name: 'Plan' })).toBeTruthy();
-    expect(placeholder()).toBeTruthy();
+    expect(comingSoon()).toBeTruthy();
   };
   it('shows the current title and placeholder, no switch, with no trips', async () => {
     await open({ data: null });

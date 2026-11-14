@@ -180,6 +180,28 @@
         "afternoon": "Afternoon",
         "evening": "Evening"
       }
+    },
+    "side": {
+      "loading": "Loading the plan",
+      "loadError": "Couldn't load the plan.",
+      "detailsError": "Couldn't load the places.",
+      "retry": "Try again",
+      "needsInternet": "The plan needs an internet connection.",
+      "emptyTitle": "No trip plan yet",
+      "emptyAction": "Plan with AI",
+      "friendEmpty": "The organizer hasn't built a plan yet.",
+      "replaceTitle": "Replace the current plan?",
+      "replaceMessage": "The new plan will replace the current one.",
+      "replaceConfirm": "Replace",
+      "replaceCancel": "Cancel"
+    },
+    "error": {
+      "title": "Couldn't build the plan",
+      "limit": "You've used today's plan limit ({{count}}). Try again tomorrow.",
+      "noPlaces": "We couldn't find enough matching places. Change the interests or the day range.",
+      "offline": "Generating a plan requires an internet connection.",
+      "retry": "Try again",
+      "cancel": "Cancel"
     }
   },
   "airportField": {

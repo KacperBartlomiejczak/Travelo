@@ -15,6 +15,7 @@ jest.mocked(useFonts).mockReturnValue([true, null]);
 
 jest.mock('expo-status-bar', () => ({ ...jest.requireActual('expo-status-bar'), StatusBar: () => null }));
 jest.mock('@/data/app-places', () => ({ fetchAppPlaceRecommendations: jest.fn() })); // the Plan tab now hosts Discover
+jest.mock('@/data/app-trip-plan', () => ({ generateAppTripPlan: jest.fn(), fetchAppTripPlan: jest.fn(), fetchAppPlaceDetails: jest.fn() })); // and the plan side
 
 // The real Drawer, wrapped only to see which options the layout gave it: the edge swipe itself needs a device.
 let mockSwipeEnabled: unknown;

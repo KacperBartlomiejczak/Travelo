@@ -16,6 +16,7 @@ jest.mocked(useFonts).mockReturnValue([true, null]);
 
 jest.mock('expo-status-bar', () => ({ ...jest.requireActual('expo-status-bar'), StatusBar: () => null }));
 jest.mock('@/data/app-places', () => ({ fetchAppPlaceRecommendations: jest.fn() })); // the Plan tab now hosts Discover
+jest.mock('@/data/app-trip-plan', () => ({ generateAppTripPlan: jest.fn(), fetchAppTripPlan: jest.fn(), fetchAppPlaceDetails: jest.fn() })); // and the plan side
 
 const ROUTES = {
   _layout: RootLayout,

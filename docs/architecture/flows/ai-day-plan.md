@@ -11,4 +11,4 @@
 - Rate-limit AI calls per user and cache results.
 
 ## What is implemented
-- AI day plan: not implemented.
+- AI trip plan (whole trip, plain list; `prompts/ai-trip-plan/plan.md`): see [features/ai-trip-plan.md](features/ai-trip-plan.md). Cost ranges, locked activities and group splits are not implemented.

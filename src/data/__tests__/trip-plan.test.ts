@@ -65,10 +65,16 @@ describe('generateTripPlan', () => {
     expect(await kindOf(generateTripPlan(s.client, REQUEST))).toBe('unauthorized');
   });
 
-  it('a fetch error (no connection or abort) is "offline"', async () => {
+  it('a network failure is "offline"', async () => {
     const s = fakeSupabase();
-    s.invoke.mockResolvedValueOnce({ data: null, error: new FunctionsFetchError(new Error('Network request failed')) });
+    s.invoke.mockResolvedValueOnce({ data: null, error: new FunctionsFetchError(new TypeError('Network request failed')) });
     expect(await kindOf(generateTripPlan(s.client, REQUEST))).toBe('offline');
+  });
+
+  it('a timeout abort is "failed", not offline', async () => {
+    const s = fakeSupabase();
+    s.invoke.mockResolvedValueOnce({ data: null, error: new FunctionsFetchError(new DOMException('aborted', 'AbortError')) });
+    expect(await kindOf(generateTripPlan(s.client, REQUEST))).toBe('failed');
   });
 });
 

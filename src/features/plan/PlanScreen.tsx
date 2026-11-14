@@ -1,17 +1,18 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Text, useWindowDimensions, View } from 'react-native';
+import { useWindowDimensions, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { SegmentedControl } from '@/components/SegmentedControl';
 import { DiscoverScreen } from '@/features/discover/DiscoverScreen';
 import { EmptyScreen } from '@/features/nav/EmptyScreen';
+import { TripPlanSide } from '@/features/plan/TripPlanSide';
 import { useCurrentTrip } from '@/hooks/useTrips';
 import { usePillClearance } from '@/features/nav/usePillClearance';
 import { tokens } from '@/theme/tokens';
 import { useTheme } from '@/theme/useTheme';
 
-const { layout, spacing, typography } = tokens;
+const { layout, spacing } = tokens;
 
 type Mode = 'plan' | 'discover';
 
@@ -52,7 +53,9 @@ export function PlanScreen() {
       </View>
       {mode === 'plan' ? (
         <View testID="plan-content" style={{ flex: 1, paddingTop: spacing[4], paddingBottom: clearance + spacing[4], paddingHorizontal: gutter }}>
-          <Text style={[typography.styles.bodyMD, column, { color: theme.text.secondary }]}>{t('nav.comingSoon')}</Text>
+          <View style={[column, { flex: 1 }]}>
+            {trips.data && <TripPlanSide key={trips.data.overview.trip.id} trip={trips.data.overview.trip} />}
+          </View>
         </View>
       ) : (
         <DiscoverScreen bottomInset={clearance} destination={trips.data?.overview.trip.destination} />

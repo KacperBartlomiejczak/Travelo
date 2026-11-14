@@ -43,8 +43,11 @@ async function serverCode(response: Response): Promise<string | null> {
 async function invoke(supabase: SupabaseClient<Database>, name: string, body: object): Promise<unknown> {
   const { data, error } = await supabase.functions.invoke(name, { body });
   if (!error) return data;
-  // `FunctionsFetchError`: no answer at all (no connection, or the withTimeout limit).
-  if (error instanceof FunctionsFetchError) throw new TripPlanCallError('offline', error.message);
+  // `FunctionsFetchError` wraps the original fetch error: an AbortError is the withTimeout limit (server reachable but slow), not offline.
+  if (error instanceof FunctionsFetchError) {
+    const aborted = (error.context as { name?: string } | null)?.name === 'AbortError';
+    throw new TripPlanCallError(aborted ? 'failed' : 'offline', error.message);
+  }
   if (error instanceof FunctionsHttpError) {
     const code = await serverCode(error.context);
     const status = error.context.status;
