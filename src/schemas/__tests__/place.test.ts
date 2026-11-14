@@ -3,6 +3,7 @@ import { z } from 'zod';
 import {
   GeminiPlacePicksSchema,
   GoogleNearbySearchResponseSchema,
+  GooglePlaceDetailsSchema,
   GooglePhotoMediaSchema,
   GooglePlaceSchema,
   GooglePlacePhotoSchema,
@@ -275,4 +276,18 @@ describe('GooglePhotoMediaSchema', () => {
   it.each([{}, { photoUri: 'nope' }])('rejects %p', (value) => {
     expect(GooglePhotoMediaSchema.safeParse(value).success).toBe(false);
   });
+});
+
+describe('GooglePlaceDetailsSchema', () => {
+  const raw = { id: 'abc', displayName: { text: 'Park' }, googleMapsUri: 'https://maps.google.com/?cid=1' };
+  it('accepts Place Details and strips unknown keys', () => {
+    expect(GooglePlaceDetailsSchema.parse({ ...raw, formattedAddress: 'Street 1', extra: 1 })).toEqual({
+      ...raw,
+      formattedAddress: 'Street 1',
+    });
+  });
+  it.each([{ ...raw, id: '' }, { ...raw, displayName: { text: '' } }, { ...raw, googleMapsUri: 'nope' }])(
+    'rejects %p',
+    (value) => expect(GooglePlaceDetailsSchema.safeParse(value).success).toBe(false),
+  );
 });

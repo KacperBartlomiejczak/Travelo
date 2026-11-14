@@ -2,6 +2,7 @@ import { z } from 'zod';
 
 // Deno resolves relative imports only with an explicit extension (allowImportingTsExtensions is on).
 import { IataCodeSchema, IsoDateSchema, IsoDateTimeSchema } from './common.ts';
+import { InterestTagSchema } from './interests.ts';
 
 // AI trip plan (ai-trip-plan plan, step 1). Imported by the Deno Edge Functions too.
 
@@ -122,3 +123,39 @@ export const TripPlanErrorSchema = z.object({
   error: z.enum(['invalid_input', 'unauthorized', 'forbidden', 'limit_reached', 'no_places', 'upstream_failed']),
 });
 export type TripPlanError = z.infer<typeof TripPlanErrorSchema>;
+
+// Inputs of the plan prompt and the trip as the Edge Function loads it (shared with the Deno function).
+export const PlanCitySchema = z.object({
+  cityId: IataCodeSchema,
+  name: z.string(),
+  distanceKm: z.number(),
+  latitude: z.number(),
+  longitude: z.number(),
+});
+export type PlanCity = z.infer<typeof PlanCitySchema>;
+
+export const PlanPersonSchema = z.object({ personId: PlanPersonIdSchema, interests: z.array(InterestTagSchema) });
+export type PlanPerson = z.infer<typeof PlanPersonSchema>;
+
+export const PlanTripSchema = z.object({
+  ownerId: z.string(),
+  destination: IataCodeSchema,
+  startDate: IsoDateSchema,
+  endDate: IsoDateSchema,
+  ownerInterests: z.array(InterestTagSchema),
+  /** Friends of the organizer (the organizer's own member row is excluded). */
+  members: z.array(z.object({ id: z.string(), interests: z.array(InterestTagSchema) })),
+  segments: z.array(
+    z.object({
+      direction: z.enum(['outbound', 'return', 'internal']),
+      order: z.number(),
+      fromIata: IataCodeSchema,
+      toIata: IataCodeSchema,
+      departAt: z.string(),
+      departTz: z.string(),
+      arriveAt: z.string(),
+      arriveTz: z.string(),
+    }),
+  ),
+});
+export type PlanTrip = z.infer<typeof PlanTripSchema>;

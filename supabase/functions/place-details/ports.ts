@@ -1,7 +1,7 @@
 // The real ports of the place details handler. No Deno globals: the Supabase client, `fetch` and the secret are
 // injected, so Jest tests it with fakes. Never log keys or tokens.
 import type { SupabaseClient } from '@supabase/supabase-js';
-import { z } from 'zod';
+import { GooglePlaceDetailsSchema } from '../../../src/schemas/place.ts';
 import type { PlaceDetailsPorts } from './handler.ts';
 
 const TIMEOUT_MS = 10_000;
@@ -12,14 +12,6 @@ export interface PortsConfig {
   fetch: typeof fetch;
   env: { placesApiKey: string };
 }
-
-// Raw Place Details (New) response; unknown keys are stripped.
-const GooglePlaceDetailsSchema = z.object({
-  id: z.string().min(1),
-  displayName: z.object({ text: z.string().min(1) }),
-  formattedAddress: z.string().optional(),
-  googleMapsUri: z.url(),
-});
 
 export function createPorts({ admin, fetch, env }: PortsConfig): PlaceDetailsPorts {
   return {

@@ -1,8 +1,8 @@
 // Shared with the Deno Edge Function: no '@/' aliases; the airport list is passed in.
 import type { Airport } from '../schemas/airport.ts';
-import { MAX_PLAN_CITIES, type PlanScope } from '../schemas/trip-plan.ts';
+import { MAX_PLAN_CITIES, type PlanCity, type PlanScope } from '../schemas/trip-plan.ts';
 
-export type PlanCity = { cityId: string; name: string; distanceKm: number; latitude: number; longitude: number };
+export type { PlanCity };
 
 const EARTH_RADIUS_KM = 6371;
 const rad = (deg: number) => (deg * Math.PI) / 180;

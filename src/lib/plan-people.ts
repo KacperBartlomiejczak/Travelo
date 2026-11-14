@@ -1,7 +1,7 @@
 import type { InterestTag } from '../schemas/interests.ts';
-import type { PlanPersonId, PlanPersonRef, PlanPreference } from '../schemas/trip-plan.ts';
+import type { PlanPerson, PlanPersonRef, PlanPreference } from '../schemas/trip-plan.ts';
 
-export type PlanPerson = { personId: PlanPersonId; interests: InterestTag[] };
+export type { PlanPerson };
 
 // P1 = organizer, P2... = members sorted by id. Names are never output (Z5).
 export function planPeople(

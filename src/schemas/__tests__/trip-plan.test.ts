@@ -4,7 +4,10 @@ import {
   GeneratedPlanSchema,
   PlaceDetailsRequestSchema,
   PlaceDetailsResponseSchema,
+  PlanCitySchema,
   PlanPersonIdSchema,
+  PlanPersonSchema,
+  PlanTripSchema,
   PlanScopeSchema,
   PlanSlotSchema,
   PlaceCategorySchema,
@@ -134,4 +137,50 @@ describe('TripPlanErrorSchema', () => {
     expect(TripPlanErrorSchema.safeParse({ error: 'no_places' }).success).toBe(true);
     expect(TripPlanErrorSchema.safeParse({ error: 'boom' }).success).toBe(false);
   });
+});
+
+describe('PlanCitySchema', () => {
+  const city = { cityId: 'BCN', name: 'Barcelona', distanceKm: 0, latitude: 41.3, longitude: 2.08 };
+  it('accepts a candidate city', () => expect(PlanCitySchema.safeParse(city).success).toBe(true));
+  it.each([{ ...city, cityId: 'bcn' }, { ...city, name: undefined }, { ...city, distanceKm: '5' }])(
+    'rejects %p',
+    (value) => expect(PlanCitySchema.safeParse(value).success).toBe(false),
+  );
+});
+
+describe('PlanPersonSchema', () => {
+  it('accepts a person', () =>
+    expect(PlanPersonSchema.safeParse({ personId: 'P2', interests: ['street_food'] }).success).toBe(true));
+  it.each([{ personId: 'X1', interests: [] }, { personId: 'P1' }, { personId: 'P1', interests: ['nope'] }])(
+    'rejects %p',
+    (value) => expect(PlanPersonSchema.safeParse(value).success).toBe(false),
+  );
+});
+
+describe('PlanTripSchema', () => {
+  const segment = {
+    direction: 'outbound',
+    order: 0,
+    fromIata: 'WAW',
+    toIata: 'BCN',
+    departAt: '2026-11-02T08:00:00+01:00',
+    departTz: 'Europe/Warsaw',
+    arriveAt: '2026-11-02T10:30:00+01:00',
+    arriveTz: 'Europe/Madrid',
+  };
+  const trip = {
+    ownerId: tripId,
+    destination: 'BCN',
+    startDate: '2026-11-02',
+    endDate: '2026-11-05',
+    ownerInterests: ['street_food'],
+    members: [{ id: memberId, interests: ['museums'] }],
+    segments: [segment],
+  };
+  it('accepts a trip as loaded by the Edge Function', () => expect(PlanTripSchema.safeParse(trip).success).toBe(true));
+  it.each([
+    { ...trip, segments: [{ ...segment, fromIata: 'waw' }] },
+    { ...trip, segments: [{ ...segment, direction: 'sideways' }] },
+    { ...trip, members: undefined },
+  ])('rejects %p', (value) => expect(PlanTripSchema.safeParse(value).success).toBe(false));
 });

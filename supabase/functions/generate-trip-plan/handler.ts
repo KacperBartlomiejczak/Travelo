@@ -7,7 +7,6 @@ import { buildPlanData, buildSystemInstruction, localTime, type PlanDataInput } 
 import { validateGeneratedPlan } from '../../../src/lib/plan-validate.ts';
 import { buildNearbySearchBody, parseNearbySearch } from '../../../src/lib/place-types.ts';
 import type { Airport } from '../../../src/schemas/airport.ts';
-import type { InterestTag } from '../../../src/schemas/interests.ts';
 import type { Place } from '../../../src/schemas/place.ts';
 import {
   GenerateTripPlanRequestSchema,
@@ -18,31 +17,14 @@ import {
 import type {
   GenerateTripPlanResponse,
   PlaceDetails,
+  PlanTrip,
   TripPlan,
   TripPlanError,
 } from '../../../src/schemas/trip-plan.ts';
 
 export type AuthResult = { kind: 'user'; id: string } | { kind: 'invalid' };
 
-export interface PlanTrip {
-  ownerId: string;
-  destination: string;
-  startDate: string;
-  endDate: string;
-  ownerInterests: InterestTag[];
-  /** Friends of the organizer (the organizer's own member row is excluded). */
-  members: { id: string; interests: InterestTag[] }[];
-  segments: {
-    direction: 'outbound' | 'return' | 'internal';
-    order: number;
-    fromIata: string;
-    toIata: string;
-    departAt: string;
-    departTz: string;
-    arriveAt: string;
-    arriveTz: string;
-  }[];
-}
+export type { PlanTrip };
 
 /** Every port throws on an unexpected failure. */
 export interface GeneratePlanPorts {
