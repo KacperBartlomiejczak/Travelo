@@ -74,6 +74,13 @@ const setup = async (canRegenerate = true) => {
 };
 
 describe('PlanResult', () => {
+  it('renders no empty text for an item without a reason', async () => {
+    const noReason: TripPlan = { ...plan, days: [{ ...plan.days[1], items: [{ ...plan.days[1].items[0], reason: '' }] }] };
+    await render(<PlanResult plan={noReason} places={places} cityName={cityName} onRegenerate={jest.fn()} canRegenerate />);
+    expect(screen.getByText('Park Guell')).toBeOnTheScreen();
+    expect(screen.queryAllByText('')).toHaveLength(0);
+  });
+
   it('shows the AI provenance label', async () => {
     await setup();
     expect(screen.getByText('Wygenerowane przez AI')).toBeOnTheScreen();

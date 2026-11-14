@@ -1,4 +1,5 @@
-import { fireEvent, render, screen } from '@testing-library/react-native';
+import { act, fireEvent, render, screen } from '@testing-library/react-native';
+import { BackHandler } from 'react-native';
 import { FadeIn, FadeOut, SlideInLeft, SlideInRight, SlideOutLeft, SlideOutRight } from 'react-native-reanimated';
 
 import { PlanWizard } from '@/features/plan/PlanWizard';
@@ -35,6 +36,54 @@ async function addCity(query: string, option: RegExp) {
 }
 
 describe('PlanWizard', () => {
+  it('clears the "already in the plan" error when the user types again', async () => {
+    await setup();
+    await next(); // -> own cities
+    await addCity('Barcelona', /Barcelona · BCN/);
+    expect(screen.getByText('To miasto jest już w planie')).toBeOnTheScreen();
+    await fireEvent.changeText(screen.getByLabelText('Dodaj miasto'), 'Lis');
+    expect(screen.queryByText('To miasto jest już w planie')).toBeNull();
+  });
+
+  describe('system back', () => {
+    function captureBack() {
+      const remove = jest.fn();
+      let handler: ((event: never) => boolean | null | undefined) | undefined;
+      jest.spyOn(BackHandler, 'addEventListener').mockImplementation((_event, h) => {
+        handler = h;
+        return { remove };
+      });
+      return { remove, press: () => handler?.(undefined as never) };
+    }
+
+    it('goes to the previous card, and closes the wizard on the first card', async () => {
+      const back = captureBack();
+      const { onCancel } = await setup();
+      await next();
+      expect(screen.getByTestId('plan-wizard-card-cities')).toBeOnTheScreen();
+      expect(await act(() => back.press())).toBe(true);
+      expect(screen.getByText('Gdzie zwiedzamy?')).toBeOnTheScreen();
+      expect(onCancel).not.toHaveBeenCalled();
+      expect(await act(() => back.press())).toBe(true);
+      expect(onCancel).toHaveBeenCalledTimes(1);
+    });
+
+    it('removes the listener when the wizard closes', async () => {
+      const back = captureBack();
+      const { unmount } = await render(
+        <PlanWizard tripId={TRIP_ID} destination={destination} onSubmit={jest.fn()} onCancel={jest.fn()} />,
+      );
+      await unmount();
+      expect(back.remove).toHaveBeenCalled();
+    });
+
+    it('does not listen while the screen is not focused', async () => {
+      const add = jest.spyOn(BackHandler, 'addEventListener');
+      await render(<PlanWizard tripId={TRIP_ID} destination={destination} onSubmit={jest.fn()} onCancel={jest.fn()} backActive={false} />);
+      expect(add).not.toHaveBeenCalled();
+    });
+  });
+
   it('asks the scope question first', async () => {
     await setup();
     expect(screen.getByText("Gdzie zwiedzamy?")).toBeOnTheScreen();

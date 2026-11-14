@@ -1,3 +1,4 @@
+import { useIsFocused } from 'expo-router';
 import { CircleAlert } from 'lucide-react-native';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -29,6 +30,7 @@ const { spacing, typography, iconography } = tokens;
 export function TripPlanSide({ trip }: { trip: Pick<TripSummary, 'id' | 'ownerId' | 'destination'> }) {
   const { t, i18n } = useTranslation();
   const theme = useTheme();
+  const focused = useIsFocused();
   const offline = useIsOffline();
   const owner = useIsTripOwner(trip.ownerId);
   const locale = i18n.language.startsWith('pl') ? 'pl' : 'en';
@@ -87,6 +89,7 @@ export function TripPlanSide({ trip }: { trip: Pick<TripSummary, 'id' | 'ownerId
       <PlanWizard
         tripId={trip.id}
         destination={destination}
+        backActive={focused}
         onCancel={() => setWizard(false)}
         onSubmit={(request) => {
           setWizard(false);

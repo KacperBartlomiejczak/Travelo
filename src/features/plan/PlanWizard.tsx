@@ -1,7 +1,7 @@
 import { X } from 'lucide-react-native';
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Pressable, ScrollView, Text, View } from 'react-native';
+import { BackHandler, Pressable, ScrollView, Text, View } from 'react-native';
 import Animated, {
   Easing,
   FadeIn,
@@ -35,6 +35,8 @@ type Props = {
   destination: Airport;
   onSubmit: (request: GenerateTripPlanRequest) => void;
   onCancel: () => void;
+  /** False while the Plan screen is not focused, so system Back is left to other screens. */
+  backActive?: boolean;
 };
 
 type Card = 'scope' | 'radius' | 'cities' | 'preferences';
@@ -89,7 +91,7 @@ function CityTag({ airport, onRemove }: { airport: Airport; onRemove: () => void
 }
 
 // The question cards of the AI plan (ai-trip-plan D2, D4-D7): one card on screen, sliding sideways; fade only with reduced motion.
-export function PlanWizard({ tripId, destination, onSubmit, onCancel }: Props) {
+export function PlanWizard({ tripId, destination, onSubmit, onCancel, backActive = true }: Props) {
   const { t, i18n } = useTranslation();
   const theme = useTheme();
   const reduceMotion = useReduceMotion() === true;
@@ -114,6 +116,17 @@ export function PlanWizard({ tripId, destination, onSubmit, onCancel }: Props) {
     setDirection(step === 1 ? 'forward' : 'back');
     setTarget(position + step);
   }
+
+  // System Back acts like the on-screen Back / Cancel button (ai-trip-plan D24).
+  useEffect(() => {
+    if (!backActive) return;
+    const subscription = BackHandler.addEventListener('hardwareBackPress', () => {
+      if (position === 0) onCancel();
+      else go(-1);
+      return true;
+    });
+    return () => subscription.remove();
+  });
 
   const slideIn = (builder: typeof SlideInRight) =>
     builder.duration(duration.emphasis).easing(Easing.bezier(...easing.enter));
@@ -213,7 +226,7 @@ export function PlanWizard({ tripId, destination, onSubmit, onCancel }: Props) {
                   </View>
                 )}
                 {cities.length < MAX_EXTRA_CITIES && (
-                  <AirportField label={t('plan.wizard.cities.field')} iata="" onSelect={addCity} error={cityError} />
+                  <AirportField label={t('plan.wizard.cities.field')} iata="" onSelect={addCity} error={cityError} onQueryChange={() => setCityError(undefined)} />
                 )}
               </>
             )}

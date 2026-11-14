@@ -63,7 +63,7 @@ export function PlanResult({ plan, places, cityName, onRegenerate, canRegenerate
                   {place?.address ? (
                     <Text style={[typography.styles.bodySM, { color: theme.text.secondary }]}>{place.address}</Text>
                   ) : null}
-                  <Text style={[typography.styles.bodyMD, { color: theme.text.primary }]}>{item.reason}</Text>
+                  {item.reason ? <Text style={[typography.styles.bodyMD, { color: theme.text.primary }]}>{item.reason}</Text> : null}
                   {place ? (
                     <Pressable
                       accessibilityRole="link"
