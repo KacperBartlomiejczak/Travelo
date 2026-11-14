@@ -59,6 +59,15 @@ describe('validateGeneratedPlan', () => {
     expect(res.ok && res.days[0]!.items).toEqual([{ placeId: 'a2', slot: 'morning', reason: 'r', forPeople: ['owner'] }]);
   });
 
+  it.each([
+    ['ideal for P1 on arrival', ''],
+    ["P12's pick", ''],
+    ['Porto, PPP, MP3 and P0', 'Porto, PPP, MP3 and P0'],
+  ])('reason %j becomes %j', (reason, expected) => {
+    const res = run(plan([{ ...item('a1'), reason }]));
+    expect(res.ok && res.days[0]!.items).toEqual([expect.objectContaining({ placeId: 'a1', reason: expected })]);
+  });
+
   it('rejects a city that is not allowed', () => {
     const bad: GeneratedPlan = { days: [{ date: '2026-12-01', cityId: 'XXX', items: [item('a1')] }, plan([]).days[1]!] };
     expect(run(bad).ok).toBe(false);
