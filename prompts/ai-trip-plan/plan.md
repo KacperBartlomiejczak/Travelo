@@ -334,7 +334,8 @@ Tabela `trip_plans` (PK `trip_id`, `days jsonb`, `model`, `created_at`): RLS —
 - Krok 13: red (zdanie obecne) → green 12/12 · verifier PASS · commit `054034d`.
 - Krok 14: red 16 (brak schematów) → green · typy identyczne z HEAD, bez zmiany zachowania; schematy na razie tylko jako typy (bez `.parse` w `loadTrip`) · verifier PASS · commit `6b7f9f8` (z `known-limitations.md`).
 - Krok 15: verifier FAIL — test C3 czytał wynik przed rerenderem (pada 2/3) → poprawka testu (flush makrozadania); red udowodniony: bez `cancelQueries` cache = `null`, bez `|| inFlight` brak widoku generowania · hook 3/3, suite 4374 ✓ · re-verify PASS · D30 · commit.
-- Krok 16: `CLAUDE.md` i `docs/agents/subagents.md` (C12, C13), `known-limitations.md` (C7–C9, usunięty nieaktualny wpis o braku deployu i o ręcznych typach). Do zrobienia: odpowiedzi w wątkach CodeRabbit — za zgodą Kacpra (publiczne).
+- Krok 16: `CLAUDE.md` i `docs/agents/subagents.md` (C12, C13), `known-limitations.md` (C7–C9, usunięty nieaktualny wpis o braku deployu i o ręcznych typach). Odpowiedzi w 14 wątkach CodeRabbit wysłane za zgodą Kacpra (2026-11-14).
+- Redeploy (2026-11-14, za zgodą Kacpra): `generate-trip-plan` (D22, D26) i `place-details` (schemat z `src/schemas/place.ts`) przez `supabase functions deploy --use-api`; smoke test bez sesji → obie zwracają `401 {"error":"unauthorized"}` z handlera, więc importy Deno działają.
 
 ## Ryzyka i otwarte pytania
 - Rozstrzygnięte: P1 → D6, P2 → D1, P3 → D2, P4 → D4, P5 → D3, P6 → D10, P7 → D8, P9 → D9, P11 → D5, P13 → D7. P8 → D11, P10 → D12, P12 → D13. Wszystkie pytania zamknięte.
