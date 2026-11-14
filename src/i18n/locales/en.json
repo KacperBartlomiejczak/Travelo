@@ -586,7 +586,9 @@
     "back": "Back"
   },
   "a11y": {
-    "addExpense": "Add expense"
+    "addExpense": "Add expense",
+    "avatar": "{{name}}",
+    "avatarGroup": "Travelers: {{names}}"
   },
   "legal": {
     "privacy": {

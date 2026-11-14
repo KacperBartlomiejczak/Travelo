@@ -45,15 +45,17 @@ Bez nowych schematów i bez migracji — tylko widok istniejących `TripPlan` / 
 ## Kroki
 Gałąź: `feature/plan-timeline` od `feature/ai-trip-plan` (PR planu AI nie jest jeszcze w `main`; po jego merge'u rebase na `main`).
 - [x] 1. [backend] `avatar-color.ts` + `plan-people-view.ts` (czysta logika w `src/lib`) — skill: test-driven-development — najpierw testy: `avatar-color.test.ts`, `plan-people-view.test.ts` — weryfikacja: verifier. *(fala A, równolegle z 2)*
-- [ ] 2. [frontend] tokeny `avatarFallback` + `Avatar` + `AvatarGroup` + klucze `a11y.avatar*` — skill: frontend-ui-engineering — najpierw testy: `Avatar.test.tsx`, kontrast tokenów — weryfikacja: verifier. *(fala A; kolor dostaje jako prop, bez importu z kroku 1)*
+- [x] 2. [frontend] tokeny `avatarFallback` + `Avatar` + `AvatarGroup` + klucze `a11y.avatar*` — skill: frontend-ui-engineering — najpierw testy: `Avatar.test.tsx`, kontrast tokenów — weryfikacja: verifier. *(fala A; kolor dostaje jako prop, bez importu z kroku 1)*
 - [ ] 3. [frontend] `PlanDayPicker` + przebudowa `PlanResult` na timeline + `TripPlanSide` przekazuje osoby — skill: frontend-ui-engineering — najpierw testy: przepisany `PlanResult.test.tsx`, `PlanDayPicker` — weryfikacja: verifier. *(fala B, po 1 i 2)*
 - [ ] 4. [docs] design-context §8.7, frontend.md, flow ai-trip-plan, app-context.
 - [ ] 5. Weryfikacja końcowa gałęzi (verifier Sonnet + CodeRabbit) i test na emulatorze (tester): PL/EN, jasny/ciemny, organizator i widok znajomego, zmiana dnia, długie nazwy, 6 miejsc w dniu, duży font.
 
 ## Dziennik postępu
 - Krok 1: `avatar-color.ts` (FNV-1a, pierwsza litera), `plan-people-view.ts` · red: brak modułów (2 suity) → green 18/18 · suite 4412 ✓, typecheck ✓, lint ✓ · verifier PASS · uwaga: `PlanPersonView` to typ propsów, nie dane z granicy (bez Zod).
+- Krok 2: tokeny `avatarFallback` (6 kolorów, jasny: biała litera 4.74–5.78:1, ciemny: litera #171716 6.47–9.28:1), `Avatar`, `AvatarGroup`, `a11y.avatar*` · red: brak modułu `Avatar`; test palety udowodniony przez orchestratora (bez palety pada) · green 11 + 14 · suite 4423 ✓, typecheck ✓, lint ✓ · verifier PASS · odstępstwa: litera xs/sm = `labelSM` (12 dp, `labelMD` nie mieści się w 24 dp — do potwierdzenia, P4), `+N` na `background.sunken`.
 
 ## Ryzyka i otwarte pytania
+- **P4.** Litera w awatarze 24/32 dp to `labelSM` (12 dp) zamiast `labelMD` z §8.7 — zapiszę w §8.7 przy kroku 4, chyba że Kacper woli inaczej.
 - **P1. Domyślny dzień** — dziś, jeśli podróż trwa, inaczej dzień 1. OK?
 - **P2. „Ułóż ponownie”** — przenoszę do notki AI na górze (jak „Edit” na screenie) zamiast przycisku na dole. OK?
 - **P3. Kolumna czasu** — bez godzin pokazuję porę dnia („Rano” / „Popołudnie” / „Wieczór”) przy pierwszym miejscu danej pory; pozostałe miejsca tej pory bez etykiety. OK, czy wolisz nagłówki pór nad kartami?

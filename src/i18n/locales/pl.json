@@ -586,7 +586,9 @@
     "back": "Wróć"
   },
   "a11y": {
-    "addExpense": "Dodaj wydatek"
+    "addExpense": "Dodaj wydatek",
+    "avatar": "{{name}}",
+    "avatarGroup": "Uczestnicy: {{names}}"
   },
   "legal": {
     "privacy": {

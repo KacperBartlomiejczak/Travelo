@@ -152,6 +152,14 @@ export const colors = {
       activities: "#357A69",
       other: "#6D6962",
     },
+    avatarFallback: [
+      { background: "#A95449", foreground: "#FFFFFF" },
+      { background: "#347B98", foreground: "#FFFFFF" },
+      { background: "#6B7340", foreground: "#FFFFFF" },
+      { background: "#7358A0", foreground: "#FFFFFF" },
+      { background: "#357A69", foreground: "#FFFFFF" },
+      { background: "#8F6A14", foreground: "#FFFFFF" },
+    ],
     sync: {
       synced: "#357A69",
       pending: "#A87512",
@@ -263,6 +271,14 @@ export const colors = {
       activities: "#67B59D",
       other: "#B8B1A6",
     },
+    avatarFallback: [
+      { background: "#E5897F", foreground: "#171716" },
+      { background: "#70A3B2", foreground: "#171716" },
+      { background: "#A4AA78", foreground: "#171716" },
+      { background: "#B49AD1", foreground: "#171716" },
+      { background: "#E0B45E", foreground: "#171716" },
+      { background: "#67B59D", foreground: "#171716" },
+    ],
     sync: {
       synced: "#67B59D",
       pending: "#E0B45E",
