@@ -1,4 +1,4 @@
-import { RECOMMEND_PLACES_TIMEOUT_MS, REQUEST_TIMEOUT_MS, withTimeout } from '@/data/fetch-timeout';
+import { GENERATE_TRIP_PLAN_TIMEOUT_MS, RECOMMEND_PLACES_TIMEOUT_MS, REQUEST_TIMEOUT_MS, withTimeout } from '@/data/fetch-timeout';
 
 const URL = 'https://example.supabase.co/rest/v1/trips';
 
@@ -102,6 +102,25 @@ describe('recommend-places call (places-legal-navbar D22)', () => {
     const request = withTimeout(neverAnswers(), REQUEST_TIMEOUT_MS)('https://example.supabase.co/functions/v1/other');
     const assertion = expect(request).rejects.toMatchObject({ name: 'AbortError' });
     await jest.advanceTimersByTimeAsync(REQUEST_TIMEOUT_MS);
+    await assertion;
+  });
+});
+
+describe('generate-trip-plan call (ai-trip-plan step 8)', () => {
+  const FUNCTION_URL = 'https://example.supabase.co/functions/v1/generate-trip-plan';
+
+  it('waits up to 60 s and is then aborted', async () => {
+    expect(GENERATE_TRIP_PLAN_TIMEOUT_MS).toBe(60_000);
+    const request = withTimeout(neverAnswers(), REQUEST_TIMEOUT_MS)(FUNCTION_URL);
+    let settled = false;
+    request.then(
+      () => (settled = true),
+      () => (settled = true),
+    );
+    await jest.advanceTimersByTimeAsync(59_999);
+    expect(settled).toBe(false);
+    const assertion = expect(request).rejects.toMatchObject({ name: 'AbortError' });
+    await jest.advanceTimersByTimeAsync(1);
     await assertion;
   });
 });

@@ -20,7 +20,8 @@ Feature flows live in [`features/`](features/), one file per feature that exists
 | Expenses | [expenses.md](features/expenses.md) | no (offline write) |
 | Discover places (Google Places + Gemini) | [discover-places.md](features/discover-places.md) | yes |
 | PRO subscription (RevenueCat paywall, Customer Center) | [subscription.md](features/subscription.md) | purchase and manage: yes; status: no (SDK cache) |
+| AI trip plan (question cards, Gemini over Places candidates) | [ai-trip-plan.md](features/ai-trip-plan.md) | yes |
 | Offline rules | [offline.md](offline.md) | — |
 | AI day plan (rules, not built) | [ai-day-plan.md](ai-day-plan.md) | — |
 
-The placeholder tab „Plan” has no flow yet; „Miejsca” was removed (places-legal-navbar D3).
+The „Plan” tab without a current trip is a placeholder; „Miejsca” was removed (places-legal-navbar D3).

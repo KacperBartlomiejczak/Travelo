@@ -54,10 +54,10 @@ Platforms: iOS and Android (Expo / React Native). Languages: Polish (`pl`) and E
 19. **PRO subscription** (`prompts/revenuecat/`, 2026-11-11) — RevenueCat: monthly or yearly PRO (`travelo_pro`) bought from the Settings banner through the RevenueCat paywall, managed in Customer Center; the PRO badge shows the real status, also offline. PRO unlocks nothing yet. Test Store only; not checked on a device yet.
 
 ### In progress (plans in `prompts/`)
-- None.
+- **AI trip plan** (`prompts/ai-trip-plan/`, 2026-11-13…) — in the Plan tab the organizer answers question cards (only this city or nearby within 50–300 km, own cities from the airport list, preference chips), then a plain day-by-day plan from real Google places is generated for everyone's interests, saved per trip (one plan, replaced after a confirmation) and readable by linked friends. Built and tested in the app; the two Edge Functions and the migration are not deployed yet; device check pending.
 
 ### Not started (MVP)
-- **AI day plans** — per-day schedule from real places, cost ranges, group splits (the "Plan" screen).
+- **AI day plans, later parts** — plan cards, cost ranges, group splits, locked activities (the plain plan is in progress above).
 - **Expenses, later parts** — other currencies with FX rates, split a bill equally between people, receipt photo, quick-add from every screen.
 - **Plan vs reality** — the daily budget comes with Expenses; still to do: plan ↔ expense link and the end-of-trip summary shareable as an image.
 
@@ -90,12 +90,12 @@ Root Stack (a gate decides which group exists)
 │   └── (tabs)             Floating pill with four screens
 │       ├── /              Podróż    — the current trip (home screen)
 │       ├── /expenses      Wydatki   — budget, who spent what, timeline, add expense
-│       ├── /plan          Plan      — placeholder; with a trip a „Plan” / „Odkryj” switch (Discover inside the tab)
+│       ├── /plan          Plan      — placeholder without a trip; with a trip a „Plan” (AI trip plan) / „Odkryj” (Discover) switch
 │       └── /profile       Profil    — photo, nick, travel stats; gear → /settings
 ├── /trips/new/*           Create-trip wizard (nested Stack, 4 steps)
 └── /trips/[tripId]/photos Full-screen photo viewer
 ```
-The pill is not shown in the wizard or in the photo viewer. The placeholder screen "Plan" shows only a title and "Ten ekran pojawi się wkrótce."; when there is a current trip, the title is replaced by a „Plan” / „Odkryj” switch and „Odkryj” shows Discover places inside the tab (`prompts/plan-discover-switch/`) (a deliberate exception to design-context §10.13, §10.19 and §12 until their features exist).
+The pill is not shown in the wizard or in the photo viewer. The placeholder screen "Plan" shows only a title and "Ten ekran pojawi się wkrótce."; when there is a current trip, the title is replaced by a „Plan” / „Odkryj” switch: „Plan” shows the AI trip plan (`prompts/ai-trip-plan/`), „Odkryj” shows Discover places inside the tab (`prompts/plan-discover-switch/`) (a deliberate exception to design-context §10.13, §10.19 and §12 until their features exist).
 
 ### 3.2 Home screen — "Podróż" (`/`)
 Shows the **current trip**: the one chosen in the side panel (remembered on the phone), else the **default trip** (the soonest upcoming or ongoing one, else the most recently ended). Always dark.
@@ -294,7 +294,7 @@ Gemini model: `gemini-3.8-flash` from the `GEMINI_MODEL` secret (never hardcoded
 ## 9. Known gaps (short list)
 
 The full list is in `docs/architecture/known-limitations.md`. The ones that matter for product decisions:
-- One of four pill screens ("Plan") is a placeholder.
+- The Plan tab is a placeholder only without a current trip.
 - Photos not yet sent are lost if the app closes.
 - Sign-in:
   - Sign in with Apple is needed before an iOS release;

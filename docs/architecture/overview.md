@@ -88,7 +88,7 @@ Travelo/
 │   ├── features/auth/          Welcome, sign-in sheet, brand buttons, e-mail and code screens, profile setup, gate view (+ `__tests__/`)
 │   ├── features/discover/      `DiscoverScreen` — Discover places (city, profile interests, result cards; the Plan tab prefills the trip destination), `PlaceCard` (photo carousel) (+ `__tests__/`)
 │   ├── features/drawer/        `TripsDrawer` — the side panel's content
-│   ├── features/plan/          `PlanScreen` — the Plan tab: placeholder, or with a trip a „Plan” / „Odkryj” switch with Discover inside (+ `__tests__/`)
+│   ├── features/plan/          `PlanScreen` — the Plan tab: placeholder, or with a trip a „Plan” / „Odkryj” switch; „Plan” = `TripPlanSide` (AI plan: `PlanWizard`, `PlanGenerating`, `PlanResult`), „Odkryj” = Discover (+ `__tests__/`)
 │   ├── features/nav/           `NAV_TABS` (the four tabs), `usePillClearance` / `usePillBottomOffset`, `EmptyScreen` (+ `__tests__/`)
 │   ├── features/home/          `CurrentTrip` — the home screen's trip view; `HeroMenuButton`, `TripMenuButton`; sheets `TripMenuSheet`, `TripDetailsSheet`, `BudgetSheet`, `DeleteTripSheet` (+ `__tests__/`)
 │   ├── features/profile/       `ProfileScreen` (photo, nick + PRO badge, friend code, stats, past trips), `TravelStatsCard`, `FriendCode`, `ProBadge`, `PastTrips`, `SettingsScreen`, `EditProfileScreen`, `AvatarViewer`, `DeleteAccountDialog` (+ `__tests__/`)
@@ -124,7 +124,7 @@ The original plan was a monorepo (`apps/mobile/`, `packages/schemas/`, `supabase
 | `apps/mobile/` | Expo app | repository root (`src/`) |
 | `packages/schemas/` | Zod schemas | `src/schemas/` |
 | `supabase/migrations/` | SQL migrations | exists (at the root, as planned) |
-| `supabase/functions/` | Edge Functions | exists: `delete-account`, `recommend-places` |
+| `supabase/functions/` | Edge Functions | exists: `delete-account`, `recommend-places`, `generate-trip-plan`, `place-details` |
 
 
 ## Modules
@@ -143,7 +143,7 @@ The original plan was a monorepo (`apps/mobile/`, `packages/schemas/`, `supabase
 | Trip photos feature | `src/features/trip-photos/` | `PhotoStrip`: under the hero; the „+” tile, then photos and uploads merged by date taken (`mergeStripItems`), with loading, empty, error, sending, failed and offline lines. `PhotoTile`: a thumbnail, a scrim with a spinner while sending, a failed icon, disabled offline. `pickTripPhotos`: the gallery, ≤ 20 photos, reads only the EXIF date. `PhotoViewer`: a full-screen pager with a counter pill, delete and an offline hint pill; it keeps the photo in view by id. `DeletePhotoSheet` | components, hooks, providers, lib, schemas, theme, `expo-image`, `expo-image-picker`, `expo-status-bar` |
 | Drawer feature | `src/features/drawer/` | `TripsDrawer`: "Twoje podróże", "Nadchodzące" / "Minione" rows (thumbnail, name, dates, the open trip marked), "Nowa podróż"; loading / error / empty / offline | components, hooks, providers, lib, theme, `expo-image` |
 | Nav feature | `src/features/nav/` | `NAV_TABS` (route key, i18n label key, lucide icon for the four tabs), `usePillClearance` (space the floating pill occupies: inset + 12 + `PILL_HEIGHT` 64) and `usePillBottomOffset`, `EmptyScreen` (title + one sentence, bottom padding above the pill) | components, theme, i18n, `react-native-safe-area-context` |
-| Plan feature | `src/features/plan/` | `PlanScreen`: no current-trip data (`useCurrentTrip()` loading, error before any data, no trips; a reload after a trip switch keeps the switch and Discover mounted, D8) → `EmptyScreen`; with a trip → `SegmentedControl` „Plan” / „Odkryj” (local state, starts on „Plan”), „Plan” = „Ten ekran pojawi się wkrótce.”, „Odkryj” = `DiscoverScreen` with the trip destination and `bottomInset` = pill clearance | components, hooks, features (discover, nav), theme, i18n |
+| Plan feature | `src/features/plan/` | `PlanScreen`: no current-trip data (`useCurrentTrip()` loading, error before any data, no trips; a reload after a trip switch keeps the switch and Discover mounted, D8) → `EmptyScreen`; with a trip → `SegmentedControl` „Plan” / „Odkryj” (local state, starts on „Plan”), „Plan” = `TripPlanSide` (hooks `useTripPlan`, `usePlaceDetails`, `useGenerateTripPlan` → `src/data/trip-plan.ts` → `generate-trip-plan` / `trip_plans` / `place-details`), „Odkryj” = `DiscoverScreen` with the trip destination and `bottomInset` = pill clearance | components, hooks, features (discover, nav), theme, i18n |
 | Expenses feature | `src/features/expenses/`, `src/hooks/useExpenses.ts` | Expenses screen, budget card, per-person chart, timeline, add / edit sheet; read and write hooks, edit rule | schemas, lib, data, components |
 | Discover feature | `src/features/discover/`, `src/hooks/usePlaceRecommendations.ts`, `src/data/places.ts` | `/discover` screen, also rendered inside the Plan tab; the hook calls the `recommend-places` Edge Function through `fetchPlaceRecommendations` (Zod on the response, errors as `PlacesError` kinds `limit_reached \| offline \| unauthorized \| failed`) | schemas, lib (`place-types`, `place-picks`), data, components |
 | Expense data | `src/schemas/expense.ts`, `src/data/expense-repository.ts`, `expense-rows.ts`, `expense-sync.ts`, `app-expense.ts` | Expense schemas; local writes and reads in SQLite; row mapping; push and pull with Supabase; app instances | Zod, `expo-sqlite`, Supabase |

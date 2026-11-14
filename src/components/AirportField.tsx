@@ -15,6 +15,8 @@ type Props = {
   iata: string;
   onSelect: (airport: Airport | null) => void;
   error?: string;
+  /** Called on every keystroke, e.g. to clear a stale error. */
+  onQueryChange?: (text: string) => void;
 };
 
 const { input, listRow, focusRing } = tokens.components;
@@ -63,7 +65,7 @@ function AirportOption({ airport, first, onChoose }: { airport: Airport; first: 
 }
 
 // Type a city or code, pick from the bundled airport list (D9).
-export function AirportField({ label, iata, onSelect, error }: Props) {
+export function AirportField({ label, iata, onSelect, error, onQueryChange }: Props) {
   const { t } = useTranslation();
   const theme = useTheme();
   const [focused, setFocused] = useState(false);
@@ -75,6 +77,7 @@ export function AirportField({ label, iata, onSelect, error }: Props) {
 
   function type(text: string) {
     setQuery(text);
+    onQueryChange?.(text);
     if (iata) onSelect(null);
   }
 

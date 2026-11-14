@@ -71,6 +71,15 @@ export const GooglePlaceSchema = z.object({
 });
 export type GooglePlace = z.infer<typeof GooglePlaceSchema>;
 
+// Raw Place Details (New) response; unknown keys are stripped.
+export const GooglePlaceDetailsSchema = z.object({
+  id: z.string().min(1),
+  displayName: z.object({ text: z.string().min(1) }),
+  formattedAddress: z.string().optional(),
+  googleMapsUri: z.url(),
+});
+export type GooglePlaceDetails = z.infer<typeof GooglePlaceDetailsSchema>;
+
 // Google returns `{}` when nothing matches.
 export const GoogleNearbySearchResponseSchema = z.object({ places: z.array(GooglePlaceSchema).default([]) });
 export type GoogleNearbySearchResponse = z.infer<typeof GoogleNearbySearchResponseSchema>;

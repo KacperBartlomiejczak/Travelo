@@ -129,6 +129,81 @@
     "decrease": "Zmniejsz",
     "close": "Zamknij"
   },
+  "plan": {
+    "wizard": {
+      "scope": {
+        "title": "Gdzie zwiedzamy?",
+        "only": "Tylko {{city}}",
+        "nearby": "Też inne miasta",
+        "label": "Zakres planu"
+      },
+      "radius": {
+        "title": "W jakim promieniu szukać?",
+        "option": "{{km}} km",
+        "label": "Promień"
+      },
+      "cities": {
+        "title": "Własne miasta",
+        "hint": "Opcjonalnie, do {{max}}. Dodaj miasta, które chcesz uwzględnić.",
+        "field": "Dodaj miasto",
+        "invalid": "To miasto jest już w planie",
+        "remove": "Usuń miasto, {{city}}"
+      },
+      "preferences": {
+        "title": "Jakiego planu chcesz?",
+        "hint": "Opcjonalnie, możesz wybrać kilka.",
+        "relaxed": "Spokojne tempo",
+        "intense": "Intensywnie",
+        "food": "Dużo jedzenia",
+        "noMuseums": "Bez muzeów"
+      },
+      "next": "Dalej",
+      "back": "Wstecz",
+      "cancel": "Anuluj",
+      "submit": "Ułóż plan"
+    },
+    "generating": {
+      "title": "Układam plan podróży…",
+      "finding": "Szukam miejsc…",
+      "arranging": "Układam dni…",
+      "almost": "Już prawie gotowe…"
+    },
+    "result": {
+      "ai": "Wygenerowane przez AI",
+      "day": "Dzień {{n}} · {{date}} · {{city}}",
+      "unavailable": "Miejsce niedostępne",
+      "openMaps": "Otwórz w Mapach Google",
+      "openMapsLabel": "Otwórz w Mapach Google, {{place}}",
+      "regenerate": "Ułóż ponownie",
+      "slot": {
+        "morning": "Rano",
+        "afternoon": "Popołudnie",
+        "evening": "Wieczór"
+      }
+    },
+    "side": {
+      "loading": "Wczytuję plan",
+      "loadError": "Nie udało się wczytać planu.",
+      "detailsError": "Nie udało się wczytać miejsc.",
+      "retry": "Spróbuj ponownie",
+      "needsInternet": "Plan wymaga internetu.",
+      "emptyTitle": "Nie masz jeszcze planu podróży",
+      "emptyAction": "Ułóż plan z AI",
+      "friendEmpty": "Organizator nie ułożył jeszcze planu.",
+      "replaceTitle": "Zastąpić obecny plan?",
+      "replaceMessage": "Nowy plan zastąpi obecny.",
+      "replaceConfirm": "Zastąp",
+      "replaceCancel": "Anuluj"
+    },
+    "error": {
+      "title": "Nie udało się ułożyć planu",
+      "limit": "Wykorzystano dzisiejszy limit planów ({{count}}). Spróbuj jutro.",
+      "noPlaces": "Nie znaleźliśmy wystarczającej liczby pasujących miejsc. Zmień zainteresowania albo zakres dnia.",
+      "offline": "Generowanie planu wymaga internetu.",
+      "retry": "Spróbuj ponownie",
+      "cancel": "Anuluj"
+    }
+  },
   "airportField": {
     "placeholder": "Miasto lub kod lotniska",
     "noResults": "Nie znaleziono lotniska"
