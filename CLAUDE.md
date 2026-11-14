@@ -122,7 +122,7 @@ Before building any UI, read [`context/design-context.md`](context/design-contex
 
 Rules that always apply:
 - The orchestrator (main session) is the **only one allowed to edit** `prompts/` and `docs/`. Subagents return a report; they never guess (unclear brief → `Status: question`).
-- Order: schemas → backend → frontend. Every finished step goes through the **verifier**; only after PASS is the step marked `[x]`.
+- Order: schemas → backend → frontend for steps that depend on each other; independent steps may run in parallel (see the delegation rules). Every finished step goes through the **verifier**; only after PASS is the step marked `[x]`.
 - Every brief is self-contained: step, allowed files, relevant Zod schemas, tests to write first, acceptance criteria. A step needing both backend and frontend is split. No two subagents edit the same file in parallel.
 - **How `docs/agents/subagents.md` is kept:** an agent table (model, does, edits, must not), "when to use the explorer", the step flow, and the delegation rules, in that order. A change to an agent updates its definition file and that table together.
 

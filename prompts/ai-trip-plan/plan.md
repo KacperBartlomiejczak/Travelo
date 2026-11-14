@@ -63,7 +63,7 @@ Rules you must always follow:
 
 How to plan:
 - Plan every day from "days". Arrival and departure days are lighter: plan only the hours after "arriveLocalTime" and before "departLocalTime".
-- Each day takes place in one city. Put days in other cities in a sensible order and avoid moving back and forth. The destination city should get the first and last day.
+- Each day takes place in one city. Put days in other cities in a sensible order and avoid moving back and forth.
 - Give each full day 3–5 places spread over "morning", "afternoon" and "evening"; include at least one food place per day when candidates allow.
 - Balance the group: across the whole trip every person should get places that match their own interests, not only the majority's. In "forPeople" list which persons a place is chosen for.
 - Prefer places close to each other within one day (use the order of candidates as a hint only; you do not know exact distances).
@@ -217,6 +217,55 @@ Fala F (po teście na urządzeniu, równolegle)
 
 - [ ] 10. Deploy funkcji + sekret (Kacper), test na urządzeniu (tester) i porównanie `gemini-3.8-flash` vs `gemini-4-hydrogen` na 2–3 podróżach; na końcu verifier end-of-plan (CodeRabbit).
 
+### Plan naprawy PR #40 (analiza 2026-11-14, czeka na akceptację Kacpra)
+
+**Stan PR** ([#40](https://github.com/KacperBartlomiejczak/Travelo/pull/40)): otwarty, `MERGEABLE`, jedyny check CodeRabbit = pass, 14 nierozwiązanych wątków CodeRabbit, brak review człowieka.
+
+**Stan workspace** (niezacommitowane, kroki 11 i 12 w toku):
+- Działa: `pnpm typecheck` ✓, `pnpm lint` ✓; testy `PlanWizard` (Wstecz systemowe D24, czyszczenie błędu duplikatu), `PlanResult` (pusty `reason`), `plan-prompt` (linia D22) — zielone.
+- Nie działa: `plan-validate.test.ts` — **2 testy czerwone** (`"ideal for P1 on arrival"`, `"P12's pick"` nie są czyszczone). Przyczyna: w `src/lib/plan-validate.ts:8` regex zawiera **znaki sterujące backspace (0x08)** zamiast `\b` (narzędzie zapisało `\b` jako escape). Regex szuka więc `<BS>P1<BS>` i nigdy nie trafia. Kod nie spełnia D22.
+- Szum: `plan-validate.ts` i jego test przeformatowane na podwójne cudzysłowy i łamanie linii (repo używa pojedynczych) — diff 140 linii zamiast ~10.
+- Poza zakresem tej gałęzi: `.codex/config.toml` (nowy MCP lottiefiles) i nieśledzone `.agents/skills/expo-upgrade/`, `.agents/skills/migrate-to-strict-api/` — nie commituję ich tutaj.
+
+**Ocena 14 uwag CodeRabbit**
+
+| # | Plik | Uwaga | Werdykt |
+|---|---|---|---|
+| C1 | `plan-validate.ts:29` | filtr D22 | naprawiane w kroku 11 (patrz bug wyżej) |
+| C2 | `plan-prompt.ts:20` | „destynacja pierwszy i ostatni dzień” kłóci się z regułą przylotu/wylotu | słuszna — usunąć zdanie (zmiana promptu = Twoja decyzja, Q1) |
+| C3 | `useGenerateTripPlan.ts:14` | starszy odczyt może nadpisać świeży plan w cache | słuszna, mała — `await cancelQueries` przed `setQueryData` |
+| C4 | `PlanScreen.tsx:57` | Plan→Odkryj w trakcie generowania pozwala wygenerować drugi raz (zużywa limit) | słuszna (to samo co minor (1) z weryfikacji końcowej) — blokada przez `useIsMutating` z kluczem mutacji |
+| C5 | `plan-cities.ts:5`, `plan-people.ts:4`, `generate-trip-plan/handler.ts:27` | ręczne typy `PlanCity` / `PlanPerson` / `PlanTrip` | słuszna wg CLAUDE.md (typy tylko z `z.infer`) — schematy w `src/schemas/trip-plan.ts` |
+| C6 | `place-details/ports.ts:17` | schemat odpowiedzi Google w adapterze | słuszna — wzorzec istnieje: `src/schemas/place.ts` (`GooglePlaceSchema`) |
+| C7 | `generate-trip-plan/handler.ts:170` | Nearby Search 20 km od **lotniska**, nie centrum (CDG, LHR, FCO > 20 km) | słuszna, realny problem jakości — decyzja Kacpra (Q2) |
+| C8 | `place-details/handler.ts:48` | brak limitu na płatne Place Details | już w `known-limitations.md` — osobny plan (Q3) |
+| C9 | migracja `…trip_plans.sql:50` | zwrot limitu po północy UTC trafia w nowy dzień | słuszna, rzadki przypadek (max +1 plan); migracja już zastosowana → tylko nowa migracja (Q3) |
+| C10 | `PlanGenerating.tsx:50` | `offset.value` → `.set()/.get()` | odrzucam: lint zielony, Reanimated 4 wspiera `.value`; odpowiedź w wątku |
+| C11 | `PlanResult.test.tsx:60` | TS7053 | odrzucam: `pnpm typecheck` zielony — nieaktualna |
+| C12 | `CLAUDE.md:139` | kolejność backend→frontend vs równoległość | słuszna — doprecyzować: kolejność dotyczy kroków zależnych |
+| C13 | `docs/agents/subagents.md:49` | równolegli verifierzy w jednym drzewie widzą cudze zmiany / cudzy red | słuszna — dopisać: verifier sprawdza pełny suite dopiero gdy żaden krok fali nie jest w fazie red; inaczej tylko testy swojego kroku + raport |
+
+**Podejście:** najpierw zamknąć to, co w toku (11, 12), bo to blokuje zielony suite i deploy. Potem małe poprawki z CodeRabbit falą równoległą (różne pliki), dokumentację robię sam, na końcu redeploy + resztę kroku 10. Każdy krok: test red → green, pełny suite + typecheck + lint, verifier. Wszystko na `feature/ai-trip-plan`, commit na krok.
+
+Fala F (dokończenie, równolegle)
+- [x] 11. [backend] (w toku) Naprawić regex w `plan-validate.ts` na `/\bP[1-9]\d?\b/` (prawdziwe `\b`), cofnąć przeformatowanie pliku i testu do stylu repo; 2 czerwone testy już istnieją = red. Commit z linią promptu D22. Redeploy `generate-trip-plan` — za Twoją zgodą.
+- [x] 12. [frontend] (gotowe w workspace, zielone) Verifier + commit `PlanResult` / `PlanWizard` / `TripPlanSide` / `AirportField`.
+
+Fala G (po F, równolegle — rozłączne pliki)
+- [x] 13. [backend] C2: usunięcie zdania o destynacji w pierwszy/ostatni dzień z `plan-prompt.ts` i z sekcji „Proponowany prompt” (po Q1); test na brak zdania.
+- [x] 14. [backend] C5 + C6: `PlanCitySchema`, `PlanPersonSchema`, `PlanTripSchema` w `src/schemas/trip-plan.ts`, `GooglePlaceDetailsSchema` do `src/schemas/place.ts`; typy z `z.infer`, bez zmiany zachowania — testy schematów najpierw.
+- [x] 15. [frontend] C3 + C4: `cancelQueries` w `useGenerateTripPlan`; przycisk „Ułóż plan” zablokowany i stan „generowanie” po powrocie z Odkryj, gdy mutacja dla tej podróży trwa — testy hooka i `TripPlanSide` najpierw.
+- [ ] 16. [orchestrator] C12, C13 w `CLAUDE.md` + `docs/agents/subagents.md`; C7–C9 zgodnie z Q2/Q3 (naprawa albo `known-limitations.md`); odpowiedzi w wątkach CodeRabbit (C10, C11 z uzasadnieniem).
+
+Na koniec
+- [ ] 10 (reszta). Redeploy `generate-trip-plan`; tester: PL, motyw jasny, widok znajomego, ponowny test „P1”; porównanie modeli D25; verifier end-of-plan; aktualizacja test planu w opisie PR.
+
+**Pytania do Kacpra (jedno naraz)**
+- Q1. C2: usuwamy zdanie „The destination city should get the first and last day.” z promptu? (rekomendacja: tak — reguła przylotu/wylotu już to pokrywa, a gdy przylotu nie ma, model i tak zaczyna od destynacji).
+- Q2. C7 (lotnisko ≠ centrum): (a) szukać od współrzędnych miasta — wymaga nowego pola w danych lotnisk; (b) większy promień (np. 35 km) — tanio, ale więcej miejsc spoza miasta; (c) zostawić, wpisać do `known-limitations.md` i osobny plan — rekomendacja (c), bo (a) to zmiana danych, a test na urządzeniu z Porto wypadł dobrze.
+- Q3. C8 i C9: zostawić w `known-limitations.md` i zrobić w osobnym planie (rekomendacja), czy naprawić w tym PR (nowa migracja + limit `place-details`)?
+- Q4. `.codex/config.toml` (lottiefiles) i `.agents/skills/*` — zostawić poza tą gałęzią (rekomendacja), czy osobny commit/gałąź?
+
 ## Weryfikacja
 Każdy krok: pełny suite + `pnpm typecheck` + `pnpm lint`, potem verifier. Krok 8: tester przez mobile-mcp; porównanie modeli — ten sam input, oceniamy: czas odpowiedzi, czy plan pokrywa wszystkie dni, czy każda osoba „dostała” swoje zainteresowania, liczba odrzuconych `placeId`.
 
@@ -250,6 +299,11 @@ Każdy krok: pełny suite + `pnpm typecheck` + `pnpm lint`, potem verifier. Krok
 - D23 (po teście). Karta zasięgu zostaje z domyślnym 100 km.
 - D24 (po teście). Systemowe „Wstecz” (Android) w kreatorze = przycisk „Wstecz”: poprzednia karta; na karcie 1 zamyka kreator.
 - D25 (po teście). Porównanie `gemini-4-hydrogen` vs `gemini-3.8-flash` po poprawkach, przy pełnym dziennym limicie.
+- D26 (Q1, 2026-11-14). Z promptu (`plan-prompt.ts` i sekcja „Proponowany prompt”) usuwamy zdanie „The destination city should get the first and last day.” — reguła przylotu/wylotu wystarcza (krok 13).
+- D27 (Q2, 2026-11-14). C7 (Nearby Search 20 km od lotniska, nie od centrum) zostaje — wpis do `known-limitations.md` w kroku 16, naprawa w osobnym planie.
+- D28 (Q3, 2026-11-14). C8 (brak limitu `place-details`) i C9 (zwrot limitu po północy UTC) zostają — `known-limitations.md` w kroku 16, naprawa w osobnym planie.
+- D29 (Q4, 2026-11-14). `.codex/config.toml` (MCP lottiefiles) i `.agents/skills/*` zostają poza `feature/ai-trip-plan` — nie są commitowane w tym PR.
+- D30 (krok 15, 2026-11-14). Gdy generowanie skończy się błędem w czasie, gdy użytkownik jest w Odkryj, po powrocie zostaje pusty stan z „Ułóż plan z AI” (bez panelu błędu); nieudana próba nie zużywa limitu (D9).
 - D16 (Kacper, 2026-11-13). Wykonanie falami: kilka subagentów backend i frontend naraz (kroki niezależne, bez wspólnych plików), każdy krok ma osobnego verifiera, verifierzy też równolegle. Zapisane w `docs/agents/subagents.md` i `CLAUDE.md`.
 
 ### Model zapisu (szkic, uzupełnia „Struktury danych”)
@@ -275,6 +329,12 @@ Tabela `trip_plans` (PK `trip_id`, `days jsonb`, `model`, `created_at`): RLS —
 - Weryfikacja końcowa gałęzi (Sonnet, CodeRabbit, 66 plików): PASS, 0 critical/major; minor do decyzji Kacpra: (1) przełączenie Plan→Odkryj w trakcie generowania odmontowuje `TripPlanSide` i po powrocie można wygenerować drugi raz, (2) komenda `docker exec … < file` w `backend.md` nie zadziała dla `trip_covers.sql` (`\ir`), (3) brak limitu `place-details` (już w known-limitations).
 - Krok 10 (w toku, 2026-11-14): migracja `20261113120000` zastosowana na hosted przez Supabase MCP (wersja w historii = plik), advisors bez nowych uwag; `generate-trip-plan` i `place-details` wdrożone `supabase functions deploy --use-api`; Kacper wpisał `GEMINI_PLAN_MODEL` do `.env` aplikacji (funkcje go nie widzą) → za zgodą Kacpra ustawiony sekret Supabase `GEMINI_PLAN_MODEL=gemini-4-hydrogen`; test na emulatorze Android (tester) w toku.
 - Krok 10, test na emulatorze (Android 17, dev build, motyw ciemny, język EN): 2 generacje z `gemini-4-hydrogen`, 36 s i 40 s, 8 dni, przylot/wylot dobrze przycięte, animacja kart potwierdzona klatkami, Discover↔Plan bez ponownego generowania, dialog „Zastąp” i offline OK. Błędy: (1) „P1” w uzasadnieniach (2. generacja) → D22; (2) raz „Nie udało się wczytać planu” przy pierwszym otwarciu zaraz po migracji (prawdopodobnie cache schematu PostgREST, nie powtórzyło się); (3) systemowe Wstecz wyszło z kreatora → D24; (4) model dopisuje fakty spoza DATA (np. Torre dos Clérigos „art museum”, wynika z typów Google) — ocenimy przy porównaniu modeli; (5) błąd duplikatu miasta zostaje przy pisaniu. Nie sprawdzone: PL, motyw jasny, widok znajomego.
+- Krok 11: regex w `plan-validate.ts` miał bajty 0x08 zamiast `\b` → red 2/14 (P1, P12) → poprawka + przywrócony styl repo (diff 13/−1) · green 14/14, suite 4355 ✓, typecheck ✓, lint ✓ · verifier PASS · commit `b8f59b4` · redeploy `generate-trip-plan` po kroku 13 (jeden deploy).
+- Krok 12: verifier PASS (470 testów plan/components, suite 4355 ✓) · uwagi nieblokujące: `BackHandler` re-subskrybuje przy każdym renderze (bez wycieku) · commit `812783a`.
+- Krok 13: red (zdanie obecne) → green 12/12 · verifier PASS · commit `054034d`.
+- Krok 14: red 16 (brak schematów) → green · typy identyczne z HEAD, bez zmiany zachowania; schematy na razie tylko jako typy (bez `.parse` w `loadTrip`) · verifier PASS · commit `6b7f9f8` (z `known-limitations.md`).
+- Krok 15: verifier FAIL — test C3 czytał wynik przed rerenderem (pada 2/3) → poprawka testu (flush makrozadania); red udowodniony: bez `cancelQueries` cache = `null`, bez `|| inFlight` brak widoku generowania · hook 3/3, suite 4374 ✓ · re-verify PASS · D30 · commit.
+- Krok 16: `CLAUDE.md` i `docs/agents/subagents.md` (C12, C13), `known-limitations.md` (C7–C9, usunięty nieaktualny wpis o braku deployu i o ręcznych typach). Do zrobienia: odpowiedzi w wątkach CodeRabbit — za zgodą Kacpra (publiczne).
 
 ## Ryzyka i otwarte pytania
 - Rozstrzygnięte: P1 → D6, P2 → D1, P3 → D2, P4 → D4, P5 → D3, P6 → D10, P7 → D8, P9 → D9, P11 → D5, P13 → D7. P8 → D11, P10 → D12, P12 → D13. Wszystkie pytania zamknięte.
