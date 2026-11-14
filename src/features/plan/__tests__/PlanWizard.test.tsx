@@ -113,11 +113,22 @@ describe('PlanWizard', () => {
     await next();
     expect(screen.getByText("W jakim promieniu szukać?")).toBeOnTheScreen();
     for (const km of [50, 100, 200, 300]) expect(screen.getByRole('radio', { name: `${km} km` })).toBeOnTheScreen();
+    expect(screen.getByRole('radio', { name: '100 km', checked: true })).toBeOnTheScreen();
     await fireEvent.press(screen.getByRole('radio', { name: '200 km' }));
     await next();
     await next();
     await press('Ułóż plan');
     expect(onSubmit).toHaveBeenCalledWith(expect.objectContaining({ scope: { kind: 'nearby', radiusKm: 200 } }));
+  });
+
+  it('defaults the radius to 100 km when the user does not touch it', async () => {
+    const { onSubmit } = await setup();
+    await fireEvent.press(screen.getByRole('radio', { name: 'Też inne miasta' }));
+    await next();
+    await next();
+    await next();
+    await press('Ułóż plan');
+    expect(onSubmit).toHaveBeenCalledWith(expect.objectContaining({ scope: { kind: 'nearby', radiusKm: 100 } }));
   });
 
   it('back goes to the previous card and cancel on the first card calls onCancel', async () => {

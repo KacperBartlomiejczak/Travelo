@@ -42,6 +42,7 @@ type Props = {
 type Card = 'scope' | 'radius' | 'cities' | 'preferences';
 type ScopeChoice = 'city_only' | 'nearby';
 type Radius = (typeof PLAN_RADII_KM)[number];
+const DEFAULT_RADIUS_KM: Radius = 100;
 
 const { duration, easing } = tokens.motion;
 const { chip, focusRing } = tokens.components;
@@ -96,7 +97,7 @@ export function PlanWizard({ tripId, destination, onSubmit, onCancel, backActive
   const theme = useTheme();
   const reduceMotion = useReduceMotion() === true;
   const [scope, setScope] = useState<ScopeChoice>('city_only');
-  const [radiusKm, setRadiusKm] = useState<Radius>(PLAN_RADII_KM[0]);
+  const [radiusKm, setRadiusKm] = useState<Radius>(DEFAULT_RADIUS_KM);
   const [cities, setCities] = useState<Airport[]>([]);
   const [cityError, setCityError] = useState<string | undefined>();
   const [preferences, setPreferences] = useState<PlanPreference[]>([]);
