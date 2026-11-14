@@ -36,7 +36,7 @@ export function TripPlanSide({ trip }: { trip: Pick<TripSummary, 'id' | 'ownerId
   const locale = i18n.language.startsWith('pl') ? 'pl' : 'en';
   const plan = useTripPlan(trip.id);
   const details = usePlaceDetails(plan.data ? planPlaceIds(plan.data) : [], locale);
-  const generate = useGenerateTripPlan();
+  const generate = useGenerateTripPlan(trip.id);
   const [wizard, setWizard] = useState(false);
   const [confirmReplace, setConfirmReplace] = useState(false);
   const [lastRequest, setLastRequest] = useState<GenerateTripPlanRequest | null>(null);

@@ -51,7 +51,7 @@ describe('trip plan hooks', () => {
     jest.mocked(generateAppTripPlan).mockResolvedValue(response);
     jest.mocked(fetchAppTripPlan).mockResolvedValue(null);
     const { result } = await renderHook(
-      () => ({ gen: useGenerateTripPlan(), plan: useTripPlan(TRIP_ID), details: usePlaceDetails(['p1'], 'pl') }),
+      () => ({ gen: useGenerateTripPlan(TRIP_ID), plan: useTripPlan(TRIP_ID), details: usePlaceDetails(['p1'], 'pl') }),
       { wrapper: setup() },
     );
     await waitFor(() => expect(result.current.plan.data).toBeNull());
@@ -60,5 +60,17 @@ describe('trip plan hooks', () => {
     await waitFor(() => expect(result.current.plan.data).toEqual(plan));
     await waitFor(() => expect(result.current.details.data).toEqual({ p1: place }));
     expect(fetchAppPlaceDetails).not.toHaveBeenCalled();
+  });
+
+  it('a plan read that started before the generation cannot overwrite the generated plan', async () => {
+    let resolveRead: (v: null) => void = () => {};
+    jest.mocked(fetchAppTripPlan).mockReturnValue(new Promise((r) => (resolveRead = r)));
+    jest.mocked(generateAppTripPlan).mockResolvedValue(response);
+    const { result } = await renderHook(() => ({ gen: useGenerateTripPlan(TRIP_ID), plan: useTripPlan(TRIP_ID) }), { wrapper: setup() });
+    await act(async () => void (await result.current.gen.mutateAsync(request)));
+    await act(async () => resolveRead(null));
+    // Observers are notified on a macrotask; let it flush before asserting the plan was not replaced.
+    await act(async () => void (await new Promise((r) => setTimeout(r, 10))));
+    expect(result.current.plan.data).toEqual(plan);
   });
 });

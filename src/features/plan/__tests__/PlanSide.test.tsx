@@ -139,6 +139,23 @@ describe('Plan side of the Plan tab (ai-trip-plan step 9)', () => {
     expect(fetchAppPlaceDetails).not.toHaveBeenCalled();
   });
 
+  it('a generation in flight survives leaving the Plan side: remount shows generating, no generate button, then the plan', async () => {
+    let resolve: (v: unknown) => void = () => {};
+    jest.mocked(generateAppTripPlan).mockReturnValue(new Promise((r) => (resolve = r)) as never);
+    await ownerReady();
+    await fireEvent.press(button('Ułóż plan z AI'));
+    await fireEvent.press(button('stub-submit'));
+    await screen.findByText('Układam plan podróży…');
+    await fireEvent.press(screen.getByText('Odkryj'));
+    await waitFor(() => expect(screen.queryByTestId('plan-side')).toBeNull());
+    await fireEvent.press(screen.getByText('Plan'));
+    expect(await screen.findByText('Układam plan podróży…')).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'Ułóż plan z AI' })).toBeNull();
+    expect(generateAppTripPlan).toHaveBeenCalledTimes(1);
+    await act(async () => resolve({ plan, places: [place], remainingToday: 2 }));
+    expect(await screen.findByText('Alfama')).toBeTruthy();
+  });
+
   it('linked friend without a plan: read-only message, no button', async () => {
     await open('someone-else');
     expect(await screen.findByText('Organizator nie ułożył jeszcze planu.')).toBeTruthy();
