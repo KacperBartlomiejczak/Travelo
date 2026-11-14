@@ -1,5 +1,5 @@
 import type { GeneratedPlan } from '../../schemas/trip-plan.ts';
-import { validateGeneratedPlan } from '../plan-validate';
+import { mentionsPersonId, validateGeneratedPlan } from '../plan-validate';
 
 const M1 = '11111111-1111-4111-8111-111111111111';
 const refs = { P1: 'owner', P2: M1 } as const;
@@ -16,6 +16,17 @@ const plan = (d1: Items, d2: Items = [item('b1')]): GeneratedPlan => ({
 });
 const run = (generated: GeneratedPlan, tripDates: string[] = dates) =>
   validateGeneratedPlan({ plan: generated, placesByCity, allowedCities, dates: tripDates, refs });
+
+describe('mentionsPersonId', () => {
+  it.each([
+    ['ideal for P1 on arrival', true],
+    ["P12's pick", true],
+    ['Porto, PPP, MP3 and P0', false],
+    ['', false],
+  ])('%j -> %s', (reason, expected) => {
+    expect(mentionsPersonId(reason)).toBe(expected);
+  });
+});
 
 describe('validateGeneratedPlan', () => {
   it('maps a valid plan to stored days with person refs', () => {

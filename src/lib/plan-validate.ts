@@ -3,6 +3,10 @@ import type { GeneratedPlan, PlanPersonRef, StoredPlanDay } from '../schemas/tri
 // Matches internal person ids (P1..P99) as whole words, so "Porto", "PPP", "MP3", "P0" pass.
 const PERSON_ID = /\bP[1-9]\d?\b/;
 
+export function mentionsPersonId(reason: string): boolean {
+  return PERSON_ID.test(reason);
+}
+
 export type ValidatePlanResult = { ok: true; days: StoredPlanDay[] } | { ok: false; error: string };
 
 // Filters the model output down to real candidates and maps person ids to stored refs.
@@ -29,7 +33,7 @@ export function validateGeneratedPlan(input: {
       const forPeople = item.forPeople.flatMap((id) => (Object.hasOwn(refs, id) ? [refs[id]!] : []));
       if (forPeople.length === 0) continue;
       seen.add(item.placeId);
-      items.push({ placeId: item.placeId, slot: item.slot, reason: PERSON_ID.test(item.reason) ? '' : item.reason, forPeople });
+      items.push({ placeId: item.placeId, slot: item.slot, reason: mentionsPersonId(item.reason) ? '' : item.reason, forPeople });
     }
     return { date: day.date, cityIata: day.cityId, items };
   });
