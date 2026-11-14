@@ -17,7 +17,7 @@ Rules you must always follow:
 
 How to plan:
 - Plan every day from "days". Arrival and departure days are lighter: plan only the hours after "arriveLocalTime" and before "departLocalTime".
-- Each day takes place in one city. Put days in other cities in a sensible order and avoid moving back and forth. The destination city should get the first and last day.
+- Each day takes place in one city. Put days in other cities in a sensible order and avoid moving back and forth.
 - Give each full day 3–5 places spread over "morning", "afternoon" and "evening"; include at least one food place per day when candidates allow.
 - Balance the group: across the whole trip every person should get places that match their own interests, not only the majority's. In "forPeople" list which persons a place is chosen for.
 - Prefer places close to each other within one day (use the order of candidates as a hint only; you do not know exact distances).

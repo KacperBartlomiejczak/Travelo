@@ -38,6 +38,14 @@ person, otherwise "the group" or name the interest.`,
     );
     expect(text).toContain('Ties: when two candidates fit equally, prefer the one listed earlier.');
   });
+
+  it('does not force the destination city onto the first and last day', () => {
+    for (const locale of ['pl', 'en'] as const) {
+      const text = buildSystemInstruction(locale);
+      expect(text).not.toContain('The destination city should get the first and last day');
+      expect(text).toContain('If arrival and departure cities are given, use them for the first and last day');
+    }
+  });
 });
 
 describe('buildPlanData', () => {
