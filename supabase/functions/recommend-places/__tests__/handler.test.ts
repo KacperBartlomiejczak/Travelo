@@ -1,5 +1,6 @@
 import nearby from '../../../../src/lib/__tests__/fixtures/nearby-search.json';
 import { parseNearbySearch } from '../../../../src/lib/place-types';
+import { InterestTagSchema } from '../../../../src/schemas/interests';
 import { RecommendPlacesErrorSchema, RecommendPlacesResponseSchema } from '../../../../src/schemas/place';
 import { buildPicksPrompt, handleRecommendPlaces, type RecommendPorts } from '../handler';
 
@@ -77,6 +78,14 @@ describe('handleRecommendPlaces', () => {
   it('400 for a bad body, without consuming quota', async () => {
     const { ports, calls } = makePorts();
     const res = await handleRecommendPlaces(req({ body: { ...BODY, interests: [] } }), ports);
+    expect(res).toEqual({ status: 400, body: { error: 'invalid_input' } });
+    expect(calls).toEqual(['authenticate']);
+  });
+
+  it('400 for too many interests, without consuming quota', async () => {
+    const { ports, calls } = makePorts();
+    const tags = InterestTagSchema.options;
+    const res = await handleRecommendPlaces(req({ body: { ...BODY, interests: [...tags, tags[0]] } }), ports);
     expect(res).toEqual({ status: 400, body: { error: 'invalid_input' } });
     expect(calls).toEqual(['authenticate']);
   });

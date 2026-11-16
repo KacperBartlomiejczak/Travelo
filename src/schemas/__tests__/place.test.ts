@@ -16,6 +16,7 @@ import {
   RecommendPlacesRequestSchema,
   RecommendPlacesResponseSchema,
 } from '../place';
+import { InterestTagSchema } from '../interests';
 
 const location = { latitude: 41.39, longitude: 2.17 };
 const googlePlace = {
@@ -134,6 +135,16 @@ describe('RecommendPlacesRequestSchema', () => {
     ['bad locale', { locale: 'de' }],
   ])('rejects %s', (_n, patch) => {
     expect(RecommendPlacesRequestSchema.safeParse({ ...request, ...patch }).success).toBe(false);
+  });
+  it('rejects more interests than there are tags', () => {
+    const tags = InterestTagSchema.options;
+    const interests = [...tags, tags[0]];
+    expect(RecommendPlacesRequestSchema.safeParse({ ...request, interests }).success).toBe(false);
+  });
+  it('accepts exactly all interest tags', () => {
+    expect(RecommendPlacesRequestSchema.safeParse({ ...request, interests: InterestTagSchema.options }).success).toBe(
+      true,
+    );
   });
   it('accepts boundary coordinates and en locale', () => {
     expect(
