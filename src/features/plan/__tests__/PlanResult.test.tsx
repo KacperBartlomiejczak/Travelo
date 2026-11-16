@@ -4,7 +4,8 @@ import { Linking } from 'react-native';
 import { PlanResult } from '@/features/plan/PlanResult';
 import { useReduceMotion } from '@/hooks/useReduceMotion';
 import i18n from '@/i18n';
-import type { PlaceDetails, TripPlan } from '@/schemas';
+import type { PlanPersonView } from '@/lib/plan-people-view';
+import type { PlaceDetails, PlanPersonRef, TripPlan } from '@/schemas';
 import { tokens } from '@/theme/tokens';
 
 // The stock Reanimated mock keeps no builder state, so record what the components ask for.
@@ -32,6 +33,7 @@ jest.mock('@/hooks/useReduceMotion');
 const mockReduceMotion = jest.mocked(useReduceMotion);
 
 const TRIP_ID = '11111111-1111-4111-8111-111111111111';
+const MEMBER = '22222222-2222-4222-8222-222222222222';
 const plan: TripPlan = {
   tripId: TRIP_ID,
   model: 'gemini',
@@ -41,23 +43,29 @@ const plan: TripPlan = {
       date: '2026-11-20',
       cityIata: 'BCN',
       items: [
+        { placeId: 'b', slot: 'evening', reason: 'Tapas night', forPeople: ['owner', MEMBER] },
         { placeId: 'a', slot: 'morning', reason: 'Great views', forPeople: ['owner'] },
-        { placeId: 'b', slot: 'evening', reason: 'Tapas night', forPeople: ['owner'] },
         { placeId: 'gone', slot: 'evening', reason: 'Lost one', forPeople: ['owner'] },
       ],
     },
     { date: '2026-11-21', cityIata: 'GRO', items: [{ placeId: 'a', slot: 'afternoon', reason: 'Again', forPeople: ['owner'] }] },
+    { date: '2026-11-22', cityIata: 'GRO', items: [] },
   ],
 };
 const places: Record<string, PlaceDetails> = {
   a: { placeId: 'a', name: 'Park Guell', address: 'Carrer d’Olot', googleMapsUri: 'https://maps.google.com/?cid=1' },
   b: { placeId: 'b', name: 'Bar Pinotxo', address: null, googleMapsUri: 'https://maps.google.com/?cid=2' },
 };
-const manyDays: TripPlan = {
+const manyItems: TripPlan = {
   ...plan,
-  days: Array.from({ length: 8 }, (_, i) => ({ ...plan.days[1], date: `2026-11-${String(20 + i)}` })),
+  days: [{ ...plan.days[1], items: Array.from({ length: 8 }, () => plan.days[1].items[0]) }],
 };
 const cityName = (iata: string) => ({ BCN: 'Barcelona', GRO: 'Girona' })[iata] ?? iata;
+const people: Record<string, PlanPersonView> = {
+  owner: { key: 'owner', name: 'Kasia', photoUri: 'https://example.com/me.jpg' },
+  [MEMBER]: { key: MEMBER, name: 'Ola' },
+};
+const resolvePeople = (refs: readonly PlanPersonRef[]) => refs.flatMap((r) => (people[r] ? [people[r]] : []));
 
 beforeEach(async () => {
   await i18n.changeLanguage('pl');
@@ -65,10 +73,19 @@ beforeEach(async () => {
 });
 afterEach(() => jest.restoreAllMocks());
 
-const setup = async (canRegenerate = true) => {
+const setup = async (canRegenerate = true, today = '2026-01-01', p: TripPlan = plan) => {
   const onRegenerate = jest.fn();
   await render(
-    <PlanResult plan={plan} places={places} cityName={cityName} onRegenerate={onRegenerate} canRegenerate={canRegenerate} />,
+    <PlanResult
+      plan={p}
+      places={places}
+      cityName={cityName}
+      travellerCount={3}
+      resolvePeople={resolvePeople}
+      today={today}
+      onRegenerate={onRegenerate}
+      canRegenerate={canRegenerate}
+    />,
   );
   return { onRegenerate };
 };
@@ -76,7 +93,7 @@ const setup = async (canRegenerate = true) => {
 describe('PlanResult', () => {
   it('renders no empty text for an item without a reason', async () => {
     const noReason: TripPlan = { ...plan, days: [{ ...plan.days[1], items: [{ ...plan.days[1].items[0], reason: '' }] }] };
-    await render(<PlanResult plan={noReason} places={places} cityName={cityName} onRegenerate={jest.fn()} canRegenerate />);
+    await setup(true, '2026-01-01', noReason);
     expect(screen.getByText('Park Guell')).toBeOnTheScreen();
     expect(screen.queryAllByText('')).toHaveLength(0);
   });
@@ -85,52 +102,86 @@ describe('PlanResult', () => {
     const reason = 'Hard Rock Cafe offers live music for P1.';
     const legacy: TripPlan = {
       ...plan,
-      days: [{ ...plan.days[0], items: [{ ...plan.days[0].items[0], reason }, plan.days[0].items[1]] }],
+      days: [{ ...plan.days[0], items: [{ ...plan.days[0].items[1], reason }, plan.days[0].items[0]] }],
     };
-    await render(<PlanResult plan={legacy} places={places} cityName={cityName} onRegenerate={jest.fn()} canRegenerate />);
+    await setup(true, '2026-01-01', legacy);
     expect(screen.queryByText(reason)).not.toBeOnTheScreen();
     expect(screen.getByText('Park Guell')).toBeOnTheScreen();
     expect(screen.getByText('Tapas night')).toBeOnTheScreen();
   });
 
-  it('shows the AI provenance label', async () => {
+  it('shows the AI provenance label and hint', async () => {
     await setup();
     expect(screen.getByText('Wygenerowane przez AI')).toBeOnTheScreen();
+    expect(screen.getByText('Sprawdź godziny otwarcia i ceny przed wyjściem.')).toBeOnTheScreen();
   });
 
-  it('shows a header per day with number, date and city', async () => {
+  it('shows a chip per day and defaults to day 1 when today is outside the plan', async () => {
     await setup();
-    expect(screen.getByText('Dzień 1 · 20 lis · Barcelona')).toBeOnTheScreen();
-    expect(screen.getByText('Dzień 2 · 21 lis · Girona')).toBeOnTheScreen();
+    expect(screen.getAllByRole('tab')).toHaveLength(3);
+    expect(screen.getAllByRole('tab')[0]).toBeSelected();
+    expect(screen.getByText('Dzień 1 · pt. 20 lis')).toBeOnTheScreen();
   });
 
-  it('groups items by slot with slot labels', async () => {
+  it('defaults to today when it is one of the plan days', async () => {
+    await setup(true, '2026-11-21');
+    expect(screen.getAllByRole('tab')[1]).toBeSelected();
+    expect(screen.getByText('Dzień 2 · sob. 21 lis')).toBeOnTheScreen();
+    expect(screen.getByText('Girona')).toBeOnTheScreen();
+  });
+
+  it('shows the city as a header and the traveller count', async () => {
+    await setup();
+    expect(screen.getByRole('header', { name: 'Barcelona' })).toBeOnTheScreen();
+    expect(screen.getByText('3 podróżnych')).toBeOnTheScreen();
+  });
+
+  it('switches the day when a chip is tapped', async () => {
+    await setup();
+    expect(screen.queryByText('Again')).toBeNull();
+    await fireEvent.press(screen.getAllByRole('tab')[1]);
+    expect(screen.getByText('Again')).toBeOnTheScreen();
+    expect(screen.queryByText('Great views')).toBeNull();
+    expect(screen.getByText('Girona')).toBeOnTheScreen();
+  });
+
+  it('orders by slot and labels only the first item of each slot', async () => {
     await setup();
     expect(screen.getAllByText('Rano')).toHaveLength(1);
-    expect(screen.getAllByText('Popołudnie')).toHaveLength(1);
     expect(screen.getAllByText('Wieczór')).toHaveLength(1);
-    expect(screen.getAllByText('Park Guell')).toHaveLength(2);
-    expect(screen.getByText('Great views')).toBeOnTheScreen();
+    const shown = screen.getAllByText(/Park Guell|Bar Pinotxo|Miejsce niedostępne/).map((n) => n.props.children);
+    expect(shown).toEqual(['Park Guell', 'Bar Pinotxo', 'Miejsce niedostępne']);
+  });
+
+  it('shows the people of each card as an avatar group', async () => {
+    await setup();
+    expect(screen.getByLabelText('Uczestnicy: Kasia, Ola')).toBeOnTheScreen();
+    expect(screen.getAllByLabelText('Uczestnicy: Kasia')).toHaveLength(2);
+  });
+
+  it('shows a text for a day without places', async () => {
+    await setup(true, '2026-11-22');
+    expect(screen.getByText('Brak miejsc na ten dzień.')).toBeOnTheScreen();
   });
 
   it('falls back for a missing place and gives it no maps link', async () => {
     await setup();
     expect(screen.getByText('Miejsce niedostępne')).toBeOnTheScreen();
     expect(screen.getByText('Lost one')).toBeOnTheScreen();
-    // a (twice) + b have links, gone does not
-    expect(screen.getAllByRole('link', { name: /Otwórz w Mapach Google/ })).toHaveLength(3);
+    // a + b have links, gone does not
+    expect(screen.getAllByRole('link', { name: /Otwórz w Mapach Google/ })).toHaveLength(2);
   });
 
   it('hides the address when it is null', async () => {
     await setup();
-    expect(screen.getAllByText('Carrer d’Olot')).toHaveLength(2);
+    expect(screen.getAllByText('Carrer d’Olot')).toHaveLength(1);
     expect(screen.queryByText('null')).toBeNull();
   });
 
   it('opens the place in Google Maps', async () => {
     const open = jest.spyOn(Linking, 'openURL').mockResolvedValue(undefined);
     await setup();
-    await fireEvent.press(screen.getAllByRole('link', { name: /Otwórz w Mapach Google/ })[0]);
+    await fireEvent.press(screen.getByRole('link', { name: /Otwórz w Mapach Google, Park Guell/ }));
     expect(open).toHaveBeenCalledWith('https://maps.google.com/?cid=1');
   });
 
@@ -155,13 +206,11 @@ describe('PlanResult', () => {
 
   describe('entry animation (§7.5)', () => {
     const { cardEnterDuration, cardStagger, maxStaggeredCards } = tokens.motion.microinteraction.planGenerated;
-    const entering = (i: number) => screen.getByTestId(`plan-result-day-${i}`).props.entering;
+    const entering = (i: number) => screen.getByTestId(`plan-result-item-${i}`).props.entering;
 
-    it('rises 8 dp over 220 ms with a 45 ms stagger, capped at the 6th block', async () => {
-      await render(
-        <PlanResult plan={manyDays} places={places} cityName={cityName} onRegenerate={jest.fn()} canRegenerate />,
-      );
-      for (let i = 0; i < manyDays.days.length; i++) {
+    it('rises 8 dp over 220 ms with a 45 ms stagger, capped at the 6th card', async () => {
+      await setup(true, '2026-01-01', manyItems);
+      for (let i = 0; i < 8; i++) {
         const e = entering(i);
         expect(e.durationV).toBe(cardEnterDuration);
         expect(e.delayV).toBe(Math.min(i, maxStaggeredCards - 1) * cardStagger);
@@ -173,10 +222,10 @@ describe('PlanResult', () => {
       expect(entering(7).delayV).toBe(entering(5).delayV);
     });
 
-    it('crossfades all blocks together over 80 ms without translation under reduced motion', async () => {
+    it('crossfades all cards together over 80 ms without translation under reduced motion', async () => {
       mockReduceMotion.mockReturnValue(true);
       await setup();
-      for (let i = 0; i < 2; i++) {
+      for (let i = 0; i < 3; i++) {
         expect(entering(i).durationV).toBe(tokens.motion.duration.reduced);
         expect(entering(i).delayV).toBeUndefined();
         expect(entering(i).definitions).toBeUndefined();
@@ -188,7 +237,8 @@ describe('PlanResult', () => {
     await i18n.changeLanguage('en');
     await setup();
     expect(screen.getByText('Generated by AI')).toBeOnTheScreen();
-    expect(screen.getByText('Day 1 · Nov 20 · Barcelona')).toBeOnTheScreen();
+    expect(screen.getByText('Day 1 · Fri Nov 20')).toBeOnTheScreen();
+    expect(screen.getByText('3 travellers')).toBeOnTheScreen();
     expect(screen.getByText('Morning')).toBeOnTheScreen();
     expect(screen.getByText('Place unavailable')).toBeOnTheScreen();
     expect(screen.getByRole('button', { name: 'Generate again' })).toBeOnTheScreen();

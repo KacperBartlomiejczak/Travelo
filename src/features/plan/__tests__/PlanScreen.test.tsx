@@ -33,7 +33,7 @@ function Layout() {
   );
 }
 
-const tripData = (destination = 'LIS') => ({ overview: { trip: { id: '00000000-0000-4000-8000-0000000000a1', ownerId: LOCAL_PROFILE_ID, destination } } }) as never;
+const tripData = (destination = 'LIS') => ({ overview: { trip: { id: '00000000-0000-4000-8000-0000000000a1', ownerId: LOCAL_PROFILE_ID, destination, travellerCount: 1 }, members: [] } }) as never;
 
 async function open(trip: Partial<ReturnType<typeof useCurrentTrip>> = { isPending: false, isError: false, data: tripData() }) {
   jest.mocked(useCurrentTrip).mockReturnValue({ isPending: false, isError: false, data: null, ...trip } as never);
