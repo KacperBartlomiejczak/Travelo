@@ -56,6 +56,7 @@ Gałąź: `feature/plan-timeline` od `feature/ai-trip-plan` (PR planu AI nie jes
 - Krok 3: `PlanDayPicker`, `PlanResult` jako timeline jednego dnia, `TripPlanSide`/`PlanScreen` przekazują członków i organizatora · red: niepotwierdzony (praca przerwana w poprzedniej sesji, brak raportu implementera) · suite 224/4432 ✓, typecheck ✓, lint ✓ · verifier PASS · uwagi niebl.: chip ma padding `spacing[3]` (12) zamiast `chip.horizontalPadding` (14) i style `labelSM`/`labelLG` zamiast `labelMD`, wybrany dzień `brand.primary` (jak na screenie); domyślny dzień = „dziś, jeśli jest dniem planu”; brak testu ponownej animacji po zmianie dnia; dwa słabe asercje w `PlanResult.test.tsx` — do sprawdzenia na emulatorze w kroku 5.
 
 - Krok 4: design-context §8.7 (kolory `avatarFallback`, jedna litera, `labelSM` dla xs/sm — P4 przyjęte domyślnie, tylko własne zdjęcie), flow ai-trip-plan (wynik jako timeline), frontend.md (`Avatar`/`AvatarGroup`), app-context.
+- Krok 5 (częściowo): verifier końcowy (Sonnet + CodeRabbit) PASS — 4432 ✓, typecheck ✓, lint ✓; CodeRabbit 2 uwagi odrzucone (puste `days` blokuje `.min(1)` w schemacie; import typu przechodzi typecheck); poprawiona nazwa `planPeopleView` w docs. Test na emulatorze: **zablokowany** — mobile-mcp (`mobilecli`) nie działa; potrzebne też konto z zapisanym planem AI i działający Metro.
 
 ## Ryzyka i otwarte pytania
 - **P4.** Litera w awatarze 24/32 dp to `labelSM` (12 dp) zamiast `labelMD` z §8.7 — zapiszę w §8.7 przy kroku 4, chyba że Kacper woli inaczej.
