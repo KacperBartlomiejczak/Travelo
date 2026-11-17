@@ -1546,7 +1546,7 @@ DAY 2 · ROME
 
 ### Geometry
 
-- Time column `56`.
+- Time column `56` for clock times ("09:30"); `80` (`slotColumnWidth`) when it shows part-of-day labels ("Popołudnie", "Afternoon") so the word fits on one line.
 - Rail column `24`.
 - Rail 2 dp.
 - Node 12 dp.

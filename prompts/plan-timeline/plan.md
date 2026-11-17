@@ -57,7 +57,7 @@ Decyzja Kacpra (2026-11-16): etykieta pory dnia — **poszerzyć kolumnę czasu*
   - Tekst linku „Otwórz w Mapach Google” dostaje `flexShrink: 1`, a `Pressable` ograniczenie do szerokości karty, żeby przy dużym foncie tekst zawijał się do drugiej linii zamiast wychodzić poza kartę (**P6**).
   - Najpierw testy (`src/features/plan/__tests__/PlanResult.test.tsx`): kolumna pory dnia ma szerokość `slotColumnWidth` × skala fontu (dla skali 1 i 1.3); tekst linku do Map może się kurczyć (`flexShrink: 1`); przy okazji brakujący test z kroku 3 — po zmianie dnia karty wchodzą ponownie (nowe klucze/animacja wejścia).
   - Pliki: `src/theme/tokens.ts`, `src/features/plan/PlanResult.tsx`, `src/features/plan/__tests__/PlanResult.test.tsx`. Weryfikacja: verifier.
-- [ ] 7. [docs] `context/design-context.md` §9.2 — kolumna czasu 56 dla godzin, 80 dla etykiet pory dnia; `docs/architecture/frontend.md`, jeśli opisuje szerokość kolumny.
+- [x] 7. [docs] `context/design-context.md` §9.2 — kolumna czasu 56 dla godzin, 80 dla etykiet pory dnia; `docs/architecture/frontend.md`, jeśli opisuje szerokość kolumny. *(2026-11-17: zmienione §9.2; `frontend.md` nie opisuje szerokości kolumny — bez zmian.)*
 - [ ] 8. Ponowny test na emulatorze (tester w trybie `adb`, build deweloperski `com.anonymous.traveling`): scenariusze 1, 3, 11 (PL i EN, font 1.0 i 1.3) oraz ponowna animacja kart po zmianie dnia. Przed testem `cve-auditor` (pełny audyt) — definicja agenta jest na niezmergowanej gałęzi `chore/cve-auditor`, więc wymaga jej scalenia albo zgody Kacpra na pominięcie.
 
 Poza zakresem tych kroków (dane testowe, nie kod): dzień z 6 miejscami, kolorowe kółka z literą i „+N”, widok znajomego — wymagają podróży z kilkoma znajomymi i drugiego konta.
