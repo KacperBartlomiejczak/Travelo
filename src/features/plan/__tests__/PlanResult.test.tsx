@@ -1,5 +1,5 @@
 import { fireEvent, render, screen } from '@testing-library/react-native';
-import { Linking } from 'react-native';
+import { Linking, StyleSheet } from 'react-native';
 
 import { PlanResult } from '@/features/plan/PlanResult';
 import { useReduceMotion } from '@/hooks/useReduceMotion';
@@ -7,6 +7,10 @@ import i18n from '@/i18n';
 import type { PlanPersonView } from '@/lib/plan-people-view';
 import type { PlaceDetails, PlanPersonRef, TripPlan } from '@/schemas';
 import { tokens } from '@/theme/tokens';
+
+// require (not import) so jest.spyOn can replace useWindowDimensions on the module object
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const RN = require('react-native') as typeof import('react-native');
 
 // The stock Reanimated mock keeps no builder state, so record what the components ask for.
 jest.mock('react-native-reanimated', () => {
@@ -230,6 +234,45 @@ describe('PlanResult', () => {
         expect(entering(i).delayV).toBeUndefined();
         expect(entering(i).definitions).toBeUndefined();
       }
+    });
+  });
+
+  describe('layout at large font scales', () => {
+    const withFontScale = (fontScale: number) =>
+      jest.spyOn(RN, 'useWindowDimensions').mockReturnValue({ width: 360, height: 800, scale: 2, fontScale });
+
+    it.each([1, 1.3])('sizes the part-of-day column from slotColumnWidth at font scale %s', async (scale) => {
+      withFontScale(scale);
+      await setup();
+      const column = StyleSheet.flatten(screen.getByText('Rano').parent?.props.style);
+      expect(column.width).toBe(tokens.components.timeline.slotColumnWidth * scale);
+    });
+
+    it('lets the Maps link text shrink so it wraps inside the card', async () => {
+      await setup();
+      const link = screen.getAllByRole('link', { name: /Otwórz w Mapach Google/ })[0];
+      expect(StyleSheet.flatten(link.props.style).maxWidth).toBe('100%');
+      expect(StyleSheet.flatten(screen.getAllByText('Otwórz w Mapach Google')[0].props.style).flexShrink).toBe(1);
+    });
+  });
+
+  describe('day change', () => {
+    const twoDays: TripPlan = { ...plan, days: [plan.days[1], { ...plan.days[1], date: '2026-11-22' }] };
+
+    it('mounts the cards of the new day again so they enter again', async () => {
+      await setup(true, '2026-01-01', twoDays);
+      const before = screen.getByTestId('plan-result-item-0');
+      await fireEvent.press(screen.getAllByRole('tab')[1]);
+      const after = screen.getByTestId('plan-result-item-0');
+      expect(after).not.toBe(before);
+      expect(after.props.entering.durationV).toBe(tokens.motion.microinteraction.planGenerated.cardEnterDuration);
+    });
+
+    it('still crossfades the new day under reduced motion', async () => {
+      mockReduceMotion.mockReturnValue(true);
+      await setup(true, '2026-01-01', twoDays);
+      await fireEvent.press(screen.getAllByRole('tab')[1]);
+      expect(screen.getByTestId('plan-result-item-0').props.entering.durationV).toBe(tokens.motion.duration.reduced);
     });
   });
 

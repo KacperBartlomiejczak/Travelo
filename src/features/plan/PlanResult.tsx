@@ -101,7 +101,7 @@ export function PlanResult({ plan, places, cityName, travellerCount, resolvePeop
             const firstOfSlot = i === 0 || items[i - 1].slot !== item.slot;
             return (
               <View key={`${index}-${i}`} style={{ flexDirection: 'row' }}>
-                <View style={{ width: timeline.timeColumnWidth * Math.max(1, fontScale), paddingTop: spacing[4] }}>
+                <View style={{ width: timeline.slotColumnWidth * Math.max(1, fontScale), paddingTop: spacing[4] }}>
                   {firstOfSlot ? (
                     <Text style={[typography.styles.labelSM, { color: theme.text.secondary }]}>{t(`plan.result.slot.${item.slot}`)}</Text>
                   ) : null}
@@ -132,10 +132,10 @@ export function PlanResult({ plan, places, cityName, travellerCount, resolvePeop
                         accessibilityRole="link"
                         accessibilityLabel={t('plan.result.openMapsLabel', { place: place.name })}
                         onPress={() => Linking.openURL(place.googleMapsUri).catch(() => {})}
-                        style={{ minHeight: layout.touchTarget, flexDirection: 'row', alignItems: 'center', gap: spacing[2], alignSelf: 'flex-start' }}
+                        style={{ minHeight: layout.touchTarget, flexDirection: 'row', alignItems: 'center', gap: spacing[2], alignSelf: 'flex-start', maxWidth: '100%' }}
                       >
                         <ExternalLink size={iconography.size.xs} color={theme.text.brand} />
-                        <Text style={[typography.styles.labelMD, { color: theme.text.brand }]}>{t('plan.result.openMaps')}</Text>
+                        <Text style={[typography.styles.labelMD, { color: theme.text.brand, flexShrink: 1 }]}>{t('plan.result.openMaps')}</Text>
                       </Pressable>
                     ) : null}
                     <View style={{ alignSelf: 'flex-end' }}>

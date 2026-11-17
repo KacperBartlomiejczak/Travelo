@@ -624,6 +624,7 @@ export const components = {
   },
   timeline: {
     timeColumnWidth: 56,
+    slotColumnWidth: 80,
     railColumnWidth: 24,
     railWidth: 2,
     nodeSize: 12,
