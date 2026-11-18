@@ -7,6 +7,7 @@ import { darkTheme as legacyDark, lightTheme as legacyLight } from '@/theme/lega
 import { darkTheme, lightTheme } from '@/theme/theme';
 import { DarkThemeScope, useTheme } from '@/theme/useTheme';
 import { useTheme as useLegacyTheme, DarkThemeScope as LegacyDarkThemeScope } from '@/theme/legacy/useTheme';
+import { setThemePreference } from '@/theme/themePreference';
 import { applyThemePreference, usePreferences } from '../usePreferences';
 
 jest.mock('@/data/preferences', () => ({
@@ -28,6 +29,7 @@ const setColorScheme = jest.spyOn(Appearance, 'setColorScheme').mockImplementati
 
 beforeEach(() => {
   jest.clearAllMocks();
+  setThemePreference('light');
   jest.mocked(writeThemePreference).mockImplementation(() => {});
   jest.mocked(writeLanguagePreference).mockImplementation(() => {});
 });
@@ -95,17 +97,28 @@ describe('usePreferences', () => {
   });
 });
 
-describe('useTheme follows the chosen scheme', () => {
+describe('useTheme follows the chosen preference', () => {
+  it('setTheme(dark) turns an unrelated useTheme dark although the device reports light', async () => {
+    const prefs = await renderHook(() => usePreferences());
+    const other = await renderHook(() => useTheme());
+    mockScheme = 'light';
+    setColorScheme.mockImplementationOnce(() => {}); // the activity-recreate case: the native scheme stays light
+    await act(async () => prefs.result.current.setTheme('dark'));
+    expect(other.result.current).toBe(darkTheme);
+  });
+
   it.each([
     ['dark', darkTheme, legacyDark],
     ['light', lightTheme, legacyLight],
   ] as const)('both hooks return the %s theme', async (scheme, expected, legacyExpected) => {
+    setThemePreference('system');
     Appearance.setColorScheme(scheme);
     expect((await renderHook(() => useTheme())).result.current).toBe(expected);
     expect((await renderHook(() => useLegacyTheme())).result.current).toBe(legacyExpected);
   });
 
   it('DarkThemeScope still forces dark on a light choice', async () => {
+    setThemePreference('system');
     Appearance.setColorScheme('light');
     expect((await renderHook(() => useTheme(), { wrapper: DarkThemeScope })).result.current).toBe(darkTheme);
     expect((await renderHook(() => useTheme(), { wrapper: LegacyDarkThemeScope })).result.current).toBe(darkTheme);

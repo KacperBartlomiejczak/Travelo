@@ -13,6 +13,7 @@ import { writeLanguagePreference, writeThemePreference } from '@/data/preference
 import i18n from '@/i18n';
 import { useFakeAppSession } from '@/test/fake-session-source';
 import { setNetwork } from '@/test/mock-network';
+import { setThemePreference } from '@/theme/themePreference';
 import { tokens } from '@/theme/tokens';
 
 jest.mock('expo-font', () => ({ ...jest.requireActual('expo-font'), useFonts: jest.fn() }));
@@ -56,6 +57,7 @@ const openSheet = (row: string) => fireEvent.press(screen.getByRole('button', { 
 
 beforeEach(async () => {
   mockSaved = { theme: 'system', language: 'system' };
+  setThemePreference('system'); // the in-memory choice is read once per app start; each test is a fresh start
   jest.mocked(writeThemePreference).mockClear();
   jest.mocked(writeLanguagePreference).mockClear();
   setNetwork({ isConnected: true, isInternetReachable: true });
@@ -101,6 +103,7 @@ describe('Settings list (profile-settings step 8)', () => {
 
   it('the switches show the saved choice', async () => {
     mockSaved = { theme: 'dark', language: 'en' };
+    setThemePreference('dark');
     await openSettings();
     await openSheet('Motyw');
     expect(group('Motyw').getByRole('radio', { name: 'Ciemny' })).toBeChecked();
@@ -178,6 +181,7 @@ describe('Settings list (profile-settings step 8)', () => {
 
   it('has no radio on the main level, only rows showing the current value', async () => {
     mockSaved = { theme: 'dark', language: 'en' };
+    setThemePreference('dark');
     await openSettings();
     expect(screen.queryAllByRole('radio')).toHaveLength(0);
     expect(screen.getByRole('button', { name: 'Motyw, Ciemny' })).toBeTruthy();

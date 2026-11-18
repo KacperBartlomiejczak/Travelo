@@ -3,15 +3,16 @@ import { Appearance } from 'react-native';
 
 import {
   readLanguagePreference,
-  readThemePreference,
   writeLanguagePreference,
   writeThemePreference,
 } from '@/data/preferences';
 import i18n, { resolveLanguage } from '@/i18n';
+import { setThemePreference, useThemePreference } from '@/theme/themePreference';
 import type { LanguagePreference, ThemePreference } from '@/schemas/preferences';
 
 /** Sets the app's color scheme; 'system' hands control back to the phone. Native pickers and the keyboard follow it too. */
 export function applyThemePreference(theme: ThemePreference): void {
+  setThemePreference(theme);
   // shortcut: react-native-web has no setColorScheme and always follows the browser; the app targets iOS and Android.
   if (typeof Appearance.setColorScheme !== 'function') return;
   Appearance.setColorScheme(theme === 'system' ? 'unspecified' : theme);
@@ -28,13 +29,12 @@ function saveQuietly(save: () => void): void {
 
 /** The device-only theme and language choices (profile-settings D8): setters save and apply at once. */
 export function usePreferences() {
-  const [theme, setThemeState] = useState(readThemePreference);
+  const theme = useThemePreference();
   const [language, setLanguageState] = useState(readLanguagePreference);
 
   const setTheme = useCallback((next: ThemePreference) => {
     saveQuietly(() => writeThemePreference(next));
     applyThemePreference(next);
-    setThemeState(next);
   }, []);
 
   const setLanguage = useCallback((next: LanguagePreference) => {
