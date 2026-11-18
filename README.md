@@ -207,7 +207,7 @@ Pick one of the two options.
 2. In **Authentication → Sign In / Providers**, keep **Email** on (sign-in by e-mail code). Google and Discord are optional and need their own OAuth apps. Anonymous sign-ins stay off: the app needs an account.
 3. Apply the migrations from `supabase/migrations/`, for example with `pnpm supabase link` and `pnpm supabase db push`.
 4. Copy the project URL and the **publishable** key (`sb_publishable_…`) from **Project Settings → API**.
-5. Deploy the Edge Functions in `supabase/functions/`. `delete-account` is required (the app calls it to delete an account). `recommend-places`, `place-details` and `generate-trip-plan` are optional, for place discovery and AI trip plans, and need their secrets (see `supabase/functions/.env.example`: `GOOGLE_PLACES_API_KEY`, `GEMINI_API_KEY`, `GEMINI_MODEL`).
+5. Deploy the Edge Functions in `supabase/functions/`. `delete-account` is required (the app calls it to delete an account). `recommend-places`, `place-details` and `generate-trip-plan` are optional, for place discovery and AI trip plans, and need secrets: `GOOGLE_PLACES_API_KEY` (all three), `GEMINI_API_KEY` (`recommend-places`, `generate-trip-plan`), `GEMINI_MODEL` (`recommend-places`) and `GEMINI_PLAN_MODEL` (`generate-trip-plan`). `supabase/functions/.env.example` lists the first three.
 
 **Option B: a local project** (needs Docker)
 
