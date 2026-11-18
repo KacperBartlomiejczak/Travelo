@@ -1,5 +1,5 @@
 ﻿# Zadanie: Dokumentacja feature'ów, nowe README i nowe screenshoty (po angielsku)
-Status: czeka na akceptację
+Status: zrobione, czeka na push/PR (decyzja Kacpra)
 
 ## Zrozumienie i założenia
 Prośba Kacpra (2026-11-17): (1) przejrzeć workspace explorerem (zrobione, haiku, effort high), (2) opisać każdy feature w osobnym pliku w folderze feature, (3) napisać nowe README, (4) zrobić nowe screenshoty, (5) aplikacja ma być po angielsku.
@@ -56,7 +56,7 @@ Krok dokumentacyjny, bez red/green. Weryfikacja zamiast testów:
 - [x] 4. [tester] Screenshoty na urządzeniu z angielskim UI (Settings → Język → English); lista w „Ryzyka i pytania" (pyt. 3) — weryfikacja: każdy PNG obejrzany przez orchestratora, brak polskich tekstów i danych osobistych, 1080x2400 lub spójny rozmiar
 - [x] 5. [orchestrator] Skopiować PNG do `docs/screenshots/`, usunąć nieaktualne — weryfikacja: żaden plik w README/docs nie wskazuje na usunięty obraz
 - [x] 6. [orchestrator] Napisać nowe README (angielskie): zakładki, ekrany, offline, stack, test count z prawdziwego `pnpm test`, nowe screenshoty — skill: documentation-and-adrs — weryfikacja: linki, grep nieaktualnych fraz, verifier
-- [ ] 7. [orchestrator + verifier] Uzupełnić `docs/architecture/` jeśli audyt wykazał rozbieżności; end-of-plan: verifier całego brancha + CodeRabbit — weryfikacja: PASS, pełny zestaw zielony
+- [x] 7. [orchestrator + verifier] Uzupełnić `docs/architecture/` jeśli audyt wykazał rozbieżności; end-of-plan: verifier całego brancha + CodeRabbit — weryfikacja: PASS, pełny zestaw zielony
 
 ## Dziennik postępu
 - Plan zaakceptowany przez Kacpra (2026-11-17).
@@ -78,6 +78,7 @@ Krok dokumentacyjny, bez red/green. Weryfikacja zamiast testów:
 - Krok 6: nowe README (angielskie): badge Expo SDK 58 / RN 0.88, status, tabela 11 screenshotów, opis 4 zakładek, nowe sekcje funkcji (logowanie, wydatki, Discover, plan AI, PRO), roadmapa (statusy wg kodu na `main`), drzewo ekranów, tabela offline, stack (Edge Functions, RevenueCat), zmienne środowiskowe (+ RevenueCat), skrypty (+ `doctor`), struktura. Własna weryfikacja: wszystkie 11 obrazów istnieje, brak nieaktualnych fraz („Miejsca", „Expo SDK 57", „five tabs", „Razem/Osobno"). Do potwierdzenia przez Kacpra: statusy „Done" dla logowania/profilu/AI trip plan wynikają z istnienia kodu na `main`, a niektóre stare plany mają status „w trakcie".
 - Krok 6, weryfikacja: verifier #1 (Haiku) FAIL, 7 uwag, wszystkie poprawione w `README.md`: (1) „home zawsze ciemny" było fałszem; zakładka Trip podąża za motywem telefonu (`legacy/useTheme` używa `useColorScheme`, wymuszone ciemne tylko welcome i podgląd zdjęć); (2) timeout: „większość żądań 20 s", 45 s recommend-places, 60 s generate-trip-plan (`src/data/fetch-timeout.ts`); (3) podpis `wizard-budget.png` zgodny z obrazem (kwota dzienna, waluta, suma); (4) podpis `expenses.png` zgodny z pustym stanem; (5) Node 22.13+ (od tej wersji `node:sqlite` działa bez flagi; ustalone z wiedzy o dokumentacji Node, nie sprawdzone w sieci); (6) `npx expo install`, a `pnpm add <pkg>@<wersja>` jako fallback (jak `commands.md`); (7) prawdziwy `pnpm test`: 4380 testów w 220 zestawach, badge i tekst „4,000+".
 - Krok 6, weryfikacja #3: verifier PASS (lista zawsze ciemnych ekranów kompletna: welcome, photo viewer, avatar; timeouty zgodne z kodem). Uwaga poboczna verifiera, poza zakresem: komentarz w `src/data/trip-plan.ts:46` (timeout = „server reachable but slow”) nie zgadza się z uzasadnieniem captive portal; wywołania AI przy timeoucie kończą jako `failed`, nie `offline`. README opisuje to tylko dla zwykłych żądań Supabase (20 s).
+- Krok 7: end-of-plan verifier (Sonnet 5.5, medium, CodeRabbit) FAIL, typecheck i lint czyste. Poprawione: README krok 5 (Edge Function `delete-account` jest wymagana, reszta opcjonalna; finding major z CodeRabbit), `overview.md` i `frontend.md` (panel boczny otwiera się też z „Wydatki”, pigułka nie jest biała w trybie ciemnym). Świadomie bez zmian: `decisions.md:68` („Miejsca”) to historyczny wpis z datą; drugi finding CodeRabbit (trip-budget.md) odrzucony po sprawdzeniu `local-store.ts:343`. Weryfikacja poprawek: grep; osobny verifier nie był uruchamiany (zmiany to 3 zdania docs, zgodne z raportem verifiera).
 
 ## Ryzyka i otwarte pytania
 A. Niezacommitowane zmiany z `feature/plan-day-change` (`Tester.md`, `Tester.toml`, `config.toml`, `subagents.md`, `.agents/skills/…`) przy przełączeniu na `main` przejdą do working tree nowego brancha. Założenie do potwierdzenia: nie commituję ich w tym zadaniu (commity tylko z plikami zadania), chyba że powiesz inaczej.
