@@ -80,8 +80,9 @@ const overview: TripOverview = {
   segments: [],
 };
 
-function setup({ me = OWNER, offline = false }: { me?: string; offline?: boolean } = {}) {
-  jest.mocked(useCurrentTrip).mockReturnValue({ isPending: false, isError: false, data: { overview, budgetSyncStatus: 'synced' } } as never);
+function setup({ me = OWNER, offline = false, solo = false }: { me?: string; offline?: boolean; solo?: boolean } = {}) {
+  const current = solo ? { ...overview, members: [] } : overview;
+  jest.mocked(useCurrentTrip).mockReturnValue({ isPending: false, isError: false, data: { overview: current, budgetSyncStatus: 'synced' } } as never);
   jest.mocked(useMyProfileId).mockReturnValue(me);
   jest.mocked(useIsTripOwner).mockImplementation((ownerId) => ownerId === me);
   jest.mocked(useIsOffline).mockReturnValue(offline);
@@ -218,6 +219,25 @@ describe('ExpenseSheet: adding (expenses step 10)', () => {
     await fireEvent.press(saveButton());
     const row = await screen.findByTestId('expense-day-2026-11-01');
     expect(within(row).getByText('Ola')).toBeOnTheScreen();
+  });
+
+  it('a solo trip hides "Kto" and still saves as the organizer (memberId null)', async () => {
+    const mutate = jest.fn((_input: unknown, options?: { onSuccess?: () => void }) => options?.onSuccess?.());
+    jest.mocked(useSaveExpense).mockReturnValue({ mutate, isPending: false } as never);
+    await setup({ solo: true });
+    await openAdd();
+    expect(screen.queryByText('Kto wydał')).toBeNull();
+    expect(screen.queryByRole('checkbox', { name: 'Ty' })).toBeNull();
+    await fill({ amount: '12', category: 'Jedzenie', name: 'Kawa' });
+    await fireEvent.press(saveButton());
+    expect(mutate).toHaveBeenCalledWith(expect.objectContaining({ input: expect.objectContaining({ memberId: null }) }), expect.anything());
+  });
+
+  it('a trip with a companion still shows "Kto" with the chips', async () => {
+    await setup();
+    await openAdd();
+    expect(screen.getByText('Kto wydał')).toBeOnTheScreen();
+    expect(screen.getByRole('checkbox', { name: 'Ty' })).toBeOnTheScreen();
   });
 
   it('any date can be chosen (D10)', async () => {
