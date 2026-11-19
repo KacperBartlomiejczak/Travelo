@@ -56,7 +56,7 @@ Bez zmian. `GenerateTripPlanRequestSchema` pozostaje jedyną granicą (parsowani
 Brak (zmiana prostego układu; TDD wg `docs/development/testing.md`).
 
 ## Kroki
-- [ ] 1. [frontend] `PlanWizard` jako jeden wyśrodkowany formularz (D1, D2, Z2–Z5) + usunięcie kluczy i18n `next`/`back` + poprawki `PlanSide.test.tsx`.
+- [x] 1. [frontend] `PlanWizard` jako jeden wyśrodkowany formularz (D1, D2, Z2–Z5) + usunięcie kluczy i18n `next`/`back` (`PlanSide.test.tsx` bez zmian — nie klikał „Dalej”). Verifier PASS (2026-11-19): pełny suite 4384 testy, typecheck, lint.
 - [x] 2. [frontend] `PlanGenerating` wyśrodkowany (D3). Verifier PASS (2026-11-19): typecheck, lint, test PlanGenerating 10/10.
 - [ ] 3. Docs (orchestrator): `ai-trip-plan.md`, `overview.md`; końcowy verifier całej gałęzi (CodeRabbit).
 
