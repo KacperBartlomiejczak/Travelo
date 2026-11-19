@@ -58,8 +58,8 @@ export function PlanGenerating({ testID }: { testID?: string }) {
   const message = t(MESSAGES[step]);
 
   return (
-    <View testID={testID} style={{ gap: spacing[3] }}>
-      <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing[2] }}>
+    <View testID={testID} style={{ flex: 1, justifyContent: 'center', gap: spacing[3] }}>
+      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: spacing[2] }}>
         <Sparkles size={iconography.size.sm} color={theme.text.brand} />
         <Text
           accessibilityRole="header"
@@ -73,7 +73,7 @@ export function PlanGenerating({ testID }: { testID?: string }) {
         testID="plan-generating-message"
         entering={reduceMotion ? undefined : FadeIn.duration(motion.duration.standard)}
         accessibilityLiveRegion="polite"
-        style={[typography.styles.bodyMD, { color: theme.text.secondary }]}
+        style={[typography.styles.bodyMD, { color: theme.text.secondary, textAlign: 'center' }]}
       >
         {message}
       </Animated.Text>
