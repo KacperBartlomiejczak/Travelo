@@ -156,7 +156,7 @@ Migracja (bez nowych kolumn): `supabase/migrations/<ts>_ticket_quota.sql` — ch
 Gałąź: `feature/ticket-import-ai`, commit po każdym kroku.
 - [x] 1. [backend] Zod `ticket.ts` + `sniff.ts` + `bcbp.ts` — najpierw testy schematów, sniff, BCBP — weryfikacja: verifier.
 - [ ] 2. [backend] `text.ts` (regexy), `merge.ts` (łączenie + `isComplete`), `validate.ts`, `ticket-prompt.ts` — najpierw testy — weryfikacja: verifier.
-- [ ] 3. [backend] Migracja `ticket_quota` + test SQL (równolegle z 2) — weryfikacja: `pnpm test:db`, verifier.
+- [x] 3. [backend] Migracja `ticket_quota` + test SQL (równolegle z 2) — weryfikacja: `pnpm test:db`, verifier.
 - [ ] 4. [backend] Edge Function `extract-ticket`: najpierw spike wykonalności (zxing-wasm + unpdf w Deno, kod z obrazu w PDF) → handler + ports + index, bez deployu — najpierw testy handlera i adapterów — weryfikacja: verifier.
 - [ ] 5. [backend] Warstwa danych `ticket-import.ts` + fake + timeout 45 s (równolegle z 4) — weryfikacja: verifier.
 - [ ] 6. [frontend] Zależności `expo-document-picker`, `expo-camera` (`pnpm expo install`), uprawnienie aparatu; `ticket-pick.ts` + `useExtractTicket` — najpierw testy — weryfikacja: verifier.
@@ -181,6 +181,7 @@ Każdy krok: red → green, pełny suite + `pnpm typecheck` + `pnpm lint`, verif
 ## Dziennik postępu
 - 2026-11-19: plan zaakceptowany przez Kacpra („Akceptuję”), razem z Z1–Z9 i tekstami. O1: brak próbek — zaczynamy od ogólnych wzorców, niepewne przypadki idą do Gemini; próbki można dosłać później.
 - Krok 1: testy napisane (red ✓ — „Cannot find module” dla `ticket`, `sniff`, `bcbp`) · `src/schemas/ticket.ts` (+ re-eksport w `index.ts`), `src/lib/ticket-parse/sniff.ts`, `bcbp.ts` + 3 pliki testów · green ✓ (223 suites, 4407 testów), typecheck ✓, lint ✓ · verifier: 1. FAIL (strażnik „brak wolnego tekstu” nie łapał `type: ["string","null"]`) → poprawka testu (`freeTextStrings` + test kontrolny) → PASS · skill: test-driven-development, security-and-hardening · odstępstwa: dzień 366 z BCBP → najbliższy 31 XII roku przestępnego; `atob` w Hermes do sprawdzenia przy kroku na telefonie.
+- Krok 3 (równolegle z krokiem 1): testy SQL w `supabase/tests/ai_usage.sql` (red ✓ — `violates check constraint "ai_usage_kind_check"` dla `ticket`) · nowa migracja `20261119120000_ticket_quota.sql` (tylko wymiana checka `kind` na 4 wartości) · green ✓ na lokalnym Supabase (Docker uruchomił Kacper); `pnpm db:types` bez zmian treści; suite/typecheck/lint ✓ · verifier PASS (sam powtórzył red w wycofanej transakcji; RLS/granty bez zmian) · skill: supabase-postgres-best-practices, test-driven-development · odstępstwa: `pnpm test:db` nie działa na tej maszynie (brak `DB_URL` i `psql`), testy SQL uruchamiane przez `docker exec … psql -f -`; migracja niewdrożona na hostowany projekt (Kacper).
 
 ## Ryzyka i otwarte pytania
 - O1. **Regexy wymagają prawdziwych przykładów.** Formaty e-biletów różnią się między przewoźnikami; bez próbek regexy to zgadywanie. Prośba: 2–3 zanonimizowane PDF-y (np. Ryanair, Wizz Air, LOT) albo zgoda, żebym zaczął od ogólnych wzorców, a niepewne przypadki szły do Gemini.
