@@ -12,6 +12,7 @@ Kacper chce dwóch zmian w tworzeniu planu AI (zakładka Plan → „Plan” →
 - **D1 — Kolejność sekcji jak dotąd:** „Gdzie zwiedzamy?” → „W jakim promieniu szukać?” (tylko przy „Też inne miasta”; pojawia się/znika od razu, bez animacji) → własne miasta → „Jaki plan?” (chipy). Na dole „Ułóż plan” i „Anuluj”.
 - **D2 — Wyśrodkowanie = pion + tekst:** cały blok na środku ekranu w pionie; tytuły, podpowiedzi, rzędy chipów i miast wyśrodkowane w poziomie. Gdy treść się nie mieści (np. z klawiaturą), przewija się od góry.
 - **D4 — Akceptacja (2026-11-19):** plan zaakceptowany razem z Z1–Z5 („Akceptuję”).
+- **D5 — Błąd pola miasta (po teście, 2026-11-19):** zostaje wyrównany do lewej pod polem, jak w innych polach („Zostaw po lewej”).
 - **D3 — Ekran ładowania = tylko generowanie** (`PlanGenerating`: tytuł, komunikat, pasek). Szkielet wczytywania i pusty stan bez zmian.
 
 ### Założenia (do potwierdzenia akceptacją)
