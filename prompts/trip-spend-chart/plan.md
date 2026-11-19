@@ -55,9 +55,9 @@ Stan obecny:
 - frontend-ui-engineering — kroki 4–6 — dostępność i stany ekranu
 
 ## Kroki
-- [ ] 1. [orchestrator] Audyt CVE `react-native-gifted-charts` i `expo-linear-gradient`, potem `pnpm expo install` obu; `pnpm typecheck` i testy zielone — skill: security-and-hardening — weryfikacja: znalezisko CVE (EXISTS/UNKNOWN) → pytam Kacpra przed instalacją
-- [ ] 2. [backend] `ChartStylePreferenceSchema` + odczyt/zapis w `src/data/preferences.ts` — równolegle z 3 — skill: test-driven-development — najpierw testy: `preferences.test.ts` — weryfikacja: verifier, `pnpm test`, `pnpm typecheck`, `pnpm lint`
-- [ ] 3. [backend] `DailySpendSchema` + `dailySpend()` w `src/lib/expense-budget.ts` — równolegle z 2 — skill: test-driven-development — najpierw testy: `expense-budget.test.ts` — weryfikacja: verifier, j.w.
+- [x] 1. [orchestrator] Audyt CVE `react-native-gifted-charts` i `expo-linear-gradient`, potem `pnpm expo install` obu; `pnpm typecheck` i testy zielone — skill: security-and-hardening — weryfikacja: znalezisko CVE (EXISTS/UNKNOWN) → pytam Kacpra przed instalacją
+- [x] 2. [backend] `ChartStylePreferenceSchema` + odczyt/zapis w `src/data/preferences.ts` — równolegle z 3 — skill: test-driven-development — najpierw testy: `preferences.test.ts` — weryfikacja: verifier, `pnpm test`, `pnpm typecheck`, `pnpm lint`
+- [x] 3. [backend] `DailySpendSchema` + `dailySpend()` w `src/lib/expense-budget.ts` — równolegle z 2 — skill: test-driven-development — najpierw testy: `expense-budget.test.ts` — weryfikacja: verifier, j.w.
 - [ ] 4. [frontend] `usePreferences.chartStyle` + wiersz w Ustawieniach (Liniowy / Słupkowy / Donut) — po 2 — skill: test-driven-development — najpierw testy: `usePreferences.test.ts`, `SettingsScreen.test.tsx` — weryfikacja: verifier, j.w.
 - [ ] 5. [frontend] `TripSpendChart` (trzy warianty, a11y, tokeny, i18n) — po 1 i 3, równolegle z 4 (klucze i18n w innej sekcji pliku; jeśli kolizja → po 4) — skill: test-driven-development, frontend-ui-engineering — najpierw testy: `TripSpendChart.test.tsx` — weryfikacja: verifier, j.w.
 - [ ] 6. [frontend] Karta „Budżet” w `CurrentTrip` z wykresem, stanami i tapem do `/expenses` — po 4 i 5 — skill: test-driven-development, frontend-ui-engineering — najpierw testy: test Home — weryfikacja: verifier, j.w.; potem audyt CVE i tester na urządzeniu (nowa natywna zależność → nowy dev build)
@@ -66,6 +66,9 @@ Stan obecny:
 Gałąź: jedna, `feature/trip-spend-chart`, commit na krok.
 
 ## Dziennik postępu
+- Krok 1: `react-native-gifted-charts@1.4.81` (+ `gifted-charts-core@0.1.83`) i `expo-linear-gradient@58.0.3` — przypięte wersje starsze niż 2 tygodnie (1.4.82/1.4.83 wydane 2026-11-17, pominięte). `pnpm audit`: 0 znalezisk przez nowe pakiety (23 istniejące pochodzą z `expo > @expo/cli`, bez zmian) → CLEAN. Suite 220/4383 zielone, typecheck i lint zielone · użyty skill: security-and-hardening · commit 42f9f44
+- Krok 2: testy napisane (red ✓: `readChartStylePreference` is not a function) · `ChartStylePreferenceSchema`, klucz `preference.chartStyle`, fallback `'line'` · green ✓ (7/7) · verifier PASS, typecheck i lint ✓ · użyty skill: test-driven-development · commit 1b5f599
+- Krok 3: testy napisane (red ✓: 8 nowych testów, `dailySpend` is not a function) · `DailySpendSchema` + `dailySpend()` (dni w UTC, do min(dziś, koniec)) · green ✓ (25/25) · verifier PASS, typecheck i lint ✓ · użyty skill: test-driven-development · commit 211cc69
 
 ## Ryzyka i otwarte pytania
 Decyzje Kacpra (2026-11-19):
