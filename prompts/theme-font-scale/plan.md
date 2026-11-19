@@ -1,5 +1,5 @@
 # Zadanie: motyw „Ciemny” gubi się po zmianie rozmiaru czcionki (Android)
-Status: runda 2 (uwagi CodeRabbit) w toku; nadal czeka usunięcie wpisu home-spend-summary po jej merge'u
+Status: runda 2 (uwagi CodeRabbit) zrobiona, PR zaktualizowany; nadal czeka usunięcie wpisu home-spend-summary po jej merge'u
 
 ## Zrozumienie i założenia
 - Objaw (test T4/T9 home-spend-summary, emulator Medium Phone API 37, Android 17): Ustawienia → „Wygląd” → „Motyw” = „Ciemny”, potem `adb shell settings put system font_scale 1.3` (albo 2.0) → wszystkie ekrany w jasnej palecie, a wiersz „Motyw” dalej pokazuje „Ciemny”. Powrót do `font_scale 1.0` przywraca ciemną paletę.
@@ -55,6 +55,7 @@ Bez zmian. `ThemePreferenceSchema` (`src/schemas/preferences.ts`) zostaje jak je
 - Krok 4 (2026-11-18): docs zaktualizowane · verifier całej gałęzi PASS (test, typecheck, lint zielone; CodeRabbit: 0 uwag) · PR otwarty.
 - Krok 5 (2026-11-19): test `renderToString` w `src/theme/__tests__/themePreference.test.tsx` (red ✓: „Missing getServerSnapshot”) · `getServerThemePreference` zwraca `'system'` jako trzeci argument `useSyncExternalStore` · green ✓ (4391 testów, typecheck, lint) · verifier PASS · użyty skill: test-driven-development · odstępstwo: import `react-dom/server` z `// @ts-expect-error` i opisanym powodem (brak `@types/react-dom`, bez nowych zależności). Nie sprawdzone: prawdziwy `expo export -p web`.
 - Krok 6 (2026-11-19): nowy test „the theme store with nothing set yet” w `jest.isolateModules` (zapisany „dark”, system „light” → ciemna paleta w `usePreferences` i obu `useTheme`) · mutacja (`current ??= 'light'`) → nowy test czerwony, po cofnięciu zielony · cały zestaw (4391), lint zielone · verifier PASS · odstępstwa: zapisana wartość przez zmienną `mockSavedTheme` (`jest.doMock` w izolacji nie nadpisał mocka z góry pliku); `react` podmieniony w izolowanym rejestrze na zewnętrzną instancję (inaczej „Invalid hook call”).
+- Krok 7 (2026-11-19): dopisane ucięte „Profile” przy `font_scale 2.0` w `known-limitations.md` (pytanie 3) · verifier całej gałęzi PASS (4391 testów, typecheck, lint; CodeRabbit CLI: 0 uwag, 14 plików) · push, odpowiedzi w PR #43 przy U1 i U2.
 
 ## Runda 2: uwagi CodeRabbit do PR #43 (2026-11-19, zaakceptowana przez Kacpra 2026-11-19)
 Recenzja CodeRabbit z 2026-11-18 (commit 1ac8780): 1 uwaga do naprawy + 1 nitpick. Obie sprawdzone na kodzie gałęzi i obie aktualne.
@@ -69,7 +70,7 @@ Recenzja CodeRabbit z 2026-11-18 (commit 1ac8780): 1 uwaga do naprawy + 1 nitpic
 ### Kroki (runda 2)
 - [x] 5. [frontend] U1 — skill: test-driven-development — najpierw test z „Testy (runda 2)”, red z powodu braku `getServerSnapshot` — pliki: `src/theme/themePreference.ts`, `src/theme/__tests__/themePreference.test.tsx` — weryfikacja: cały zestaw, `pnpm typecheck`, `pnpm lint`; verifier PASS.
 - [x] 6. [frontend] U2 (równolegle z 5, inne pliki) — plik: `src/hooks/__tests__/usePreferences.test.tsx` — pozostałe testy dalej seedują store przez `setThemePreference` — weryfikacja jak wyżej + mutacja z „Testy (runda 2)”; verifier PASS.
-- [ ] 7. [orchestrator] Odpowiedź w wątku CodeRabbit przy U1 i w PR (co i w którym commicie), verifier całej gałęzi (z CodeRabbit), push na `feature/theme-font-scale`. Tester i cve-auditor bez ponownego uruchomienia: zmiany nie dotykają Androida (U1 działa tylko przy renderze serwerowym, U2 to sam test). Docs bez zmian, chyba że verifier wskaże inaczej.
+- [x] 7. [orchestrator] Odpowiedź w wątku CodeRabbit przy U1 i w PR (co i w którym commicie), verifier całej gałęzi (z CodeRabbit), push na `feature/theme-font-scale`. Tester i cve-auditor bez ponownego uruchomienia: zmiany nie dotykają Androida (U1 działa tylko przy renderze serwerowym, U2 to sam test). Docs bez zmian, chyba że verifier wskaże inaczej.
 
 ### Inne otwarte punkty (raport explorera, 2026-11-19)
 - Usunięcie wpisu home-spend-summary z `known-limitations.md`: dalej czeka na merge tamtej gałęzi (pytanie 2). Na tej gałęzi wpisu nie ma.
