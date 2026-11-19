@@ -1,5 +1,5 @@
 # Zadanie: Plan AI — jeden formularz zamiast kart, wyśrodkowane ekrany
-Status: w realizacji (zaakceptowany 2026-11-19)
+Status: zrobione w kodzie (2026-11-19); test na urządzeniu niewykonany
 
 ## Zrozumienie i założenia
 Kacper chce dwóch zmian w tworzeniu planu AI (zakładka Plan → „Plan” → „Zaplanuj z AI”):
@@ -58,7 +58,8 @@ Brak (zmiana prostego układu; TDD wg `docs/development/testing.md`).
 ## Kroki
 - [x] 1. [frontend] `PlanWizard` jako jeden wyśrodkowany formularz (D1, D2, Z2–Z5) + usunięcie kluczy i18n `next`/`back` (`PlanSide.test.tsx` bez zmian — nie klikał „Dalej”). Verifier PASS (2026-11-19): pełny suite 4384 testy, typecheck, lint.
 - [x] 2. [frontend] `PlanGenerating` wyśrodkowany (D3). Verifier PASS (2026-11-19): typecheck, lint, test PlanGenerating 10/10.
-- [ ] 3. Docs (orchestrator): `ai-trip-plan.md`, `overview.md`; końcowy verifier całej gałęzi (CodeRabbit).
+- [x] 3. Docs (orchestrator): `ai-trip-plan.md`, `decisions.md` (`overview.md` bez zmian — opis nadal trafny); po przeglądzie poprawione stare „question cards” w `flows/README.md`, `context/app-context.md`, `README.md`. Końcowy verifier gałęzi PASS (2026-11-19): 4384 testy, typecheck, lint, CodeRabbit 0 uwag.
+- [ ] Test na urządzeniu (tester, po audycie CVE) — nie wykonany; decyzja Kacpra.
 
 Kroki 1 i 2 są niezależne (różne pliki) → dwa frontend subagenty równolegle, każdy z własnym verifierem.
 
