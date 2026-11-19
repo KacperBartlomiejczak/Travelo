@@ -21,7 +21,7 @@ Feature flows live in [`features/`](features/), one file per feature that exists
 | Expenses | [expenses.md](features/expenses.md) | no (offline write) |
 | Discover places (Google Places + Gemini) | [discover-places.md](features/discover-places.md) | yes |
 | PRO subscription (RevenueCat paywall, Customer Center) | [subscription.md](features/subscription.md) | purchase and manage: yes; status: no (SDK cache) |
-| AI trip plan (question cards, Gemini over Places candidates) | [ai-trip-plan.md](features/ai-trip-plan.md) | yes |
+| AI trip plan (one question form, Gemini over Places candidates) | [ai-trip-plan.md](features/ai-trip-plan.md) | yes |
 | Legal pages (privacy policy, terms of use) | [legal-pages.md](features/legal-pages.md) | no (bundled text) |
 | Offline rules | [offline.md](offline.md) | — |
 | AI day plan (rules, not built) | [ai-day-plan.md](ai-day-plan.md) | — |

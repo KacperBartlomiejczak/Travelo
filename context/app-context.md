@@ -54,7 +54,7 @@ Platforms: iOS and Android (Expo / React Native). Languages: Polish (`pl`) and E
 19. **PRO subscription** (`prompts/revenuecat/`, 2026-11-11) — RevenueCat: monthly or yearly PRO (`travelo_pro`) bought from the Settings banner through the RevenueCat paywall, managed in Customer Center; the PRO badge shows the real status, also offline. PRO unlocks nothing yet. Test Store only; not checked on a device yet.
 
 ### In progress (plans in `prompts/`)
-- **AI trip plan** (`prompts/ai-trip-plan/`, 2026-11-13…) — in the Plan tab the organizer answers question cards (only this city or nearby within 50–300 km, own cities from the airport list, preference chips), then a plain day-by-day plan from real Google places is generated for everyone's interests, saved per trip (one plan, replaced after a confirmation) and readable by linked friends. Built and tested in the app; the two Edge Functions and the migration are not deployed yet; device check pending.
+- **AI trip plan** (`prompts/ai-trip-plan/`, 2026-11-13…) — in the Plan tab the organizer fills in one question form (only this city or nearby within 50–300 km, own cities from the airport list, preference chips), then a plain day-by-day plan from real Google places is generated for everyone's interests, saved per trip (one plan, replaced after a confirmation) and readable by linked friends. Built and tested in the app; the two Edge Functions and the migration are not deployed yet; device check pending.
 
 ### Not started (MVP)
 - **AI day plans, later parts** — plan cards, cost ranges, group splits, locked activities (the plain plan is in progress above).

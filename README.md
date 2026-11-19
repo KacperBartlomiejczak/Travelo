@@ -68,7 +68,7 @@ Planning a group trip means juggling flights, who likes what, a shared budget an
 - **Trip covers.** Pick one of the bundled covers or a photo from your gallery.
 - **Private trip photos.** Add up to 20 photos at a time. Each one is shrunk on the phone (longer side ≤ 2048 px, plus a 480 px thumbnail), re-encoded as JPEG **without EXIF or GPS data**, and uploaded to a private Supabase Storage bucket. It is shown through signed URLs that last one hour.
 - **Discover places.** Real places near the destination from Google Places, picked by Gemini to match your interests, each with a reason, photos and a Google Maps link.
-- **AI trip plan.** A few question cards, then a day-by-day plan (morning, afternoon, evening) built only from real Google Places candidates. The model never invents places.
+- **AI trip plan.** One short question form, then a day-by-day plan (morning, afternoon, evening) built only from real Google Places candidates. The model never invents places.
 - **Trip menu.** Rename a trip, change its cover or budget, or delete it.
 - **PRO.** A RevenueCat paywall and Customer Center, and a PRO badge on the profile. PRO unlocks nothing yet.
 
