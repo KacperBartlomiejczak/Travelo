@@ -37,11 +37,12 @@ Bez zmian.
 
 ## Kroki
 - [x] 1. [frontend] Karta budżetu bez przełącznika przy solo (`BudgetHero`, `ExpensesScreen`) — skill: test-driven-development — najpierw testy: `BudgetHero.test.tsx`, `ExpensesScreen.test.tsx` (red: przy solo widać „Grupa”) — weryfikacja: verifier, `pnpm test`, `pnpm typecheck`, `pnpm lint`
-- [ ] 2. [frontend] Pole „Kto” ukryte przy solo (`ExpenseSheet`) — równolegle z krokiem 1 (inne pliki) — skill: test-driven-development — najpierw testy: `ExpenseSheet.test.tsx` (red: przy solo widać pole „Kto”) — weryfikacja: verifier, `pnpm test`, `pnpm typecheck`, `pnpm lint`
+- [x] 2. [frontend] Pole „Kto” ukryte przy solo (`ExpenseSheet`) — równolegle z krokiem 1 (inne pliki) — skill: test-driven-development — najpierw testy: `ExpenseSheet.test.tsx` (red: przy solo widać pole „Kto”) — weryfikacja: verifier, `pnpm test`, `pnpm typecheck`, `pnpm lint`
 - [ ] 3. [orchestrator] Docs: `flows/features/expenses.md` — weryfikacja: verifier końcowy gałęzi
 
 ## Dziennik postępu
 - Krok 1: testy napisane (red ✓: przy solo był widoczny przełącznik) · `BudgetHero` dostał prop `solo` (brak przełącznika, kwoty `me`), `ExpensesScreen` przekazuje `solo={members.length === 0}` · green ✓ · verifier PASS, typecheck ✓, lint ✓ · użyty skill: test-driven-development · bez odstępstw
+- Krok 2: testy napisane (red ✓: przy solo widać było „Kto wydał”) · `ExpenseSheet` renderuje pole „Kto” tylko gdy `members.length > 0`; zapis przy solo z `memberId: null` · green ✓ · verifier PASS, pełny `pnpm test` (4387) ✓, typecheck ✓, lint ✓ · użyty skill: test-driven-development · uwaga verifiera: blok JSX nie jest ponownie wcięty (kosmetyka, bez Prettiera); przypadek brzegowy (usunięcie ostatniego towarzysza przy edycji) dziś nieosiągalny — w aplikacji nie ma usuwania członków
 
 ## Ryzyka i otwarte pytania
 - P1 (Kacper, 2026-11-19): karta budżetu przy solo — brak przełącznika, od razu kwoty „Ja”.
