@@ -10,8 +10,9 @@ import { useTheme as useLegacyTheme, DarkThemeScope as LegacyDarkThemeScope } fr
 import { setThemePreference } from '@/theme/themePreference';
 import { applyThemePreference, usePreferences } from '../usePreferences';
 
+let mockSavedTheme = 'light';
 jest.mock('@/data/preferences', () => ({
-  readThemePreference: jest.fn(() => 'light'),
+  readThemePreference: jest.fn(() => mockSavedTheme),
   readLanguagePreference: jest.fn(() => 'pl'),
   writeThemePreference: jest.fn(),
   writeLanguagePreference: jest.fn(),
@@ -29,6 +30,7 @@ const setColorScheme = jest.spyOn(Appearance, 'setColorScheme').mockImplementati
 
 beforeEach(() => {
   jest.clearAllMocks();
+  mockSavedTheme = 'light';
   setThemePreference('light');
   jest.mocked(writeThemePreference).mockImplementation(() => {});
   jest.mocked(writeLanguagePreference).mockImplementation(() => {});
@@ -94,6 +96,36 @@ describe('usePreferences', () => {
     expect(setColorScheme).toHaveBeenLastCalledWith('dark');
     expect(result.current.theme).toBe('dark');
     expect(i18n.language).toBe('pl');
+  });
+});
+
+describe('the theme store with nothing set yet', () => {
+  it('reads the saved dark choice although the device reports light', async () => {
+    mockScheme = 'light';
+    mockSavedTheme = 'dark';
+    // Fresh registry: the file-level setThemePreference('light') seed does not reach this store.
+    // React stays shared so the isolated hooks run inside the outer renderer.
+    const React = jest.requireActual('react');
+    let loaded!: {
+      usePreferences: typeof usePreferences;
+      useTheme: typeof useTheme;
+      useLegacyTheme: typeof useLegacyTheme;
+    };
+    jest.isolateModules(() => {
+      /* eslint-disable @typescript-eslint/no-require-imports */
+      jest.doMock('react', () => React);
+      loaded = {
+        usePreferences: require('../usePreferences').usePreferences,
+        useTheme: require('@/theme/useTheme').useTheme,
+        useLegacyTheme: require('@/theme/legacy/useTheme').useTheme,
+      };
+      /* eslint-enable @typescript-eslint/no-require-imports */
+    });
+    jest.dontMock('react');
+
+    expect((await renderHook(() => loaded.usePreferences())).result.current.theme).toBe('dark');
+    expect((await renderHook(() => loaded.useTheme())).result.current).toEqual(darkTheme);
+    expect((await renderHook(() => loaded.useLegacyTheme())).result.current).toEqual(legacyDark);
   });
 });
 
