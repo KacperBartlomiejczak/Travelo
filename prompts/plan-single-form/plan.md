@@ -1,5 +1,5 @@
 # Zadanie: Plan AI — jeden formularz zamiast kart, wyśrodkowane ekrany
-Status: zrobione w kodzie (2026-11-19); test na urządzeniu niewykonany
+Status: zrobione (2026-11-19); test na urządzeniu PASS poza klawiaturą (niesprawdzona)
 
 ## Zrozumienie i założenia
 Kacper chce dwóch zmian w tworzeniu planu AI (zakładka Plan → „Plan” → „Zaplanuj z AI”):
@@ -59,7 +59,7 @@ Brak (zmiana prostego układu; TDD wg `docs/development/testing.md`).
 - [x] 1. [frontend] `PlanWizard` jako jeden wyśrodkowany formularz (D1, D2, Z2–Z5) + usunięcie kluczy i18n `next`/`back` (`PlanSide.test.tsx` bez zmian — nie klikał „Dalej”). Verifier PASS (2026-11-19): pełny suite 4384 testy, typecheck, lint.
 - [x] 2. [frontend] `PlanGenerating` wyśrodkowany (D3). Verifier PASS (2026-11-19): typecheck, lint, test PlanGenerating 10/10.
 - [x] 3. Docs (orchestrator): `ai-trip-plan.md`, `decisions.md` (`overview.md` bez zmian — opis nadal trafny); po przeglądzie poprawione stare „question cards” w `flows/README.md`, `context/app-context.md`, `README.md`. Końcowy verifier gałęzi PASS (2026-11-19): 4384 testy, typecheck, lint, CodeRabbit 0 uwag.
-- [ ] Test na urządzeniu (tester, po audycie CVE) — nie wykonany; decyzja Kacpra.
+- [x] Test na urządzeniu (2026-11-19). Audyt CVE: EXISTS tylko w narzędziach dev/build (node-forge przez `@expo/cli`, glob/minimatch przez jest; runtime i Edge Functions czyste) — Kacper: „Tak, testuj”. Tester (emulator Android 17, dev build, Metro z tego worktree na 8082, EN, ciemny + jasny): 1 jeden wyśrodkowany formularz PASS; 2 promień 100 km pojawia się/znika od razu PASS; 3 dodanie miasta (tag wyśrodkowany) i błąd miasta docelowego znikający przy pisaniu PASS, **klawiatura niesprawdzona** (emulator nie rysuje klawiatury ekranowej); 4 systemowe Wstecz zamyka formularz PASS; 5 generowanie wyśrodkowane, plan wygenerowany PASS. Niesprawdzone: PL, offline, przewijanie z klawiaturą. Uwaga testera: błąd pola miasta jest wyrównany do lewej (plan nie mówi o centrowaniu błędów).
 
 Kroki 1 i 2 są niezależne (różne pliki) → dwa frontend subagenty równolegle, każdy z własnym verifierem.
 
