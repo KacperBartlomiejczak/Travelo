@@ -78,7 +78,7 @@ Expo / React Native app. Visual rules: [`context/design-context.md`](../../conte
     - the offline hint.
   - **Loading:** 3 static skeleton tiles as one busy element. A failed read keeps a list already shown.
 - `TripsEmptyIllustration` (`src/components/TripsEmptyIllustration.tsx`) — 160×160 SVG suitcase with a luggage tag in theme colours (brand body, `text.primary` outline, `category.transport` tag), wrapped in a `View` with `aria-hidden` so it is hidden from screen readers on iOS, Android and web.
-- `useTheme()` (`src/theme/useTheme.ts`) — returns `darkTheme` when the system colour scheme is `dark`, otherwise `lightTheme`; inside `DarkThemeScope` always `darkTheme` (used only by the welcome screen and the photo viewer; the trip view follows the theme since theme-split D1).
+- `useTheme()` (`src/theme/useTheme.ts`) — returns the palette of the saved theme choice (`useThemePreference`, `src/theme/themePreference.ts`); for System, `darkTheme` when the reported colour scheme is `dark`, otherwise `lightTheme`; inside `DarkThemeScope` always `darkTheme` (used only by the welcome screen and the photo viewer; the trip view follows the theme since theme-split D1).
 - Auth pieces (`src/features/auth/`):
   - `BrandButton`: 52dp, radius 12, focus ring, pressed and loading states; disabled = its own colours at `opacity.disabled`, logo included (D16).
   - `GoogleButton` and `DiscordButton`, with the official logos (`react-native-svg`, `aria-hidden`).
