@@ -21,4 +21,8 @@ function subscribe(listener: () => void): () => void {
   return () => listeners.delete(listener);
 }
 
-export const useThemePreference = (): ThemePreference => useSyncExternalStore(subscribe, getThemePreference);
+// Static web export renders on the server, where there is no storage: default to "system".
+const getServerThemePreference = (): ThemePreference => 'system';
+
+export const useThemePreference = (): ThemePreference =>
+  useSyncExternalStore(subscribe, getThemePreference, getServerThemePreference);
