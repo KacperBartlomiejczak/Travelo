@@ -1,0 +1,192 @@
+# Zadanie: Import biletu (kaskada: parser bez AI → Gemini) + skan kodu aparatem
+Status: w trakcie
+
+## Zrozumienie i założenia
+Na kroku „Loty” kreatora (`/trips/new`) jest dziś wyłączony przycisk „Wyślij bilet · wkrótce” (`src/app/trips/new/index.tsx:142`, D2 z trip-create-wizard). Włączamy go i dajemy dwie drogi wypełnienia formularza lotów:
+
+1. **Import pliku (PDF / zdjęcie)** — po zgodzie plik idzie do nowej Edge Function `extract-ticket`, która działa **kaskadą**:
+   - **Etap 1 (bez AI, 0 zł):** kod kreskowy (`zxing-wasm` = zxing-cpp w WebAssembly; PDF417 / Aztec / QR) → parser BCBP; dla PDF dodatkowo tekst (`unpdf`) → regexy. Wynik walidowany Zod.
+   - **Komplet** (D13) = dla każdego segmentu: lotniska IATA z bazy, numer lotu, data i godzina wylotu i przylotu → **koniec, Gemini nie jest wołane**.
+   - **Etap 2 (Gemini):** tylko gdy etap 1 się wyłożył albo brakuje pola (np. BCBP nigdy nie ma godzin). Pola znalezione w etapie 1 są pewne: odpowiedź Gemini musi się z nimi zgadzać.
+2. **Skan kodu z karty pokładowej aparatem (na telefonie, bez serwera, offline)** — `expo-camera` → ten sam parser BCBP → lotniska, numer, dzień; godziny wpisuje użytkownik.
+
+W obu drogach **nic nie zapisuje się automatycznie**: dane trafiają do szkicu kreatora, użytkownik je sprawdza i sam przechodzi dalej.
+
+Gotowe = obie drogi działają w kreatorze, zgoda przed wysłaniem, wyśrodkowany komunikat dla pliku, który nie jest biletem, testy + `pnpm typecheck` + `pnpm lint` zielone, dokumentacja i polityka prywatności zaktualizowane, Edge Function gotowa do deployu (deploy robi Kacper).
+
+### Decyzje Kacpra (2026-11-19)
+- D1. Formaty pliku: **PDF + zdjęcie**. Nowa zależność `expo-document-picker` — zgoda Kacpra. Zdjęcie przez istniejący `expo-image-picker`.
+- D2. Zgoda **za każdym razem** przed wysłaniem (checkbox, nic nie zapamiętujemy).
+- D3. Gdy w formularzu są już loty: **zastąp wszystkie** — najpierw `ConfirmDialog` „Zastąpić wpisane loty?”, gdy formularz nie jest pusty.
+- D4. Limit: **5 wywołań Gemini dziennie** na użytkownika (nowy `kind` `ticket` w `ai_usage`).
+- D5. Pliku **nie przechowujemy**: base64 w body, tylko w pamięci funkcji, bez Storage, bez logowania treści.
+- D6. `not_a_ticket` **zwraca** jednostkę limitu `ticket`.
+- D7. Osobny limit odrzuceń: **10 `not_a_ticket` dziennie** (`kind` `ticket_rejected`, bez zwrotu).
+- D8. Limity pliku: PDF — magic bytes `%PDF-` + ≤ 5 MB; zdjęcie zmniejszane na telefonie (`expo-image-manipulator`, JPEG, dłuższy bok ≤ 2000 px) + magic bytes JPEG. Liczby stron nie liczymy.
+- D9. **Nie** wyciągamy nazwiska pasażera ani PNR. Tylko: kierunek, numer lotu, IATA skąd/dokąd, czasy lokalne.
+- D10. Skan kodu **aparatem na telefonie** (`expo-camera`, nowa zależność — zgoda Kacpra).
+- D11. Hybryda „kod z aparatu + plik do AI” — odrzucona.
+- D12. **Kaskada** (Kacper, „Scenariusz A”): najpierw parser bez AI, Gemini tylko przy porażce lub brakach. Etap 1 w **TypeScript w Edge Function** (`zxing-wasm` + `unpdf`, dwie nowe zależności Deno — zgoda Kacpra), nie w Pythonie; Zod zostaje jedynym źródłem prawdy (bez Pydantic).
+- D13. „Komplet” = pola formularza (IATA z bazy, numer, data + godzina wylotu i przylotu). PNR nie jest wymagany (D9 bez zmian).
+
+### Fakty sprawdzone
+- `expo-camera` `CameraView` czyta na żywo `pdf417`, `aztec`, `qr` na iOS i Androidzie; `scanFromURLAsync` na iOS czyta tylko QR — dlatego kod z pliku czytamy na serwerze, nie na telefonie.
+- BCBP (IATA Resolution 792) zawiera nazwisko, PNR, IATA, przewoźnika, numer lotu i **dzień roku** — bez roku i bez godzin. Karta pokładowa zawsze więc przejdzie do etapu 2 (Gemini) po godziny.
+
+### Założenia do potwierdzenia przy akceptacji (moje propozycje)
+- Z1. Zdjęcie do importu tylko **z galerii** (aparat służy skanowi kodu).
+- Z2. Skan aparatem: po zeskanowaniu wybór „Wylot / Powrót” (`SegmentedControl`); odcinki z kodu (1–4) **dopisujemy** do kierunku, pusty segment zastępujemy.
+- Z3. Rok dla dnia z BCBP: najbliższe wystąpienie tego dnia roku od dziś. Na telefonie w skanie: godziny puste, `DateTimeField` dostaje dzień jako `suggested`.
+- Z4. Numer lotu z BCBP: przewoźnik + numer bez zer wiodących (`FR 0123` → `FR123`).
+- Z5. Nazwisko i PNR z BCBP są **odrzucane w parserze** (nigdy w stanie, logach, odpowiedzi ani UI).
+- Z6. Offline: import pliku wyłączony z podpowiedzią; skan aparatem działa offline.
+- Z7. Etap 1 bez Gemini **nie zużywa** limitu 5/dzień (koszt 0 zł). Ochronę przed nadużyciem daje rozmiar pliku, auth i limity platformy Supabase.
+- Z8. Gemini niedostępne, limit wyczerpany albo odpowiedź niezgodna z etapem 1, a etap 1 coś znalazł → zwracamy **częściowe dane** (np. lotniska + numer + dzień, godziny puste) z informacją „Uzupełnij godziny”, zamiast błędu. Nic nie znaleziono w żadnym etapie → `not_a_ticket`.
+- Z9. Kierunek (wylot/powrót) w etapie 1: segmenty w kolejności z dokumentu; trasa wracająca do pierwszego lotniska wylotu = powrót, reszta = wylot. Gemini ustala kierunek tylko, gdy etap 1 nic nie dał.
+
+## Podejście
+**Etap 1 — parser (`src/lib/ticket-parse/`, czyste funkcje, wspólne z telefonem tam, gdzie się da):**
+1. Plik sprawdzony na telefonie i w funkcji: typ, magic bytes, rozmiar → `unsupported_file` / `file_too_large` bez żadnego parsowania.
+2. Kod kreskowy: zdjęcie → `zxing-wasm` (`readBarcodes`, formaty PDF417/Aztec/QR). PDF → obrazy osadzone na stronach (przez `unpdf`/pdf.js) → `zxing-wasm`. **Wykonalność odczytu obrazów z PDF w Deno sprawdzę na początku kroku 4**; jeśli się nie da bez renderera stron, PDF idzie tylko ścieżką tekstu (wrócę z tym do Kacpra).
+3. `parseBcbp(text, today)` → odcinki (IATA w bazie, numer, data). Ten sam parser na telefonie w skanie aparatem.
+4. PDF z warstwą tekstową → `unpdf` `extractText` → `parseTicketText` (regexy: kody IATA, numery lotów, daty i godziny w popularnych formatach, z kontekstem „Departure/Wylot/Arrival/Przylot”). Wynik łączony z BCBP (BCBP wygrywa przy konflikcie lotnisk/numeru/dnia).
+5. Walidacja Zod (`ParsedTicketSchema`) + `isComplete` (D13). Komplet → 200, `source: 'parser'`, bez limitu.
+
+**Etap 2 — Gemini (tylko braki):**
+6. Rezerwacja limitów: po jednej jednostce `ticket` (5) i `ticket_rejected` (10) przez istniejące `consume_ai_quota`; brak → (Z8) częściowe dane, a bez danych 429 `limit_reached`.
+7. Gemini dostaje dokument jako `inlineData` + stały `systemInstruction` (`src/lib/ticket-prompt.ts`): dokument niezaufany, instrukcje w nim ignorować, zwrócić segmenty albo `isTicket: false`. Pola z etapu 1 idą jako JSON w treści użytkownika („te pola są pewne, uzupełnij brakujące”). Bez `tools`, `thinkingLevel: 'low'`, timeout 30 s.
+8. `responseJsonSchema` z Zod (`GeminiTicketSchema`) — **bez wolnych pól tekstowych** (enum, IATA `^[A-Z]{3}$`, numer wzorcem, czasy `YYYY-MM-DDTHH:mm`).
+9. `validateTicket(gemini, parsed, airports, today)`: IATA w bazie, zakres dat (dziś − 1 rok … + 2 lata), przylot po wylocie w strefach lotnisk, `from ≠ to`, 1–8 segmentów, **zgodność z polami etapu 1** (lotniska, numer, dzień). Wynik: bilet → zwrot `ticket_rejected`, `source: 'ai'`; `isTicket:false`/nic → `not_a_ticket` 422 + zwrot `ticket` (D6); niezgodność z etapem 1 → Z8; awaria Gemini → zwrot obu + Z8 albo 502.
+10. Auth jak w innych funkcjach (JWT, POST only, `verify_jwt` on), logi tylko nazwy zdarzeń i etap (`parser_complete`, `parser_partial`, `gemini_used`, `not_a_ticket`) — nigdy plik, tekst PDF, kod BCBP, prompt ani odpowiedź modelu.
+
+**Ostatnia linia obrony:** użytkownik zawsze widzi dane w formularzu przed zapisem; snackbar „Sprawdź dane z biletu” (albo „Uzupełnij godziny”, gdy częściowe).
+
+**Odrzucone:** serwis w Pythonie (`zxing-cpp`/`pymupdf`/Pydantic) — nowa infrastruktura poza Supabase, drugie źródło prawdy obok Zod, `pymupdf` na AGPL (D12).
+
+## Struktury danych (Zod)
+`src/schemas/ticket.ts` (nowy; Edge Function importuje go ścieżką względną, jak `place.ts`):
+```ts
+export const TICKET_MAX_BYTES = 5 * 1024 * 1024;
+export const TICKET_IMPORTS_PER_DAY = 5;      // wywołania Gemini
+export const TICKET_REJECTS_PER_DAY = 10;
+export const MAX_TICKET_SEGMENTS = 8;
+export const FLIGHT_NUMBER_PATTERN = /^[A-Z0-9]{2,3}[0-9]{1,4}[A-Z]?$/;
+
+export const TicketMimeTypeSchema = z.enum(['application/pdf', 'image/jpeg']);
+export const ExtractTicketRequestSchema = z.object({
+  mimeType: TicketMimeTypeSchema,
+  dataBase64: z.string().min(1).max(Math.ceil(TICKET_MAX_BYTES / 3) * 4),
+});
+
+// Segment po etapie 1 albo 2. Częściowy (Z8): brakujące pola = null.
+export const TicketSegmentSchema = z.object({
+  direction: z.enum(['outbound', 'return']),
+  fromIata: IataCodeSchema,
+  toIata: IataCodeSchema,
+  flightNumber: z.string().regex(FLIGHT_NUMBER_PATTERN).nullable(),
+  flightDate: IsoDateSchema.nullable(),          // dzień (z BCBP / tekstu), gdy brak godzin
+  departAt: LocalDateTimeSchema.nullable(),      // czas lokalny lotniska, jak w formularzu
+  arriveAt: LocalDateTimeSchema.nullable(),
+});
+export const ParsedTicketSchema = z.object({ segments: z.array(TicketSegmentSchema).max(MAX_TICKET_SEGMENTS) });
+
+// Gemini: brak wolnych pól tekstowych; z.toJSONSchema → responseJsonSchema.
+const LocalTime = z.string().regex(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/);
+export const GeminiTicketSchema = z.object({
+  isTicket: z.boolean(),
+  segments: z.array(z.object({
+    direction: z.enum(['outbound', 'return']),
+    flightNumber: z.string().regex(FLIGHT_NUMBER_PATTERN).nullable(),
+    fromIata: z.string().regex(/^[A-Z]{3}$/),
+    toIata: z.string().regex(/^[A-Z]{3}$/),
+    departLocal: LocalTime,
+    arriveLocal: LocalTime,
+  })).max(MAX_TICKET_SEGMENTS),
+});
+
+export const ExtractTicketResponseSchema = z.object({
+  segments: z.array(TicketSegmentSchema).min(1).max(MAX_TICKET_SEGMENTS),
+  source: z.enum(['parser', 'ai']),
+  complete: z.boolean(),                          // false = Z8, „Uzupełnij godziny”
+  remainingToday: z.number().int().nonnegative(),
+});
+export const ExtractTicketErrorSchema = z.object({
+  error: z.enum(['invalid_input', 'unauthorized', 'unsupported_file', 'file_too_large',
+                 'limit_reached', 'not_a_ticket', 'upstream_failed']),
+});
+
+// Skan aparatem / BCBP. Bez nazwiska i PNR (Z5).
+export const BoardingPassLegSchema = z.object({
+  fromIata: IataCodeSchema, toIata: IataCodeSchema,
+  flightNumber: z.string().regex(FLIGHT_NUMBER_PATTERN),
+  flightDate: IsoDateSchema,
+});
+export const BoardingPassSchema = z.object({ legs: z.array(BoardingPassLegSchema).min(1).max(4) });
+```
+Migracja (bez nowych kolumn): `supabase/migrations/<ts>_ticket_quota.sql` — check `ai_usage.kind in ('places','trip_plan','ticket','ticket_rejected')`. `kind` to `text`, więc `database.types.ts` bez zmian (sprawdzę `pnpm db:types`).
+
+## Testy (najpierw, każdy krok red → green)
+- **Schematy** (`src/schemas/__tests__/ticket.test.ts`): mime, za długi base64, wzorce IATA/numeru/czasu, > 8 segmentów; strażnik: `toJSONSchema(GeminiTicketSchema)` nie ma pola `string` bez `pattern`/`enum`.
+- **`sniffTicketFile`**: `%PDF-` ok; inny początek → `unsupported_file`; JPEG `FF D8 FF` ok; PNG jako JPEG → błąd; > 5 MB → `file_too_large`; pusty → błąd.
+- **`parseBcbp`**: przykłady z IATA 792 (1 i 2 odcinki); `0123` → `FR123`; dzień roku → najbliższa data (przełom roku, rok przestępny); nieznane IATA / zły format → `null`; wynik bez nazwiska i PNR.
+- **`parseTicketText`**: fikstury tekstu (zanonimizowane) → segmenty; tekst bez lotów → pusto; tekst z „ignore previous instructions” → pusto; konflikt z BCBP → BCBP wygrywa.
+- **`isComplete`**, **łączenie etapów**, **`validateTicket`**: braki → niekomplet; Gemini niezgodne z etapem 1 → odrzucone; `isTicket:false`; zakres dat; przylot przed wylotem; 30 lutego; zły numer → `null`.
+- **`ticket-prompt`**: zawiera zasadę ignorowania instrukcji z dokumentu, nie zawiera danych użytkownika.
+- **SQL** (`supabase/tests/ai_usage.sql`): nowe `kind` przyjmowane, nieznane odrzucane; liczniki osobne.
+- **Edge Function** (`supabase/functions/extract-ticket/__tests__/handler.test.ts`, fakes dla zxing/unpdf/Gemini/RPC): 405; 401; 400; 415 / 413 bez parsowania i limitu; **komplet z etapu 1 → 200 `source:'parser'`, Gemini NIE wołane, limit NIE zużyty**; BCBP bez godzin → Gemini dostaje pola pewne, wynik zgodny → 200 `source:'ai'` + zwrot `ticket_rejected`; Gemini niezgodne → częściowe dane `complete:false`; limit wyczerpany + częściowe dane → 200 `complete:false`; limit wyczerpany bez danych → 429; `isTicket:false` → 422 + zwrot `ticket`; awaria Gemini → zwrot obu + częściowe albo 502; żądanie do Gemini ma `systemInstruction`, `inlineData`, `responseJsonSchema`, **brak `tools`**; logi bez base64, tekstu PDF, BCBP i odpowiedzi modelu.
+- **Adaptery** (`ports.ts`): odczyt kodu z prawdziwego JPEG z fikstury (PDF417 i Aztec) przez `zxing-wasm`; tekst z prawdziwego małego PDF przez `unpdf` — fikstury wygenerowane przez nas, bez danych osobowych.
+- **Warstwa danych** (`src/data/__tests__/ticket-import.test.ts`): mapowanie odpowiedzi i błędów na klasy; zła odpowiedź serwera → błąd; timeout 45 s dla `extract-ticket`.
+- **Szkic** (`draft.test.ts`): `draftFromTicket` (pełne i częściowe segmenty → `SegmentDraft`, strefy z `airports.json`, `suggested` dzień przy brakach); `withBoardingPass` (Z2, Z3).
+- **UI** (`flights.test.tsx` + komponenty): przycisk online/offline; arkusz: PDF/zdjęcie, „Wyślij” nieaktywne bez checkboxa, link do `/legal/privacy`; ładowanie; sukces wypełnia formularz + właściwy snackbar (komplet / „Uzupełnij godziny”); niepusty formularz → `ConfirmDialog`; `not_a_ticket` → wyśrodkowany komunikat (testID `ticket-not-a-ticket`); limit/inne błędy; skan: odmowa uprawnień, kod → kierunek → wpis, nierozpoznany kod. `Checkbox`: `role="checkbox"`, `checked`.
+
+## Pliki
+- Nowe: `src/schemas/ticket.ts`; `src/lib/ticket-parse/{sniff,bcbp,text,merge,validate}.ts`; `src/lib/ticket-prompt.ts`; `supabase/migrations/<ts>_ticket_quota.sql`; `supabase/functions/extract-ticket/{handler,ports,index}.ts` + `deno.json` (`npm:zxing-wasm`, `npm:unpdf`, wersje przypięte) + `__tests__/` + fikstury; `src/data/ticket-import.ts`; fake w `src/test/`; `src/hooks/useExtractTicket.ts`; `src/features/trip-create/{ticket-pick.ts,TicketImportSheet.tsx,BoardingPassScanner.tsx}`; `src/components/Checkbox.tsx` + testy.
+- Zmieniane: `src/schemas/index.ts`, `src/data/fetch-timeout.ts`, `src/features/trip-create/draft.ts`, `src/app/trips/new/index.tsx`, `src/i18n/locales/{pl,en}.json`, `supabase/tests/ai_usage.sql`, `supabase/functions/.env.example` (bez nowych sekretów), `package.json` / `app.json` (`expo-document-picker`, `expo-camera` + opis uprawnienia aparatu), `docs/legal/*.md`, `docs/architecture/{overview,backend,frontend,shared,decisions,known-limitations}.md`, `flows/features/trip-create.md` + nowy `flows/features/ticket-import.md`.
+- Pytanie o zależności Jest: jeśli `zxing-wasm`/`unpdf` trzeba też dodać do `package.json` (testy adapterów w Jest), dopiszę to w kroku 4 i dam znać przed instalacją.
+
+## Skille
+- `security-and-hardening` — kroki 1, 4 — niezaufany plik, prompt injection, nowe zależności.
+- `supabase`, `supabase-postgres-best-practices` — kroki 3, 4.
+- `source-driven-development` — kroki 4, 6, 8 — `zxing-wasm`, `unpdf`, Gemini `inlineData`/`responseJsonSchema`, `expo-document-picker`, `expo-camera`.
+- `doubt-driven-development` — krok 4.
+- `test-driven-development`, `incremental-implementation` — wszystkie kroki z kodem.
+- `frontend-design`, `frontend-ui-engineering` — kroki 7, 8.
+
+## Kroki
+Gałąź: `feature/ticket-import-ai`, commit po każdym kroku.
+- [ ] 1. [backend] Zod `ticket.ts` + `sniff.ts` + `bcbp.ts` — najpierw testy schematów, sniff, BCBP — weryfikacja: verifier.
+- [ ] 2. [backend] `text.ts` (regexy), `merge.ts` (łączenie + `isComplete`), `validate.ts`, `ticket-prompt.ts` — najpierw testy — weryfikacja: verifier.
+- [ ] 3. [backend] Migracja `ticket_quota` + test SQL (równolegle z 2) — weryfikacja: `pnpm test:db`, verifier.
+- [ ] 4. [backend] Edge Function `extract-ticket`: najpierw spike wykonalności (zxing-wasm + unpdf w Deno, kod z obrazu w PDF) → handler + ports + index, bez deployu — najpierw testy handlera i adapterów — weryfikacja: verifier.
+- [ ] 5. [backend] Warstwa danych `ticket-import.ts` + fake + timeout 45 s (równolegle z 4) — weryfikacja: verifier.
+- [ ] 6. [frontend] Zależności `expo-document-picker`, `expo-camera` (`pnpm expo install`), uprawnienie aparatu; `ticket-pick.ts` + `useExtractTicket` — najpierw testy — weryfikacja: verifier.
+- [ ] 7. [frontend] `draftFromTicket` / `withBoardingPass` + `Checkbox` (równolegle z 6) — najpierw testy — weryfikacja: verifier.
+- [ ] 8. [frontend] UI: arkusz („Wczytaj z pliku” / „Zeskanuj kartę pokładową”), zgoda, ładowanie, wyśrodkowany `not_a_ticket`, częściowe dane, błędy, `ConfirmDialog`, snackbar, skaner + kierunek, offline; i18n pl/en — najpierw testy UI — weryfikacja: verifier + `ui-taste`.
+- [ ] 9. [frontend + orchestrator] Polityka prywatności i regulamin (i18n przez frontend, `docs/legal/*.md` przez orchestratora) — weryfikacja: test `legal`, verifier.
+- [ ] 10. [orchestrator] Docs architektury, CVE audit (4 nowe zależności), tester na urządzeniu, verifier końcowy (cała gałąź + CodeRabbit). Deploy funkcji i migracji — Kacper.
+
+Kolejność: 1 → (2 ‖ 3) → (4 ‖ 5) → (6 ‖ 7 ‖ 9-i18n) → 8 → 10.
+
+### Proponowane teksty (do akceptacji)
+- Przycisk: „Wczytaj bilet” / „Import ticket”.
+- Zgoda (PL): „Plik zostanie odczytany na naszym serwerze, a jeśli to będzie potrzebne — przeanalizowany przez AI (Google Gemini). Nie zapisujemy go. Odpowiadasz za to, co przesyłasz — wgrywaj tylko swój bilet albo bilet osoby, która się na to zgodziła. Po odczytaniu sprawdź dane przed zapisaniem podróży.” Checkbox: „Rozumiem i akceptuję Politykę prywatności” (link). Przycisk: „Wyślij”.
+- Zgoda (EN): „The file will be read on our server and, if needed, analysed by AI (Google Gemini). We don't store it. You're responsible for what you upload — only upload your own ticket or one you have permission to share. Check the details before saving the trip.” / „I understand and accept the Privacy Policy” / „Send”.
+- Nie-bilet (wyśrodkowany): „To nie wygląda na bilet lotniczy” / „Nie znaleźliśmy w pliku danych lotu. Wgraj PDF lub zdjęcie biletu albo karty pokładowej. Ta próba nie wlicza się do dziennego limitu.” / „Wybierz inny plik”.
+- Snackbar: komplet — „Wpisaliśmy loty z biletu. Sprawdź je przed dalszym krokiem.”; częściowe — „Wpisaliśmy lotniska i numery lotów. Uzupełnij godziny.”
+- Polityka prywatności, nowy punkt „Import biletu”: plik (PDF/zdjęcie biletu) trafia na nasz serwer, gdzie jest odczytywany automatycznie; tylko gdy to nie wystarczy, trafia do Google Gemini API (płatna wersja, bez trenowania) wyłącznie w celu odczytania danych lotu; nie przechowujemy pliku; aplikacja dostaje tylko lotniska, numery lotów, daty i godziny; podstawa: art. 6 ust. 1 lit. b. Skan kodu aparatem odbywa się wyłącznie na telefonie. Regulamin: limit 5 analiz AI dziennie.
+
+## Weryfikacja
+Każdy krok: red → green, pełny suite + `pnpm typecheck` + `pnpm lint`, verifier PASS → `[x]`. Ręcznie (tester): e-bilet PDF z warstwą tekstową → komplet bez AI (log `parser_complete`); zdjęcie karty pokładowej → lotniska z kodu + godziny z AI; PDF z „ignore previous instructions…” → wyśrodkowany komunikat; `.txt` przemianowany na `.pdf` → błąd pliku; skan karty z ekranu drugiego telefonu → lotniska + numer + dzień; tryb samolotowy → import wyłączony, skan działa.
+
+## Dziennik postępu
+- 2026-11-19: plan zaakceptowany przez Kacpra („Akceptuję”), razem z Z1–Z9 i tekstami. O1: brak próbek — zaczynamy od ogólnych wzorców, niepewne przypadki idą do Gemini; próbki można dosłać później.
+
+## Ryzyka i otwarte pytania
+- O1. **Regexy wymagają prawdziwych przykładów.** Formaty e-biletów różnią się między przewoźnikami; bez próbek regexy to zgadywanie. Prośba: 2–3 zanonimizowane PDF-y (np. Ryanair, Wizz Air, LOT) albo zgoda, żebym zaczął od ogólnych wzorców, a niepewne przypadki szły do Gemini.
+- R1. Odczyt kodu z obrazów osadzonych w PDF w Deno — niepewny; spike na początku kroku 4.
+- R2. Rozmiar/czas: `zxing-wasm` (~1 MB wasm) i `unpdf` w Edge Function — limity pamięci/CPU Supabase do sprawdzenia w spike'u.
+- R3. Limit body Edge Function (base64 5 MB ≈ 6,7 MB) — do sprawdzenia w docs Supabase w kroku 4.
+- R4. Model Gemini z `GEMINI_MODEL` musi czytać PDF/obrazy — do potwierdzenia w docs `@google/genai`.
+- R5. Rok w BCBP wyliczany heurystycznie (Z3).
+- R6. Prompt injection może podmienić wartości tam, gdzie etap 1 nic nie dał; chronią wąskie pola, walidacja i przegląd przez użytkownika.
+- Do potwierdzenia: Z1–Z9, O1 i teksty powyżej.
