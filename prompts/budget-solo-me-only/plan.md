@@ -36,11 +36,12 @@ Bez zmian.
 - test-driven-development — krok 1 — test odtwarzający błąd przed poprawką
 
 ## Kroki
-- [ ] 1. [frontend] Karta budżetu bez przełącznika przy solo (`BudgetHero`, `ExpensesScreen`) — skill: test-driven-development — najpierw testy: `BudgetHero.test.tsx`, `ExpensesScreen.test.tsx` (red: przy solo widać „Grupa”) — weryfikacja: verifier, `pnpm test`, `pnpm typecheck`, `pnpm lint`
+- [x] 1. [frontend] Karta budżetu bez przełącznika przy solo (`BudgetHero`, `ExpensesScreen`) — skill: test-driven-development — najpierw testy: `BudgetHero.test.tsx`, `ExpensesScreen.test.tsx` (red: przy solo widać „Grupa”) — weryfikacja: verifier, `pnpm test`, `pnpm typecheck`, `pnpm lint`
 - [ ] 2. [frontend] Pole „Kto” ukryte przy solo (`ExpenseSheet`) — równolegle z krokiem 1 (inne pliki) — skill: test-driven-development — najpierw testy: `ExpenseSheet.test.tsx` (red: przy solo widać pole „Kto”) — weryfikacja: verifier, `pnpm test`, `pnpm typecheck`, `pnpm lint`
 - [ ] 3. [orchestrator] Docs: `flows/features/expenses.md` — weryfikacja: verifier końcowy gałęzi
 
 ## Dziennik postępu
+- Krok 1: testy napisane (red ✓: przy solo był widoczny przełącznik) · `BudgetHero` dostał prop `solo` (brak przełącznika, kwoty `me`), `ExpensesScreen` przekazuje `solo={members.length === 0}` · green ✓ · verifier PASS, typecheck ✓, lint ✓ · użyty skill: test-driven-development · bez odstępstw
 
 ## Ryzyka i otwarte pytania
 - P1 (Kacper, 2026-11-19): karta budżetu przy solo — brak przełącznika, od razu kwoty „Ja”.
