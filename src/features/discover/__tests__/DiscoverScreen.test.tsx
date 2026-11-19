@@ -86,6 +86,7 @@ describe('DiscoverScreen', () => {
     await renderRouter({ _layout: Layout, discover: () => <DiscoverScreen fetcher={fetcher} /> }, { initialUrl: '/discover' });
     await pickCity();
     expect(screen.getByTestId('discover-loading')).toBeTruthy();
+    expect(screen.getAllByTestId('place-card-skeleton')).toHaveLength(2);
     expect(searchButton()).toBeDisabled();
     expect(fetcher).not.toHaveBeenCalled();
   });
@@ -114,6 +115,8 @@ describe('DiscoverScreen', () => {
     await pickCity();
     await fireEvent.press(searchButton());
     await waitFor(() => expect(screen.getByTestId('discover-loading')).toBeTruthy());
+    expect(screen.getAllByTestId('place-card-skeleton')).toHaveLength(2);
+    expect(screen.getByLabelText('Szukamy miejsc')).toBeTruthy();
   });
 
   it('lists the places with address, reason, attribution and remaining searches, and opens Google Maps', async () => {
