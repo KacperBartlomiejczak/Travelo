@@ -1,5 +1,5 @@
 # Zadanie: Szkielet ładowania kart w Discover
-Status: zaakceptowany 2026-11-19 („Akceptuję”, Kacper), w trakcie
+Status: zaakceptowany 2026-11-19 („Akceptuję”, Kacper), zrobiony
 
 ## Zrozumienie i założenia
 - Kacper: szkielet ładowania w sekcji Discovery ma mieć rozmiar karty `PlaceCard`, żeby po załadowaniu układ nie skakał.
@@ -33,8 +33,8 @@ Status: zaakceptowany 2026-11-19 („Akceptuję”, Kacper), w trakcie
 - Docs: `docs/architecture/frontend.md` (wiersz `/discover`, „States: … skeletons” → opis szkieletu kart)
 
 ## Kroki
-- [ ] 1. [frontend] `PlaceCardSkeleton` + użycie w `DiscoverScreen` (TDD: testy czerwone → zielone), verifier.
-- [ ] 2. Aktualizacja `docs/architecture/frontend.md` (orchestrator), pełna weryfikacja: `pnpm test`, `pnpm typecheck`, `pnpm lint`.
+- [x] 1. [frontend] `PlaceCardSkeleton` + użycie w `DiscoverScreen` (TDD: testy czerwone → zielone), verifier.
+- [x] 2. Aktualizacja `docs/architecture/frontend.md` (orchestrator), pełna weryfikacja: `pnpm test`, `pnpm typecheck`, `pnpm lint`.
 
 ## Weryfikacja
 - Automatyczna: cały suite, typecheck, lint zielone.
@@ -52,3 +52,5 @@ Status: zaakceptowany 2026-11-19 („Akceptuję”, Kacper), w trakcie
 
 ## Dziennik
 - 2026-11-19: szkic planu; Q1–Q2 odpowiedziane.
+- 2026-11-19: krok 1 (frontend) — `PlaceCardSkeleton` + 2 szkielety w `DiscoverScreen`; wysokość bloku zdjęcia mierzona `onLayout` ramki (`SkeletonBlock` przyjmuje tylko liczbową wysokość). Verifier PASS (suite 220/4384, typecheck, lint zielone). Uwagi bez blokady: brak testu `aria-hidden`; korzeń karty-szkieletu nie ma `aria-hidden` (dzieci mają).
+- 2026-11-19: krok 2 — `docs/architecture/frontend.md` (wiersz `/discover`, stan ładowania).
