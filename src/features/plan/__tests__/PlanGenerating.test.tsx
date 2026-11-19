@@ -1,4 +1,5 @@
 import { act, render, screen } from '@testing-library/react-native';
+import { StyleSheet } from 'react-native';
 
 import { PlanGenerating } from '@/features/plan/PlanGenerating';
 import { useReduceMotion } from '@/hooks/useReduceMotion';
@@ -92,6 +93,19 @@ describe('PlanGenerating', () => {
     await i18n.changeLanguage('en');
     await render(<PlanGenerating />);
     expect(screen.getByText('Building your trip plan…')).toBeOnTheScreen();
+  });
+
+  it('is centered on the screen: container, title row and message', async () => {
+    await render(<PlanGenerating testID="gen" />);
+    expect(StyleSheet.flatten(screen.getByTestId('gen').props.style)).toMatchObject({
+      flex: 1,
+      justifyContent: 'center',
+    });
+    const titleRow = screen.getByText('Układam plan podróży…').parent;
+    expect(StyleSheet.flatten(titleRow?.props.style)).toMatchObject({ justifyContent: 'center' });
+    expect(StyleSheet.flatten(screen.getByTestId('plan-generating-message').props.style)).toMatchObject({
+      textAlign: 'center',
+    });
   });
 
   it('speaks English', async () => {
