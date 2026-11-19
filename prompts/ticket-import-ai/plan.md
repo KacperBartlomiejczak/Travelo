@@ -154,7 +154,7 @@ Migracja (bez nowych kolumn): `supabase/migrations/<ts>_ticket_quota.sql` — ch
 
 ## Kroki
 Gałąź: `feature/ticket-import-ai`, commit po każdym kroku.
-- [ ] 1. [backend] Zod `ticket.ts` + `sniff.ts` + `bcbp.ts` — najpierw testy schematów, sniff, BCBP — weryfikacja: verifier.
+- [x] 1. [backend] Zod `ticket.ts` + `sniff.ts` + `bcbp.ts` — najpierw testy schematów, sniff, BCBP — weryfikacja: verifier.
 - [ ] 2. [backend] `text.ts` (regexy), `merge.ts` (łączenie + `isComplete`), `validate.ts`, `ticket-prompt.ts` — najpierw testy — weryfikacja: verifier.
 - [ ] 3. [backend] Migracja `ticket_quota` + test SQL (równolegle z 2) — weryfikacja: `pnpm test:db`, verifier.
 - [ ] 4. [backend] Edge Function `extract-ticket`: najpierw spike wykonalności (zxing-wasm + unpdf w Deno, kod z obrazu w PDF) → handler + ports + index, bez deployu — najpierw testy handlera i adapterów — weryfikacja: verifier.
@@ -180,6 +180,7 @@ Każdy krok: red → green, pełny suite + `pnpm typecheck` + `pnpm lint`, verif
 
 ## Dziennik postępu
 - 2026-11-19: plan zaakceptowany przez Kacpra („Akceptuję”), razem z Z1–Z9 i tekstami. O1: brak próbek — zaczynamy od ogólnych wzorców, niepewne przypadki idą do Gemini; próbki można dosłać później.
+- Krok 1: testy napisane (red ✓ — „Cannot find module” dla `ticket`, `sniff`, `bcbp`) · `src/schemas/ticket.ts` (+ re-eksport w `index.ts`), `src/lib/ticket-parse/sniff.ts`, `bcbp.ts` + 3 pliki testów · green ✓ (223 suites, 4407 testów), typecheck ✓, lint ✓ · verifier: 1. FAIL (strażnik „brak wolnego tekstu” nie łapał `type: ["string","null"]`) → poprawka testu (`freeTextStrings` + test kontrolny) → PASS · skill: test-driven-development, security-and-hardening · odstępstwa: dzień 366 z BCBP → najbliższy 31 XII roku przestępnego; `atob` w Hermes do sprawdzenia przy kroku na telefonie.
 
 ## Ryzyka i otwarte pytania
 - O1. **Regexy wymagają prawdziwych przykładów.** Formaty e-biletów różnią się między przewoźnikami; bez próbek regexy to zgadywanie. Prośba: 2–3 zanonimizowane PDF-y (np. Ryanair, Wizz Air, LOT) albo zgoda, żebym zaczął od ogólnych wzorców, a niepewne przypadki szły do Gemini.
