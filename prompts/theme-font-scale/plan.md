@@ -79,7 +79,7 @@ Recenzja CodeRabbit z 2026-11-18 (commit 1ac8780): 1 uwaga do naprawy + 1 nitpic
 - Drobna rozbieżność: sekcja „Testy” wymienia `src/__tests__/theme/useTheme.test.tsx`, a faktyczny plik to `src/theme/__tests__/useTheme.test.ts`.
 
 ## Ryzyka i otwarte pytania
-- **Pytanie 3 (otwarte):** dopisać ucięte „Profile” przy `font_scale 2.0` jako osobny wpis w `known-limitations.md` w kroku 7? Rekomendacja: tak, jedna linia.
+- **Pytanie 3 (rozstrzygnięte 2026-11-19):** dopisać ucięte „Profile” przy `font_scale 2.0` jako osobny wpis w `known-limitations.md` w kroku 7? Kacper: tak, dopisane w kroku 7.
 - **Pytanie 1 (rozstrzygnięte 2026-11-18):** opcja A.
 - **Pytanie 2 (rozstrzygnięte 2026-11-18):** wpis usuwam po merge'u home-spend-summary do `main` (rebase tej gałęzi, usunięcie w tym PR). Kacper zgodził się też na użycie emulatora w kroku 1.
 - Jeśli krok 1 nie potwierdzi hipotezy, wracam z nowym planem przed krokiem 2.
