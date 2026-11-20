@@ -64,6 +64,14 @@ Stan obecny:
 - [x] 5. [frontend] `TripSpendChart` (trzy warianty, a11y, tokeny, i18n) — po 1 i 3, równolegle z 4 (klucze i18n w innej sekcji pliku; jeśli kolizja → po 4) — skill: test-driven-development, frontend-ui-engineering — najpierw testy: `TripSpendChart.test.tsx` — weryfikacja: verifier, j.w.
 - [x] 6. [frontend] Karta „Budżet” w `CurrentTrip` z wykresem, stanami i tapem do `/expenses` — po 4 i 5 — skill: test-driven-development, frontend-ui-engineering — najpierw testy: test Home — weryfikacja: verifier, j.w.; potem cve-auditor (pełny audyt) i tester na urządzeniu (nowa natywna zależność → nowy dev build)
 - [x] 7. [orchestrator] Docs + verifier końcowy gałęzi (CodeRabbit) — weryfikacja: verifier końcowy
+- [ ] 8. [frontend] (zaakceptowany przez Kacpra 2026-11-20) Poprawki po teście na urządzeniu (A11, A12) w `TripSpendChart.tsx` / `CurrentTrip.tsx` (+ i18n, testy) — skill: test-driven-development, frontend-ui-engineering — najpierw testy, każdy red przed kodem:
+  - (a) wykres (siatka, oś X) mieści się w karcie we wszystkich wariantach — test: szerokość przekazana do biblioteki ≤ szerokość z `onLayout` minus marginesy osi;
+  - (b) Słupkowy rysuje dwa słupki „Wydałem” / „Zostało”, oś Y rosnąco od 0 — test: dane i `maxValue` przekazane do `BarChart`;
+  - (c) Home odczytuje `chartStyle` przy każdym powrocie na ekran (zmiana w Ustawieniach → powrót na zakładkę Home bez restartu) — test odtwarzający scenariusz z urządzenia;
+  - (d) liniowy przed startem wyjazdu (brak dni do dziś): bez wykresu, tekst `home.chartBeforeTrip` — PL „Wykres pojawi się od pierwszego dnia wyjazdu.”, EN „The chart will appear from the first day of the trip.” — + podsumowanie Wydałem/Zostało; słupkowy i donut bez zmian (A11);
+  - (e) donut: tekst w środku nie łamie kodu waluty (kwota i „ponad budżet” w osobnych liniach, tekst skalowany do środka);
+  - (f) donut: etykieta w środku tylko raz w drzewie dostępności.
+  — weryfikacja: verifier (suite, `pnpm typecheck`, `pnpm lint`); potem cve-auditor (pełny audyt) i retest testera na Pixel_10a (S1, S3, S6, linia przed wyjazdem; S2 tylko jeśli jest rozpoczęta podróż). Bez nowej natywnej zależności → nowy build EAS niepotrzebny.
 
 Gałąź: jedna, `feature/trip-spend-chart`, commit na krok.
 
@@ -105,6 +113,9 @@ Do potwierdzenia razem z akceptacją (moja rekomendacja w nawiasie):
 Decyzje Kacpra (2026-11-20):
 - A9: przy przekroczeniu zostaje istniejący tekst `budget.over` („X ponad budżet”) zamiast „Przekroczono o X” (odstępstwo z kroku 5 zaakceptowane).
 - A10: subagent **cve-auditor** wchodzi w tę zmianę; pełny audyt (`pnpm audit` + werdykt EXISTS / NOT AFFECTED / UNKNOWN) przed każdym testem na urządzeniu; EXISTS/UNKNOWN → pytam Kacpra.
+
+- A11: linia przed startem wyjazdu (brak dni do dziś) → tekst zamiast wykresu + podsumowanie (nie pusty wykres).
+- A12: krok 8 naprawia usterki główne (1–3) i drobne (4–5) z testu na urządzeniu; (6) znika dzięki A11.
 
 Ryzyka:
 - Nowa natywna zależność (`expo-linear-gradient`) wymaga nowego dev buildu przed testem na urządzeniu.
