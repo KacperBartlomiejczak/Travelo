@@ -46,8 +46,9 @@ Stan obecny:
 - `src/schemas/expense.ts`, `src/lib/expense-budget.ts`, testy (krok 3)
 - `src/hooks/usePreferences.ts`, `src/features/profile/SettingsScreen.tsx`, `src/i18n/locales/{pl,en}.json`, testy (krok 4)
 - `src/features/home/TripSpendChart.tsx` (nowy), `src/i18n/locales/{pl,en}.json`, testy (krok 5)
-- `src/features/home/CurrentTrip.tsx`, testy (krok 6)
+- `src/features/home/CurrentTrip.tsx`, `src/i18n/locales/{pl,en}.json`, testy (krok 6)
 - `docs/architecture/flows/features/trip-home.md`, `profile-settings.md`, `docs/architecture/frontend.md`, `shared.md`, `overview.md` (zależność), `decisions.md` (krok 7)
+- `.claude/agents/CveAuditor.md` + wpis w `docs/agents/subagents.md` / `CLAUDE.md` — subagent cve-auditor (commit 0a13250, cherry-pick z `chore/cve-auditor`; Kacper 2026-11-20: część tej zmiany)
 
 ## Skille
 - test-driven-development — kroki 2–6 — test najpierw, red przed kodem
@@ -60,7 +61,7 @@ Stan obecny:
 - [x] 3. [backend] `DailySpendSchema` + `dailySpend()` w `src/lib/expense-budget.ts` — równolegle z 2 — skill: test-driven-development — najpierw testy: `expense-budget.test.ts` — weryfikacja: verifier, j.w.
 - [x] 4. [frontend] `usePreferences.chartStyle` + wiersz w Ustawieniach (Liniowy / Słupkowy / Donut) — po 2 — skill: test-driven-development — najpierw testy: `usePreferences.test.ts`, `SettingsScreen.test.tsx` — weryfikacja: verifier, j.w.
 - [x] 5. [frontend] `TripSpendChart` (trzy warianty, a11y, tokeny, i18n) — po 1 i 3, równolegle z 4 (klucze i18n w innej sekcji pliku; jeśli kolizja → po 4) — skill: test-driven-development, frontend-ui-engineering — najpierw testy: `TripSpendChart.test.tsx` — weryfikacja: verifier, j.w.
-- [ ] 6. [frontend] Karta „Budżet” w `CurrentTrip` z wykresem, stanami i tapem do `/expenses` — po 4 i 5 — skill: test-driven-development, frontend-ui-engineering — najpierw testy: test Home — weryfikacja: verifier, j.w.; potem audyt CVE i tester na urządzeniu (nowa natywna zależność → nowy dev build)
+- [x] 6. [frontend] Karta „Budżet” w `CurrentTrip` z wykresem, stanami i tapem do `/expenses` — po 4 i 5 — skill: test-driven-development, frontend-ui-engineering — najpierw testy: test Home — weryfikacja: verifier, j.w.; potem cve-auditor (pełny audyt) i tester na urządzeniu (nowa natywna zależność → nowy dev build)
 - [ ] 7. [orchestrator] Docs + verifier końcowy gałęzi (CodeRabbit) — weryfikacja: verifier końcowy
 
 Gałąź: jedna, `feature/trip-spend-chart`, commit na krok.
@@ -71,6 +72,7 @@ Gałąź: jedna, `feature/trip-spend-chart`, commit na krok.
 - Krok 3: testy napisane (red ✓: 8 nowych testów, `dailySpend` is not a function) · `DailySpendSchema` + `dailySpend()` (dni w UTC, do min(dziś, koniec)) · green ✓ (25/25) · verifier PASS, typecheck i lint ✓ · użyty skill: test-driven-development · commit 211cc69
 - Krok 4: testy napisane (red ✓: brak `chartStyle`/`setChartStyle`, brak wiersza) · `usePreferences.chartStyle`, wiersz „Wykres budżetu” między Motyw i Język, arkusz z SegmentedControl; klucze `settings.chartStyle`, `settings.chart.{line,bar,donut}`; zaktualizowany `settings-list.test.tsx` (7 wierszy, bez osłabiania asercji) · green ✓ (850 w hooks/profile/app) · verifier PASS · użyty skill: test-driven-development · commit cc6ed01 (zawiera też klucze `home.*` z kroku 5 — ten sam plik)
 - Krok 5: testy napisane (red ✓: brak modułu) · `TripSpendChart` (line/bar/donut, gifted-charts zamockowane w testach) · pierwszy verifier FAIL (szerokość zgadywana z okna → wychodziła poza kartę; zła suma w accessibilityValue przy przekroczeniu; literał grubości linii; braki testów) → poprawki: szerokość z onLayout, suma = wydane + zostało, osobny tekst `home.chartValueOver`, token `iconography.strokeWidth`, +7 testów · green ✓ (84 w home) · verifier PASS · użyte skille: test-driven-development, frontend-ui-engineering · odstępstwo: przekroczenie pokazuje istniejący tekst `budget.over` („X ponad budżet”) zamiast „Przekroczono o X” · commit a3b888c
+- Krok 6: karta „Budżet” z `TripSpendChart` (loading skeleton, error + ponów, empty A4, offline z lokalnych danych, tap → `/expenses`, „Zmień” tylko organizator, styl wykresu czytany ponownie przy powrocie na Home) · usunięty nieużywany `home.perDayGroup` · poprawki po audycie: kolejność importów, asercja banera offline w teście offline; testy znajomego/organizatora potwierdzone jako niepuste (ten sam obiekt podróży) · test offline przeszedł od razu (zachowanie już było, red nie widziany) · verifier PASS (suite 221/4422, typecheck i lint ✓) · uwaga verifiera (nieblokująca): `useMemo([focused])` dla `chartStyle` można zastąpić zwykłym odczytem · cve-auditor pełny audyt: CLEAN (23 znaleziska tylko w `expo > @expo/cli`, dev-only; nowe pakiety bez zgłoszeń) · użyte skille: test-driven-development, frontend-ui-engineering · commit d892207
 - Uwaga na krok 6: `usePreferences` trzyma wybór w stanie lokalnym, a Home zostaje zamontowany pod zakładkami → Home musi odczytać wybór przy powrocie na ekran (test).
 
 ## Ryzyka i otwarte pytania
@@ -87,6 +89,10 @@ Decyzje Kacpra (2026-11-19):
 Do potwierdzenia razem z akceptacją (moja rekomendacja w nawiasie):
 - P1: wydatki z datą przed lub po wyjeździe — na linii ich nie ma (dni = dni wyjazdu), ale liczą się do „Wydałem” i „Zostało”. (tak)
 - P2: linia w trakcie wyjazdu — wszystkie dni wyjazdu, przyszłe jako 0. (rysować tylko do dzisiaj; po wyjeździe wszystkie dni)
+
+Decyzje Kacpra (2026-11-20):
+- A9: przy przekroczeniu zostaje istniejący tekst `budget.over` („X ponad budżet”) zamiast „Przekroczono o X” (odstępstwo z kroku 5 zaakceptowane).
+- A10: subagent **cve-auditor** wchodzi w tę zmianę; pełny audyt (`pnpm audit` + werdykt EXISTS / NOT AFFECTED / UNKNOWN) przed każdym testem na urządzeniu; EXISTS/UNKNOWN → pytam Kacpra.
 
 Ryzyka:
 - Nowa natywna zależność (`expo-linear-gradient`) wymaga nowego dev buildu przed testem na urządzeniu.
