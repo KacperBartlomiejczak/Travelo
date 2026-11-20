@@ -119,6 +119,7 @@ Before building any UI, read [`context/design-context.md`](context/design-contex
 | **frontend** | Executes one approved frontend step, test-first, following the design context | `src/` outside the data layer and schemas | [`.claude/agents/Frontend.md`](.claude/agents/Frontend.md) |
 | **verifier** | Fresh-context PASS / FAIL review of a finished step (Haiku); at the end of a plan, of the whole branch with a CodeRabbit review (Sonnet 5.5, effort medium); never fixes | nothing | [`.claude/agents/Verifier.md`](.claude/agents/Verifier.md) |
 | **tester** | Walks the plan's manual steps on a phone/emulator via `mobile-mcp`; never fixes | nothing | [`.claude/agents/Tester.md`](.claude/agents/Tester.md) |
+| **cve-auditor** | Read-only CVE check (full audit, one package, or one CVE): EXISTS / NOT AFFECTED / UNKNOWN per vulnerability, with evidence; never fixes | nothing | [`.claude/agents/CveAuditor.md`](.claude/agents/CveAuditor.md) |
 
 Rules that always apply:
 - The orchestrator (main session) is the **only one allowed to edit** `prompts/` and `docs/`. Subagents return a report; they never guess (unclear brief → `Status: question`).
