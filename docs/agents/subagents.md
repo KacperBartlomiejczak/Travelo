@@ -18,7 +18,8 @@ Definitions live in `.claude/agents/`.
 | **backend** | sonnet | Executes **one approved backend step**: tests first (red), then code (green) | `src/schemas/` (target: `packages/schemas/`), the data layer (`src/data/`, `src/lib/`, `src/providers/`, `src/test/`; Kacper 2026-10-20), `supabase/migrations/`, `supabase/functions/` | Touch `apps/mobile/`, return with any failing test |
 | **frontend** | sonnet | Executes **one approved frontend step** following `context/design-context.md`: tests first, then code | `src/` outside `src/schemas/` and the data layer (target: `apps/mobile/`) | Change Zod schemas or `supabase/` (stop and report instead), return with any failing test |
 | **verifier** (fresh context) | Haiku 5.5 (`claude-haiku-5-5`) per step; Sonnet 5.5, effort medium at the end of a plan (set in the call) | **Step mode:** checks a finished step against the plan, Rules, design context and Verification loop; runs the checks itself. **End-of-plan mode:** the same for the whole branch, plus a CodeRabbit review (`coderabbit review --agent --base <base>`, skill `code-review` from CodeRabbit) whose findings it confirms or rejects in the code | nothing | Fix things itself, sign in to CodeRabbit — it reports PASS / FAIL (or blocked when CodeRabbit could not run) |
-| **tester** (device, via `mobile-mcp`) | Haiku 5.5 (`claude-haiku-5-5`), effort high | Drives the app on a connected phone/emulator and walks the plan's manual test steps; checks the screens match the plan | nothing | Fix things itself, guess undefined behavior, use real personal data — it reports PASS / FAIL per scenario |
+| **tester** (device, via `mobile-mcp`; `adb` when mobile-mcp cannot run) | Haiku 5.5 (`claude-haiku-5-5`), effort high | Drives the app on a connected phone/emulator and walks the plan's manual test steps; checks the screens match the plan | nothing | Fix things itself, guess undefined behavior, use real personal data — it reports PASS / FAIL per scenario |
+| **cve-auditor** (read-only) | Opus 5.5 (`claude-opus-5-5`), effort low | Checks whether known vulnerabilities (CVE / GHSA) affect the project: full audit (`pnpm audit`), one package (also before adding or upgrading a dependency), or one named CVE. Confirms the installed version and whether the vulnerable code is used; verdict per vulnerability: EXISTS / NOT AFFECTED / UNKNOWN | nothing | Fix or upgrade anything itself, run commands that change the project, invent CVE ids or version ranges — what it cannot verify is UNKNOWN |
 
 The model column mirrors the `model:` field in `.claude/agents/*.md`; change both together.
 
@@ -28,11 +29,18 @@ The model column mirrors the `model:` field in `.claude/agents/*.md`; change bot
 - **When a subagent returns `Status: question` about the codebase** (not about requirements; those go to Kacper).
 - Not for small lookups the orchestrator can do with one search, and never as a substitute for asking Kacper about behavior.
 
+## When to use the cve-auditor
+- **When Kacper asks** whether a CVE affects the project, or for a dependency audit.
+- **Before every tester run on a phone / emulator** (full audit; see Step flow, point 3).
+- **Before a plan step adds or upgrades a dependency** (package check on the target version); the verdict goes into the plan.
+- An EXISTS verdict is reported to Kacper; a fix is a normal plan step (backend / frontend), never done by the auditor.
+
 ## Step flow
 0. **explorer** maps the relevant code (files, schemas, patterns, tests) when it is not already known.
 1. Planner (or orchestrator) drafts the plan → Kacper approves.
 2. Orchestrator sends each step to **backend** or **frontend** by its tag. Order: schemas → backend → frontend when a step needs another's result; independent steps may run in parallel (see "Rules for delegation").
 3. **verifier** checks every finished step. FAIL → back to the same implementer with the verifier's issues.
+   **Before every device test (Kacper, 2026-11-16)** the orchestrator runs **cve-auditor** in full-audit mode. CLEAN → the tester starts. An EXISTS or UNKNOWN verdict is reported to Kacper first, and he decides whether the tester runs before the fix.
    For frontend steps, when a device or emulator is connected, **tester** then runs the plan's manual test steps on it (MCP server `mobile-mcp`, `.mcp.json`). FAIL → back to the implementer the same way.
 4. Only after PASS does the orchestrator mark the step `[x]` in the feature's `plan.md`, then **commits and pushes the step**:
    - **one branch per task** (Kacper, 2026-11-02): `feature/<feature-name>`, cut from the feature's base branch at the start; no per-step branches;
@@ -48,7 +56,7 @@ The model column mirrors the `model:` field in `.claude/agents/*.md`; change bot
 - No two subagents edit the same file in parallel.
 - **Several backend subagents may run at the same time, each on a different approved step** (Kacper, 2026-10-25), when the steps are independent: none needs another's result and their files do not overlap. The orchestrator says which steps run in parallel before starting them. Each one is verified separately; after each PASS it is committed with only its own files (`git add <paths>`) onto the task's branch, in the order the steps passed. **The same applies to frontend steps** (Kacper, 2026-11-13): several frontend subagents may run at once, alongside backend ones, under the same conditions (independent steps, no shared files — shared files such as the i18n dictionaries belong to one step per wave). Each finished step gets its own verifier, and verifiers of different steps may run in parallel. Parallel steps share one working tree, so a verifier judges only its own step's files (named in the brief) and starts only when no step of the wave is mid-red; a full-suite failure confined to another running step's files is reported, not counted as this step's FAIL.
 - Implementing agents (`backend`, `frontend`) return: what changed, files touched, tests written and their red → green results, verification results, concerns.
-- Read-only and review agents return their findings only: `explorer` locations and conclusions, `planner` the plan draft, `verifier` the PASS / FAIL verdict with evidence, `tester` PASS / FAIL per scenario with screen evidence.
+- Read-only and review agents return their findings only: `explorer` locations and conclusions, `planner` the plan draft, `verifier` the PASS / FAIL verdict with evidence, `cve-auditor` the verdict per vulnerability with evidence, `tester` PASS / FAIL per scenario with screen evidence.
 
 ## Configuration (tools)
 
@@ -59,5 +67,6 @@ The model column mirrors the `model:` field in `.claude/agents/*.md`; change bot
 | `backend` | sonnet | Read, Edit, Write, Grep, Glob, Bash | Executes one backend step test-first (schemas, migrations, RLS, Edge Functions) |
 | `frontend` | sonnet | Read, Edit, Write, Grep, Glob, Bash | Executes one frontend step test-first, following the design context |
 | `verifier` | `claude-haiku-5-5` (Haiku 5.5); end-of-plan mode: `model: sonnet`, `effort: medium` passed in the Agent call (Codex: no per-call override, runs on its default) | Read, Grep, Glob, Bash (`coderabbit` runs outside the sandbox: `sandbox.excludedCommands` in `.claude/settings.json`, because the CLI's sign-in is not visible inside it) | Independent PASS/FAIL review of a finished step, and of the whole branch with CodeRabbit at the end of a plan; never fixes |
-| `tester` | `claude-haiku-5-5` (Haiku 5.5), effort high | Read, Grep, Glob, Bash, `mcp__mobile-mcp` | Walks a plan's manual steps on a connected phone / emulator (MCP server `mobile-mcp`, `.mcp.json`); PASS / FAIL per scenario; never fixes |
+| `tester` | `claude-haiku-5-5` (Haiku 5.5), effort high | Read, Grep, Glob, Bash, `mcp__mobile-mcp` | Walks a plan's manual steps on a connected phone / emulator (MCP server `mobile-mcp`, `.mcp.json`); PASS / FAIL per scenario; never fixes. **adb mode** (Kacper, 2026-11-16): on Windows Smart App Control blocks the unsigned `mobilecli` binary, so the tester drives the Android device with `adb` (uiautomator dump, screencap, input) |
+| `cve-auditor` | `claude-opus-5-5` (Opus 5.5), effort low (Codex: its default model, `model_reasoning_effort = "low"`) | Read, Grep, Glob, Bash, WebFetch (needs network: `pnpm audit`, OSV / NVD / GitHub advisories) | Read-only CVE check: EXISTS / NOT AFFECTED / UNKNOWN per vulnerability; never fixes |
 

@@ -2,8 +2,10 @@ import { openTestDb } from '@/test/node-sqlite';
 import { migrateLocalDb } from '@/data/local-db';
 import { createLocalStore } from '@/data/local-store';
 import {
+  readChartStylePreference,
   readLanguagePreference,
   readThemePreference,
+  writeChartStylePreference,
   writeLanguagePreference,
   writeThemePreference,
 } from '@/data/preferences';
@@ -50,6 +52,22 @@ describe('preferences', () => {
     mockFailRead = true;
     expect(readThemePreference()).toBe('system');
     expect(readLanguagePreference()).toBe('system');
+  });
+
+  it('chart style defaults to line when missing, unknown or unreadable', () => {
+    expect(readChartStylePreference()).toBe('line');
+    mockKv.set('preference.chartStyle', 'pie');
+    expect(readChartStylePreference()).toBe('line');
+    mockFailRead = true;
+    expect(readChartStylePreference()).toBe('line');
+  });
+
+  it('writes chart style under preference.chartStyle and reads it back', () => {
+    writeChartStylePreference('bar');
+    expect(mockKv.get('preference.chartStyle')).toBe('bar');
+    expect(readChartStylePreference()).toBe('bar');
+    writeChartStylePreference('donut');
+    expect(readChartStylePreference()).toBe('donut');
   });
 
   it('survives clearUserData (D8)', async () => {

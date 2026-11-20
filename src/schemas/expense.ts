@@ -96,3 +96,10 @@ export const ExpenseDaySchema = z.object({
   expenses: z.array(LocalExpenseSchema),
 });
 export type ExpenseDay = z.infer<typeof ExpenseDaySchema>;
+
+// One traveler's spend on one trip day (not cumulative); a point of the home-screen line chart (trip-spend-chart A2).
+export const DailySpendSchema = z.object({
+  spentOn: IsoDateSchema,
+  spentMinor: z.int().nonnegative(),
+});
+export type DailySpend = z.infer<typeof DailySpendSchema>;

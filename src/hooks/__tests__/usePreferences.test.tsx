@@ -1,7 +1,7 @@
 import { act, renderHook } from '@testing-library/react-native';
 import { Appearance } from 'react-native';
 
-import { writeLanguagePreference, writeThemePreference } from '@/data/preferences';
+import { writeChartStylePreference, writeLanguagePreference, writeThemePreference } from '@/data/preferences';
 import i18n from '@/i18n';
 import { darkTheme as legacyDark, lightTheme as legacyLight } from '@/theme/legacy/theme';
 import { darkTheme, lightTheme } from '@/theme/theme';
@@ -14,6 +14,8 @@ let mockSavedTheme = 'light';
 jest.mock('@/data/preferences', () => ({
   readThemePreference: jest.fn(() => mockSavedTheme),
   readLanguagePreference: jest.fn(() => 'pl'),
+  readChartStylePreference: jest.fn(() => 'line'),
+  writeChartStylePreference: jest.fn(),
   writeThemePreference: jest.fn(),
   writeLanguagePreference: jest.fn(),
 }));
@@ -71,6 +73,14 @@ describe('usePreferences', () => {
     expect(writeThemePreference).toHaveBeenCalledWith('dark');
     expect(setColorScheme).toHaveBeenLastCalledWith('dark');
     expect(result.current.theme).toBe('dark');
+  });
+
+  it('starts with the line chart style and setChartStyle saves and updates it', async () => {
+    const { result } = await renderHook(() => usePreferences());
+    expect(result.current.chartStyle).toBe('line');
+    await act(async () => result.current.setChartStyle('bar'));
+    expect(writeChartStylePreference).toHaveBeenCalledWith('bar');
+    expect(result.current.chartStyle).toBe('bar');
   });
 
   it('setLanguage saves and changes the i18n language', async () => {

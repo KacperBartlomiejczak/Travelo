@@ -6,3 +6,10 @@ args = [
     "-y",
     "@mobilenext/mobile-mcp@latest",
 ]
+
+[mcp_servers.lottiefiles-creator]
+command = "npx"
+args = [
+    "-y",
+    "@lottiefiles/creator-mcp@latest",
+]

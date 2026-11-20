@@ -119,6 +119,7 @@ Before building any UI, read [`context/design-context.md`](context/design-contex
 | **frontend** | Executes one approved frontend step, test-first, following the design context | `src/` outside the data layer and schemas | [`.claude/agents/Frontend.md`](.claude/agents/Frontend.md) |
 | **verifier** | Fresh-context PASS / FAIL review of a finished step (Haiku); at the end of a plan, of the whole branch with a CodeRabbit review (Sonnet 5.5, effort medium); never fixes | nothing | [`.claude/agents/Verifier.md`](.claude/agents/Verifier.md) |
 | **tester** | Walks the plan's manual steps on a phone/emulator via `mobile-mcp`; never fixes | nothing | [`.claude/agents/Tester.md`](.claude/agents/Tester.md) |
+| **cve-auditor** | Read-only CVE check (full audit, one package, or one CVE): EXISTS / NOT AFFECTED / UNKNOWN per vulnerability, with evidence; never fixes | nothing | [`.claude/agents/CveAuditor.md`](.claude/agents/CveAuditor.md) |
 
 Rules that always apply:
 - The orchestrator (main session) is the **only one allowed to edit** `prompts/` and `docs/`. Subagents return a report; they never guess (unclear brief → `Status: question`).
@@ -136,5 +137,7 @@ Project skills live in `.claude/skills/`; **before work that a skill covers, loa
 ## Learned rules
 - Delegate frontend work, including its tests, to frontend sub-agents and backend work to backend sub-agents, rather than implementing it directly.
 - Create one git branch per task in this repository; do not spread a task across multiple branches.
+- Always cut a new branch from an up-to-date `main` (`git fetch` first, then branch from `origin/main`), never from another feature branch.
 - Write plans only in Polish; backend and frontend subagents may each run several instances concurrently, each with a different independent task, and each finished step gets its own verifier (verifiers may run in parallel).
+- Set the CveAuditor agent to model opus 5.5 with low effort, and run it before phone testing.
 <!-- end claude-reflect -->

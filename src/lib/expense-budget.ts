@@ -1,4 +1,4 @@
-import type { Expense, ExpenseCategory, ExpenseDay, GroupBudget, LocalExpense, PersonBudget, TodayBudget } from '@/schemas';
+import type { DailySpend, Expense, ExpenseCategory, ExpenseDay, GroupBudget, LocalExpense, PersonBudget, TodayBudget } from '@/schemas';
 
 import { tripDayCount } from './trip-days';
 
@@ -82,4 +82,20 @@ export function groupExpensesByDay(expenses: LocalExpense[]): ExpenseDay[] {
       totalMinor: sum(list),
       expenses: list.sort((a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt)) // by instant: offsets may differ,
     }));
+}
+
+/**
+ * Spend of one traveler (memberId null = organizer) per trip day, not cumulative (trip-spend-chart A2).
+ * One point per day from startDate to min(today, endDate); empty before the trip starts.
+ * Expenses dated outside the trip are left out here (computeExpenseBudget still counts them).
+ */
+export function dailySpend(input: { expenses: Expense[]; memberId: string | null; startDate: string; endDate: string; today: string }): DailySpend[] {
+  const { startDate, endDate, today, memberId } = input;
+  const last = today < endDate ? today : endDate; // YYYY-MM-DD compares correctly as text
+  const count = Math.max(0, tripDayCount(startDate, last));
+  const own = input.expenses.filter((e) => e.deletedAt === null && e.memberId === memberId);
+  return Array.from({ length: count }, (_, i) => {
+    const spentOn = new Date(Date.parse(`${startDate}T00:00:00Z`) + i * 86_400_000).toISOString().slice(0, 10);
+    return { spentOn, spentMinor: sum(own.filter((e) => e.spentOn === spentOn)) };
+  });
 }
