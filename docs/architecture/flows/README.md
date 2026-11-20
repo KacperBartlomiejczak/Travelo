@@ -10,6 +10,7 @@ Feature flows live in [`features/`](features/), one file per feature that exists
 | Profile screen and travel stats | [profile-screen.md](features/profile-screen.md) | no |
 | Settings, edit profile, avatar, delete account | [profile-settings.md](features/profile-settings.md) | edits and delete: yes |
 | Create a trip (wizard) | [trip-create.md](features/trip-create.md) | yes |
+| Ticket import (file → `extract-ticket`, boarding-pass scan) | [ticket-import.md](features/ticket-import.md) | file: yes; scan: no |
 | Trip cover (presets, gallery photo) | [trip-cover.md](features/trip-cover.md) | presets: no; gallery photo: yes |
 | Friend invite (friend code) | [friend-invite.md](features/friend-invite.md) | yes |
 | Home screen, trip list, side panel | [trip-home.md](features/trip-home.md) | no (copies) |

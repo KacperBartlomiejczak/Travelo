@@ -3,7 +3,7 @@
 Entry: the 4-step wizard at `/trips/new` (flights → friends → budget → summary; routes in `src/features/trip-create/steps.ts`). Saving needs internet (`create_trip`), and so does the friend-code check (the code field is disabled offline); the rest of the wizard works offline. The summary has no offline check and `useCreateTrip` sets no `networkMode` (`src/hooks/useTrips.ts`), so what the save button does offline is the TanStack default (not verified on a device).
 
 - **Steps:**
-  - Flights (`/trips/new`): the ticket button is disabled ("Upload ticket · coming soon"); the companions stepper is bounded by `MAX_COMPANIONS`; return airports are suggested from the outbound (`draft.ts`); the screen scrolls to the first error.
+  - Flights (`/trips/new`): "Import ticket" fills the flights from a ticket file or a scanned boarding pass, see [ticket-import.md](ticket-import.md); the companions stepper is bounded by `MAX_COMPANIONS`; return airports are suggested from the outbound (`draft.ts`); the screen scrolls to the first error.
   - Friends (`/trips/new/friends`): skipped when travelling alone. See [friend-invite.md](friend-invite.md).
   - Budget (`/trips/new/budget`): currency options are the destination's first, then PLN, EUR, USD; shows a group total line and per-person lines.
   - Summary (`/trips/new/summary`): redirects to `/trips/new` while the draft is incomplete; name, cover (see [trip-cover.md](trip-cover.md)) and one card per step, each with a "Change" button; the create button has loading and error states (copy by error class); on success the wizard dismisses to home. The header back button is labelled "Your trips".
