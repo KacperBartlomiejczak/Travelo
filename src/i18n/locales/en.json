@@ -285,6 +285,8 @@
   },
   "home": {
     "showBudget": "Show budget",
+    "noExpenses": "You have no expenses yet",
+    "ownBudget": "Your budget: {{amount}} for the trip",
     "chartSpent": "Spent",
     "chartLeft": "Left",
     "chartSpentAmount": "Spent {{amount}}",
@@ -295,7 +297,6 @@
     "organizer": "{{name}} (organizer)",
     "organizerUnknown": "Organizer",
     "changeBudget": "Change budget",
-    "perDayGroup": "per day for the group",
     "saveBudget": "Save",
     "saveBudgetError": "Couldn't save this. Try again."
   },

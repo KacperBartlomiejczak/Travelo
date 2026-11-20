@@ -9,7 +9,7 @@ import TabsLayout from '@/app/(drawer)/(tabs)/_layout';
 import HomeScreen from '@/app/(drawer)/(tabs)/index';
 import RootLayout from '@/app/_layout';
 import i18n from '@/i18n';
-import type { SyncStatus, TripOverview, TripPhotoList } from '@/schemas';
+import type { LocalExpense, SyncStatus, TripOverview, TripPhotoList } from '@/schemas';
 import { drawerStatus } from '@/test/drawer-status';
 import { LOCAL_PROFILE_ID } from '@/test/fake-profile-repository';
 import { setNetwork } from '@/test/mock-network';
@@ -62,6 +62,25 @@ jest.mock('@/data/app-trip-repository', () => ({
   }),
 }));
 
+// The chart library draws nothing in tests; its stubs tell which variant the card chose.
+jest.mock('react-native-gifted-charts', () => {
+  const { View } = jest.requireActual('react-native');
+  const stub = (testID: string) =>
+    function Stub() {
+      return <View testID={testID} />;
+    };
+  return { LineChart: stub('line-chart'), BarChart: stub('bar-chart'), PieChart: stub('pie-chart') };
+});
+// The device-only chart style (trip-spend-chart A1): tests pick it here.
+let mockChartStyle: 'line' | 'bar' | 'donut' = 'line';
+jest.mock('@/data/preferences', () => ({ ...jest.requireActual('@/data/preferences'), readChartStylePreference: () => mockChartStyle }));
+// Expenses come from the in-memory repository; a test may replace the query result (pending / error) to see those states.
+let mockExpensesResult: object | null = null;
+jest.mock('@/hooks/useExpenses', () => {
+  const actual = jest.requireActual('@/hooks/useExpenses');
+  return { ...actual, useExpenses: (tripId: string) => ({ ...actual.useExpenses(tripId), ...mockExpensesResult }) };
+});
+
 const TRIP_ID = '0b9e7c4e-6a43-4c4b-9a55-2f6f0f7e1a01';
 let nextId = 0;
 const id = () => `7c2d9e1f-3a4b-4c5d-8e6f-${String(++nextId).padStart(12, '0')}`;
@@ -110,6 +129,8 @@ beforeEach(async () => {
   mockCurrent = () => Promise.resolve(null);
   mockSyncStatus = 'synced';
   mockFromCache = false;
+  mockChartStyle = 'line';
+  mockExpensesResult = null;
   mockPhotos = () => Promise.resolve([]);
   mockSetBudget.mockReset();
   mockSyncBudgets.mockClear();
@@ -210,41 +231,14 @@ describe('Home screen — current trip (D4)', () => {
     expect(people.getByText('Ty')).toBeTruthy();
   });
 
-  it('shows the daily budget per person', async () => {
+  it('titles the budget card and drops the daily rate and trip total lines (trip-spend-chart A3)', async () => {
     mockCurrent = () => Promise.resolve(overview());
     await renderHome();
     const budget = within(await screen.findByTestId('home-budget'));
     expect(budget.getByRole('header', { name: 'Budżet' })).toBeTruthy();
-    expect(budget.getByText('3000 THB')).toBeTruthy();
-    expect(budget.getByText('dziennie na osobę')).toBeTruthy();
-  });
-
-  it('shows the trip total next to the daily amount (13 days x 3 people)', async () => {
-    mockCurrent = () => Promise.resolve(overview());
-    await renderHome();
-    const budget = within(await screen.findByTestId('home-budget'));
-    expect(budget.getByText(`Razem ${formatMoney({ amountMinor: 11700000, currency: 'THB' }, 'pl')} na podróż`)).toBeTruthy();
-  });
-
-  it('shows the trip total without "Razem" on a solo trip (13 days x 1 person)', async () => {
-    mockCurrent = () => Promise.resolve({ ...overview({ travellerCount: 1 }), members: [] });
-    await renderHome();
-    const budget = within(await screen.findByTestId('home-budget'));
-    expect(budget.getByText(`${formatMoney({ amountMinor: 3900000, currency: 'THB' }, 'pl')} na podróż`)).toBeTruthy();
-    expect(budget.queryByText(/^Razem/)).toBeNull();
-  });
-
-  it('shows the group amount per day when the amounts differ', async () => {
-    mockCurrent = () => {
-      const base = overview();
-      return Promise.resolve({ ...base, members: [base.members[0], { ...base.members[1], dailyBudgetMinor: 100000 }] });
-    };
-    await renderHome();
-    const budget = within(await screen.findByTestId('home-budget'));
-    expect(budget.getByText(formatMoney({ amountMinor: 700000, currency: 'THB' }, 'pl'))).toBeTruthy();
-    expect(budget.getByText('dziennie dla grupy')).toBeTruthy();
     expect(budget.queryByText('dziennie na osobę')).toBeNull();
-    expect(budget.getByText(`Razem ${formatMoney({ amountMinor: 9100000, currency: 'THB' }, 'pl')} na podróż`)).toBeTruthy();
+    expect(budget.queryByText('dziennie dla grupy')).toBeNull();
+    expect(budget.queryByText(/na podróż$/)).toBeNull();
   });
 
   it.each([
@@ -284,7 +278,7 @@ describe('Home screen — current trip (D4)', () => {
     }
   });
 
-  it('sets the card titles in Heading SM, the flight directions in Label LG, the lines in Body MD and the budget in Money LG', async () => {
+  it('sets the card titles in Heading SM, the flight directions in Label LG, and the lines, also the empty budget, in Body MD', async () => {
     mockCurrent = () => Promise.resolve(overview());
     await renderHome();
     const { styles } = tokens.typography;
@@ -293,8 +287,11 @@ describe('Home screen — current trip (D4)', () => {
     expect(flights.getByText('Lot tam')).toHaveStyle({ ...styles.labelLG, color: sunlineLightTheme.text.primary });
     expect(flights.getByText('WAW 2 lis, 10:00 → DXB 2 lis, 18:30')).toHaveStyle({ ...styles.bodyMD, color: sunlineLightTheme.text.primary });
     const budget = within(screen.getByTestId('home-budget'));
-    expect(budget.getByText('3000 THB')).toHaveStyle({ ...styles.moneyLG, color: sunlineLightTheme.text.primary });
-    expect(budget.getByText('dziennie na osobę')).toHaveStyle({ ...styles.bodyMD, color: sunlineLightTheme.text.secondary });
+    expect(await budget.findByText('Nie masz jeszcze wydatków')).toHaveStyle({ ...styles.bodyMD, color: sunlineLightTheme.text.primary });
+    expect(budget.getByText(`Twój budżet: ${formatMoney({ amountMinor: 3900000, currency: 'THB' }, 'pl')} na wyjazd`)).toHaveStyle({
+      ...styles.bodyMD,
+      color: sunlineLightTheme.text.secondary,
+    });
   });
 
   it.each([
@@ -373,6 +370,179 @@ describe('Home screen — current trip (D4)', () => {
   });
 });
 
+describe('Home screen — spend chart on the budget card (trip-spend-chart A3, A4, A7, A8)', () => {
+  const FRIEND = '5d8f6a0e-2b1c-4e7d-9f3a-8c4b1e6d2a09';
+  const money = (amountMinor: number) => formatMoney({ amountMinor, currency: 'THB' }, 'pl');
+  const expense = (memberId: string | null, amountMinor: number, extra: Partial<LocalExpense> = {}): LocalExpense => ({
+    id: id(),
+    tripId: TRIP_ID,
+    memberId,
+    name: 'Kolacja',
+    amount: { amountMinor, currency: 'THB' },
+    category: 'food',
+    spentOn: '2026-11-03',
+    createdAt: '2026-11-03T10:00:00.000Z',
+    updatedAt: '2026-11-03T10:00:00.000Z',
+    deletedAt: null,
+    syncStatus: 'synced',
+    attempts: 0,
+    ...extra,
+  });
+  // The signed-in user is a linked friend: someone else owns the trip and the first member row is theirs.
+  const asFriend = (): TripOverview => {
+    const base = overview({ ownerId: FRIEND });
+    return { ...base, members: [{ ...base.members[0], userId: LOCAL_PROFILE_ID, dailyBudgetMinor: 100000 }, base.members[1]] };
+  };
+  const withExpenses = (list: LocalExpense[]) => {
+    mockExpensesResult = { data: list, isPending: false, isError: false, status: 'success' };
+  };
+  const card = async () => within(await screen.findByTestId('home-budget'));
+  const renderWithExpensesTab = () =>
+    renderRouter({
+      _layout: RootLayout,
+      '(drawer)/_layout': DrawerLayout,
+      '(drawer)/(tabs)/_layout': TabsLayout,
+      '(drawer)/(tabs)/index': HomeScreen,
+      '(drawer)/(tabs)/expenses': () => null,
+    });
+  const layOut = async () =>
+    fireEvent(await screen.findByTestId('trip-spend-chart-frame'), 'layout', { nativeEvent: { layout: { width: 300, height: 0 } } });
+
+  it("shows the organizer's own chart: a button with spent, left and the pool; no daily-rate text", async () => {
+    const trip = overview();
+    withExpenses([expense(null, 120000), expense(null, 30000, { deletedAt: '2026-11-04T10:00:00.000Z' }), expense(trip.members[0].id, 999)]);
+    mockCurrent = () => Promise.resolve(trip);
+    await renderHome();
+    const budget = await card();
+    const chart = await budget.findByRole('button', { name: 'Pokaż budżet' });
+    expect(chart.props.accessibilityValue.text).toBe(`Wydałem ${money(120000)}, zostało ${money(3780000)}, z ${money(3900000)}`);
+    expect(budget.queryByText('dziennie na osobę')).toBeNull();
+    expect(budget.queryByText('Nie masz jeszcze wydatków')).toBeNull();
+  });
+
+  it("shows a linked friend their own amounts, not the organizer's or the others'", async () => {
+    const trip = asFriend();
+    withExpenses([expense(null, 500000), expense(trip.members[0].id, 20000), expense(trip.members[1].id, 777)]);
+    mockCurrent = () => Promise.resolve(trip);
+    await renderHome();
+    const chart = await (await card()).findByRole('button', { name: 'Pokaż budżet' });
+    expect(chart.props.accessibilityValue.text).toBe(`Wydałem ${money(20000)}, zostało ${money(1280000)}, z ${money(1300000)}`);
+  });
+
+  it.each([
+    ['line', 'line-chart'],
+    ['bar', 'bar-chart'],
+    ['donut', 'pie-chart'],
+  ] as const)('draws the %s variant chosen in Settings', async (style, testID) => {
+    mockChartStyle = style;
+    withExpenses([expense(null, 120000)]);
+    mockCurrent = () => Promise.resolve(overview());
+    await renderHome();
+    await layOut();
+    expect(screen.getByTestId(testID, { includeHiddenElements: true })).toBeTruthy();
+  });
+
+  it('reads the chart style again when Home regains focus, as Home stays mounted under the tabs', async () => {
+    withExpenses([expense(null, 120000)]);
+    mockCurrent = () => Promise.resolve(overview());
+    const app = await renderWithExpensesTab();
+    await layOut();
+    expect(screen.getByTestId('line-chart', { includeHiddenElements: true })).toBeTruthy();
+    await act(async () => router.navigate('/expenses'));
+    expect(app.getPathname()).toBe('/expenses');
+    mockChartStyle = 'bar'; // chosen in Settings meanwhile
+    await act(async () => router.navigate('/'));
+    expect(await screen.findByTestId('bar-chart', { includeHiddenElements: true })).toBeTruthy();
+    expect(screen.queryByTestId('line-chart', { includeHiddenElements: true })).toBeNull();
+  });
+
+  it('opens the Budżet tab when the chart is tapped (A7)', async () => {
+    withExpenses([expense(null, 120000)]);
+    mockCurrent = () => Promise.resolve(overview());
+    const app = await renderWithExpensesTab();
+    await fireEvent.press(await (await card()).findByRole('button', { name: 'Pokaż budżet' }));
+    expect(app.getPathname()).toBe('/expenses');
+  });
+
+  it("with no expenses of their own: no chart, a hint and the budget for the trip (A4); others' expenses do not count", async () => {
+    const trip = overview();
+    withExpenses([expense(trip.members[0].id, 20000), expense(null, 30000, { deletedAt: '2026-11-04T10:00:00.000Z' })]);
+    mockCurrent = () => Promise.resolve(trip);
+    await renderHome();
+    const budget = await card();
+    expect(await budget.findByText('Nie masz jeszcze wydatków')).toBeTruthy();
+    expect(budget.getByText(`Twój budżet: ${money(3900000)} na wyjazd`)).toBeTruthy();
+    expect(budget.queryByRole('button', { name: 'Pokaż budżet' })).toBeNull();
+  });
+
+  it("shows a linked friend's empty state with their own budget (1000 x 13 days)", async () => {
+    withExpenses([expense(null, 500000)]);
+    mockCurrent = () => Promise.resolve(asFriend());
+    await renderHome();
+    const budget = await card();
+    expect(await budget.findByText('Nie masz jeszcze wydatków')).toBeTruthy();
+    expect(budget.getByText(`Twój budżet: ${money(1300000)} na wyjazd`)).toBeTruthy();
+  });
+
+  it('shows the empty state when a linked friend has no member row of their own', async () => {
+    withExpenses([expense(null, 500000)]);
+    mockCurrent = () => Promise.resolve(overview({ ownerId: FRIEND }));
+    await renderHome();
+    const budget = await card();
+    expect(await budget.findByText('Nie masz jeszcze wydatków')).toBeTruthy();
+    expect(budget.queryByRole('button', { name: 'Pokaż budżet' })).toBeNull();
+  });
+
+  it('shows a busy skeleton while the expenses load', async () => {
+    mockExpensesResult = { data: undefined, isPending: true, isError: false, status: 'pending' };
+    mockCurrent = () => Promise.resolve(overview());
+    await renderHome();
+    const budget = await card();
+    const loading = budget.getByTestId('home-budget-loading');
+    expect(loading.props.accessibilityLabel).toBe('Wczytywanie podróży');
+    expect(loading).toBeBusy();
+    expect(budget.queryByRole('button', { name: 'Pokaż budżet' })).toBeNull();
+  });
+
+  it('shows an error with a retry that loads the expenses again', async () => {
+    const refetch = jest.fn();
+    mockExpensesResult = { data: undefined, isPending: false, isError: true, status: 'error', refetch };
+    mockCurrent = () => Promise.resolve(overview());
+    await renderHome();
+    const budget = await card();
+    expect(await budget.findByText('Nie udało się wczytać wydatków.')).toBeTruthy();
+    await fireEvent.press(budget.getByRole('button', { name: 'Spróbuj ponownie' }));
+    expect(refetch).toHaveBeenCalled();
+  });
+
+  it('keeps "Zmień" for the owner', async () => {
+    withExpenses([expense(null, 120000)]);
+    mockCurrent = () => Promise.resolve(overview());
+    await renderHome();
+    expect((await card()).getByRole('button', { name: 'Zmień budżet' })).toBeTruthy();
+  });
+
+  it('gives a linked friend no "Zmień"', async () => {
+    const trip = asFriend();
+    withExpenses([expense(trip.members[0].id, 20000)]);
+    mockCurrent = () => Promise.resolve(trip);
+    await renderHome();
+    const budget = await card();
+    await budget.findByRole('button', { name: 'Pokaż budżet' });
+    expect(budget.queryByRole('button', { name: 'Zmień budżet' })).toBeNull();
+  });
+
+  it('reads in English', async () => {
+    await i18n.changeLanguage('en');
+    withExpenses([]);
+    mockCurrent = () => Promise.resolve(overview());
+    await renderHome();
+    const budget = await card();
+    expect(await budget.findByText('You have no expenses yet')).toBeTruthy();
+    expect(budget.getByText(`Your budget: ${formatMoney({ amountMinor: 3900000, currency: 'THB' }, 'en')} for the trip`)).toBeTruthy();
+  });
+});
+
 describe('Home screen — changing the budget (trips-supabase D5, D10–D13)', () => {
   async function openSheet() {
     const budget = within(await screen.findByTestId('home-budget'));
@@ -432,7 +602,7 @@ describe('Home screen — changing the budget (trips-supabase D5, D10–D13)', (
     expect(mockSetBudget).toHaveBeenCalledWith(expect.objectContaining({ id: TRIP_ID, baseCurrency: 'THB' }), { organizerDailyMinor: 250050, members: [{ memberId: expect.any(String), dailyMinor: 250050 }, { memberId: expect.any(String), dailyMinor: 250050 }] });
     expect(screen.queryByRole('header', { name: 'Ile każdy może wydać dziennie?' })).toBeNull();
     const budget = within(screen.getByTestId('home-budget'));
-    expect(await budget.findByText('2500,50 THB')).toBeTruthy();
+    expect(await budget.findByText(`Twój budżet: ${formatMoney({ amountMinor: 250050 * 13, currency: 'THB' }, 'pl')} na wyjazd`)).toBeTruthy();
     expect(budget.getByText('Czeka na wysłanie')).toBeTruthy();
     expect(mockSyncBudgets).toHaveBeenCalled();
   });
@@ -528,6 +698,21 @@ describe('Home screen — offline (D6, D11)', () => {
     mockCurrent = () => Promise.resolve(overview());
     await renderHome();
     expect(await screen.findByTestId('home-action')).toHaveStyle({ maxWidth: tokens.layout.maxContentWidth, alignSelf: 'center' });
+  });
+
+  it('still draws the budget chart offline, from the local expenses', async () => {
+    setNetwork({ isConnected: false, isInternetReachable: false });
+    mockExpensesResult = {
+      data: [{ id: id(), tripId: TRIP_ID, memberId: null, name: 'Kolacja', amount: { amountMinor: 120000, currency: 'THB' }, category: 'food', spentOn: '2026-11-03', createdAt: '2026-11-03T10:00:00.000Z', updatedAt: '2026-11-03T10:00:00.000Z', deletedAt: null, syncStatus: 'pending', attempts: 0 }],
+      isPending: false,
+      isError: false,
+      status: 'success',
+    };
+    mockCurrent = () => Promise.resolve(overview());
+    await renderHome();
+    const chart = await within(await screen.findByTestId('home-budget')).findByRole('button', { name: 'Pokaż budżet' });
+    expect(chart.props.accessibilityValue.text).toContain('Wydałem');
+    expect(within(screen.getByTestId('home-action')).getByText('Jesteś offline. Zmiany zapiszą się po połączeniu.')).toBeTruthy();
   });
 
   it('still lets the budget be changed offline', async () => {
@@ -1195,7 +1380,7 @@ describe('Home screen — linked member, read-only (friend-invite A2, A3, D4, D1
     expect(screen.queryByRole('button', { name: 'Dodaj zdjęcia' })).toBeNull();
     // Everything else stays.
     expect(screen.getByRole('button', { name: MENU })).toBeTruthy();
-    expect(within(screen.getByTestId('home-budget')).getByText('3000 THB')).toBeTruthy();
+    expect(await within(screen.getByTestId('home-budget')).findByText(`Twój budżet: ${formatMoney({ amountMinor: 3900000, currency: 'THB' }, 'pl')} na wyjazd`)).toBeTruthy();
     expect(within(screen.getByTestId('home-flights')).getByText('WAW 2 lis, 10:00 → DXB 2 lis, 18:30')).toBeTruthy();
     const tiles = within(screen.getByTestId('photo-strip')).getAllByRole('button');
     expect(tiles.map((tile) => tile.props.accessibilityLabel)).toEqual(['Zdjęcie 1 z 2', 'Zdjęcie 2 z 2']);

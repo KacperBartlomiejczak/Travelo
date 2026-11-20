@@ -1,25 +1,29 @@
 import { useIsFocused, useRouter } from 'expo-router';
 import { useDrawerStatus } from 'expo-router/drawer';
 import { StatusBar } from 'expo-status-bar';
-import { Fragment, useState, type ReactNode } from 'react';
+import { Fragment, useMemo, useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ScrollView, Text, useWindowDimensions, View } from 'react-native';
 
 import { Card } from '@/components/Card';
 import { LayoverLabel } from '@/components/LayoverLabel';
 import { OfflineBanner } from '@/components/OfflineBanner';
+import { SkeletonBlock } from '@/components/SkeletonBlock';
 import { SyncIndicator } from '@/components/SyncIndicator';
 import { TextButton } from '@/components/TextButton';
 import { TripHero } from '@/components/TripHero';
+import { readChartStylePreference } from '@/data/preferences';
 import { usePillClearance } from '@/features/nav/usePillClearance';
 import { PhotoStrip } from '@/features/trip-photos/PhotoStrip';
+import { useExpenses } from '@/hooks/useExpenses';
 import { useIsTripOwner, useMyProfileId } from '@/hooks/useProfile';
 import { useTripPhotos } from '@/hooks/useTripPhotos';
+import { findAirport } from '@/lib/airport-search';
 import { formatLocalShort } from '@/lib/date-time';
+import { computeExpenseBudget, dailySpend } from '@/lib/expense-budget';
 import { savedLayoverMinutes } from '@/lib/layovers';
 import { formatMoney } from '@/lib/money';
-import { isoToLocal } from '@/lib/time';
-import { tripDayCount } from '@/lib/trip-days';
+import { isoToLocal, todayIn } from '@/lib/time';
 import { useIsOffline, useRequestBudgetSync } from '@/providers/BudgetSync';
 import type { FlightSegment, SyncStatus, TripOverview } from '@/schemas';
 import { tokens } from '@/theme/tokens';
@@ -31,6 +35,7 @@ import { HeroMenuButton } from './HeroMenuButton';
 import { TripDetailsSheet } from './TripDetailsSheet';
 import { TripMenuButton } from './TripMenuButton';
 import { TripMenuSheet } from './TripMenuSheet';
+import { TripSpendChart } from './TripSpendChart';
 
 const { spacing, layout, typography } = tokens;
 
@@ -194,34 +199,85 @@ type BudgetProps = { trip: TripOverview['trip']; members: TripOverview['members'
 
 function Budget({ trip, members, syncStatus, onChangeBudget }: BudgetProps) {
   const { t, i18n } = useTranslation();
-  const theme = useTheme();
+  const router = useRouter();
   const requestSync = useRequestBudgetSync();
-  const locale = i18n.language;
-  const daily = [trip.dailyBudget.amountMinor, ...members.map((member) => member.dailyBudgetMinor)];
-  const same = daily.every((amount) => amount === daily[0]);
-  const groupDaily = daily.reduce((sum, amount) => sum + amount, 0);
-  const days = tripDayCount(trip.startDate, trip.endDate);
-  const money = (amountMinor: number) => formatMoney({ amountMinor, currency: trip.baseCurrency }, locale);
+  const owner = useIsTripOwner(trip.ownerId);
+  const myId = useMyProfileId();
+  const expenses = useExpenses(trip.id);
+  // Home stays mounted under the tabs, so the style picked in Settings is read again each time Home regains focus.
+  const focused = useIsFocused();
+  const chartStyle = useMemo(() => readChartStylePreference(), [focused]); // eslint-disable-line react-hooks/exhaustive-deps -- `focused` is the trigger, not an input
+  // The same "Ja" as the Budżet tab (A8): the organizer is memberId null, a linked friend is their own member row.
+  const today = todayIn(findAirport(trip.destination)?.timezone ?? 'UTC');
+  const ownMemberId = owner ? null : (members.find((member) => member.userId === myId)?.id ?? undefined);
+  const list = expenses.data;
+  const me = useMemo(
+    () =>
+      list &&
+      ownMemberId !== undefined &&
+      computeExpenseBudget({
+        expenses: list,
+        organizerDailyMinor: trip.dailyBudget.amountMinor,
+        startDate: trip.startDate,
+        endDate: trip.endDate,
+        today,
+        organizerName: t('newTrip.summary.you'),
+        members,
+      }).people.find((person) => person.memberId === ownMemberId),
+    [list, ownMemberId, trip, today, members, t],
+  );
+  const hasOwn = !!list?.some((expense) => expense.deletedAt === null && expense.memberId === ownMemberId);
+
+  let body: ReactNode;
+  if (expenses.isError) {
+    body = (
+      <View style={{ gap: spacing[2], alignItems: 'flex-start' }}>
+        <Body>{t('expenses.loadError')}</Body>
+        <TextButton variant="secondary" label={t('trips.retry')} onPress={() => expenses.refetch()} />
+      </View>
+    );
+  } else if (!list) {
+    body = (
+      <View testID="home-budget-loading" accessible accessibilityLabel={t('trips.loading')} accessibilityState={{ busy: true }}>
+        <SkeletonBlock width="100%" height={spacing[24] + spacing[12]} />
+      </View>
+    );
+  } else if (ownMemberId === undefined || !me || !hasOwn) {
+    // A4: no chart without own expenses. A linked friend without a member row has no budget to name either.
+    body = (
+      <View style={{ gap: spacing[1] }}>
+        <Body>{t('home.noExpenses')}</Body>
+        {me && (
+          <Body tone="secondary">
+            {t('home.ownBudget', { amount: formatMoney({ amountMinor: me.spentMinor + me.leftMinor, currency: trip.baseCurrency }, i18n.language) })}
+          </Body>
+        )}
+      </View>
+    );
+  } else {
+    body = (
+      <TripSpendChart
+        style={chartStyle}
+        days={dailySpend({ expenses: list, memberId: ownMemberId, startDate: trip.startDate, endDate: trip.endDate, today })}
+        spentMinor={me.spentMinor}
+        leftMinor={me.leftMinor}
+        currency={trip.baseCurrency}
+        onPress={() => router.navigate('/expenses')}
+      />
+    );
+  }
+
   return (
     <Section
       testID="home-budget"
       title={t('newTrip.summary.budgetTitle')}
       action={
         onChangeBudget && (
-          <TextButton
-            variant="ghost"
-            label={t('newTrip.summary.change')}
-            accessibilityLabel={t('home.changeBudget')}
-            onPress={onChangeBudget}
-          />
+          <TextButton variant="ghost" label={t('newTrip.summary.change')} accessibilityLabel={t('home.changeBudget')} onPress={onChangeBudget} />
         )
       }
     >
-      <View style={{ flexDirection: 'row', alignItems: 'baseline', flexWrap: 'wrap', gap: spacing[2] }}>
-        <Text style={[typography.styles.moneyLG, { color: theme.text.primary }]}>{money(same ? daily[0] : groupDaily)}</Text>
-        <Body tone="secondary">{t(!same ? 'home.perDayGroup' : trip.travellerCount > 1 ? 'newTrip.summary.perPerson' : 'newTrip.summary.perDay')}</Body>
-      </View>
-      <Body tone="secondary">{t(trip.travellerCount > 1 ? 'newTrip.summary.totals' : 'newTrip.summary.soloTotal', { total: money(groupDaily * days) })}</Body>
+      {body}
       <SyncIndicator status={syncStatus} onRetry={requestSync} />
     </Section>
   );
