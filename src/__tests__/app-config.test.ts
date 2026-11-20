@@ -42,6 +42,23 @@ const lottieSymbolHeightRatio = () => {
 
 const pngSize = (file: Buffer) => ({ width: file.readUInt32BE(16), height: file.readUInt32BE(20) });
 
+describe('camera permission config', () => {
+  const optionsOf = (name: string) =>
+    (appJson.expo.plugins.find((p) => Array.isArray(p) && p[0] === name) as [string, Record<string, unknown>])[1];
+
+  it('no plugin blocks android.permission.CAMERA with cameraPermission: false', () => {
+    const blocking = appJson.expo.plugins.filter(
+      (p) => Array.isArray(p) && (p[1] as Record<string, unknown>).cameraPermission === false,
+    );
+    expect(blocking).toEqual([]);
+  });
+
+  it('uses one iOS camera text for expo-camera and expo-image-picker', () => {
+    expect(typeof optionsOf('expo-camera').cameraPermission).toBe('string');
+    expect(optionsOf('expo-image-picker').cameraPermission).toBe(optionsOf('expo-camera').cameraPermission);
+  });
+});
+
 describe('expo-splash-screen config', () => {
   it('uses the light canvas colour as background', () => {
     expect(splash.backgroundColor).toBe(colors.light.background.canvas);
