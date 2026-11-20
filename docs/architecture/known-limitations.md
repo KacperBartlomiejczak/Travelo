@@ -12,6 +12,7 @@
   - The text regexes are generic patterns, not tuned on real airline e-tickets (O1); unclear cases go to Gemini. A barcode drawn as vector paths in a PDF (not an embedded image) is not read; 1-bit or CMYK images give no barcode (`shortcut:` in `stage1.ts`). Only the first 3 pages and 6 images of a PDF are read (2 s CPU limit).
   - The BCBP year is a heuristic: the nearest occurrence of the day from today (Z3, R5).
   - A prompt injection can still change values where stage 1 found nothing; narrow fields, validation and the organizer's review are the defence (R6).
+  - `stage1.ts` has no decoded-pixel budget: a 5 MB PDF with highly compressed embedded images could inflate in memory (256 MB function limit); the image cap applies after extraction. Mixed route formats in one PDF text use only the first format found; more than 8 routes are cut silently. When the picker gives no file size, the PDF is read before the size check (CodeRabbit on the branch, 2026-11-20).
   - When `consume_ai_quota` throws and stage 1 had data, the partial result says `remainingToday: 0`.
   - `useExtractTicket` imports `@/data/supabase` directly instead of an `app-*` wrapper mocked in `jest.setup.ts`, so a few route tests mock `@/data/supabase` themselves.
   - The `stage1.ts` adapter tests run in a Node subprocess (Node ≥ 24) because Jest cannot load the ESM-only `unpdf`; the Deno runtime path is covered only by `deno check`.
