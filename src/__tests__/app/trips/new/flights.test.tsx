@@ -1,4 +1,6 @@
 import { useFonts } from 'expo-font';
+import { act, waitFor } from '@testing-library/react-native';
+import { CameraView, useCameraPermissions } from 'expo-camera';
 import { fireEvent, renderRouter, screen, within } from 'expo-router/testing-library';
 import { AccessibilityInfo, ScrollView } from 'react-native';
 
@@ -12,11 +14,20 @@ import FlightsStep from '@/app/trips/new/index';
 import NewTripLayout from '@/app/trips/new/_layout';
 import SummaryStep from '@/app/trips/new/summary';
 import i18n from '@/i18n';
+import { extractTicket } from '@/data/ticket-import';
+import { pickTicketPdf } from '@/features/trip-create/ticket-pick';
 import { toPickerDate } from '@/lib/date-time';
 import { tokens } from '@/theme/tokens';
 
 jest.mock('expo-font', () => ({ ...jest.requireActual('expo-font'), useFonts: jest.fn() }));
 jest.mocked(useFonts).mockReturnValue([true, null]);
+jest.mock('@/data/supabase', () => ({ supabase: {} }));
+jest.mock('@/data/ticket-import', () => ({ ...jest.requireActual('@/data/ticket-import'), extractTicket: jest.fn() }));
+jest.mock('@/features/trip-create/ticket-pick', () => ({ pickTicketPdf: jest.fn(), pickTicketPhoto: jest.fn() }));
+jest.mock('expo-camera', () => {
+  const { View } = jest.requireActual('react-native');
+  return { CameraView: jest.fn((props: object) => <View testID="camera" {...props} />), useCameraPermissions: jest.fn() };
+});
 
 // Native picker stand-in: pressing it picks `mockPicked`.
 let mockPicked = new Date();
@@ -92,10 +103,10 @@ afterEach(() => {
 });
 
 describe('Flights step', () => {
-  it('shows the heading, the disabled ticket button and the outbound first (D2, D24)', async () => {
+  it('shows the heading, the enabled ticket button and the outbound first (D2, D24)', async () => {
     await openFlights();
     expect(screen.getByRole('header', { name: 'Kiedy i dokąd lecisz?' })).toBeTruthy();
-    expect(screen.getByRole('button', { name: 'Wyślij bilet · wkrótce' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Wczytaj bilet' })).toBeEnabled();
     expect(screen.getByLabelText('Kierunek lotu').props.accessibilityRole).toBe('radiogroup');
     expect(screen.getByRole('radio', { name: 'Lot tam' })).toBeChecked();
     expect(screen.getByRole('radio', { name: 'Powrót' })).not.toBeChecked();
@@ -304,5 +315,103 @@ describe('Flights step', () => {
     await fireEvent.press(screen.getByRole('button', { name: 'Zwiększ' }));
     await fireEvent.press(screen.getByText('Dalej'));
     expect(app.getPathname()).toBe('/trips/new/friends');
+  });
+});
+
+describe('Flights step: ticket import', () => {
+  const complete = {
+    segments: [
+      {
+        direction: 'outbound' as const,
+        fromIata: 'WAW',
+        toIata: 'BKK',
+        flightNumber: 'LO123',
+        flightDate: '2026-11-02',
+        departAt: '2026-11-02T10:00',
+        arriveAt: '2026-11-03T05:00',
+      },
+      {
+        direction: 'return' as const,
+        fromIata: 'BKK',
+        toIata: 'WAW',
+        flightNumber: 'LO124',
+        flightDate: '2026-11-15',
+        departAt: '2026-11-15T09:00',
+        arriveAt: '2026-11-15T17:00',
+      },
+    ],
+    source: 'parser' as const,
+    complete: true,
+    remainingToday: 5,
+  };
+  const partial = {
+    ...complete,
+    segments: complete.segments.map((s) => ({
+      ...s,
+      departAt: null,
+      arriveAt: null,
+    })),
+    complete: false,
+  };
+
+  async function importFile(response: typeof complete | typeof partial) {
+    jest.mocked(pickTicketPdf).mockResolvedValue({
+      mimeType: 'application/pdf',
+      dataBase64: 'JVBERi0=',
+    });
+    jest.mocked(extractTicket).mockResolvedValue(response);
+    await fireEvent.press(screen.getByRole('button', { name: 'Wczytaj bilet' }));
+    await fireEvent.press(screen.getByRole('button', { name: 'Wczytaj z pliku' }));
+    await fireEvent.press(screen.getByRole('checkbox', { name: /Rozumiem i akceptuję/ }));
+    await fireEvent.press(screen.getByRole('button', { name: 'Wyślij' }));
+  }
+
+  it('fills an empty form from the ticket and says to check it', async () => {
+    await openFlights();
+    await importFile(complete);
+    expect(await screen.findByText('Wpisaliśmy loty z biletu. Sprawdź je przed dalszym krokiem.')).toBeTruthy();
+    await waitFor(() => expect(screen.queryByText('Zastąpić wpisane loty?')).toBeNull()); // the dialog fades out
+    expect(within(screen.getByTestId('Lot tam-Odcinek 1')).getByDisplayValue('LO123')).toBeTruthy();
+  });
+
+  it('a partial ticket says to fill in the times', async () => {
+    await openFlights();
+    await importFile(partial);
+    expect(await screen.findByText('Wpisaliśmy lotniska i numery lotów. Uzupełnij godziny.')).toBeTruthy();
+  });
+
+  it('asks before replacing flights that were typed (D3); cancel keeps them, confirm replaces them', async () => {
+    await openFlights();
+    await chooseAirport(card('Odcinek 1', 'Lot tam'), 'Dokąd', 'DXB', /Dubai · DXB/);
+    await importFile(complete);
+    expect(await screen.findByText('Zastąpić wpisane loty?')).toBeTruthy();
+    expect(screen.queryByText(/Wpisaliśmy/)).toBeNull();
+    await fireEvent.press(screen.getByRole('button', { name: 'Zostaw moje' }));
+    await waitFor(() => expect(screen.queryByText('Zastąpić wpisane loty?')).toBeNull()); // the dialog fades out
+    expect(within(screen.getByTestId('Lot tam-Odcinek 1')).queryByDisplayValue('LO123')).toBeNull();
+
+    await importFile(complete);
+    await fireEvent.press(await screen.findByRole('button', { name: 'Zastąp' }));
+    expect(await screen.findByText('Wpisaliśmy loty z biletu. Sprawdź je przed dalszym krokiem.')).toBeTruthy();
+    expect(within(screen.getByTestId('Lot tam-Odcinek 1')).getByDisplayValue('LO123')).toBeTruthy();
+  });
+
+  it('a scanned boarding pass is added to the chosen direction without times (Z2, Z3)', async () => {
+    jest.mocked(useCameraPermissions).mockReturnValue([{ granted: true, canAskAgain: true } as never, jest.fn(), jest.fn()]);
+    await openFlights();
+    await fireEvent.press(screen.getByRole('button', { name: 'Wczytaj bilet' }));
+    await fireEvent.press(screen.getByRole('button', { name: 'Zeskanuj kartę pokładową' }));
+    const pad = (v: string, n: number) => v.padEnd(n, ' ').slice(0, n);
+    const bcbp = `M1${pad('DOE/JOHN', 20)}E${pad('ZXQ4TK', 7)}WAWBKKFR ${pad('0123', 5)}340Y012A000011` + '00';
+    await act(async () =>
+      jest
+        .mocked(CameraView)
+        .mock.calls.at(-1)![0]
+        .onBarcodeScanned?.({ data: bcbp, type: 'pdf417' } as never),
+    );
+    await fireEvent.press(screen.getByRole('button', { name: 'Dodaj do lotów' }));
+    const first = within(screen.getByTestId('Lot tam-Odcinek 1'));
+    expect(first.getByDisplayValue('FR123')).toBeTruthy();
+    expect(await screen.findByText('Dodaliśmy lot z karty pokładowej. Uzupełnij godziny.')).toBeTruthy();
   });
 });
