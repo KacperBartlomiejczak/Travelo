@@ -10,7 +10,7 @@ import type { GroupBudget, PersonBudget } from '@/schemas';
 import { tokens } from '@/theme/tokens';
 import { useTheme } from '@/theme/useTheme';
 
-type Props = { group: GroupBudget; me?: PersonBudget; currency: string; testID?: string };
+type Props = { group: GroupBudget; me?: PersonBudget; solo?: boolean; currency: string; testID?: string };
 type Scope = 'group' | 'me';
 type BudgetState = 'under' | 'near' | 'over';
 
@@ -25,12 +25,13 @@ const { spacing, typography } = tokens;
 
 // What is left of the budget (expenses D7, D9, D10): the group by default, switchable to the own share. The "today" line
 // exists only while the trip runs (the budget has no `today` outside it); the carryover only when it is above zero.
-// Without an own row (`me` missing) there is nothing to switch to, so the toggle is left out.
-export function BudgetHero({ group, me, currency, testID }: Props) {
+// Without an own row (`me` missing) there is nothing to switch to, so the toggle is left out. On a solo trip (only the
+// organizer) there is no group to compare with: no toggle, the card always shows the own numbers.
+export function BudgetHero({ group, me, solo, currency, testID }: Props) {
   const { t, i18n } = useTranslation();
   const theme = useTheme();
   const [scope, setScope] = useState<Scope>('group');
-  const shown = scope === 'me' && me ? me : group;
+  const shown = (solo || scope === 'me') && me ? me : group;
   const money = (amountMinor: number) => formatMoney({ amountMinor: Math.abs(amountMinor), currency }, i18n.language);
   const today = shown.today;
 
@@ -47,7 +48,7 @@ export function BudgetHero({ group, me, currency, testID }: Props) {
 
   return (
     <Card testID={testID}>
-      {me && (
+      {me && !solo && (
         <SegmentedControl
           label={`${t('budget.group')} / ${t('budget.me')}`}
           options={[

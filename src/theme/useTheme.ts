@@ -2,6 +2,7 @@ import { createContext, createElement, useContext, type ReactNode } from 'react'
 import { useColorScheme } from 'react-native';
 
 import { darkTheme, lightTheme, type Theme } from './theme';
+import { useThemePreference } from './themePreference';
 
 // Set by DarkThemeScope; null = follow the device.
 const ForcedTheme = createContext<Theme | null>(null);
@@ -14,5 +15,8 @@ export function DarkThemeScope({ children }: { children: ReactNode }) {
 export function useTheme(): Theme {
   const forced = useContext(ForcedTheme);
   const scheme = useColorScheme();
-  return forced ?? (scheme === 'dark' ? darkTheme : lightTheme);
+  const preference = useThemePreference();
+  // An explicit choice wins; only 'system' follows the device.
+  const dark = preference === 'system' ? scheme === 'dark' : preference === 'dark';
+  return forced ?? (dark ? darkTheme : lightTheme);
 }

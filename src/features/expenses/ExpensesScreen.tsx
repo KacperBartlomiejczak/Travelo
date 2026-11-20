@@ -168,7 +168,7 @@ function TripExpenses({ overview, onOpenMenu, offline }: TripProps) {
           </View>
         ) : (
           <>
-            <BudgetHero testID="budget-hero" group={budget.group} me={me} currency={trip.baseCurrency} />
+            <BudgetHero testID="budget-hero" group={budget.group} me={me} solo={members.length === 0} currency={trip.baseCurrency} />
             {list && list.length > 0 && <SpendByPersonChart people={budget.people} currency={trip.baseCurrency} />}
             {list && list.length === 0 ? (
               <View testID="expenses-empty" style={{ alignItems: 'center', gap: spacing[2], paddingVertical: spacing[6] }}>
