@@ -49,6 +49,7 @@ Stan obecny:
 - `src/features/home/CurrentTrip.tsx`, `src/i18n/locales/{pl,en}.json`, testy (krok 6)
 - `docs/architecture/flows/features/trip-home.md`, `profile-settings.md`, `docs/architecture/frontend.md`, `shared.md`, `overview.md` (zależność), `decisions.md` (krok 7)
 - `.claude/agents/CveAuditor.md` + wpis w `docs/agents/subagents.md` / `CLAUDE.md` — subagent cve-auditor (commit 0a13250, cherry-pick z `chore/cve-auditor`; Kacper 2026-11-20: część tej zmiany)
+- `app.json` (`android.package` `com.baxton.traveling`, `extra.eas.projectId`, `owner` `baxton`), `eas.json` (nowy, profil `development`: debug APK) — wynik `eas init`, potrzebne do dev buildu w chmurze (orchestrator)
 
 ## Skille
 - test-driven-development — kroki 2–6 — test najpierw, red przed kodem
@@ -75,6 +76,7 @@ Gałąź: jedna, `feature/trip-spend-chart`, commit na krok.
 - Krok 6: karta „Budżet” z `TripSpendChart` (loading skeleton, error + ponów, empty A4, offline z lokalnych danych, tap → `/expenses`, „Zmień” tylko organizator, styl wykresu czytany ponownie przy powrocie na Home) · usunięty nieużywany `home.perDayGroup` · poprawki po audycie: kolejność importów, asercja banera offline w teście offline; testy znajomego/organizatora potwierdzone jako niepuste (ten sam obiekt podróży) · test offline przeszedł od razu (zachowanie już było, red nie widziany) · verifier PASS (suite 221/4422, typecheck i lint ✓) · uwaga verifiera (nieblokująca): `useMemo([focused])` dla `chartStyle` można zastąpić zwykłym odczytem · cve-auditor pełny audyt: CLEAN (23 znaleziska tylko w `expo > @expo/cli`, dev-only; nowe pakiety bez zgłoszeń) · użyte skille: test-driven-development, frontend-ui-engineering · commit d892207
 - Test na urządzeniu (po kroku 6): lokalny dev build (`expo run:android` z `C:/tsc`, także przez `subst X:`) padł 3× na tym samym błędzie ninja (`mkdir` w codegen `react-native-gesture-handler`, za długa ścieżka na Windows) → blocked. Kacper (przez sesję nadrzędną, 2026-11-20): budować przez EAS w chmurze. Repo nie ma `eas.json` ani `projectId` → czekam na Kacpra (logowanie EAS, `eas init`). Tester jeszcze nie uruchomiony.
 - Krok 7: docs zaktualizowane (`trip-home.md`, `profile-settings.md`, `frontend.md`, `shared.md`, `overview.md`, `decisions.md`) · commit f383e1f · verifier końcowy (Sonnet 5.5, medium) PASS: suite 221/4422, typecheck, lint, lockfile ✓; CodeRabbit 2 znaleziska: 1 potwierdzone drobne (`CveAuditor.md:28` + `.toml` — tryb pakietu nie porównuje wersji docelowej z zakresem podatności; decyzja Kacpra, poza zakresem funkcji), 1 odrzucone (lockfile zgodny)
+- EAS (2026-11-20): Kacper zrobił `eas init` → `app.json` dostał `android.package` `com.baxton.traveling`, `extra.eas.projectId`, `owner` `baxton`; nowy `eas.json` z profilem `development` (`distribution: internal`, `:app:assembleDebug`, APK). Zacommitowane razem z tym wpisem.
 - Uwaga na krok 6: `usePreferences` trzyma wybór w stanie lokalnym, a Home zostaje zamontowany pod zakładkami → Home musi odczytać wybór przy powrocie na ekran (test).
 
 ## Ryzyka i otwarte pytania
