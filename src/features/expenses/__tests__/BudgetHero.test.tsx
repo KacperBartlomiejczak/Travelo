@@ -79,6 +79,14 @@ describe('BudgetHero (expenses D7, D9, D10)', () => {
     expect(screen.getByText(`${formatMoney({ amountMinor: 3000, currency: 'PLN' }, 'en')} left today`)).toBeOnTheScreen();
   });
 
+  it('solo trip: no toggle, and the card shows the own numbers', async () => {
+    await render(<BudgetHero group={group} me={me} solo currency="PLN" />);
+    expect(screen.queryByRole('radio')).toBeNull();
+    expect(screen.getByText(`Zostało ${money(20000)}`)).toBeOnTheScreen();
+    expect(screen.getByText(`Zostało dziś ${money(500)}`)).toBeOnTheScreen();
+    expect(screen.queryByText(/z poprzednich dni/)).toBeNull();
+  });
+
   describe('budget states (design-context §2.7, §13.9)', () => {
     const withToday = (allowedMinor: number, leftMinor: number) => hero({ ...group, today: { allowedMinor, leftMinor, carryoverMinor: 0 } });
     const icons = () => ({

@@ -5,7 +5,7 @@ import i18n from '@/i18n';
 import { tokens } from '@/theme/tokens';
 import type { PlaceRecommendation } from '@/schemas';
 
-import { PlaceCard } from '../PlaceCard';
+import { PlaceCard, PlaceCardSkeleton } from '../PlaceCard';
 
 const photo = (n: number, authors: { name: string; uri?: string }[] = []) => ({
   uri: `https://places.example/photo-${n}`,
@@ -231,5 +231,28 @@ describe('PlaceCard author caption', () => {
   it('shows no caption without authors', async () => {
     await show([photo(1, [])]);
     expect(screen.queryByText(/^Fot\./)).toBeNull();
+  });
+});
+
+describe('PlaceCardSkeleton', () => {
+  const { card } = tokens.components;
+  const { styles } = tokens.typography;
+  const heightOf = (testID: string) => StyleSheet.flatten(screen.getByTestId(testID, { hidden: true }).props.style).height;
+
+  it('has the geometry of a PlaceCard with a photo', async () => {
+    await render(<PlaceCardSkeleton />);
+    expect(screen.getByTestId('place-card-skeleton')).toBeTruthy();
+    expect(StyleSheet.flatten(screen.getByTestId('place-card-skeleton-spacer').props.style).aspectRatio).toBe(card.photoAspectRatio);
+    const frame = StyleSheet.flatten(screen.getByTestId('place-card-skeleton-frame').props.style);
+    expect(frame.left).toBe(-card.padding);
+    expect(frame.right).toBe(-card.padding);
+    await fireEvent(screen.getByTestId('place-card-skeleton-frame'), 'layout', { nativeEvent: { layout: { width: 360, height: 270 } } });
+    expect(heightOf('place-card-skeleton-photo')).toBe(270);
+    expect(heightOf('place-card-skeleton-title')).toBe(styles.labelLG.lineHeight);
+    expect(heightOf('place-card-skeleton-type')).toBe(styles.caption.lineHeight);
+    expect(heightOf('place-card-skeleton-address')).toBe(styles.bodySM.lineHeight);
+    expect(heightOf('place-card-skeleton-reason-1')).toBe(styles.bodyMD.lineHeight);
+    expect(heightOf('place-card-skeleton-reason-2')).toBe(styles.bodyMD.lineHeight);
+    expect(heightOf('place-card-skeleton-button')).toBe(tokens.components.button.height);
   });
 });

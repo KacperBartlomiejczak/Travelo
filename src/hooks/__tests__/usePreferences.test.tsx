@@ -7,10 +7,12 @@ import { darkTheme as legacyDark, lightTheme as legacyLight } from '@/theme/lega
 import { darkTheme, lightTheme } from '@/theme/theme';
 import { DarkThemeScope, useTheme } from '@/theme/useTheme';
 import { useTheme as useLegacyTheme, DarkThemeScope as LegacyDarkThemeScope } from '@/theme/legacy/useTheme';
+import { setThemePreference } from '@/theme/themePreference';
 import { applyThemePreference, usePreferences } from '../usePreferences';
 
+let mockSavedTheme = 'light';
 jest.mock('@/data/preferences', () => ({
-  readThemePreference: jest.fn(() => 'light'),
+  readThemePreference: jest.fn(() => mockSavedTheme),
   readLanguagePreference: jest.fn(() => 'pl'),
   readChartStylePreference: jest.fn(() => 'line'),
   writeChartStylePreference: jest.fn(),
@@ -30,6 +32,8 @@ const setColorScheme = jest.spyOn(Appearance, 'setColorScheme').mockImplementati
 
 beforeEach(() => {
   jest.clearAllMocks();
+  mockSavedTheme = 'light';
+  setThemePreference('light');
   jest.mocked(writeThemePreference).mockImplementation(() => {});
   jest.mocked(writeLanguagePreference).mockImplementation(() => {});
 });
@@ -105,17 +109,58 @@ describe('usePreferences', () => {
   });
 });
 
-describe('useTheme follows the chosen scheme', () => {
+describe('the theme store with nothing set yet', () => {
+  it('reads the saved dark choice although the device reports light', async () => {
+    mockScheme = 'light';
+    mockSavedTheme = 'dark';
+    // Fresh registry: the file-level setThemePreference('light') seed does not reach this store.
+    // React stays shared so the isolated hooks run inside the outer renderer.
+    const React = jest.requireActual('react');
+    let loaded!: {
+      usePreferences: typeof usePreferences;
+      useTheme: typeof useTheme;
+      useLegacyTheme: typeof useLegacyTheme;
+    };
+    jest.isolateModules(() => {
+      /* eslint-disable @typescript-eslint/no-require-imports */
+      jest.doMock('react', () => React);
+      loaded = {
+        usePreferences: require('../usePreferences').usePreferences,
+        useTheme: require('@/theme/useTheme').useTheme,
+        useLegacyTheme: require('@/theme/legacy/useTheme').useTheme,
+      };
+      /* eslint-enable @typescript-eslint/no-require-imports */
+    });
+    jest.dontMock('react');
+
+    expect((await renderHook(() => loaded.usePreferences())).result.current.theme).toBe('dark');
+    expect((await renderHook(() => loaded.useTheme())).result.current).toEqual(darkTheme);
+    expect((await renderHook(() => loaded.useLegacyTheme())).result.current).toEqual(legacyDark);
+  });
+});
+
+describe('useTheme follows the chosen preference', () => {
+  it('setTheme(dark) turns an unrelated useTheme dark although the device reports light', async () => {
+    const prefs = await renderHook(() => usePreferences());
+    const other = await renderHook(() => useTheme());
+    mockScheme = 'light';
+    setColorScheme.mockImplementationOnce(() => {}); // the activity-recreate case: the native scheme stays light
+    await act(async () => prefs.result.current.setTheme('dark'));
+    expect(other.result.current).toBe(darkTheme);
+  });
+
   it.each([
     ['dark', darkTheme, legacyDark],
     ['light', lightTheme, legacyLight],
   ] as const)('both hooks return the %s theme', async (scheme, expected, legacyExpected) => {
+    setThemePreference('system');
     Appearance.setColorScheme(scheme);
     expect((await renderHook(() => useTheme())).result.current).toBe(expected);
     expect((await renderHook(() => useLegacyTheme())).result.current).toBe(legacyExpected);
   });
 
   it('DarkThemeScope still forces dark on a light choice', async () => {
+    setThemePreference('system');
     Appearance.setColorScheme('light');
     expect((await renderHook(() => useTheme(), { wrapper: DarkThemeScope })).result.current).toBe(darkTheme);
     expect((await renderHook(() => useTheme(), { wrapper: LegacyDarkThemeScope })).result.current).toBe(darkTheme);
