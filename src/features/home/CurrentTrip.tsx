@@ -1,9 +1,9 @@
 import { useFocusEffect, useIsFocused, useRouter } from 'expo-router';
 import { useDrawerStatus } from 'expo-router/drawer';
 import { StatusBar } from 'expo-status-bar';
-import { Fragment, useCallback, useMemo, useState, type ReactNode } from 'react';
+import { Fragment, useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
-import { ScrollView, Text, useWindowDimensions, View } from 'react-native';
+import { AppState, ScrollView, Text, useWindowDimensions, View } from 'react-native';
 
 import { Card } from '@/components/Card';
 import { LayoverLabel } from '@/components/LayoverLabel';
@@ -208,7 +208,15 @@ function Budget({ trip, members, syncStatus, onChangeBudget }: BudgetProps) {
   const [chartStyle, setChartStyle] = useState(readChartStylePreference);
   useFocusEffect(useCallback(() => setChartStyle(readChartStylePreference()), []));
   // The same "Ja" as the Budżet tab (A8): the organizer is memberId null, a linked friend is their own member row.
-  const today = todayIn(findAirport(trip.destination)?.timezone ?? 'UTC');
+  // "Today" is state too: Home stays mounted across midnight, so it is read again on focus and on return to the foreground.
+  const timeZone = findAirport(trip.destination)?.timezone ?? 'UTC';
+  const [today, setToday] = useState(() => todayIn(timeZone));
+  const refreshToday = useCallback(() => setToday(todayIn(timeZone)), [timeZone]);
+  useFocusEffect(refreshToday);
+  useEffect(() => {
+    const subscription = AppState.addEventListener('change', (state) => state === 'active' && refreshToday());
+    return () => subscription.remove();
+  }, [refreshToday]);
   const ownMemberId = owner ? null : (members.find((member) => member.userId === myId)?.id ?? undefined);
   const list = expenses.data;
   const me = useMemo(

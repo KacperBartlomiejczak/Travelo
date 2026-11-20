@@ -66,8 +66,8 @@ jest.mock('@/data/app-trip-repository', () => ({
 jest.mock('react-native-gifted-charts', () => {
   const { View } = jest.requireActual('react-native');
   const stub = (testID: string) =>
-    function Stub() {
-      return <View testID={testID} />;
+    function Stub({ data }: { data?: unknown[] }) {
+      return <View testID={testID} accessibilityLabel={String(data?.length)} />;
     };
   return { LineChart: stub('line-chart'), BarChart: stub('bar-chart'), PieChart: stub('pie-chart') };
 });
@@ -481,6 +481,36 @@ describe('Home screen — spend chart on the budget card (trip-spend-chart A3, A
     await act(async () => router.back());
     expect(await screen.findByTestId('bar-chart', { includeHiddenElements: true })).toBeTruthy();
     expect(screen.queryByTestId('line-chart', { includeHiddenElements: true })).toBeNull();
+  });
+
+  it('moves "today" on when the app returns to the foreground after midnight, as Home stays mounted', async () => {
+    const listeners: ((state: AppStateStatus) => void)[] = [];
+    jest.spyOn(AppState, 'addEventListener').mockImplementation((_, listener) => {
+      listeners.push(listener);
+      return { remove: jest.fn() } as never;
+    });
+    withExpenses([expense(null, 120000)]);
+    mockCurrent = () => Promise.resolve(overview());
+    await renderHome();
+    await layOut();
+    const days = () => screen.getByTestId('line-chart', { includeHiddenElements: true }).props.accessibilityLabel;
+    expect(days()).toBe('8'); // 11-03 .. 11-10
+    jest.setSystemTime(new Date('2026-11-11T12:00:00Z'));
+    await act(async () => listeners.forEach((listener) => listener('active')));
+    expect(days()).toBe('9');
+  });
+
+  it('moves "today" on when Home regains focus after midnight (fake clock set in beforeEach)', async () => {
+    withExpenses([expense(null, 120000)]);
+    mockCurrent = () => Promise.resolve(overview());
+    await renderWithExpensesTab();
+    await layOut();
+    const days = () => screen.getByTestId('line-chart', { includeHiddenElements: true }).props.accessibilityLabel;
+    expect(days()).toBe('8'); // 11-03 .. 11-10
+    await act(async () => router.navigate('/expenses'));
+    jest.setSystemTime(new Date('2026-11-11T12:00:00Z')); // midnight passes while Home is in the background
+    await act(async () => router.navigate('/'));
+    await waitFor(() => expect(days()).toBe('9'));
   });
 
   it('opens the Budżet tab when the chart is tapped (A7)', async () => {
@@ -1546,9 +1576,10 @@ describe('Home screen — no trips (trips-drawer D5)', () => {
   });
 
   it('shows the empty state when the last trip disappears from the server', async () => {
-    let foreground: (state: AppStateStatus) => void = () => {};
+    const listeners: ((state: AppStateStatus) => void)[] = [];
+    const foreground = (state: AppStateStatus) => listeners.forEach((listener) => listener(state));
     jest.spyOn(AppState, 'addEventListener').mockImplementation((_, listener) => {
-      foreground = listener;
+      listeners.push(listener);
       return { remove: jest.fn() } as never;
     });
     mockCurrent = () => Promise.resolve(overview());

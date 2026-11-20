@@ -20,6 +20,7 @@ type Props = {
 };
 
 const { spacing, typography } = tokens;
+const { focusRing } = tokens.components;
 const CHART_HEIGHT = spacing[24] + spacing[12];
 const INNER_RADIUS = CHART_HEIGHT / 3;
 // gifted-charts draws width + yAxisLabelWidth + endSpacing (+ the point radius on a line) past its left edge, so the card's
@@ -41,6 +42,7 @@ export function TripSpendChart({
   const reduceMotion = useReduceMotion();
   // The card's real inner width (screen gutter, card padding and the max content width all vary); nothing is drawn before it is known.
   const [width, setWidth] = useState<number | null>(null);
+  const [focused, setFocused] = useState(false);
   const money = (amountMinor: number) =>
     formatMoney(
       { amountMinor: Math.abs(amountMinor), currency },
@@ -103,11 +105,21 @@ export function TripSpendChart({
         accessibilityLabel={t("home.showBudget")}
         accessibilityValue={{ text: valueText }}
         onPress={onPress}
-        style={({ pressed }) => ({
-          minHeight: tokens.layout.touchTarget,
-          gap: spacing[3],
-          backgroundColor: pressed ? theme.background.sunken : undefined,
-        })}
+        onFocus={() => setFocused(true)}
+        onBlur={() => setFocused(false)}
+        style={({ pressed }) => [
+          {
+            minHeight: tokens.layout.touchTarget,
+            gap: spacing[3],
+            backgroundColor: pressed ? theme.background.sunken : undefined,
+          },
+          focused && {
+            outlineStyle: "solid",
+            outlineWidth: focusRing.width,
+            outlineColor: theme.border.focus,
+            outlineOffset: focusRing.offset,
+          },
+        ]}
       >
         {beforeTrip ? (
           <Text
@@ -123,7 +135,7 @@ export function TripSpendChart({
             style={{ minHeight: CHART_HEIGHT, justifyContent: "center" }}
           >
             {width === null ? null : style === "line" ? (
-              <LineChart
+              <View pointerEvents="none"><LineChart
                 data={days.map((d) => ({
                   value: major(d.spentMinor),
                   label: String(Number(d.spentOn.slice(8))),
@@ -148,9 +160,9 @@ export function TripSpendChart({
                 xAxisLabelTextStyle={axisText}
                 isAnimated={animated}
                 scrollToEnd={false}
-              />
+              /></View>
             ) : style === "bar" ? (
-              <BarChart
+              <View pointerEvents="none"><BarChart
                 data={bars}
                 width={width}
                 yAxisLabelWidth={0}
@@ -168,9 +180,12 @@ export function TripSpendChart({
                 yAxisTextStyle={axisText}
                 xAxisLabelTextStyle={axisText}
                 isAnimated={animated}
-              />
+              /></View>
             ) : (
-              <View style={{ alignItems: "center", justifyContent: "center" }}>
+              <View
+                pointerEvents="none"
+                style={{ alignItems: "center", justifyContent: "center" }}
+              >
                 <PieChart
                   donut
                   data={[

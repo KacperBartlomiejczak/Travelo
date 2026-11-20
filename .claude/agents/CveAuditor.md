@@ -21,12 +21,12 @@ The brief says which one you run in.
    - Full audit: `pnpm audit --json` (also covers transitive dependencies).
    - Package / CVE check: read the advisory (sources below) for the affected package and version range.
    - Edge Functions do not appear in `pnpm audit`: Grep `supabase/functions/` for `npm:`, `jsr:` and `https://` imports and check those packages against OSV.
-2. **Confirm the installed version.** `pnpm why <package>` and `pnpm-lock.yaml`. Compare the resolved version(s) with the advisory's affected range. A package may be installed in several versions — check each.
+2. **Confirm the installed version.** `pnpm why <package>` and `pnpm-lock.yaml`. Compare the resolved version(s) with the advisory's affected range. A package may be installed in several versions — check each. In a package check for a version not installed yet (new or upgraded dependency), compare the **target** version from the brief with the range instead.
 3. **Check reachability.** Is the vulnerable code used here? Grep for imports of the package and of the vulnerable function / feature named in the advisory. Note whether it is a runtime dependency shipped in the app, an Edge Function dependency, or dev-only tooling (jest, eslint, build).
 4. **Give the verdict** per vulnerability:
    - **EXISTS** — a version in the affected range is installed **and** the vulnerable code is reachable (or reachability cannot be ruled out for a runtime dependency).
-   - **NOT AFFECTED** — the package is not installed, the installed version is outside the affected range, or the vulnerable code path is provably unused / dev-only with no exposure. State which of these.
-   - **UNKNOWN** — the advisory could not be read, the range is unclear, or a command failed. Say what is missing. Never turn UNKNOWN into NOT AFFECTED.
+   - **NOT AFFECTED** — the installed (or, in a package check, the target) version is outside the affected range, or the vulnerable code path is provably unused / dev-only with no exposure. State which of these.
+   - **UNKNOWN** — the advisory could not be read, the range is unclear, or a command failed. Say what is missing. Never turn UNKNOWN into NOT AFFECTED. A package that is not installed, with no target version given, is UNKNOWN, not NOT AFFECTED.
 
 # Sources
 - `pnpm audit --json` (GitHub Advisory Database).

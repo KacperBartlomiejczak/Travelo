@@ -1,10 +1,11 @@
 import { fireEvent, render, screen, within } from '@testing-library/react-native';
+import { StyleSheet } from 'react-native';
 
 import { useReduceMotion } from '@/hooks/useReduceMotion';
 import i18n from '@/i18n';
 import { formatMoney } from '@/lib/money';
 import type { DailySpend } from '@/schemas';
-import { colors } from '@/theme/tokens';
+import { colors, tokens } from '@/theme/tokens';
 
 import { TripSpendChart } from '../TripSpendChart';
 
@@ -96,6 +97,31 @@ describe('TripSpendChart', () => {
     expect(text).toContain(money(10000));
     expect(text).toContain(i18n.t('budget.over', { amount: money(2000) }));
     expect(text).not.toContain('zostało');
+  });
+
+  it('shows a 2 dp focus ring while the card is focused', async () => {
+    await renderChart();
+    const card = () => StyleSheet.flatten(screen.getByTestId('trip-spend-chart').props.style);
+    expect(card().outlineWidth).toBeUndefined();
+    await fireEvent(screen.getByTestId('trip-spend-chart'), 'focus');
+    expect(card()).toMatchObject({
+      outlineWidth: tokens.components.focusRing.width,
+      outlineOffset: tokens.components.focusRing.offset,
+      outlineColor: colors.light.border.focus,
+    });
+    await fireEvent(screen.getByTestId('trip-spend-chart'), 'blur');
+    expect(card().outlineWidth).toBeUndefined();
+  });
+
+  it.each([
+    ['line', 'line-chart'],
+    ['bar', 'bar-chart'],
+    ['donut', 'pie-chart'],
+  ] as const)('%s: the drawing lets touches through to the card, which opens the budget', async (style, testID) => {
+    const onPress = await renderChart({ style });
+    expect(screen.getByTestId(testID, hidden).parent?.props.pointerEvents).toBe('none');
+    await fireEvent.press(screen.getByTestId('trip-spend-chart'));
+    expect(onPress).toHaveBeenCalledTimes(1);
   });
 
   it('animates unless reduce motion is on', async () => {
