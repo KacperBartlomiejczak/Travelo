@@ -154,6 +154,42 @@ describe('TicketImportSheet', () => {
     expect(screen.getByRole('button', { name: 'Wyślij' })).toBeEnabled();
   });
 
+  it('shows no loading while the picker is open, only once a file is chosen', async () => {
+    let pick: (f: typeof request) => void = () => {};
+    jest.mocked(pickTicketPdf).mockReturnValue(new Promise((r) => (pick = r)));
+    jest.mocked(extractTicket).mockReturnValue(new Promise(() => {}));
+    await renderSheet();
+    await toConsent();
+    await accept();
+    await send();
+    expect(screen.queryByTestId('ticket-loading')).toBeNull();
+    expect(screen.getByRole('button', { name: 'Wyślij' })).toBeEnabled();
+    await act(async () => pick(request));
+    expect(await screen.findByTestId('ticket-loading')).toBeTruthy();
+  });
+
+  it('a second tap on "Wyślij" while the picker is open does not start a second pick', async () => {
+    jest.mocked(pickTicketPdf).mockReturnValue(new Promise(() => {}));
+    await renderSheet();
+    await toConsent();
+    await accept();
+    await send();
+    await send();
+    expect(pickTicketPdf).toHaveBeenCalledTimes(1);
+  });
+
+  it('a cancelled pick never shows loading', async () => {
+    let pick: (f: null) => void = () => {};
+    jest.mocked(pickTicketPdf).mockReturnValue(new Promise((r) => (pick = r)));
+    await renderSheet();
+    await toConsent();
+    await accept();
+    await send();
+    await act(async () => pick(null));
+    expect(screen.queryByTestId('ticket-loading')).toBeNull();
+    expect(extractTicket).not.toHaveBeenCalled();
+  });
+
   it('not a ticket: a centred message and "Wybierz inny plik" returns to the consent', async () => {
     jest.mocked(extractTicket).mockRejectedValue(new NotATicketError('x'));
     await renderSheet();

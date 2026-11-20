@@ -1,6 +1,6 @@
 import { useRouter } from 'expo-router';
 import { Camera, FileUp, TicketX } from 'lucide-react-native';
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ActivityIndicator, Text, View } from 'react-native';
 
@@ -71,16 +71,20 @@ function Body({ onClose, onScan, onImported, busy, setBusy }: Omit<Props, 'visib
   const [kind, setKind] = useState<FileKind>('pdf');
   const [accepted, setAccepted] = useState(false);
   const [failure, setFailure] = useState<Failure | null>(null);
+  const sending = useRef(false);
 
   async function send() {
-    setBusy(true);
+    if (sending.current) return; // a second tap while the picker is open must not start a second pick
+    sending.current = true;
     try {
       const file = await (kind === 'pdf' ? pickTicketPdf() : pickTicketPhoto());
       if (!file) return;
+      setBusy(true); // loading only once a file is chosen, not while the system picker is open
       onImported(await extract.mutateAsync(file));
     } catch (error) {
       setFailure(failureOf(error));
     } finally {
+      sending.current = false;
       setBusy(false);
     }
   }
