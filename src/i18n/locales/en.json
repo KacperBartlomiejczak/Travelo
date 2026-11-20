@@ -591,7 +591,7 @@
   "legal": {
     "privacy": {
       "title": "Travelo Privacy Policy",
-      "updated": "Version of 6 November 2026",
+      "updated": "Version of 20 November 2026",
       "sections": [
         {
           "heading": "",
@@ -665,23 +665,34 @@
           ]
         },
         {
+          "heading": "2.8 Flight ticket import",
+          "paragraphs": [
+            "• When you import a ticket (a PDF or a photo of a ticket or boarding pass), the file goes to our server, where it is first read automatically, without AI. Only if that is not enough, the file is sent to the Google Gemini API solely to read the flight details.",
+            "• We do not store the file — it is processed only in the server's memory and never goes to file storage or logs. The working copy on your phone is deleted after sending.",
+            "• The App receives only these details from the file: airports, flight numbers, dates and times. We do not read the passenger's name or the booking reference.",
+            "• Scanning a boarding pass code with the camera happens only on your phone — the camera image is not sent to the server.",
+            "• We keep a count of AI analyses per day (limit: 5 per day per account) and a count of rejected files to protect the service from abuse."
+          ]
+        },
+        {
           "heading": "3. Purposes and legal bases",
           "paragraphs": [
             "Creating and running your account, sign-in, profile — Art. 6(1)(b) — performance of a contract (the Terms)",
             "Trip planning, photos, expenses, syncing between phone and server — Art. 6(1)(b) — performance of a contract",
             "Processing the details of friends without an account that you enter — Art. 6(1)(f) — legitimate interest: letting you plan a shared trip",
             "Discovering places (city + interests) — Art. 6(1)(b) — performance of a contract",
+            "Flight ticket import (reading flight details from a file) — Art. 6(1)(b) — performance of a contract",
             "Security, logs, the AI request limit, preventing abuse — Art. 6(1)(f) — legitimate interest: security of the service",
             "Replying to messages, complaints, defending against claims — Art. 6(1)(f) and Art. 6(1)(c) (consumer-law obligations)",
             "Providing data is voluntary, but an account cannot be created without an e-mail address (or a Google/Discord account) and a nickname.",
-            "We do not make decisions about you based solely on automated processing that produce legal effects or similarly significantly affect you. AI place recommendations are only suggestions."
+            "We do not make decisions about you based solely on automated processing that produce legal effects or similarly significantly affect you. AI place recommendations are only suggestions, and you check and confirm the details read from a ticket yourself before saving the trip."
           ]
         },
         {
           "heading": "4. Who receives your data",
           "paragraphs": [
             "• Supabase Inc. — hosting of the database, sign-in, files and server functions (a processor under a data processing agreement). Data is stored in Ireland (AWS eu-west-1).",
-            "• Google — (a) if you sign in with Google: Google, as a separate controller, authenticates you and passes us your e-mail; (b) the Google Places API and the Gemini API receive only the city and interests from a \"Discover places\" request. The request is sent by our server, not by your phone. We use the paid tier of the Gemini API, where Google does not use requests to train its models.",
+            "• Google — (a) if you sign in with Google: Google, as a separate controller, authenticates you and passes us your e-mail; (b) the Google Places API and the Gemini API receive only the city and interests from a \"Discover places\" request, and the Gemini API also receives the ticket file when automatic reading is not enough (see 2.8). The request is sent by our server, not by your phone. We use the paid tier of the Gemini API, where Google does not use requests to train its models.",
             "• Discord Inc. — if you sign in with Discord, as a separate controller.",
             "• Friends with an account whom you add to a trip, or who added you — they see that trip's data (see 2.3).",
             "• Public authorities — only where the law requires it.",
@@ -748,7 +759,7 @@
     },
     "terms": {
       "title": "Travelo Terms of Use",
-      "updated": "Version of 6 November 2026",
+      "updated": "Version of 20 November 2026",
       "sections": [
         {
           "heading": "1. General",
@@ -803,7 +814,8 @@
             "2. Recommendations are for information only. They may be out of date, incomplete or off the mark. Before visiting, check the opening hours, prices, availability and safety of a place yourself, e.g. on its website or in Google Maps.",
             "3. Recommendations are not professional advice (e.g. medical, legal, financial or safety advice). You decide yourself where to go and what to do.",
             "4. Place data comes from Google Maps Platform (\"Google Maps\") and is subject to the Google Maps Terms of Service (https://maps.google.com/help/terms_maps/) and the Google Privacy Policy (https://policies.google.com/privacy). Google is not a party to these Terms.",
-            "5. The number of AI requests is limited (currently 5 per day per account)."
+            "5. The number of AI requests is limited (currently 5 per day per account).",
+            "6. Ticket import reads flight details from a file automatically and, if needed, with the help of AI (Google Gemini). The reading may be wrong — check the details before saving the trip. Only upload your own ticket or one you have permission to share. The number of AI ticket analyses is limited (currently 5 per day per account)."
           ]
         },
         {
