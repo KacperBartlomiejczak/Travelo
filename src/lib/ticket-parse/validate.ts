@@ -1,5 +1,6 @@
 import {
   FLIGHT_NUMBER_PATTERN,
+  MAX_TICKET_SEGMENTS,
   TicketSegmentSchema,
   type GeminiTicket,
   type ParsedTicket,
@@ -29,7 +30,8 @@ export function validateParsed(parsed: ParsedTicket, airports: AirportLookup, to
       const from = airports(s.fromIata);
       const to = airports(s.toIata);
       const departs = from && s.departAt ? instant(s.departAt, from.timezone) : null;
-      const departOk = departs !== null && s.departAt!.slice(0, 10) >= min && s.departAt!.slice(0, 10) <= max;
+      const departDay = s.departAt?.slice(0, 10) ?? '';
+      const departOk = departs !== null && departDay >= min && departDay <= max;
       const arrives = to && s.arriveAt ? instant(s.arriveAt, to.timezone) : null;
       const arriveOk = arrives !== null && departOk && arrives > departs;
       return { ...s, departAt: departOk ? s.departAt : null, arriveAt: arriveOk ? s.arriveAt : null };
@@ -43,7 +45,7 @@ export function validateTicket(
   airports: AirportLookup,
   today: string,
 ): ValidateResult {
-  if (!gemini.isTicket || gemini.segments.length === 0) return { kind: 'not_a_ticket' };
+  if (!gemini.isTicket || gemini.segments.length === 0 || gemini.segments.length > MAX_TICKET_SEGMENTS) return { kind: 'not_a_ticket' };
   const min = shiftYears(today, -1);
   const max = shiftYears(today, 2);
 

@@ -113,8 +113,7 @@ function parseBlock(block: string, from: string, to: string) {
   };
 }
 
-export function parseTicketText(text: string, _today: string, airports: AirportLookup): ParsedTicket {
-  // `_today` is part of the agreed signature; date range checks happen in validateTicket.
+export function parseTicketText(text: string, airports: AirportLookup): ParsedTicket {
   const route = (index: number, from: string, to: string) => ({ index, from, to });
   let routes = [...text.matchAll(ARROW_ROUTE)].map((m) => route(m.index ?? 0, m[1], m[2]));
   if (routes.length === 0) {

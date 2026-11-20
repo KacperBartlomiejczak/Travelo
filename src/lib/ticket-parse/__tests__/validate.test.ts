@@ -62,6 +62,11 @@ describe('validateTicket', () => {
     expect(run(gem(gseg(), s))).toEqual({ kind: 'not_a_ticket' });
   });
 
+  it('enforces 1 to 8 segments', () => {
+    expect(run(gem(...Array.from({ length: 8 }, () => gseg()))).kind).toBe('ok');
+    expect(run(gem(...Array.from({ length: 9 }, () => gseg())))).toEqual({ kind: 'not_a_ticket' });
+  });
+
   it('accepts dates at the edges of the range', () => {
     expect(run(gem(gseg({ departLocal: '2025-11-19T06:45', arriveLocal: '2025-11-19T09:50' }))).kind).toBe('ok');
     expect(run(gem(gseg({ departLocal: '2028-11-19T06:45', arriveLocal: '2028-11-19T09:50' }))).kind).toBe('ok');
