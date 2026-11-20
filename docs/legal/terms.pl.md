@@ -1,6 +1,6 @@
 # Regulamin aplikacji Travelo
 
-Wersja z 6 listopada 2026 r.
+Wersja z 20 listopada 2026 r.
 
 ## 1. Postanowienia ogólne
 
@@ -45,6 +45,7 @@ Potrzebujesz smartfona z aktualnym systemem iOS lub Android, dostępu do interne
 3. Rekomendacje nie są poradą zawodową (np. medyczną, prawną, finansową ani dotyczącą bezpieczeństwa). Decyzje o tym, dokąd pójść i co robić, podejmujesz samodzielnie.
 4. Dane o miejscach pochodzą z **Google Maps Platform** („Google Maps”) i podlegają [Warunkom korzystania z Map Google](https://maps.google.com/help/terms_maps/) oraz [Polityce prywatności Google](https://policies.google.com/privacy). Google nie jest stroną tego regulaminu.
 5. Liczba zapytań AI jest ograniczona (obecnie 5 dziennie na konto).
+6. Import biletu odczytuje dane lotu z pliku automatycznie, a w razie potrzeby z pomocą AI (Google Gemini). Odczyt może być błędny — **sprawdź dane przed zapisaniem podróży**. Wgrywaj tylko swój bilet albo bilet osoby, która się na to zgodziła. Liczba analiz biletu przez AI jest ograniczona (obecnie 5 dziennie na konto).
 
 ## 7. Wydatki i budżet
 

@@ -24,6 +24,8 @@ import { tokens } from '@/theme/tokens';
 
 jest.mock('expo-font', () => ({ ...jest.requireActual('expo-font'), useFonts: jest.fn() }));
 jest.mocked(useFonts).mockReturnValue([true, null]);
+// The ticket import hook builds the Supabase client, which needs env variables tests do not have.
+jest.mock('@/data/supabase', () => ({ supabase: {} }));
 jest.mock('expo-crypto', () => ({ randomUUID: () => jest.requireActual('crypto').randomUUID() }));
 
 let mockScheme: 'light' | 'dark' = 'light';

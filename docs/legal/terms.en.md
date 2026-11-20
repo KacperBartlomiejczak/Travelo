@@ -1,6 +1,6 @@
 # Travelo Terms of Use
 
-Version of 6 November 2026
+Version of 20 November 2026
 
 ## 1. General
 
@@ -45,6 +45,7 @@ You need a smartphone with a current iOS or Android version, internet access (so
 3. Recommendations are not professional advice (e.g. medical, legal, financial or safety advice). You decide yourself where to go and what to do.
 4. Place data comes from **Google Maps Platform** ("Google Maps") and is subject to the [Google Maps Terms of Service](https://maps.google.com/help/terms_maps/) and the [Google Privacy Policy](https://policies.google.com/privacy). Google is not a party to these Terms.
 5. The number of AI requests is limited (currently 5 per day per account).
+6. Ticket import reads flight details from a file automatically and, if needed, with the help of AI (Google Gemini). The reading may be wrong — **check the details before saving the trip**. Only upload your own ticket or one you have permission to share. The number of AI ticket analyses is limited (currently 5 per day per account).
 
 ## 7. Expenses and budget
 

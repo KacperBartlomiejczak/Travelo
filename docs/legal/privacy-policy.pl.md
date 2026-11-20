@@ -1,6 +1,6 @@
 # Polityka prywatności aplikacji Travelo
 
-Wersja z 6 listopada 2026 r.
+Wersja z 20 listopada 2026 r.
 
 Ta polityka wyjaśnia, jakie dane osobowe przetwarza aplikacja mobilna Travelo („Aplikacja”), po co, jak długo i jakie masz prawa.
 
@@ -48,6 +48,13 @@ Aplikacja trzyma na telefonie kopię Twoich podróży, profilu i wydatków, żeb
 
 Aplikacja **nie używa** narzędzi reklamowych ani analitycznych i **nie śledzi** Twojej lokalizacji.
 
+### 2.8 Import biletu lotniczego
+- Gdy wczytujesz bilet (PDF albo zdjęcie biletu lub karty pokładowej), plik trafia na nasz serwer, gdzie jest najpierw odczytywany automatycznie, bez AI. Tylko gdy to nie wystarczy, plik trafia do Google Gemini API wyłącznie w celu odczytania danych lotu.
+- **Nie przechowujemy pliku** — jest przetwarzany tylko w pamięci serwera i nie trafia do magazynu plików ani logów. Kopia robocza na telefonie jest kasowana po wysłaniu.
+- Aplikacja dostaje z pliku tylko: lotniska, numery lotów, daty i godziny. Nie odczytujemy imienia i nazwiska pasażera ani numeru rezerwacji.
+- Skan kodu z karty pokładowej aparatem odbywa się **wyłącznie na telefonie** — obraz z aparatu nie trafia na serwer.
+- Zapisujemy licznik analiz AI w danym dniu (limit 5 dziennie na konto) i licznik odrzuconych plików, żeby chronić usługę przed nadużyciem.
+
 ## 3. Cele i podstawy prawne
 
 | Cel | Podstawa prawna (RODO) |
@@ -56,17 +63,18 @@ Aplikacja **nie używa** narzędzi reklamowych ani analitycznych i **nie śledzi
 | Planowanie podróży, zdjęcia, wydatki, synchronizacja między telefonem a serwerem | art. 6 ust. 1 lit. b — wykonanie umowy |
 | Przetwarzanie danych znajomych bez konta, które wpisujesz | art. 6 ust. 1 lit. f — prawnie uzasadniony interes: umożliwienie Ci zaplanowania wspólnej podróży |
 | Odkrywanie miejsc (miasto + zainteresowania) | art. 6 ust. 1 lit. b — wykonanie umowy |
+| Import biletu lotniczego (odczyt danych lotu z pliku) | art. 6 ust. 1 lit. b — wykonanie umowy |
 | Bezpieczeństwo, logi, limit zapytań AI, zapobieganie nadużyciom | art. 6 ust. 1 lit. f — prawnie uzasadniony interes: bezpieczeństwo usługi |
 | Odpowiedzi na wiadomości, reklamacje, obrona przed roszczeniami | art. 6 ust. 1 lit. f oraz art. 6 ust. 1 lit. c (obowiązki z prawa konsumenckiego) |
 
 Podanie danych jest dobrowolne, ale bez adresu e-mail (lub konta Google/Discord) i nicku nie da się założyć konta.
 
-Nie podejmujemy wobec Ciebie decyzji opartych wyłącznie na zautomatyzowanym przetwarzaniu, które wywołują skutki prawne lub podobnie istotnie na Ciebie wpływają. Rekomendacje miejsc od AI to tylko propozycje.
+Nie podejmujemy wobec Ciebie decyzji opartych wyłącznie na zautomatyzowanym przetwarzaniu, które wywołują skutki prawne lub podobnie istotnie na Ciebie wpływają. Rekomendacje miejsc od AI to tylko propozycje, a dane odczytane z biletu sprawdzasz i zatwierdzasz sam przed zapisaniem podróży.
 
 ## 4. Komu przekazujemy dane
 
 - **Supabase Inc.** — hosting bazy danych, logowania, plików i funkcji serwerowych (podmiot przetwarzający na podstawie umowy powierzenia). Dane są przechowywane w regionie **Irlandia (AWS eu-west-1)**.
-- **Google** — (a) jeśli logujesz się przez Google: Google jako osobny administrator uwierzytelnia Cię i przekazuje nam e-mail; (b) Google Places API i Gemini API dostają **tylko miasto i zainteresowania** z zapytania „Odkryj miejsca”. Zapytanie wysyła nasz serwer, nie Twój telefon. Używamy płatnej wersji Gemini API, w której Google nie wykorzystuje zapytań do trenowania modeli.
+- **Google** — (a) jeśli logujesz się przez Google: Google jako osobny administrator uwierzytelnia Cię i przekazuje nam e-mail; (b) Google Places API i Gemini API dostają **tylko miasto i zainteresowania** z zapytania „Odkryj miejsca”, a Gemini API — także plik biletu, gdy automatyczny odczyt nie wystarczy (patrz 2.8). Zapytanie wysyła nasz serwer, nie Twój telefon. Używamy płatnej wersji Gemini API, w której Google nie wykorzystuje zapytań do trenowania modeli.
 - **Discord Inc.** — jeśli logujesz się przez Discord, jako osobny administrator.
 - **Znajomi z kontem**, których dodasz do podróży lub którzy dodali Ciebie — widzą dane tej podróży (patrz 2.3).
 - Organy publiczne — tylko gdy wymaga tego prawo.

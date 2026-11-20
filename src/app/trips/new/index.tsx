@@ -3,17 +3,22 @@ import { Fragment, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { AccessibilityInfo, Text, View, type ScrollViewInstance } from 'react-native';
 
+import { ConfirmDialog } from '@/components/ConfirmDialog';
 import { LayoverLabel } from '@/components/LayoverLabel';
 import { SegmentedControl } from '@/components/SegmentedControl';
+import { Snackbar } from '@/components/Snackbar';
 import { Stepper } from '@/components/Stepper';
 import { TextButton } from '@/components/TextButton';
-import { addLayover, withOutbound, type SegmentDraft } from '@/features/trip-create/draft';
+import { BoardingPassScanner } from '@/features/trip-create/BoardingPassScanner';
+import { addLayover, draftFromTicket, isFlightsDraftEmpty, withBoardingPass, withOutbound, type SegmentDraft } from '@/features/trip-create/draft';
 import { fieldErrors } from '@/features/trip-create/field-errors';
 import { SegmentCard } from '@/features/trip-create/SegmentCard';
+import { TicketImportSheet } from '@/features/trip-create/TicketImportSheet';
 import { useTripDraft } from '@/features/trip-create/TripDraftContext';
 import { useGoToNextStep, WizardScreen } from '@/features/trip-create/WizardScreen';
+import { findAirport } from '@/lib/airport-search';
 import { layoverMinutes } from '@/lib/layovers';
-import { FlightsStepInputSchema, MAX_COMPANIONS } from '@/schemas';
+import { FlightsStepInputSchema, MAX_COMPANIONS, type BoardingPass, type ExtractTicketResponse } from '@/schemas';
 import { tokens } from '@/theme/tokens';
 import { useTheme } from '@/theme/useTheme';
 
@@ -41,6 +46,31 @@ export default function FlightsStep() {
   function scrollToCard(key: string) {
     const y = sectionY.current + (cardY.current[key] ?? 0);
     scrollRef.current?.scrollTo({ y: Math.max(0, y - tokens.spacing[4]), animated: true });
+  }
+
+  // Ticket import (ticket-import D1-D3): nothing is saved, the form is only filled for the user to check.
+  const [importOpen, setImportOpen] = useState(false);
+  const [scanOpen, setScanOpen] = useState(false);
+  const [replacing, setReplacing] = useState<ExtractTicketResponse | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
+  const timezoneOf = (iata: string) => findAirport(iata)?.timezone;
+
+  function applyTicket(response: ExtractTicketResponse) {
+    setDraft((current) => draftFromTicket(current, response.segments, timezoneOf));
+    setNotice(t(response.complete ? 'newTrip.flights.import.importedComplete' : 'newTrip.flights.import.importedPartial'));
+  }
+
+  function ticketImported(response: ExtractTicketResponse) {
+    setImportOpen(false);
+    if (isFlightsDraftEmpty(draft)) applyTicket(response);
+    else setReplacing(response);
+  }
+
+  function passScanned(pass: BoardingPass, direction: Direction) {
+    setDraft((current) => withBoardingPass(current, pass, direction, timezoneOf));
+    setShown(direction);
+    setScanOpen(false);
+    setNotice(t('newTrip.flights.import.scanned'));
   }
 
   function setSegments(direction: Direction, segments: SegmentDraft[]) {
@@ -134,12 +164,12 @@ export default function FlightsStep() {
   }
 
   return (
+    <>
     <WizardScreen step="flights" scrollRef={scrollRef} action={{ label: t('newTrip.next'), onPress: next }}>
       <Text accessibilityRole="header" style={[tokens.typography.styles.headingLG, { color: theme.text.primary }]}>
         {t('newTrip.flights.heading')}
       </Text>
-      {/* D2: ticket parsing comes later; the button is visible but disabled. */}
-      <TextButton variant="secondary" icon={Ticket} label={t('newTrip.flights.ticket')} disabled onPress={() => {}} />
+      <TextButton variant="secondary" icon={Ticket} label={t('newTrip.flights.ticket')} onPress={() => setImportOpen(true)} />
       <SegmentedControl
         label={t('newTrip.flights.direction')}
         options={[
@@ -158,5 +188,29 @@ export default function FlightsStep() {
         onChange={setCompanionCount}
       />
     </WizardScreen>
+    <TicketImportSheet
+      visible={importOpen}
+      onClose={() => setImportOpen(false)}
+      onScan={() => {
+        setImportOpen(false);
+        setScanOpen(true);
+      }}
+      onImported={ticketImported}
+    />
+    {scanOpen && <BoardingPassScanner visible onClose={() => setScanOpen(false)} onAdd={passScanned} />}
+    <ConfirmDialog
+      visible={replacing !== null}
+      title={t('newTrip.flights.import.replaceTitle')}
+      message={t('newTrip.flights.import.replaceMessage')}
+      confirmLabel={t('newTrip.flights.import.replace')}
+      cancelLabel={t('newTrip.flights.import.keep')}
+      onConfirm={() => {
+        if (replacing) applyTicket(replacing);
+        setReplacing(null);
+      }}
+      onCancel={() => setReplacing(null)}
+    />
+    <Snackbar message={notice} onHide={() => setNotice(null)} bottomOffset={tokens.components.button.height + tokens.spacing[4]} />
+    </>
   );
 }

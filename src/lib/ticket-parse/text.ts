@@ -1,0 +1,130 @@
+import {
+  FLIGHT_NUMBER_PATTERN,
+  MAX_TICKET_SEGMENTS,
+  ParsedTicketSchema,
+  type ParsedTicket,
+} from '../../schemas/ticket.ts';
+
+export type AirportLookup = (iata: string) => { timezone: string } | undefined;
+
+// Generic patterns only (no real carrier samples yet). When fields cannot be tied to one segment they stay null; Gemini fills gaps.
+const MONTHS: Record<string, number> = {
+  ...Object.fromEntries(['jan', 'feb', 'mar', 'apr', 'may', 'jun', 'jul', 'aug', 'sep', 'oct', 'nov', 'dec'].map((m, i) => [m, i + 1])),
+  ...Object.fromEntries(['sty', 'lut', 'mar', 'kwi', 'maj', 'cze', 'lip', 'sie', 'wrz', 'paź', 'lis', 'gru'].map((m, i) => [m, i + 1])),
+};
+const ARROW_ROUTE = /\b([A-Z]{3})\b\)?\s*(?:→|->|–|—|-|>|\bto\b|\bdo\b)\s*\(?\b([A-Z]{3})\b/g;
+const PAREN_CODE = /\(([A-Z]{3})\)/g;
+const PAREN_ROUTE = /\(([A-Z]{3})\)\s*(?:→|->|–|—|-|>|\bto\b|\bdo\b)\s*[\p{L} .'-]{0,40}?\(([A-Z]{3})\)/gu;
+const FLIGHT = /\b([A-Z][A-Z0-9]|[0-9][A-Z])\s?(\d{1,4}[A-Z]?)\b/g;
+const DEP_LABEL = /\b(?:Departure|Departs|Depart|Wylot|Odlot)\b/i;
+const ANY_LABEL = /\b(?:Departure|Departs|Depart|Wylot|Odlot|Arrival|Arrives|Arrive|Przylot)\b/gi;
+const ARR_LABEL = /\b(?:Arrival|Arrives|Arrive|Przylot)\b/i;
+const TIME = /\b([01]?\d|2[0-3]):([0-5]\d)\b/;
+const WINDOW = 60;
+
+const pad = (n: number) => String(n).padStart(2, '0');
+
+function ymd(y: number, m: number, d: number): string | null {
+  const real = new Date(Date.UTC(y, m - 1, d));
+  if (real.getUTCFullYear() !== y || real.getUTCMonth() !== m - 1 || real.getUTCDate() !== d) return null;
+  return `${y}-${pad(m)}-${pad(d)}`;
+}
+
+// All date-like tokens in `s`, in order; an impossible date (30 Feb) yields null so callers never fall back to a guess.
+function dates(s: string): (string | null)[] {
+  const found: { index: number; value: string | null }[] = [];
+  const add = (re: RegExp, build: (m: RegExpMatchArray) => string | null) => {
+    for (const m of s.matchAll(re)) found.push({ index: m.index ?? 0, value: build(m) });
+  };
+  add(/\b(\d{4})-(\d{2})-(\d{2})\b/g, (m) => ymd(+m[1], +m[2], +m[3]));
+  add(/\b(\d{1,2})[./](\d{1,2})[./](\d{4})\b/g, (m) => ymd(+m[3], +m[2], +m[1])); // day first (European)
+  add(/\b(\d{1,2})\s+(\p{L}{3,})\.?,?\s+(\d{4})\b/gu, (m) => {
+    const month = MONTHS[m[2].slice(0, 3).toLowerCase()];
+    return month ? ymd(+m[3], month, +m[1]) : null;
+  });
+  return found.sort((a, b) => a.index - b.index).map((f) => f.value);
+}
+
+const timeOf = (s: string): string | null => {
+  const m = s.match(TIME);
+  return m ? `${pad(+m[1])}:${m[2]}` : null;
+};
+
+// Text following the first `label` up to the next label or WINDOW chars.
+function windowAfter(block: string, label: RegExp): string | null {
+  const m = label.exec(block);
+  if (!m) return null;
+  const rest = block.slice(m.index + m[0].length);
+  const next = rest.search(ANY_LABEL);
+  return rest.slice(0, Math.min(WINDOW, next < 0 ? WINDOW : next));
+}
+
+// The way back starts at the first leg that returns to an airport already departed from, provided the trip ends at the origin.
+export function assignDirections<T extends { fromIata: string; toIata: string }>(
+  segments: T[],
+): (T & { direction: 'outbound' | 'return' })[] {
+  const origin = segments[0]?.fromIata;
+  const turn = segments.findIndex((s, i) => i > 0 && segments.slice(0, i).some((p) => p.fromIata === s.toIata));
+  const hasReturn = turn > 0 && segments[segments.length - 1].toIata === origin;
+  return segments.map((s, i) => ({ ...s, direction: hasReturn && i >= turn ? 'return' : 'outbound' }));
+}
+
+// "(XXX)" tied to the nearest preceding Departure/Arrival word (no other bracket in between); a departure followed by an arrival makes a route.
+function labelledRoutes(text: string, airports: AirportLookup) {
+  const tied: { index: number; kind: 'dep' | 'arr'; iata: string }[] = [];
+  for (const m of text.matchAll(PAREN_CODE)) {
+    const at = m.index ?? 0;
+    if (!airports(m[1])) continue;
+    const before = text.slice(Math.max(0, at - 40), at);
+    const label = [...before.matchAll(ANY_LABEL)].pop();
+    if (!label || before.slice((label.index ?? 0) + label[0].length).includes('(')) continue;
+    tied.push({ index: at - before.length + (label.index ?? 0), kind: DEP_LABEL.test(label[0]) ? 'dep' : 'arr', iata: m[1] });
+  }
+  const routes: { index: number; from: string; to: string }[] = [];
+  for (let i = 0; i + 1 < tied.length; i++) {
+    if (tied[i].kind === 'dep' && tied[i + 1].kind === 'arr') routes.push({ index: tied[i].index, from: tied[i].iata, to: tied[i + 1].iata });
+  }
+  return routes;
+}
+
+function parseBlock(block: string, from: string, to: string) {
+  const dep = windowAfter(block, DEP_LABEL);
+  const arr = windowAfter(block, ARR_LABEL);
+  const blockDates = [...new Set(dates(block))];
+  const blockDate = blockDates.length === 1 ? blockDates[0] : null;
+  const depDate = dep ? (dates(dep)[0] ?? null) : null;
+  const flightDate = depDate ?? blockDate;
+  const depTime = dep ? timeOf(dep) : null;
+  const arrTime = arr ? timeOf(arr) : null;
+  const arrDate = arr ? (dates(arr)[0] ?? null) : null;
+
+  const numbers = [...new Set([...block.matchAll(FLIGHT)].map((m) => (m[1] + m[2]).replace(/^([A-Z0-9]{2})0+(?=\d)/, '$1')))].filter(
+    (n) => FLIGHT_NUMBER_PATTERN.test(n),
+  );
+  // Arrival with no printed date is the departure day only when it is later on the clock; otherwise it may be the next day.
+  const arriveDay = arrDate ?? (depTime && arrTime && arrTime > depTime ? flightDate : null);
+  return {
+    fromIata: from,
+    toIata: to,
+    flightNumber: numbers.length === 1 ? numbers[0] : null,
+    flightDate,
+    departAt: flightDate && depTime ? `${flightDate}T${depTime}` : null,
+    arriveAt: arriveDay && arrTime ? `${arriveDay}T${arrTime}` : null,
+  };
+}
+
+export function parseTicketText(text: string, airports: AirportLookup): ParsedTicket {
+  const route = (index: number, from: string, to: string) => ({ index, from, to });
+  let routes = [...text.matchAll(ARROW_ROUTE)].map((m) => route(m.index ?? 0, m[1], m[2]));
+  if (routes.length === 0) {
+    routes = [...text.matchAll(PAREN_ROUTE)].map((m) => route(m.index ?? 0, m[1], m[2]));
+  }
+  if (routes.length === 0) routes = labelledRoutes(text, airports);
+  const segments = routes
+    .map((r, i) => ({ r, block: text.slice(r.index, routes[i + 1]?.index ?? text.length) }))
+    .filter(({ r }) => r.from !== r.to && airports(r.from) && airports(r.to))
+    .map(({ r, block }) => parseBlock(block, r.from, r.to))
+    .slice(0, MAX_TICKET_SEGMENTS);
+  const parsed = ParsedTicketSchema.safeParse({ segments: assignDirections(segments) });
+  return parsed.success ? parsed.data : { segments: [] };
+}

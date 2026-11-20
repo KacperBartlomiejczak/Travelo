@@ -124,7 +124,7 @@ The original plan was a monorepo (`apps/mobile/`, `packages/schemas/`, `supabase
 | `apps/mobile/` | Expo app | repository root (`src/`) |
 | `packages/schemas/` | Zod schemas | `src/schemas/` |
 | `supabase/migrations/` | SQL migrations | exists (at the root, as planned) |
-| `supabase/functions/` | Edge Functions | exists: `delete-account`, `recommend-places`, `generate-trip-plan`, `place-details` |
+| `supabase/functions/` | Edge Functions | exists: `delete-account`, `recommend-places`, `generate-trip-plan`, `place-details`, `extract-ticket` |
 
 
 ## Modules
@@ -149,6 +149,7 @@ The original plan was a monorepo (`apps/mobile/`, `packages/schemas/`, `supabase
 | Expense data | `src/schemas/expense.ts`, `src/data/expense-repository.ts`, `expense-rows.ts`, `expense-sync.ts`, `app-expense.ts` | Expense schemas; local writes and reads in SQLite; row mapping; push and pull with Supabase; app instances | Zod, `expo-sqlite`, Supabase |
 | Expense budget | `src/lib/expense-budget.ts` | Pure totals, daily limit with carryover (D7), category sums, timeline days, one person's spend per trip day (`dailySpend`) | schemas, `trip-days` |
 | Create-trip feature | `src/features/trip-create/` | Draft type and helpers, step routing, draft context (dirty/complete), wizard frame, segment/friend cards, field errors | schemas, lib, components |
+| Ticket import | `src/lib/ticket-parse/` (`sniff`, `bcbp`, `text`, `merge`, `validate`), `src/lib/ticket-prompt.ts`, `src/schemas/ticket.ts`, `src/data/ticket-import.ts`, `src/hooks/useExtractTicket.ts`, `src/features/trip-create/{ticket-pick.ts,TicketImportSheet.tsx,BoardingPassScanner.tsx}`, `supabase/functions/extract-ticket/` | Fill the wizard's flights from a ticket: a PDF or gallery photo goes to the `extract-ticket` Edge Function (parser first, Gemini only for what is missing); a boarding-pass code is scanned with the camera and parsed on the phone (`parseBcbp`, offline). Nothing is saved automatically. Flow: [ticket-import.md](flows/features/ticket-import.md) | schemas, lib, data, components, `expo-camera`, `expo-document-picker`, `expo-image-manipulator`, `expo-file-system` |
 | Theme | `src/theme/` | Primitive tokens (`tokens.ts`, incl. the `gradient` and `duration` groups), type scale (`typography.styles` in `tokens.ts`), semantic `lightTheme` / `darkTheme` and `Theme` type (`theme.ts`), `useTheme()` hook, `DarkThemeScope` and the theme-choice store (`themePreference.ts`) | `react-native` (`useColorScheme`), `src/data/preferences` |
 | i18n | `src/i18n/` | One i18next instance with `pl` / `en` resources; the saved language, or the device's on `system` (`resolveLanguage`) | `i18next`, `react-i18next`, `expo-localization`, `@formatjs/intl-pluralrules` (polyfill on Hermes) |
 | Components | `src/components/` | Buttons (incl. the round `HeroIconButton`), `Fab`, fields, chips, interest chips (`InterestChips`), cards, step indicator, stepper, segmented control, cover picker, cover image, trip hero, bottom sheet, confirm dialog, pill nav, snackbar, sync indicator, offline banner (see Frontend) | theme, i18n, lib, `lucide-react-native`, `react-native-svg`, `@expo/ui`, `expo-image`, `expo-image-picker`, `react-native-safe-area-context` |

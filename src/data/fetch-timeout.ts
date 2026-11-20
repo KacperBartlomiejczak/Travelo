@@ -7,7 +7,11 @@ export const RECOMMEND_PLACES_TIMEOUT_MS = 45_000;
 /** `generate-trip-plan` runs Places + Gemini (+ place details) in one request, so it gets the longest wait (ai-trip-plan step 8). */
 export const GENERATE_TRIP_PLAN_TIMEOUT_MS = 60_000;
 
+/** `extract-ticket` may run a Gemini call on a file up to 5 MB (ticket-import-ai step 5). */
+export const EXTRACT_TICKET_TIMEOUT_MS = 45_000;
+
 const RECOMMEND_PLACES_PATH = '/functions/v1/recommend-places';
+const EXTRACT_TICKET_PATH = '/functions/v1/extract-ticket';
 const GENERATE_TRIP_PLAN_PATH = '/functions/v1/generate-trip-plan';
 
 /**
@@ -21,7 +25,9 @@ export function withTimeout(fetchImpl: typeof fetch, ms: number): typeof fetch {
       ? Math.max(ms, GENERATE_TRIP_PLAN_TIMEOUT_MS)
       : url.includes(RECOMMEND_PLACES_PATH)
         ? Math.max(ms, RECOMMEND_PLACES_TIMEOUT_MS)
-        : ms;
+        : url.includes(EXTRACT_TICKET_PATH)
+          ? Math.max(ms, EXTRACT_TICKET_TIMEOUT_MS)
+          : ms;
     const controller = new AbortController();
     const abort = () => controller.abort();
     const timer = setTimeout(abort, limit);
