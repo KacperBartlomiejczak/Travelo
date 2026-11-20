@@ -110,7 +110,7 @@ export const RecommendPlacesRequestSchema = z.object({
   city: z.string().trim().min(1).max(100),
   latitude: LatitudeSchema,
   longitude: LongitudeSchema,
-  interests: z.array(InterestTagSchema).min(1),
+  interests: z.array(InterestTagSchema).min(1).max(InterestTagSchema.options.length),
   locale: z.enum(['pl', 'en']),
 });
 export type RecommendPlacesRequest = z.infer<typeof RecommendPlacesRequestSchema>;

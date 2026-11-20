@@ -9,7 +9,8 @@ Feature flows live in [`features/`](features/), one file per feature that exists
 | Profile setup | [profile-setup.md](features/profile-setup.md) | yes |
 | Profile screen and travel stats | [profile-screen.md](features/profile-screen.md) | no |
 | Settings, edit profile, avatar, delete account | [profile-settings.md](features/profile-settings.md) | edits and delete: yes |
-| Create a trip (wizard, cover) | [trip-create.md](features/trip-create.md) | yes |
+| Create a trip (wizard) | [trip-create.md](features/trip-create.md) | yes |
+| Trip cover (presets, gallery photo) | [trip-cover.md](features/trip-cover.md) | presets: no; gallery photo: yes |
 | Friend invite (friend code) | [friend-invite.md](features/friend-invite.md) | yes |
 | Home screen, trip list, side panel | [trip-home.md](features/trip-home.md) | no (copies) |
 | Edit and delete a trip | [trip-edit.md](features/trip-edit.md) | yes |
@@ -20,8 +21,9 @@ Feature flows live in [`features/`](features/), one file per feature that exists
 | Expenses | [expenses.md](features/expenses.md) | no (offline write) |
 | Discover places (Google Places + Gemini) | [discover-places.md](features/discover-places.md) | yes |
 | PRO subscription (RevenueCat paywall, Customer Center) | [subscription.md](features/subscription.md) | purchase and manage: yes; status: no (SDK cache) |
-| AI trip plan (question cards, Gemini over Places candidates) | [ai-trip-plan.md](features/ai-trip-plan.md) | yes |
+| AI trip plan (one question form, Gemini over Places candidates) | [ai-trip-plan.md](features/ai-trip-plan.md) | yes |
+| Legal pages (privacy policy, terms of use) | [legal-pages.md](features/legal-pages.md) | no (bundled text) |
 | Offline rules | [offline.md](offline.md) | — |
 | AI day plan (rules, not built) | [ai-day-plan.md](ai-day-plan.md) | — |
 
-The „Plan” tab without a current trip is a placeholder; „Miejsca” was removed (places-legal-navbar D3).
+The "Plan" tab without a current trip is a placeholder ("This screen is coming soon.", described in [pill-navigation.md](features/pill-navigation.md)); the "Places" tab was removed (places-legal-navbar D3). Features that are still in progress (for example plan-day-change) are documented only in `prompts/<feature-name>/plan.md` until they ship.

@@ -13,6 +13,7 @@ import { writeLanguagePreference, writeThemePreference } from '@/data/preference
 import i18n from '@/i18n';
 import { useFakeAppSession } from '@/test/fake-session-source';
 import { setNetwork } from '@/test/mock-network';
+import { setThemePreference } from '@/theme/themePreference';
 import { tokens } from '@/theme/tokens';
 
 jest.mock('expo-font', () => ({ ...jest.requireActual('expo-font'), useFonts: jest.fn() }));
@@ -27,6 +28,8 @@ jest.mock('@/data/preferences', () => ({
   readThemePreference: jest.fn(() => mockSaved?.theme ?? 'system'),
   readLanguagePreference: jest.fn(() => mockSaved?.language ?? 'system'),
   writeThemePreference: jest.fn(),
+  readChartStylePreference: jest.fn(() => 'line'),
+  writeChartStylePreference: jest.fn(),
   writeLanguagePreference: jest.fn(),
 }));
 
@@ -56,6 +59,7 @@ const openSheet = (row: string) => fireEvent.press(screen.getByRole('button', { 
 
 beforeEach(async () => {
   mockSaved = { theme: 'system', language: 'system' };
+  setThemePreference('system'); // the in-memory choice is read once per app start; each test is a fresh start
   jest.mocked(writeThemePreference).mockClear();
   jest.mocked(writeLanguagePreference).mockClear();
   setNetwork({ isConnected: true, isInternetReachable: true });
@@ -101,6 +105,7 @@ describe('Settings list (profile-settings step 8)', () => {
 
   it('the switches show the saved choice', async () => {
     mockSaved = { theme: 'dark', language: 'en' };
+    setThemePreference('dark');
     await openSettings();
     await openSheet('Motyw');
     expect(group('Motyw').getByRole('radio', { name: 'Ciemny' })).toBeChecked();
@@ -155,21 +160,21 @@ describe('Settings list (profile-settings step 8)', () => {
   it('has rows at least 56dp tall in the order Edytuj profil, Polityka prywatności, Regulamin, Wersja; Wersja is not a button', async () => {
     await openSettings();
     const rows = screen.getAllByTestId('settings-row');
-    expect(rows).toHaveLength(6);
+    expect(rows).toHaveLength(7);
     for (const row of rows) expect(StyleSheet.flatten(row.props.style).minHeight).toBe(tokens.components.listRow.minHeight);
-    for (const name of ['Edytuj profil', 'Motyw, Systemowy', 'Język, Systemowy', 'Polityka prywatności', 'Regulamin']) {
+    for (const name of ['Edytuj profil', 'Motyw, Systemowy', 'Wykres budżetu, Liniowy', 'Język, Systemowy', 'Polityka prywatności', 'Regulamin']) {
       expect(screen.getByRole('button', { name })).toBeTruthy();
     }
     expect(tokens.components.listRow.minHeight).toBe(56);
     expect(screen.queryByRole('button', { name: /Wersja/ })).toBeNull();
-    const texts = within(screen.getByTestId('settings-scroll')).getAllByText(/^(Edytuj profil|Motyw|Język|Polityka prywatności|Regulamin|Wersja)$/).map((n) => n.props.children);
-    expect(texts).toEqual(['Edytuj profil', 'Motyw', 'Język', 'Polityka prywatności', 'Regulamin', 'Wersja']);
+    const texts = within(screen.getByTestId('settings-scroll')).getAllByText(/^(Edytuj profil|Motyw|Wykres budżetu|Język|Polityka prywatności|Regulamin|Wersja)$/).map((n) => n.props.children);
+    expect(texts).toEqual(['Edytuj profil', 'Motyw', 'Wykres budżetu', 'Język', 'Polityka prywatności', 'Regulamin', 'Wersja']);
   });
 
   it('hides the arrow circles from assistive tech and shows one only on button rows', async () => {
     await openSettings();
     const circles = screen.getAllByTestId('settings-row-arrow', { includeHiddenElements: true });
-    expect(circles).toHaveLength(5);
+    expect(circles).toHaveLength(6);
     for (const circle of circles) {
       expect(circle.props['aria-hidden']).toBe(true);
       expect(StyleSheet.flatten(circle.props.style)).toMatchObject({ width: tokens.spacing[8], height: tokens.spacing[8] });
@@ -178,6 +183,7 @@ describe('Settings list (profile-settings step 8)', () => {
 
   it('has no radio on the main level, only rows showing the current value', async () => {
     mockSaved = { theme: 'dark', language: 'en' };
+    setThemePreference('dark');
     await openSettings();
     expect(screen.queryAllByRole('radio')).toHaveLength(0);
     expect(screen.getByRole('button', { name: 'Motyw, Ciemny' })).toBeTruthy();

@@ -142,6 +142,8 @@ export function ExpenseSheet({ overview, expense, today, onClose, onSaved }: Pro
           autoCapitalize="sentences"
           error={nameError}
         />
+        {/* Solo trip (only the organizer): nobody to choose, the expense stays the organizer's (memberId null). */}
+        {members.length > 0 && (
         <Field label={t('expenses.sheet.who')}>
           {writer.isOwner ? (
             <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing[2] }}>
@@ -153,6 +155,7 @@ export function ExpenseSheet({ overview, expense, today, onClose, onSaved }: Pro
             <Text style={[typography.styles.bodyLG, { color: theme.text.primary, minHeight: tokens.layout.touchTarget }]}>{t('newTrip.summary.you')}</Text>
           )}
         </Field>
+        )}
         <DateField label={t('expenses.sheet.date')} value={spentOn} onChange={setSpentOn} />
         {expense && <TextButton variant="destructive" label={t('expenses.sheet.delete')} onPress={() => setConfirmDelete(true)} disabled={busy} />}
       </ScrollView>

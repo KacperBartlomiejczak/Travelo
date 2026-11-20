@@ -5,7 +5,6 @@ import { Text, View } from 'react-native';
 
 import { AirportField } from '@/components/AirportField';
 import { PrimaryButton } from '@/components/PrimaryButton';
-import { SkeletonBlock } from '@/components/SkeletonBlock';
 import { TextButton } from '@/components/TextButton';
 import { AuthFormScreen } from '@/features/auth/AuthFormScreen';
 import { usePlaceRecommendations } from '@/hooks/usePlaceRecommendations';
@@ -21,7 +20,7 @@ import {
 import { tokens } from '@/theme/tokens';
 import { useTheme } from '@/theme/useTheme';
 
-import { PlaceCard } from './PlaceCard';
+import { PlaceCard, PlaceCardSkeleton } from './PlaceCard';
 
 const { spacing, typography } = tokens;
 
@@ -86,8 +85,8 @@ export function DiscoverScreen({
   if (loading || profile.isPending) {
     results = (
       <View testID="discover-loading" accessibilityLabel={t('discover.loading')} style={{ gap: spacing[3] }}>
-        <SkeletonBlock width="100%" height={spacing[10]} />
-        <SkeletonBlock width="100%" height={spacing[10]} />
+        <PlaceCardSkeleton />
+        <PlaceCardSkeleton />
       </View>
     );
   } else if (profile.isError) {

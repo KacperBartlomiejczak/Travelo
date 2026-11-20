@@ -1,7 +1,7 @@
 import type { Expense, LocalExpense } from '@/schemas';
-import { ExpenseDaySchema, GroupBudgetSchema, PersonBudgetSchema } from '@/schemas';
+import { DailySpendSchema, ExpenseDaySchema, GroupBudgetSchema, PersonBudgetSchema } from '@/schemas';
 
-import { computeExpenseBudget, groupExpensesByDay } from '../expense-budget';
+import { computeExpenseBudget, dailySpend, groupExpensesByDay } from '../expense-budget';
 
 const TRIP_ID = '11111111-1111-4111-8111-111111111111';
 const MEMBER = '22222222-2222-4222-8222-222222222222';
@@ -184,5 +184,52 @@ describe('groupExpensesByDay', () => {
     const plus2 = expense({ amountMinor: 1, createdAt: '2026-11-01T10:00:00+02:00' }); // 08:00Z
     const utc = expense({ amountMinor: 1, createdAt: '2026-11-01T09:00:00Z' });
     expect(groupExpensesByDay([plus2, utc])[0].expenses.map((e) => e.id)).toEqual([utc.id, plus2.id]);
+  });
+});
+
+describe('dailySpend (trip-spend-chart A2, P1, P2)', () => {
+  const trip = { memberId: null as string | null, startDate: '2026-11-10', endDate: '2026-11-12' };
+  const at = (spentOn: string, amountMinor: number, over: Partial<LocalExpense> = {}) => expense({ spentOn, amountMinor, ...over });
+  const pts = (r: { spentOn: string; spentMinor: number }[]) => r.map((p) => [p.spentOn, p.spentMinor]);
+
+  it('mid-trip stops at today, zero for days without expenses', () => {
+    const r = dailySpend({ ...trip, today: '2026-11-11', expenses: [at('2026-11-10', 100)] });
+    expect(pts(r)).toEqual([['2026-11-10', 100], ['2026-11-11', 0]]);
+    r.forEach((p) => expect(DailySpendSchema.safeParse(p).success).toBe(true));
+  });
+
+  it('future trip gives no points', () => {
+    expect(dailySpend({ ...trip, today: '2026-11-09', expenses: [at('2026-11-10', 100)] })).toEqual([]);
+  });
+
+  it('ended trip gives every trip day including zero days', () => {
+    const r = dailySpend({ ...trip, today: '2026-12-01', expenses: [at('2026-11-12', 50)] });
+    expect(pts(r)).toEqual([['2026-11-10', 0], ['2026-11-11', 0], ['2026-11-12', 50]]);
+  });
+
+  it('counts only the given traveler: organizer vs member', () => {
+    const expenses = [at('2026-11-10', 100), at('2026-11-10', 40, { memberId: MEMBER }), at('2026-11-10', 7, { memberId: REMOVED })];
+    expect(dailySpend({ ...trip, today: '2026-11-10', expenses })[0].spentMinor).toBe(100);
+    expect(dailySpend({ ...trip, memberId: MEMBER, today: '2026-11-10', expenses })[0].spentMinor).toBe(40);
+  });
+
+  it('skips soft-deleted expenses', () => {
+    const r = dailySpend({ ...trip, today: '2026-11-10', expenses: [at('2026-11-10', 100, { deletedAt: '2026-11-10T12:00:00.000Z' })] });
+    expect(r[0].spentMinor).toBe(0);
+  });
+
+  it('ignores expenses dated before or after the trip', () => {
+    const r = dailySpend({ ...trip, today: '2026-12-01', expenses: [at('2026-11-09', 100), at('2026-11-13', 200)] });
+    expect(pts(r)).toEqual([['2026-11-10', 0], ['2026-11-11', 0], ['2026-11-12', 0]]);
+  });
+
+  it('sums several expenses on the same day', () => {
+    const r = dailySpend({ ...trip, today: '2026-11-10', expenses: [at('2026-11-10', 100), at('2026-11-10', 25)] });
+    expect(r[0].spentMinor).toBe(125);
+  });
+
+  it('crosses a month boundary', () => {
+    const r = dailySpend({ memberId: null, startDate: '2026-01-30', endDate: '2026-02-02', today: '2026-02-02', expenses: [at('2026-02-01', 9)] });
+    expect(pts(r)).toEqual([['2026-01-30', 0], ['2026-01-31', 0], ['2026-02-01', 9], ['2026-02-02', 0]]);
   });
 });

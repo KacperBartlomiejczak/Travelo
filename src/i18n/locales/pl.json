@@ -157,8 +157,6 @@
         "food": "Dużo jedzenia",
         "noMuseums": "Bez muzeów"
       },
-      "next": "Dalej",
-      "back": "Wstecz",
       "cancel": "Anuluj",
       "submit": "Ułóż plan"
     },
@@ -290,11 +288,21 @@
     }
   },
   "home": {
+    "showBudget": "Pokaż budżet",
+    "noExpenses": "Nie masz jeszcze wydatków",
+    "ownBudget": "Twój budżet: {{amount}} na wyjazd",
+    "chartBeforeTrip": "Wykres pojawi się od pierwszego dnia wyjazdu.",
+    "chartOverCentre": "ponad budżet",
+    "chartSpent": "Wydałem",
+    "chartLeft": "Zostało",
+    "chartSpentAmount": "Wydałem {{amount}}",
+    "chartSummary": "Wydałem {{spent}} · Zostało {{left}} z {{total}}",
+    "chartValueOver": "Wydałem {{spent}}, {{over}}, z {{total}}",
+    "chartValue": "Wydałem {{spent}}, zostało {{left}}, z {{total}}",
     "flights": "Loty",
     "organizer": "{{name}} (organizator)",
     "organizerUnknown": "Organizator",
     "changeBudget": "Zmień budżet",
-    "perDayGroup": "dziennie dla grupy",
     "saveBudget": "Zapisz",
     "saveBudgetError": "Nie udało się zapisać. Spróbuj ponownie."
   },
@@ -475,6 +483,8 @@
       "error": "Nie udało się otworzyć subskrypcji. Spróbuj ponownie."
     },
     "theme": "Motyw",
+    "chartStyle": "Wykres budżetu",
+    "chart": { "line": "Liniowy", "bar": "Słupkowy", "donut": "Donut" },
     "language": "Język",
     "system": "Systemowy",
     "light": "Jasny",

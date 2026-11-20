@@ -1,7 +1,7 @@
 import Constants from 'expo-constants';
 import { Image } from 'expo-image';
 import { router } from 'expo-router';
-import { ArrowRight, Crown, FileText, Info, Languages, Palette, Plane, ShieldCheck, UserRound, type LucideIcon } from 'lucide-react-native';
+import { ArrowRight, ChartLine, Crown, FileText, Info, Languages, Palette, Plane, ShieldCheck, UserRound, type LucideIcon } from 'lucide-react-native';
 import { useId, useRef, useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
@@ -233,7 +233,7 @@ export function SettingsScreen() {
   const [deleting, setDeleting] = useState(false);
   const [snackbar, setSnackbar] = useState<string | null>(null);
   // The kind stays when the sheet closes, so its content does not change during the slide-out.
-  const [sheet, setSheet] = useState({ kind: 'theme' as 'theme' | 'language', open: false });
+  const [sheet, setSheet] = useState({ kind: 'theme' as 'theme' | 'language' | 'chartStyle', open: false });
   // Deleting needs the own nick (to type it) and the server; without a loaded profile there is nothing to confirm against.
   const myProfile = useMyProfile();
   const hasProfile = Boolean(myProfile.data);
@@ -310,6 +310,7 @@ export function SettingsScreen() {
             )}
             <SettingsRow icon={UserRound} label={t('settings.editProfile')} onPress={() => router.push('/edit-profile')} divider />
             <SettingsRow icon={Palette} label={t('settings.theme')} value={t(`settings.${preferences.theme}`)} onPress={() => setSheet({ kind: 'theme', open: true })} divider />
+            <SettingsRow icon={ChartLine} label={t('settings.chartStyle')} value={t(`settings.chart.${preferences.chartStyle}`)} onPress={() => setSheet({ kind: 'chartStyle', open: true })} divider />
             <SettingsRow
               icon={Languages}
               label={t('settings.language')}
@@ -344,7 +345,7 @@ export function SettingsScreen() {
           <TextButton variant="destructive" label={t('settings.deleteAccount')} onPress={() => setDeleting(true)} disabled={offline || !hasProfile} />
         </View>
       </ScrollView>
-      <BottomSheet visible={sheet.open} title={t(sheet.kind === 'language' ? 'settings.language' : 'settings.theme')} onClose={() => setSheet((current) => ({ ...current, open: false }))}>
+      <BottomSheet visible={sheet.open} title={t({ language: 'settings.language', chartStyle: 'settings.chartStyle', theme: 'settings.theme' }[sheet.kind])} onClose={() => setSheet((current) => ({ ...current, open: false }))}>
         {sheet.kind === 'language' ? (
           <SegmentedControl
             label={t('settings.language')}
@@ -354,6 +355,17 @@ export function SettingsScreen() {
               { value: 'system', label: t('settings.system') },
               { value: 'pl', label: t('settings.polish') },
               { value: 'en', label: t('settings.english') },
+            ]}
+          />
+        ) : sheet.kind === 'chartStyle' ? (
+          <SegmentedControl
+            label={t('settings.chartStyle')}
+            value={preferences.chartStyle}
+            onChange={preferences.setChartStyle}
+            options={[
+              { value: 'line', label: t('settings.chart.line') },
+              { value: 'bar', label: t('settings.chart.bar') },
+              { value: 'donut', label: t('settings.chart.donut') },
             ]}
           />
         ) : (

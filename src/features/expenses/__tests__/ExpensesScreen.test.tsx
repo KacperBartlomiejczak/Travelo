@@ -126,6 +126,16 @@ describe('ExpensesScreen (expenses step 7)', () => {
     expect(within(screen.getByTestId('budget-hero')).getByText(`Zostało ${money(90000)}`)).toBeOnTheScreen();
   });
 
+  it('solo trip (no companions): no "Grupa" / "Ja" toggle; with a companion the toggle stays', async () => {
+    const solo = { data: { overview: { ...overview, members: [] }, budgetSyncStatus: 'synced' } };
+    await setup({ trip: solo, expenses: { data: [expense(null, 10000)] } });
+    expect(screen.queryByRole('radio', { name: 'Grupa' })).toBeNull();
+    expect(within(screen.getByTestId('budget-hero')).getByText(`Zostało ${money(90000)}`)).toBeOnTheScreen();
+    await screen.unmount();
+    await setup({ expenses: { data: [expense(null, 10000)] } });
+    expect(screen.getByRole('radio', { name: 'Grupa' })).toBeOnTheScreen();
+  });
+
   it('linked friend: "Ja" is their own member row', async () => {
     await setup({ me: FRIEND_USER, expenses: { data: [expense(null, 10000), expense(MEMBER, 20000)] } });
     await fireEvent.press(screen.getByRole('radio', { name: 'Ja' }));

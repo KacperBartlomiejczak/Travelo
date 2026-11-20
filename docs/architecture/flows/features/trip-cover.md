@@ -1,0 +1,13 @@
+# Trip cover
+
+Entry: the "Cover photo" picker on the wizard's summary step (`/trips/new/summary`) and "Name and photo" in the trip's ⋮ menu. Presets work offline; picking a gallery photo, saving it and changing the cover of an existing trip need internet. Plan and decisions: `prompts/trip-covers/plan.md` (D1–D14), `docs/architecture/decisions.md`.
+
+- **Value** (`src/schemas/cover.ts`): `CoverSchema` is `preset:<id>` (one of `COVER_PRESET_IDS`) or `photo:<uuid>`. `DEFAULT_COVER = 'preset:auckland'`. `CoverChoiceSchema` also accepts a local `file://` URI (a gallery photo that is not uploaded yet). `CoverUrlsSchema` carries the signed URLs of a `photo:` cover. The database column is `NOT NULL`, defaults to `preset:auckland` and has a check on the format (`supabase/migrations/20261018120000_trip_covers.sql`, which also rewrote invalid old covers).
+- **Presets** (`src/lib/cover-presets.ts`): bundled `assets/covers/<id>.jpg` plus `<id>_thumb.jpg`, so they need no network or Storage call. The image cache key is `cover:<id>:<variant>`.
+- **Picker** (`src/components/CoverPicker.tsx`): preset tiles plus a gallery tile. The gallery pick uses `allowsEditing` with a 16:9 crop and quality 0.8, and checks the returned URI; a failure shows an error line. In the edit sheet the picker also receives the trip's current `coverUrls`, so the existing photo cover can be kept.
+- **Create with a gallery cover:** the trip is created on `DEFAULT_COVER`, then the photo is uploaded and the trip updated (details in [trip-create.md](trip-create.md)); a failure keeps the default and shows the snackbar on home.
+- **Change** (`updateDetails`, details in [trip-edit.md](trip-edit.md)): saving is disabled offline. A `photo:` value that is not the stored cover is rejected (`cover-not-current`); after a successful change the old files are removed, best effort.
+- **Storage:** private bucket `trip-photos`; files `<tripId>/<id>.jpg` and `<tripId>/<id>_thumb.jpg` (`photoPaths`), prepared by `preparePhoto` (2048 px, 480 px thumbnail, JPEG 0.8, no metadata). Cover URLs are signed for 1 hour (`signCovers`).
+- **Where it is shown** (`CoverImage`, falls back to the default preset when an image fails to load): the home hero (`TripHero`), the side panel rows (`TripsDrawer`), the "Past trips" cards on Profile (`PastTrips`) and the picker itself.
+- **Offline:** presets always show. A gallery cover shows from the disk cache under its own key; when the copy has no signed URLs, `CoverImage` falls back to the default preset. The list copy may lack `coverUrls`.
+- **Tests:** `supabase/tests/trip_covers.sql`, `src/components/__tests__/CoverPicker.test.tsx`, `src/components/__tests__/CoverImage.test.tsx`, `src/schemas/__tests__/cover.test.ts`.

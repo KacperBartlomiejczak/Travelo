@@ -380,3 +380,17 @@ describe('Settings subscription row for PRO (revenuecat step 4)', () => {
     expect(await screen.findByText('Connect to the internet to manage your subscription.')).toBeTruthy();
   });
 });
+
+describe('Settings chart style row (trip-spend-chart step 4)', () => {
+  it.each([
+    ['pl', 'Wykres budżetu', 'Liniowy', 'Słupkowy'],
+    ['en', 'Budget chart', 'Line', 'Bar'],
+  ] as const)('shows the current style and shows the picked one in %s', async (lang, label, current, picked) => {
+    await i18n.changeLanguage(lang);
+    await renderSettings();
+    const row = await screen.findByRole('button', { name: `${label}, ${current}` });
+    await fireEvent.press(row);
+    await fireEvent.press(await screen.findByRole('radio', { name: picked }));
+    expect(await screen.findByRole('button', { name: `${label}, ${picked}` })).toBeTruthy();
+  });
+});

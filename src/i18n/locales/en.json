@@ -157,8 +157,6 @@
         "food": "Lots of food",
         "noMuseums": "No museums"
       },
-      "next": "Next",
-      "back": "Back",
       "cancel": "Cancel",
       "submit": "Build the plan"
     },
@@ -290,11 +288,21 @@
     }
   },
   "home": {
+    "showBudget": "Show budget",
+    "noExpenses": "You have no expenses yet",
+    "ownBudget": "Your budget: {{amount}} for the trip",
+    "chartBeforeTrip": "The chart will appear from the first day of the trip.",
+    "chartOverCentre": "over budget",
+    "chartSpent": "Spent",
+    "chartLeft": "Left",
+    "chartSpentAmount": "Spent {{amount}}",
+    "chartSummary": "Spent {{spent}} · {{left}} left of {{total}}",
+    "chartValueOver": "Spent {{spent}}, {{over}}, of {{total}}",
+    "chartValue": "Spent {{spent}}, {{left}} left, of {{total}}",
     "flights": "Flights",
     "organizer": "{{name}} (organizer)",
     "organizerUnknown": "Organizer",
     "changeBudget": "Change budget",
-    "perDayGroup": "per day for the group",
     "saveBudget": "Save",
     "saveBudgetError": "Couldn't save this. Try again."
   },
@@ -475,6 +483,8 @@
       "error": "Couldn't open your subscription. Try again."
     },
     "theme": "Theme",
+    "chartStyle": "Budget chart",
+    "chart": { "line": "Line", "bar": "Bar", "donut": "Donut" },
     "language": "Language",
     "system": "System",
     "light": "Light",

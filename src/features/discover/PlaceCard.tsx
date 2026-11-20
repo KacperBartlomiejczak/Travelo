@@ -14,6 +14,7 @@ import {
 } from 'react-native';
 
 import { Card } from '@/components/Card';
+import { SkeletonBlock } from '@/components/SkeletonBlock';
 import { TextButton } from '@/components/TextButton';
 import { useReduceMotion } from '@/hooks/useReduceMotion';
 import type { PlacePhoto, PlaceRecommendation } from '@/schemas';
@@ -49,6 +50,44 @@ export function PlaceCard({ place }: { place: PlaceRecommendation }) {
         accessibilityLabel={`${t('discover.openMaps')}, ${place.name}`}
         onPress={() => void Linking.openURL(place.googleMapsUri).catch(() => {})}
       />
+    </Card>
+  );
+}
+
+/** Loading stand-in for a PlaceCard with a photo (discover-card-skeleton D1, D2): the same photo geometry and text rows, so nothing jumps. */
+export function PlaceCardSkeleton() {
+  const { styles } = typography;
+  // SkeletonBlock takes a numeric height only, so the block follows the frame's measured height.
+  const [photoHeight, setPhotoHeight] = useState(0);
+  return (
+    <Card testID="place-card-skeleton">
+      <View style={{ marginTop: -card.padding, paddingBottom: (2 * card.padding) / card.photoAspectRatio }}>
+        <View testID="place-card-skeleton-spacer" style={{ aspectRatio: card.photoAspectRatio }} />
+        <View
+          testID="place-card-skeleton-frame"
+          onLayout={(event: LayoutChangeEvent) => setPhotoHeight(event.nativeEvent.layout.height)}
+          style={{
+            position: 'absolute',
+            top: 0,
+            bottom: 0,
+            left: -card.padding,
+            right: -card.padding,
+            borderTopLeftRadius: PHOTO_RADIUS,
+            borderTopRightRadius: PHOTO_RADIUS,
+            overflow: 'hidden',
+          }}
+        >
+          <SkeletonBlock testID="place-card-skeleton-photo" width="100%" height={photoHeight} radius={0} />
+        </View>
+      </View>
+      <View style={{ gap: spacing[1] }}>
+        <SkeletonBlock testID="place-card-skeleton-title" width="60%" height={styles.labelLG.lineHeight} />
+        <SkeletonBlock testID="place-card-skeleton-type" width="40%" height={styles.caption.lineHeight} />
+        <SkeletonBlock testID="place-card-skeleton-address" width="70%" height={styles.bodySM.lineHeight} />
+      </View>
+      <SkeletonBlock testID="place-card-skeleton-reason-1" width="100%" height={styles.bodyMD.lineHeight} />
+      <SkeletonBlock testID="place-card-skeleton-reason-2" width="80%" height={styles.bodyMD.lineHeight} />
+      <SkeletonBlock testID="place-card-skeleton-button" width="50%" height={tokens.components.button.height} />
     </Card>
   );
 }
