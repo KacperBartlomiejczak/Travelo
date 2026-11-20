@@ -371,6 +371,13 @@ describe('Home screen — current trip (D4)', () => {
 });
 
 describe('Home screen — spend chart on the budget card (trip-spend-chart A3, A4, A7, A8)', () => {
+  // The line draws days up to today, so "today" is fixed inside the trip (11-03 .. 11-15).
+  beforeEach(() => {
+    jest.useFakeTimers({ advanceTimers: true, now: new Date('2026-11-10T12:00:00Z') });
+  });
+  afterEach(() => {
+    jest.useRealTimers();
+  });
   const FRIEND = '5d8f6a0e-2b1c-4e7d-9f3a-8c4b1e6d2a09';
   const money = (amountMinor: number) => formatMoney({ amountMinor, currency: 'THB' }, 'pl');
   const expense = (memberId: string | null, amountMinor: number, extra: Partial<LocalExpense> = {}): LocalExpense => ({
@@ -452,6 +459,26 @@ describe('Home screen — spend chart on the budget card (trip-spend-chart A3, A
     expect(app.getPathname()).toBe('/expenses');
     mockChartStyle = 'bar'; // chosen in Settings meanwhile
     await act(async () => router.navigate('/'));
+    expect(await screen.findByTestId('bar-chart', { includeHiddenElements: true })).toBeTruthy();
+    expect(screen.queryByTestId('line-chart', { includeHiddenElements: true })).toBeNull();
+  });
+
+  it('reads the chart style again after Settings, a screen above the drawer that leaves Home focused in its tabs', async () => {
+    withExpenses([expense(null, 120000)]);
+    mockCurrent = () => Promise.resolve(overview());
+    const app = await renderRouter({
+      _layout: RootLayout,
+      '(drawer)/_layout': DrawerLayout,
+      '(drawer)/(tabs)/_layout': TabsLayout,
+      '(drawer)/(tabs)/index': HomeScreen,
+      settings: () => null,
+    });
+    await layOut();
+    expect(screen.getByTestId('line-chart', { includeHiddenElements: true })).toBeTruthy();
+    await act(async () => router.push('/settings'));
+    expect(app.getPathname()).toBe('/settings');
+    mockChartStyle = 'bar'; // chosen in Settings
+    await act(async () => router.back());
     expect(await screen.findByTestId('bar-chart', { includeHiddenElements: true })).toBeTruthy();
     expect(screen.queryByTestId('line-chart', { includeHiddenElements: true })).toBeNull();
   });

@@ -287,6 +287,8 @@
     "showBudget": "Pokaż budżet",
     "noExpenses": "Nie masz jeszcze wydatków",
     "ownBudget": "Twój budżet: {{amount}} na wyjazd",
+    "chartBeforeTrip": "Wykres pojawi się od pierwszego dnia wyjazdu.",
+    "chartOverCentre": "ponad budżet",
     "chartSpent": "Wydałem",
     "chartLeft": "Zostało",
     "chartSpentAmount": "Wydałem {{amount}}",

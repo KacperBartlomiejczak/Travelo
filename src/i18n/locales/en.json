@@ -287,6 +287,8 @@
     "showBudget": "Show budget",
     "noExpenses": "You have no expenses yet",
     "ownBudget": "Your budget: {{amount}} for the trip",
+    "chartBeforeTrip": "The chart will appear from the first day of the trip.",
+    "chartOverCentre": "over budget",
     "chartSpent": "Spent",
     "chartLeft": "Left",
     "chartSpentAmount": "Spent {{amount}}",

@@ -1,7 +1,7 @@
-import { useIsFocused, useRouter } from 'expo-router';
+import { useFocusEffect, useIsFocused, useRouter } from 'expo-router';
 import { useDrawerStatus } from 'expo-router/drawer';
 import { StatusBar } from 'expo-status-bar';
-import { Fragment, useMemo, useState, type ReactNode } from 'react';
+import { Fragment, useCallback, useMemo, useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ScrollView, Text, useWindowDimensions, View } from 'react-native';
 
@@ -204,9 +204,9 @@ function Budget({ trip, members, syncStatus, onChangeBudget }: BudgetProps) {
   const owner = useIsTripOwner(trip.ownerId);
   const myId = useMyProfileId();
   const expenses = useExpenses(trip.id);
-  // Home stays mounted under the tabs, so the style picked in Settings is read again each time Home regains focus.
-  const focused = useIsFocused();
-  const chartStyle = useMemo(() => readChartStylePreference(), [focused]); // eslint-disable-line react-hooks/exhaustive-deps -- `focused` is the trigger, not an input
+  // State refreshed on focus: React Compiler caches a bare render-time read (no reactive inputs) once per instance.
+  const [chartStyle, setChartStyle] = useState(readChartStylePreference);
+  useFocusEffect(useCallback(() => setChartStyle(readChartStylePreference()), []));
   // The same "Ja" as the Budżet tab (A8): the organizer is memberId null, a linked friend is their own member row.
   const today = todayIn(findAirport(trip.destination)?.timezone ?? 'UTC');
   const ownMemberId = owner ? null : (members.find((member) => member.userId === myId)?.id ?? undefined);

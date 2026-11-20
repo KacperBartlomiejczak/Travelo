@@ -12,9 +12,9 @@ jest.mock('@/hooks/useReduceMotion', () => ({ useReduceMotion: jest.fn(() => nul
 jest.mock('react-native-gifted-charts', () => {
   const { View } = jest.requireActual('react-native');
   const stub = (testID: string) =>
-    function Stub({ centerLabelComponent, ...props }: { data: unknown[]; width?: number; isAnimated?: boolean; centerLabelComponent?: () => unknown }) {
+    function Stub({ centerLabelComponent, ...props }: { centerLabelComponent?: () => unknown }) {
       return (
-        <View testID={testID} {...({ data: props.data, width: props.width, isAnimated: props.isAnimated } as object)}>
+        <View testID={testID} {...(props as object)}>
           {centerLabelComponent?.() as never}
         </View>
       );
@@ -66,7 +66,8 @@ describe('TripSpendChart', () => {
     await renderChart({}, null);
     expect(screen.queryByTestId('line-chart', hidden)).toBeNull();
     await fireEvent(screen.getByTestId('trip-spend-chart-frame'), 'layout', { nativeEvent: { layout: { width: 280, height: 0 } } });
-    expect(screen.getByTestId('line-chart', hidden).props.width).toBe(280);
+    const line = screen.getByTestId('line-chart', hidden).props;
+    expect(line.width + line.dataPointsRadius).toBe(280);
   });
 
   it('shows the summary line', async () => {
@@ -118,12 +119,64 @@ describe('TripSpendChart', () => {
 
   it('donut centre: the left amount', async () => {
     await renderChart({ style: 'donut' });
-    expect(within(screen.getByTestId('pie-chart', hidden)).getByText(money(6000), hidden)).toBeTruthy();
+    expect(within(screen.getByTestId('trip-spend-chart-drawing', hidden)).getByText(money(6000), hidden)).toBeTruthy();
   });
 
-  it('donut centre over budget: by how much, in the over colour', async () => {
+  it('donut centre over budget: the amount and "over budget" on separate lines, the amount never broken, in the over colour', async () => {
     await renderChart({ style: 'donut', spentMinor: 12000, leftMinor: -2000 });
-    const centre = within(screen.getByTestId('pie-chart', hidden)).getByText(i18n.t('budget.over', { amount: money(2000) }), hidden);
-    expect(centre.props.style).toEqual(expect.arrayContaining([expect.objectContaining({ color: colors.light.budget.over.foreground })]));
+    const drawing = within(screen.getByTestId('trip-spend-chart-drawing', hidden));
+    const amount = drawing.getByText(money(2000), hidden);
+    expect(amount.props.numberOfLines).toBe(1);
+    expect(amount.props.adjustsFontSizeToFit).toBe(true);
+    expect(amount.props.style).toEqual(expect.arrayContaining([expect.objectContaining({ color: colors.light.budget.over.foreground })]));
+    expect(drawing.getByText(i18n.t('home.chartOverCentre'), hidden)).toBeTruthy();
+  });
+
+  it('donut centre is drawn once, by the card, not by the chart library', async () => {
+    await renderChart({ style: 'donut' });
+    expect(screen.getByTestId('pie-chart', hidden).props.centerLabelComponent).toBeUndefined();
+    expect(screen.getAllByText(money(6000), hidden)).toHaveLength(1); // the summary line words it differently
+  });
+
+  it.each(['line', 'bar'] as const)('%s: the drawn width (plot + y-axis label + end spacing + point) stays inside the card', async (style) => {
+    await renderChart({ style }, 300);
+    const p = screen.getByTestId(`${style}-chart`, hidden).props;
+    const drawn = p.width + p.yAxisLabelWidth + p.endSpacing + (p.dataPointsRadius ?? 0);
+    expect(drawn).toBeLessThanOrEqual(300);
+    expect(drawn).toBeGreaterThan(250);
+  });
+
+  it('bar: two bars on an axis from 0 up to the budget, left bar visible against the card', async () => {
+    await renderChart({ style: 'bar', spentMinor: 15000000, leftMinor: 1035000000 }, 300);
+    const p = screen.getByTestId('bar-chart', hidden).props;
+    expect(values('bar-chart')).toEqual([150000, 10350000]);
+    expect(p.maxValue).toBe(10500000);
+    expect(p.data[1].frontColor).toBe(colors.light.border.default);
+  });
+
+  it('bar over budget: the axis reaches the spent bar', async () => {
+    await renderChart({ style: 'bar', spentMinor: 12000, leftMinor: -2000 });
+    expect(screen.getByTestId('bar-chart', hidden).props.maxValue).toBe(120);
+  });
+
+  it('line before the trip starts: no chart, a hint and the summary', async () => {
+    await renderChart({ days: [], spentMinor: 0, leftMinor: 10000 });
+    expect(screen.queryByTestId('line-chart', hidden)).toBeNull();
+    expect(screen.getByText('Wykres pojawi się od pierwszego dnia wyjazdu.')).toBeTruthy();
+    expect(screen.getByText(`Wydałem ${money(0)} · Zostało ${money(10000)} z ${money(10000)}`)).toBeTruthy();
+  });
+
+  it('line before the trip starts: the hint in English', async () => {
+    await i18n.changeLanguage('en');
+    await renderChart({ days: [], spentMinor: 0, leftMinor: 10000 });
+    expect(screen.getByText('The chart will appear from the first day of the trip.')).toBeTruthy();
+  });
+
+  it.each([
+    ['bar', 'bar-chart'],
+    ['donut', 'pie-chart'],
+  ] as const)('%s before the trip starts: drawn as usual', async (style, testID) => {
+    await renderChart({ style, days: [], spentMinor: 0, leftMinor: 10000 });
+    expect(screen.getByTestId(testID, hidden)).toBeTruthy();
   });
 });

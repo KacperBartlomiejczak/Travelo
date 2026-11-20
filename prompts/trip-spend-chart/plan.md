@@ -116,6 +116,9 @@ Decyzje Kacpra (2026-11-20):
 
 - A11: linia przed startem wyjazdu (brak dni do dziś) → tekst zamiast wykresu + podsumowanie (nie pusty wykres).
 - A12: krok 8 naprawia usterki główne (1–3) i drobne (4–5) z testu na urządzeniu; (6) znika dzięki A11.
+- A13: przyczyna (c) — React Compiler (`experiments.reactCompiler`) zapamiętuje `readChartStylePreference()` raz na instancję (także stary `useMemo([focused])`); jest nie uruchamia kompilatora, więc test nie może być red. Poprawka: styl w `useState` odświeżany w `useFocusEffect`; dowód red/green = retest na urządzeniu; wyjątek od TDD zapisany też w `known-limitations.md`.
+- A14: liczby na osi Y (linia, słupki) ukryte — kwoty IDR się nie mieszczą; kwoty są w podsumowaniu.
+- A15: nowy klucz `home.chartOverCentre` — PL „ponad budżet”, EN „over budget”.
 
 Ryzyka:
 - Nowa natywna zależność (`expo-linear-gradient`) wymaga nowego dev buildu przed testem na urządzeniu.
