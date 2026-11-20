@@ -47,6 +47,15 @@
           "microphonePermission": false
         }
       ],
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Travelo uses your camera only to scan the barcode on a boarding pass.",
+          "microphonePermission": false,
+          "recordAudioAndroid": false
+        }
+      ],
+      "expo-document-picker",
       "expo-asset",
       "expo-font",
       "expo-image",
