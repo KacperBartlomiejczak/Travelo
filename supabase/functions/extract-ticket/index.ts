@@ -3,6 +3,7 @@
 // ones). A missing one fails at startup, not on the first request. verify_jwt stays on (default in config.toml).
 import { createClient } from '@supabase/supabase-js';
 import airports from '../../../src/data/airports.json' with { type: 'json' };
+import { readJsonBody } from './body.ts';
 import { handleExtractTicket } from './handler.ts';
 import { createPorts } from './ports.ts';
 import { createStage1Ports } from './stage1.ts';
@@ -26,7 +27,9 @@ const real = createPorts({
 });
 
 Deno.serve(async (req) => {
-  const body = await req.json().catch(() => undefined);
+  const parsed = await readJsonBody(req);
+  if (!parsed.ok) return Response.json({ error: 'file_too_large' }, { status: 413 });
+  const body = parsed.body;
   const { status, body: out } = await handleExtractTicket(
     { method: req.method, authorization: req.headers.get('Authorization'), body },
     {
