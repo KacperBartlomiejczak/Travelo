@@ -10,6 +10,17 @@ const airports = (iata: string) => (ZONES[iata] ? { timezone: ZONES[iata] } : un
 const parse = (text: string) => parseTicketText(text, airports);
 
 describe('parseTicketText', () => {
+  it('leaves arriveAt null when the printed arrival date is invalid', () => {
+    const r = parse('WAW → BCN Departure 2026-12-05 10:00 Arrival 2026-02-30 13:00');
+    expect(r.segments[0].departAt).toBe('2026-12-05T10:00');
+    expect(r.segments[0].arriveAt).toBeNull();
+  });
+
+  it('uses the departure day when the arrival has no date and a later clock time', () => {
+    const r = parse('WAW → BCN Departure 2026-12-05 10:00 Arrival 13:00');
+    expect(r.segments[0].arriveAt).toBe('2026-12-05T13:00');
+  });
+
   it('reads an English itinerary with arrow route, flight number, date and times', () => {
     const r = parse(`E-ticket
       WAW → BCN   Flight FR 123

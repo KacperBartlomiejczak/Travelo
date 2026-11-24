@@ -96,13 +96,15 @@ function parseBlock(block: string, from: string, to: string) {
   const flightDate = depDate ?? blockDate;
   const depTime = dep ? timeOf(dep) : null;
   const arrTime = arr ? timeOf(arr) : null;
-  const arrDate = arr ? (dates(arr)[0] ?? null) : null;
+  const arrDates = arr ? dates(arr) : [];
+  const arrDate = arrDates[0] ?? null;
 
   const numbers = [...new Set([...block.matchAll(FLIGHT)].map((m) => (m[1] + m[2]).replace(/^([A-Z0-9]{2})0+(?=\d)/, '$1')))].filter(
     (n) => FLIGHT_NUMBER_PATTERN.test(n),
   );
   // Arrival with no printed date is the departure day only when it is later on the clock; otherwise it may be the next day.
-  const arriveDay = arrDate ?? (depTime && arrTime && arrTime > depTime ? flightDate : null);
+  // A printed but invalid date (30 Feb) stays null: no fallback.
+  const arriveDay = arrDate ?? (arrDates.length === 0 && depTime && arrTime && arrTime > depTime ? flightDate : null);
   return {
     fromIata: from,
     toIata: to,
