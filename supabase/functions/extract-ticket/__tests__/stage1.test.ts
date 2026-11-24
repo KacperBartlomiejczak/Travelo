@@ -25,14 +25,16 @@ describe('extract-ticket stage 1 ports', () => {
   });
 
   it('extracts the text layer of a PDF and returns null when there is none', () => {
-    expect(out.text).toContain('WAW to BCN FR123 Departure 2026-12-06 06:45');
-    expect(out.textOfImagePdf).toBeNull();
+    expect(out.text.text).toContain('WAW to BCN FR123 Departure 2026-12-06 06:45');
+    expect(out.text.skippedPages).toBe(false);
+    expect(out.textOfImagePdf).toEqual({ text: null, skippedPages: false });
   });
 
-  it('reads the text of the first 3 pages only, not a flight on page 4', () => {
-    expect(out.textPage4).toContain('Terms page one');
-    expect(out.textPage4).toContain('Terms page three');
-    expect(out.textPage4).not.toContain('FR123');
+  it('reads the text of the first 3 pages only, not a flight on page 4, and reports the skipped page', () => {
+    expect(out.textPage4.text).toContain('Terms page one');
+    expect(out.textPage4.text).toContain('Terms page three');
+    expect(out.textPage4.text).not.toContain('FR123');
+    expect(out.textPage4.skippedPages).toBe(true);
   });
 
   it('retries loading the wasm after a failed load, and caches a successful one', () => {
@@ -87,7 +89,7 @@ describe('extract-ticket stage 1 ports', () => {
 
   it('keeps the result when destroying the document fails', () => {
     expect(out.lifecycle.destroyRejects.barcodes).toEqual([BCBP]);
-    expect(out.lifecycle.destroyRejects.text).toContain('WAW to BCN FR123');
+    expect(out.lifecycle.destroyRejects.text.text).toContain('WAW to BCN FR123');
   });
 
   it('limits the pages and images it reads to stay within the 2 s CPU budget', () => {

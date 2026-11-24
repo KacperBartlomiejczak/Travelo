@@ -44,7 +44,7 @@ function makePorts(overrides: Partial<ExtractTicketPorts> = {}, usedToday = 0) {
     },
     extractPdfText: async () => {
       calls.push('extractPdfText');
-      return null;
+      return { text: null, skippedPages: false };
     },
     consumeQuota: async (_u, kind, limit) => {
       calls.push('consumeQuota');
@@ -143,7 +143,7 @@ describe('handleExtractTicket request checks', () => {
 
 describe('stage 1 (parser)', () => {
   it('a complete result is returned as parser, without Gemini and without quota', async () => {
-    const { ports, calls, logs, quota } = makePorts({ extractPdfText: async () => FULL_TEXT }, 2);
+    const { ports, calls, logs, quota } = makePorts({ extractPdfText: async () => ({ text: FULL_TEXT, skippedPages: false }) }, 2);
     const res = await handleExtractTicket(req(), ports);
     expect(res.status).toBe(200);
     expect(quota.read).toEqual(['ticket']);
@@ -158,9 +158,20 @@ describe('stage 1 (parser)', () => {
     expect(logs).toEqual(['parser_complete']);
   });
 
+  it('a complete text that left PDF pages unread is not trusted: Gemini is asked and the quota consumed', async () => {
+    const { ports, calls, logs, quota } = makePorts({
+      extractPdfText: async () => ({ text: FULL_TEXT, skippedPages: true }),
+    });
+    const res = await handleExtractTicket(req(), ports);
+    expect(calls).toContain('callGemini');
+    expect(quota.consumed).toContain('ticket');
+    expect(logs).not.toContain('parser_complete');
+    expect(ExtractTicketResponseSchema.parse(res.body).source).toBe('ai');
+  });
+
   it('500 when the remaining count cannot be read', async () => {
     const { ports } = makePorts({
-      extractPdfText: async () => FULL_TEXT,
+      extractPdfText: async () => ({ text: FULL_TEXT, skippedPages: false }),
       readQuota: async () => {
         throw new Error('db');
       },
@@ -190,7 +201,7 @@ describe('stage 1 (parser)', () => {
 
   it('drops times that fail validation, so the result is not complete and Gemini is asked', async () => {
     const { ports, calls, seen } = makePorts({
-      extractPdfText: async () => 'WAW → BCN FR123 Departure 2026-12-06 06:45 Arrival 2026-12-06 05:00',
+      extractPdfText: async () => ({ text: 'WAW → BCN FR123 Departure 2026-12-06 06:45 Arrival 2026-12-06 05:00', skippedPages: false }),
     });
     const res = await handleExtractTicket(req(), ports);
     expect(calls).toContain('callGemini');
@@ -216,7 +227,7 @@ describe('a ticket cut to the 8-segment limit', () => {
   });
 
   it('9 flights give 200 complete false with the 8 kept segments, even when Gemini agrees', async () => {
-    const { ports } = makePorts({ extractPdfText: async () => flights(9), callGemini: async () => JSON.stringify(answer(8)) });
+    const { ports } = makePorts({ extractPdfText: async () => ({ text: flights(9), skippedPages: false }), callGemini: async () => JSON.stringify(answer(8)) });
     const res = await handleExtractTicket(req(), ports);
     expect(res.status).toBe(200);
     const body = ExtractTicketResponseSchema.parse(res.body);
@@ -225,14 +236,14 @@ describe('a ticket cut to the 8-segment limit', () => {
   });
 
   it('9 flights stay complete false when Gemini fails or sees more than 8', async () => {
-    const { ports } = makePorts({ extractPdfText: async () => flights(9), callGemini: async () => JSON.stringify(answer(9)) });
+    const { ports } = makePorts({ extractPdfText: async () => ({ text: flights(9), skippedPages: false }), callGemini: async () => JSON.stringify(answer(9)) });
     const res = await handleExtractTicket(req(), ports);
     expect(res.status).toBe(200);
     expect(ExtractTicketResponseSchema.parse(res.body)).toMatchObject({ source: 'parser', complete: false });
   });
 
   it('exactly 8 full flights are still complete, from the parser', async () => {
-    const { ports } = makePorts({ extractPdfText: async () => flights(8) });
+    const { ports } = makePorts({ extractPdfText: async () => ({ text: flights(8), skippedPages: false }) });
     const res = await handleExtractTicket(req(), ports);
     expect(ExtractTicketResponseSchema.parse(res.body)).toMatchObject({ source: 'parser', complete: true });
   });
@@ -409,7 +420,7 @@ describe('logs', () => {
     const spyErr = jest.spyOn(console, 'error').mockImplementation(() => undefined);
     const a = makePorts({
       decodeBarcodes: async () => [BCBP],
-      extractPdfText: async () => `${secret} ${FULL_TEXT}`,
+      extractPdfText: async () => ({ text: `${secret} ${FULL_TEXT}`, skippedPages: false }),
       callGemini: async () => `${secret} not json`,
     });
     const b = makePorts({ callGemini: async () => JSON.stringify({ isTicket: false, segments: [] }) });

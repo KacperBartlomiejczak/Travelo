@@ -128,7 +128,7 @@ export function createStage1Ports({
           pages.push(items.map((item) => ('str' in item ? item.str + (item.hasEOL ? '\n' : '') : '')).join(''));
         }
         const text = pages.join('\n');
-        return text.trim() === '' ? null : text;
+        return { text: text.trim() === '' ? null : text, skippedPages: doc.numPages > MAX_PDF_PAGES };
       } finally {
         await doc.loadingTask.destroy().catch(() => {}); // frees the document and its worker; a cleanup failure must not lose the result
       }

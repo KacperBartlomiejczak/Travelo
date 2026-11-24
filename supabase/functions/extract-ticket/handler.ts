@@ -43,8 +43,8 @@ export interface ExtractTicketPorts {
   authenticate(jwt: string): Promise<AuthResult>;
   /** Texts of the barcodes found in a JPEG, or in the images embedded in a PDF. */
   decodeBarcodes(bytes: Uint8Array, mimeType: ExtractTicketRequest['mimeType']): Promise<string[]>;
-  /** Text layer of a PDF; null when there is none. */
-  extractPdfText(bytes: Uint8Array): Promise<string | null>;
+  /** Text layer of a PDF (null when there is none); skippedPages is true when pages were left unread, so stage 1 cannot be complete. */
+  extractPdfText(bytes: Uint8Array): Promise<{ text: string | null; skippedPages: boolean }>;
   /** Remaining units today, or null when the limit was already reached. */
   consumeQuota(userId: string, kind: QuotaKind, limit: number): Promise<number | null>;
   /** Remaining units today, read without consuming; the full limit when nothing was used. */
@@ -112,8 +112,10 @@ export async function handleExtractTicket(
     }
   };
   const barcodes = await attempt(() => ports.decodeBarcodes(bytes, request.mimeType), [] as string[]);
-  const text =
-    request.mimeType === 'application/pdf' ? await attempt(() => ports.extractPdfText(bytes), null as string | null) : null;
+  const { text, skippedPages } =
+    request.mimeType === 'application/pdf'
+      ? await attempt(() => ports.extractPdfText(bytes), { text: null as string | null, skippedPages: false })
+      : { text: null, skippedPages: false };
   // One pass per barcode (outbound and return may be separate codes): distinct legs, in document order. Not run
   // through BoardingPassSchema (legs.max(4)); validateParsed enforces the segment limit.
   const legs = new Map<string, BoardingPass['legs'][number]>();
@@ -139,7 +141,8 @@ export async function handleExtractTicket(
     return out.success ? { status: 200, body: out.data } : fail(502, 'upstream_failed');
   };
 
-  if (isComplete(parsed)) {
+  // Pages stage 1 did not read may hold more flights: only Gemini, which gets the whole file, can judge it complete.
+  if (!skippedPages && isComplete(parsed)) {
     ports.log('parser_complete');
     // Stage 1 costs no quota (Z7), but the app still shows the true count of AI imports left today.
     try {
