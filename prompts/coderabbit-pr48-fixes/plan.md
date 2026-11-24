@@ -178,3 +178,23 @@ Pliki: tylko `src/lib/ticket-parse/merge.ts` + `__tests__/merge.test.ts` (backen
 Ryzyko: `merge.ts` jest też w Edge Function (Deno) — import `../time.ts` musi działać w Deno (`deno check`).
 Weryfikacja: verifier kroku, pełny `pnpm test`/`typecheck`/`lint`, `deno check`, push, bez nowego przeglądu całej gałęzi (zmiana w jednym pliku).
 - E3, doprecyzowanie przy wykonaniu: wyjątek nie działa, gdy lot z godziną tego samego dnia kończy się tam, gdzie lot bez godziny się zaczyna (lot bez godziny kontynuuje wcześniejszy lot) — wtedy zostaje na końcu dnia. To ta sama zasada ciągłości trasy.
+
+## Dodatek 2: drugie review CodeRabbita (commit 221e27b, 2026-11-24)
+Status: zrobione (2026-11-24; 4699 testów, deno check OK). Ta sama gałąź `fix/pr48-coderabbit` → push do `feature/ticket-import-ai` (PR #48).
+CodeRabbit nie przejrzał jeszcze `d2b5cfe` (check „skipping”). 13/14 pierwotnych wątków rozwiązane.
+
+### Uwagi i decyzje
+- **F1 [Minor] `merge.ts:12` — dopasowanie bez numeru lotu.** Dwa loty z kodów na tej samej trasie i w tym samym dniu z różnymi numerami → godziny z tekstu mogą się zamienić. Poprawka: gdy oba źródła mają `flightNumber` i się różnią, to nie jest dopasowanie; kolejność szukania: trasa+dzień+numer → trasa+dzień (numer brak po którejś stronie) → trasa bez daty (numer zgodny lub brak).
+  Test: BCBP [WAW→BCN LO123 12-05, WAW→BCN LO125 12-05], tekst w odwrotnej kolejności z godzinami → każdy lot dostaje swoje godziny.
+- **F2 [Minor] `stage1.ts` — brak `registerImageDecoders()`.** Nasze własne przejście po obrazach (U6) pominęło krok, który robił `extractImages`; obrazy CCITT / JBIG2 / JPEG 2000 mogą się nie zdekodować. Poprawka: wywołać `registerImageDecoders()` z `unpdf` raz w `createStage1Ports` (działa w Node-teście i w Deno, bez zmian w `index.ts`).
+  Test: kod z obrazu w jednym z tych formatów, jeśli fixture da się wygenerować małym kosztem; inaczej wstrzykiwana funkcja (jak `purge`, „only for tests”) i asercja, że jest wywołana przed pierwszym `getDocumentProxy`.
+- **F3 [Minor] `stage1.ts` — dokumenty PDF nie są zamykane.** Poprawka: w `decodeBarcodes` i `extractPdfText` praca na dokumencie w `try`/`finally` z `await doc.destroy()` (również przy błędzie).
+  Test: dokument zniszczony po sukcesie i po błędzie (wstrzykiwane otwieranie dokumentu albo licznik w driverze).
+- **F4 — wątek U6 (liczba obrazów).** Bez zmian w kodzie: to Twoja decyzja P1 (limit rozmiaru pojedynczego obrazu, liczba obrazów nieograniczona przed dekodowaniem, bo pdf.js dekoduje w `getOperatorList`; opisane w `known-limitations.md`). Odpowiedź w wątku z tym uzasadnieniem.
+- **F5 — sortowanie po strefach czasowych.** Już naprawione w `d2b5cfe` (E2). Odpowiedź w wątku.
+
+### Kroki (fala 1 równolegle, różne pliki)
+- [x] **A [backend] F1**: `src/lib/ticket-parse/merge.ts` + `__tests__/merge.test.ts`
+- [x] **B [backend] F2 + F3**: `supabase/functions/extract-ticket/stage1.ts` + `__tests__/stage1.test.ts` (+ `test-support/`)
+- [x] **C [orkiestrator]**: po PASS obu — pełny `pnpm test`/`typecheck`/`lint`, `deno check`, push, odpowiedzi w wątkach (F1–F5).
+- F1, doprecyzowanie (Kacper, 2026-11-24): różne numery lotów nadal się łączą, gdy dopasowanie trasa+dzień jest jednoznaczne (dokładnie jeden lot z kodu i jeden z tekstu na tej trasie i w tym dniu; BCBP wygrywa na numerze). Przy dwóch lub więcej lotach na tej samej trasie i w tym samym dniu łączymy tylko po numerze.

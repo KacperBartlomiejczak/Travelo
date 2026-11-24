@@ -79,7 +79,56 @@ const gray1bit = await ports.decodeBarcodes(buildImagePdf([grayImage()]), 'appli
 const cmyk = await ports.decodeBarcodes(buildImagePdf([cmykImage()]), 'application/pdf');
 console.log = origWarn;
 
+// Document lifecycle: every opened document is destroyed after success and after a thrown error; image decoders are
+// registered once, before the first document is opened.
+const events = [];
+const tracking = createStage1Ports({
+  wasmBinary,
+  register: () => events.push('register'),
+  openDocument: async (data, options) => {
+    events.push('open');
+    const doc = await getDocumentProxy(data, options);
+    const destroy = doc.loadingTask.destroy.bind(doc.loadingTask);
+    doc.loadingTask.destroy = () => (events.push('destroy'), destroy());
+    return doc;
+  },
+});
+const lifecycle = {};
+await tracking.decodeBarcodes(fixture('pdf417.pdf'), 'application/pdf');
+await tracking.extractPdfText(fixture('text.pdf'));
+lifecycle.afterSuccess = [...events];
+events.length = 0;
+const failing = createStage1Ports({
+  wasmBinary,
+  register: () => {},
+  openDocument: async (data, options) => {
+    const doc = await getDocumentProxy(data, options);
+    doc.getPage = () => Promise.reject(new Error('page failed'));
+    const destroy = doc.loadingTask.destroy.bind(doc.loadingTask);
+    doc.loadingTask.destroy = () => (events.push('destroy'), destroy());
+    return doc;
+  },
+});
+lifecycle.decodeThrew = await failing.decodeBarcodes(fixture('pdf417.pdf'), 'application/pdf').then(() => false, () => true);
+lifecycle.extractThrew = await failing.extractPdfText(fixture('text.pdf')).then(() => false, () => true);
+lifecycle.afterErrors = [...events];
+
+const rejecting = createStage1Ports({
+  wasmBinary,
+  register: () => {},
+  openDocument: async (data, options) => {
+    const doc = await getDocumentProxy(data, options);
+    doc.loadingTask.destroy = () => Promise.reject(new Error('destroy failed'));
+    return doc;
+  },
+});
+lifecycle.destroyRejects = {
+  barcodes: await rejecting.decodeBarcodes(fixture('pdf417.pdf'), 'application/pdf').catch(() => 'threw'),
+  text: await rejecting.extractPdfText(fixture('text.pdf')).catch(() => 'threw'),
+};
+
 const out = {
+  lifecycle,
   imageCount: { sixthImage, seventhImage },
   imageMask,
   gray1bit,

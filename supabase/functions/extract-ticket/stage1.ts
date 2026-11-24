@@ -1,6 +1,6 @@
 // Stage 1 readers of the ticket import (zxing-wasm + unpdf). Kept apart from ports.ts: unpdf is ESM-only, which Jest
 // cannot load, so the adapter test runs this file in a plain Node process (see __tests__/stage1.test.ts).
-import { getDocumentProxy, getResolvedPDFJS } from 'unpdf';
+import { getDocumentProxy, getResolvedPDFJS, registerImageDecoders } from 'unpdf';
 import { prepareZXingModule, purgeZXingModule, readBarcodes } from 'zxing-wasm/reader';
 import type { ExtractTicketPorts } from './handler.ts';
 
@@ -57,13 +57,21 @@ export function createStage1Ports({
   wasmBinary,
   prepare = prepareZXingModule,
   purge = purgeZXingModule,
+  register = registerImageDecoders,
+  openDocument = getDocumentProxy,
 }: {
   wasmBinary: ArrayBuffer;
   /** Only for tests. */
   prepare?: typeof prepareZXingModule;
   /** Only for tests. */
   purge?: typeof purgeZXingModule;
+  /** Only for tests. */
+  register?: typeof registerImageDecoders;
+  /** Only for tests. */
+  openDocument?: typeof getDocumentProxy;
 }): Stage1Ports {
+  // Our own operator-list walk skips what unpdf's extractImages does: without this CCITT / JBIG2 / JPEG 2000 images fail to decode.
+  register();
   let ready: Promise<unknown> | undefined;
   const reader = () =>
     (ready ??= prepare({ overrides: { wasmBinary }, fireImmediately: true }).catch((error: unknown) => {
@@ -78,44 +86,52 @@ export function createStage1Ports({
       await reader();
       if (mimeType === 'image/jpeg') return texts(await readBarcodes(bytes, READ_OPTIONS));
       // verbosity 0: pdf.js logs a warning for every skipped image otherwise
-      const doc = await getDocumentProxy(new Uint8Array(bytes), { maxImageSize: MAX_PDF_IMAGE_PIXELS, verbosity: 0 });
-      const { OPS, ImageKind } = await getResolvedPDFJS();
-      const found: string[] = [];
-      let images = 0;
-      // Own walk instead of unpdf's extractImages: that converts every image of a page to RGBA up front (4 more bytes
-      // per pixel each); here only the first MAX_PDF_IMAGES are converted, then it stops.
-      // shortcut: optional-content visibility is not checked, so a hidden image may use up one of the reads, upgrade if real tickets hide images behind optional content.
-      for (let n = 1; n <= Math.min(doc.numPages, MAX_PDF_PAGES) && images < MAX_PDF_IMAGES; n++) {
-        const page = await doc.getPage(n);
-        const { fnArray, argsArray } = await page.getOperatorList();
-        for (let i = 0; i < fnArray.length && images < MAX_PDF_IMAGES; i++) {
-          const fn = fnArray[i];
-          const args = argsArray[i] as [unknown, ...unknown[]];
-          let image: PdfJsImage | undefined;
-          const isMask = fn === OPS.paintImageMaskXObject; // masks carry no `kind`: always 1-bit
-          if (fn === OPS.paintInlineImageXObject) image = args[0] as PdfJsImage;
-          else if (fn === OPS.paintImageXObject) image = await pageObject(page, args[0] as string);
-          else if (isMask) image = await pageObject(page, (args[0] as { data: string }).data);
-          else continue;
-          images++;
-          if (!image?.data) continue;
-          const pixels = isMask || image.kind === ImageKind.GRAYSCALE_1BPP ? unpackBits(image) : image.data;
-          const imageData = { data: toRgba({ data: pixels, width: image.width, height: image.height }), width: image.width, height: image.height, colorSpace: 'srgb' };
-          found.push(...texts(await readBarcodes(imageData as unknown as ImageData, READ_OPTIONS)));
+      const doc = await openDocument(new Uint8Array(bytes), { maxImageSize: MAX_PDF_IMAGE_PIXELS, verbosity: 0 });
+      try {
+        const { OPS, ImageKind } = await getResolvedPDFJS();
+        const found: string[] = [];
+        let images = 0;
+        // Own walk instead of unpdf's extractImages: that converts every image of a page to RGBA up front (4 more bytes
+        // per pixel each); here only the first MAX_PDF_IMAGES are converted, then it stops.
+        // shortcut: optional-content visibility is not checked, so a hidden image may use up one of the reads, upgrade if real tickets hide images behind optional content.
+        for (let n = 1; n <= Math.min(doc.numPages, MAX_PDF_PAGES) && images < MAX_PDF_IMAGES; n++) {
+          const page = await doc.getPage(n);
+          const { fnArray, argsArray } = await page.getOperatorList();
+          for (let i = 0; i < fnArray.length && images < MAX_PDF_IMAGES; i++) {
+            const fn = fnArray[i];
+            const args = argsArray[i] as [unknown, ...unknown[]];
+            let image: PdfJsImage | undefined;
+            const isMask = fn === OPS.paintImageMaskXObject; // masks carry no `kind`: always 1-bit
+            if (fn === OPS.paintInlineImageXObject) image = args[0] as PdfJsImage;
+            else if (fn === OPS.paintImageXObject) image = await pageObject(page, args[0] as string);
+            else if (isMask) image = await pageObject(page, (args[0] as { data: string }).data);
+            else continue;
+            images++;
+            if (!image?.data) continue;
+            const pixels = isMask || image.kind === ImageKind.GRAYSCALE_1BPP ? unpackBits(image) : image.data;
+            const imageData = { data: toRgba({ data: pixels, width: image.width, height: image.height }), width: image.width, height: image.height, colorSpace: 'srgb' };
+            found.push(...texts(await readBarcodes(imageData as unknown as ImageData, READ_OPTIONS)));
+          }
         }
+        return found;
+      } finally {
+        await doc.loadingTask.destroy().catch(() => {}); // frees the document and its worker; a cleanup failure must not lose the result
       }
-      return found;
     },
     async extractPdfText(bytes) {
       // Page by page and only the first MAX_PDF_PAGES: extractText would read the whole document (2 s CPU budget).
-      const doc = await getDocumentProxy(new Uint8Array(bytes));
-      const pages: string[] = [];
-      for (let n = 1; n <= Math.min(doc.numPages, MAX_PDF_PAGES); n++) {
-        const { items } = await (await doc.getPage(n)).getTextContent();
-        pages.push(items.map((item) => ('str' in item ? item.str + (item.hasEOL ? '\n' : '') : '')).join(''));
+      const doc = await openDocument(new Uint8Array(bytes));
+      try {
+        const pages: string[] = [];
+        for (let n = 1; n <= Math.min(doc.numPages, MAX_PDF_PAGES); n++) {
+          const { items } = await (await doc.getPage(n)).getTextContent();
+          pages.push(items.map((item) => ('str' in item ? item.str + (item.hasEOL ? '\n' : '') : '')).join(''));
+        }
+        const text = pages.join('\n');
+        return text.trim() === '' ? null : text;
+      } finally {
+        await doc.loadingTask.destroy().catch(() => {}); // frees the document and its worker; a cleanup failure must not lose the result
       }
-      const text = pages.join('\n');
-      return text.trim() === '' ? null : text;
     },
   };
 }

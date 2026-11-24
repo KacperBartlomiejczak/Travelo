@@ -74,6 +74,22 @@ describe('extract-ticket stage 1 ports', () => {
     expect(out.oversize.warnings).toEqual([]);
   });
 
+  it('registers the image decoders once, before the first document is opened', () => {
+    expect(out.lifecycle.afterSuccess[0]).toBe('register');
+    expect(out.lifecycle.afterSuccess.filter((e: string) => e === 'register')).toHaveLength(1);
+  });
+
+  it('destroys every opened document, after success and after an error', () => {
+    expect(out.lifecycle.afterSuccess.filter((e: string) => e !== 'register')).toEqual(['open', 'destroy', 'open', 'destroy']);
+    expect(out.lifecycle).toMatchObject({ decodeThrew: true, extractThrew: true });
+    expect(out.lifecycle.afterErrors).toEqual(['destroy', 'destroy']);
+  });
+
+  it('keeps the result when destroying the document fails', () => {
+    expect(out.lifecycle.destroyRejects.barcodes).toEqual([BCBP]);
+    expect(out.lifecycle.destroyRejects.text).toContain('WAW to BCN FR123');
+  });
+
   it('limits the pages and images it reads to stay within the 2 s CPU budget', () => {
     expect(out.limits).toEqual({ MAX_PDF_PAGES: 3, MAX_PDF_IMAGES: 6, MAX_PDF_IMAGE_PIXELS: 400_000 });
   });
