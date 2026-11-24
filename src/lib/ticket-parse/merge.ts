@@ -10,10 +10,16 @@ export function mergeParsed(bcbp: BoardingPass | null, text: ParsedTicket, airpo
   const unused = [...text.segments];
   const legs = bcbp.legs.filter((l) => airports(l.fromIata) && airports(l.toIata));
   const merged = assignDirections(legs).map((leg): TicketSegment => {
-    const route = (t: TicketSegment) => t.fromIata === leg.fromIata && t.toIata === leg.toIata;
-    // Same route and day first; an undated text flight only when no dated one fits.
-    let at = unused.findIndex((t) => route(t) && t.flightDate === leg.flightDate);
-    if (at < 0) at = unused.findIndex((t) => route(t) && !t.flightDate);
+    const route = (t: Pick<TicketSegment, 'fromIata' | 'toIata'>) => t.fromIata === leg.fromIata && t.toIata === leg.toIata;
+    // Same route and day with the same number first, then a number missing on either side; an undated text flight only when no
+    // dated one fits. Different numbers match only when unambiguous (below).
+    const sameNo = (t: TicketSegment) => !leg.flightNumber || !t.flightNumber || t.flightNumber === leg.flightNumber;
+    let at = unused.findIndex((t) => route(t) && t.flightDate === leg.flightDate && t.flightNumber === leg.flightNumber);
+    if (at < 0) at = unused.findIndex((t) => route(t) && t.flightDate === leg.flightDate && sameNo(t));
+    // A lone leg and a lone text flight on this route and day are the same flight even when the numbers differ.
+    const day = (t: Pick<TicketSegment, 'fromIata' | 'toIata' | 'flightDate'>) => route(t) && t.flightDate === leg.flightDate;
+    if (at < 0 && legs.filter(day).length === 1 && unused.filter(day).length === 1) at = unused.findIndex(day);
+    if (at < 0) at = unused.findIndex((t) => route(t) && !t.flightDate && sameNo(t));
     const match = at >= 0 ? unused.splice(at, 1)[0] : undefined;
     const sameDay = match?.flightDate === leg.flightDate;
     return {

@@ -46,6 +46,29 @@ describe('mergeParsed', () => {
   it('lets the boarding pass win on flight number', () => {
     const r = mergeParsed(bcbp({ flightNumber: 'FR999' }), { segments: [seg()] }, airports);
     expect(r.segments[0].flightNumber).toBe('FR999');
+    expect(r.segments[0].departAt).toBe('2026-12-05T06:45');
+  });
+
+  it('gives each same-route same-day leg the times of the text flight with its own number', () => {
+    const lo123 = seg({ flightNumber: 'LO123', departAt: '2026-12-05T08:00', arriveAt: '2026-12-05T11:00' });
+    const lo125 = seg({ flightNumber: 'LO125', departAt: '2026-12-05T14:00', arriveAt: '2026-12-05T17:00' });
+    const pass: BoardingPass = {
+      legs: [
+        { fromIata: 'WAW', toIata: 'BCN', flightNumber: 'LO123', flightDate: '2026-12-05' },
+        { fromIata: 'WAW', toIata: 'BCN', flightNumber: 'LO125', flightDate: '2026-12-05' },
+      ],
+    };
+    const r = mergeParsed(pass, { segments: [lo125, lo123] }, airports);
+    expect(r.segments.map((s) => [s.flightNumber, s.departAt])).toEqual([
+      ['LO123', '2026-12-05T08:00'],
+      ['LO125', '2026-12-05T14:00'],
+    ]);
+  });
+
+  it('copies no text times when the numbers differ and the route and day are ambiguous', () => {
+    const text = { segments: [seg({ flightNumber: 'LO125' }), seg({ flightNumber: 'LO127', departAt: '2026-12-05T20:00', arriveAt: '2026-12-05T23:00' })] };
+    const r = mergeParsed(bcbp({ flightNumber: 'LO123' }), text, airports);
+    expect(r.segments.find((s) => s.flightNumber === 'LO123')).toMatchObject({ departAt: null, arriveAt: null });
   });
 
   it('lets the boarding pass win on the day and takes no text times from another day', () => {
