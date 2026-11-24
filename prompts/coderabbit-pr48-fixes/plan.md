@@ -198,3 +198,90 @@ CodeRabbit nie przejrzał jeszcze `d2b5cfe` (check „skipping”). 13/14 pierwo
 - [x] **B [backend] F2 + F3**: `supabase/functions/extract-ticket/stage1.ts` + `__tests__/stage1.test.ts` (+ `test-support/`)
 - [x] **C [orkiestrator]**: po PASS obu — pełny `pnpm test`/`typecheck`/`lint`, `deno check`, push, odpowiedzi w wątkach (F1–F5).
 - F1, doprecyzowanie (Kacper, 2026-11-24): różne numery lotów nadal się łączą, gdy dopasowanie trasa+dzień jest jednoznaczne (dokładnie jeden lot z kodu i jeden z tekstu na tej trasie i w tym dniu; BCBP wygrywa na numerze). Przy dwóch lub więcej lotach na tej samej trasie i w tym samym dniu łączymy tylko po numerze.
+
+## Dodatek 3: trzecie review CodeRabbita (commit fbf6378, 2026-11-24)
+Status: w realizacji (zaakceptowany przez Kacpra 2026-11-24: P4 = a, P5 = a, P6 = proponowany tekst). Ta sama gałąź `fix/pr48-coderabbit` (= `origin/feature/ticket-import-ai`, `fbf6378`) → push do PR #48.
+
+### Skąd „te same błędy”
+10 otwartych wątków. Tylko **jeden** to powtórka (G1): poprawka E2 sortowała po UTC tylko w obrębie **tej samej lokalnej daty**,
+a komparator dalej najpierw porównuje `flightDate`. Pozostałe 9 to nowe uwagi: każdy push uruchamia nowy przegląd, a CodeRabbit
+znajduje kolejne przypadki brzegowe w świeżym kodzie. Żeby nie kręcić się w kółko: poprawiamy zasadne, a na resztę odpowiadamy
+w wątku (z uzasadnieniem albo wpisem w `known-limitations.md`) i rozwiązujemy wątek.
+
+### Uwagi (sprawdzone w kodzie)
+- **G1 [Minor, powtórka] `src/lib/ticket-parse/merge.ts:42` — sortowanie przez północ.** NRT→HNL 6.12 00:30 (Tokio) jest przed
+  HNL→SFO 5.12 15:00 (Honolulu), a komparator stawia HNL→SFO pierwszy, bo porównuje datę lokalną. Przyczyna: dwa klucze (data, potem
+  chwila). Poprawka: **jeden klucz liczbowy** — lot z godziną: chwila wylotu w UTC; lot bez godziny z datą: koniec tego dnia
+  (zachowuje „bez godziny na koniec dnia” i regułę przesiadki E3); bez daty: na końcu. Jeden klucz = sortowanie przechodnie.
+  Test: przypadek NRT/HNL powyżej + istniejące testy E2/E3 bez zmian.
+- **G2 [Minor] `src/lib/ticket-parse/text.ts:96` — data przylotu brana jako data wylotu.** `WAW -> BCN FR123 Departure 23:00
+  Arrival 2026-12-06 01:00` → `blockDate` = 6.12 (jedyna data w bloku, ale z okna przylotu) → wylot 6.12 23:00. Poprawka: `blockDate`
+  liczony z bloku **bez okna przylotu**; brak daty wylotu → `null`.
+  Test: ten przypadek → `flightDate: null`, `departAt: null`.
+- **G3 [Minor] `text.ts:120-124` — mieszane formaty tras.** Gdy wylot jest w formacie `WAW -> BCN`, a powrót `Departure Barcelona
+  (BCN) … Arrival Warsaw (WAW)`, formaty `PAREN_ROUTE` / `labelledRoutes` w ogóle się nie uruchamiają → powrót ginie i parser może
+  zwrócić `complete: true` z jednym lotem. Poprawka: zbierać trasy ze **wszystkich** formatów, sortować po pozycji, usuwać
+  nakładające się dopasowania (pierwsze wygrywa), potem dzielić na bloki.
+  Test: ten przypadek → 2 loty, powrót `return`; istniejące testy formatów bez zmian.
+  Doprecyzowanie przy wykonaniu (verifier FAIL, 2026-11-24): nagłówek `Warszawa (WAW) - Barcelona (BCN)` + szczegóły
+  `Departure Warsaw (WAW) Arrival Barcelona (BCN)` dawały 2 identyczne loty. Trasa o tych samych `from`/`to` co poprzednia
+  zachowana trasa **i z innego formatu zapisu** jest pomijana, więc blok pierwszej trasy obejmuje też szczegóły — tak jak przed
+  zmianą. Powtórki w tym samym formacie zostają osobnymi lotami (istniejący test 8 lotów WAW → BCN w różne dni).
+  Zauważone, poza zakresem: `dates()` traktuje „NN Słowo RRRR” bez nazwy miesiąca (np. `45 Arrival 2026`) jak złą datę (`null`),
+  co może przypadkiem wyzerować `blockDate`. Błąd sprzed tej gałęzi.
+- **G4 [Minor] `stage1.ts` (`MAX_PDF_PAGES` = 3) + `handler.ts:142` — PDF dłuższy niż 3 strony.** Tekst czytamy z 3 stron; lot ze
+  strony 4 ginie, a wynik z pierwszych stron może wyjść jako `complete: true` (`parser`, bez AI). Decyzja → **P4**.
+- **G5 [Major] `supabase/functions/extract-ticket/index.ts:29` — brak limitu rozmiaru body.** `req.json()` wczytuje całe body przed
+  sprawdzeniem 413. Uwaga CodeRabbita, że trasa działa bez logowania, **jest błędna** (`verify_jwt = true` w `config.toml`), ale
+  zalogowany użytkownik dalej może wysłać ogromne body. Poprawka: mały helper (nowy plik obok handlera, testowalny w Jest) czyta
+  body strumieniowo z limitem bajtów (5 MB pliku w base64 ≈ 6,67 MB + zapas na JSON, np. 7 MB); po przekroczeniu 413
+  `{ error: 'file_too_large' }`, bez czekania na resztę. `index.ts` tylko go woła.
+  Test: body poniżej limitu → obiekt; powyżej (też bez `Content-Length`) → 413; zły JSON → `undefined` jak dziś.
+- **G6 [Minor] `ports.ts:50` — zwrot limitu po północy UTC.** Rezerwacja przed północą, `not_a_ticket` po północy → zwrot trafia
+  w licznik nowego dnia. Okno ~45 s na dobę, skutek: najwyżej 1 dodatkowe wywołanie Gemini. Decyzja → **P5**.
+- **G7 [Major] `src/app/trips/new/index.tsx:199` — skaner otwierany w trakcie zamykania arkusza.** `onScan` zamyka `BottomSheet`
+  (natywny `Modal`) i w tym samym renderze montuje `BoardingPassScanner` (drugi `Modal`). Na iOS drugi modal może się nie pokazać
+  (iOS nie prezentuje modala, gdy poprzedni się jeszcze zamyka). Poprawka: `BottomSheet` dostaje opcjonalny `onDismissed`
+  (z `Modal.onDismiss`, iOS); ekran otwiera skaner dopiero w nim. Android: bez zmian (otwiera od razu), tam problemu nie ma.
+  Test: `onScan` nie montuje skanera od razu; po `onDismiss` arkusza — montuje.
+- **G8 [Major] `src/features/trip-create/TicketImportSheet.tsx:93` — zgoda odznaczona w trakcie przygotowania pliku.** Po powrocie
+  z pickera (czytanie base64 / zmniejszanie zdjęcia) widok zgody jest dalej aktywny; odznaczenie nie zatrzymuje wysyłki. Poprawka:
+  aktualna zgoda w `useRef`, sprawdzana tuż przed `extract.mutateAsync(file)`; odznaczona → bez wysyłki.
+  Test: odznaczenie po wyborze pliku, przed wysyłką → `mutateAsync` nie wywołany; zgoda zostaje → wysyłka jak dziś.
+- **G9 [Minor] `src/i18n/locales/pl.json:73` / `en.json:73` — copy „nie wlicza się do dziennego limitu”.** Prawda tylko dla limitu
+  analiz AI (5); próba dalej liczy się do limitu odrzuconych plików (10). Treść → **P6**.
+- **G10 [Major] `src/features/trip-create/__tests__/draft.test.ts:297` — rzekomy błąd TS7053.** **Fałszywy alarm**: `pnpm typecheck`
+  przechodzi (exit 0) na `fbf6378`. Bez zmian w kodzie, odpowiedź w wątku.
+
+### Pytania (do decyzji Kacpra)
+- **P4 (G4) — PDF dłuższy niż 3 strony.** Bilety często mają 2–5 stron (dalej regulamin).
+  a) **(rekomendacja)** Gdy PDF ma więcej stron niż przeczytaliśmy, etap 1 nigdy nie zwraca `complete` → idzie do Gemini, który
+     widzi cały plik. Koszt: 1 analiza AI z limitu dla takich biletów. Bez zmian w schemacie (flaga tylko między `stage1` a handlerem).
+  b) Czytać więcej stron (np. 6) i dopiero powyżej → jak a). Mniej wywołań AI, ale bliżej budżetu CPU (2 s).
+  c) Zostawić, wpis w `known-limitations.md`.
+- **P5 (G6) — zwrot po północy.**
+  a) **(rekomendacja)** Zostawić, wpis w `known-limitations.md` (najwyżej 1 dodatkowe wywołanie Gemini na użytkownika na dobę). Poprawka
+     wymaga nowej migracji dla wspólnych RPC `consume_ai_quota` / `refund_ai_quota` (też plan dnia AI) i regeneracji typów.
+  b) Naprawić: nowa migracja, oba RPC dostają `p_day`; handler przekazuje ten sam dzień do rezerwacji i zwrotu.
+- **P6 (G9) — nowa treść `notTicketBody`** (propozycja):
+  - PL: „Nie znaleźliśmy w pliku danych lotu. Wgraj PDF lub zdjęcie biletu albo karty pokładowej. Ta próba nie zużywa dziennego
+    limitu analiz AI, ale liczy się do dziennego limitu odrzuconych plików.”
+  - EN: “We didn't find any flight details in the file. Upload a PDF or a photo of a ticket or boarding pass. This attempt doesn't
+    use one of your daily AI imports, but it counts towards the daily limit of rejected files.”
+
+### Kroki (fala 1 równolegle, różne pliki; testy najpierw)
+- [x] **A [backend] G1**: `src/lib/ticket-parse/merge.ts` + `__tests__/merge.test.ts`
+- [x] **B [backend] G2 + G3**: `src/lib/ticket-parse/text.ts` + `__tests__/text.test.ts`
+- [x] **C [backend] G5**: nowy helper body w `supabase/functions/extract-ticket/` + test, `index.ts` (wywołanie)
+- [x] **D [backend] G4 (po P4)**: `stage1.ts`, `handler.ts` + ich testy
+- [x] **E [frontend] G7**: `src/components/BottomSheet.tsx`, `src/app/trips/new/index.tsx` + testy
+- [x] **F [frontend] G8**: `src/features/trip-create/TicketImportSheet.tsx` + `__tests__/TicketImportSheet.test.tsx`
+- [x] **G [frontend] G9 (po P6)**: `src/i18n/locales/pl.json`, `en.json`
+- [-] **H [backend] G6**: pominięty (P5 = a)
+- [x] **I [orkiestrator]**: wpisy w `docs/architecture/known-limitations.md` (P4 = c / P5 = a), flows `ticket-import.md` jeśli
+      zmienia się zachowanie (G4)
+- [ ] **J [orkiestrator]**: każdy krok → verifier; potem pełny `pnpm test` / `typecheck` / `lint`, `deno check`, push, odpowiedzi
+      i rozwiązanie wszystkich 10 wątków (G10 i ewentualne „zostawiamy” z uzasadnieniem).
+
+Ryzyka: G1/G3 zmieniają kolejność/liczbę lotów — istniejące testy merge/text muszą zostać zielone bez zmian; `merge.ts` i
+`text.ts` działają też w Deno (`deno check`). G7: `Modal.onDismiss` jest tylko na iOS — test musi pokryć obie platformy.
