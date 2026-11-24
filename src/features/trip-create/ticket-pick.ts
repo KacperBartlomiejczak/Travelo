@@ -36,7 +36,10 @@ export async function pickTicketPdf(): Promise<ExtractTicketRequest | null> {
   try {
     // The reported size goes first, so a huge file is never read.
     if (size !== undefined && size > TICKET_MAX_BYTES) throw new UnsupportedTicketFileError('file_too_large', 'file_too_large');
-    return checked({ mimeType: 'application/pdf', dataBase64: await new File(uri).base64() });
+    const file = new File(uri);
+    // The picker may omit the size, so the cached file's own size is checked before it is read.
+    if (file.size > TICKET_MAX_BYTES) throw new UnsupportedTicketFileError('file_too_large', 'file_too_large');
+    return checked({ mimeType: 'application/pdf', dataBase64: await file.base64() });
   } finally {
     discard(uri);
   }
@@ -46,37 +49,42 @@ export async function pickTicketPdf(): Promise<ExtractTicketRequest | null> {
 export async function pickTicketPhoto(): Promise<ExtractTicketRequest | null> {
   const result = await launchImageLibraryAsync({ mediaTypes: ['images'] });
   if (result.canceled) return null;
-  const context = ImageManipulator.manipulate(result.assets[0].uri);
+  const pickedUri = result.assets[0].uri;
   try {
-    // The picker's width and height can be 0, so the real size comes from rendering once.
-    const rendered = await context.renderAsync();
+    const context = ImageManipulator.manipulate(pickedUri);
     try {
-      const size = fitWithin(rendered.width, rendered.height, TICKET_PHOTO_MAX_SIDE);
-      const options = { format: SaveFormat.JPEG, compress: JPEG_QUALITY, base64: true };
-      let saved;
-      if (!size) saved = await rendered.saveAsync(options);
-      else {
-        const resizer = ImageManipulator.manipulate(rendered);
-        try {
-          const shrunk = await resizer.resize(size).renderAsync();
-          try {
-            saved = await shrunk.saveAsync(options);
-          } finally {
-            shrunk.release();
-          }
-        } finally {
-          resizer.release();
-        }
-      }
+      // The picker's width and height can be 0, so the real size comes from rendering once.
+      const rendered = await context.renderAsync();
       try {
-        return checked({ mimeType: 'image/jpeg', dataBase64: saved.base64 ?? '' });
+        const size = fitWithin(rendered.width, rendered.height, TICKET_PHOTO_MAX_SIDE);
+        const options = { format: SaveFormat.JPEG, compress: JPEG_QUALITY, base64: true };
+        let saved;
+        if (!size) saved = await rendered.saveAsync(options);
+        else {
+          const resizer = ImageManipulator.manipulate(rendered);
+          try {
+            const shrunk = await resizer.resize(size).renderAsync();
+            try {
+              saved = await shrunk.saveAsync(options);
+            } finally {
+              shrunk.release();
+            }
+          } finally {
+            resizer.release();
+          }
+        }
+        try {
+          return checked({ mimeType: 'image/jpeg', dataBase64: saved.base64 ?? '' });
+        } finally {
+          discard(saved.uri);
+        }
       } finally {
-        discard(saved.uri);
+        rendered.release();
       }
     } finally {
-      rendered.release();
+      context.release();
     }
   } finally {
-    context.release();
+    discard(pickedUri); // D5: the picker's app-cache copy is never kept.
   }
 }

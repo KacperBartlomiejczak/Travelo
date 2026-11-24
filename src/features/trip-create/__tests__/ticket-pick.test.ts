@@ -15,6 +15,7 @@ const getDoc = jest.mocked(getDocumentAsync);
 const launch = jest.mocked(launchImageLibraryAsync);
 const base64 = jest.fn();
 const remove = jest.fn();
+let localSize: number | undefined;
 const fileUris: string[] = [];
 const PDF_B64 = btoa('%PDF-1.4 hello');
 const JPEG_B64 = btoa('\xff\xd8\xff\xe0 jpeg');
@@ -25,9 +26,10 @@ beforeEach(() => {
   base64.mockReset();
   remove.mockReset();
   fileUris.length = 0;
+  localSize = undefined;
   jest.mocked(File).mockImplementation((uri: unknown) => {
     fileUris.push(String(uri));
-    return { base64, delete: remove } as unknown as File;
+    return { base64, delete: remove, size: localSize } as unknown as File;
   });
 });
 
@@ -70,6 +72,14 @@ describe('pickTicketPdf', () => {
     await expect(pickTicketPdf()).resolves.toEqual({ mimeType: 'application/pdf', dataBase64: PDF_B64 });
   });
 
+  it('throws file_too_large from the local file size when the picker reports none, without reading it', async () => {
+    getDoc.mockResolvedValue(picked(undefined));
+    localSize = TICKET_MAX_BYTES + 1;
+    await expect(pickTicketPdf()).rejects.toMatchObject({ code: 'file_too_large' });
+    expect(base64).not.toHaveBeenCalled();
+    expect(remove).toHaveBeenCalledTimes(1);
+  });
+
   it('deletes the cached copy after a successful read', async () => {
     getDoc.mockResolvedValue(picked(100));
     base64.mockResolvedValue(PDF_B64);
@@ -93,7 +103,7 @@ describe('pickTicketPdf', () => {
 });
 
 describe('pickTicketPhoto', () => {
-  const asset = { uri: 'file:///gallery/p.jpg', width: 4000, height: 3000 };
+  const asset = { uri: 'file:///data/user/0/app/cache/ImagePicker/p.jpeg', width: 4000, height: 3000 };
 
   function mockManipulator(saved: { base64?: string; uri?: string }, side = { width: 4000, height: 3000 }) {
     const saveAsync = jest.fn(async () => ({ uri: 'file:///cache/out.jpg', ...saved }));
@@ -134,11 +144,19 @@ describe('pickTicketPhoto', () => {
     expect(saveAsync).toHaveBeenCalledTimes(1);
   });
 
-  it('deletes the saved copy but never the gallery original', async () => {
+  it('deletes the saved copy and the picker cache copy', async () => {
     launch.mockResolvedValue({ canceled: false, assets: [asset] } as never);
     mockManipulator({ base64: JPEG_B64 });
     await pickTicketPhoto();
-    expect(fileUris).toEqual(['file:///cache/out.jpg']);
+    expect(fileUris).toEqual(['file:///cache/out.jpg', asset.uri]);
+    expect(remove).toHaveBeenCalledTimes(2);
+  });
+
+  it('deletes the picker cache copy when rendering throws', async () => {
+    launch.mockResolvedValue({ canceled: false, assets: [asset] } as never);
+    jest.mocked(ImageManipulator.manipulate).mockReturnValue({ release: jest.fn(), renderAsync: jest.fn().mockRejectedValue(new Error('boom')) } as never);
+    await expect(pickTicketPhoto()).rejects.toThrow('boom');
+    expect(fileUris).toEqual([asset.uri]);
     expect(remove).toHaveBeenCalledTimes(1);
   });
 
@@ -146,7 +164,7 @@ describe('pickTicketPhoto', () => {
     launch.mockResolvedValue({ canceled: false, assets: [asset] } as never);
     mockManipulator({ base64: PDF_B64 });
     await expect(pickTicketPhoto()).rejects.toMatchObject({ code: 'unsupported_file' });
-    expect(remove).toHaveBeenCalledTimes(1);
+    expect(remove).toHaveBeenCalledTimes(2);
   });
 
   it('throws unsupported_file when the result is not a JPEG', async () => {
