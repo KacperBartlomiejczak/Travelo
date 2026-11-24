@@ -32,15 +32,16 @@ export function mergeParsed(bcbp: BoardingPass | null, text: ParsedTicket, airpo
       arriveAt: sameDay ? match.arriveAt : null,
     };
   });
-  // Text-only flights (e.g. the return leg of a PDF with one boarding-pass barcode) are kept; flights are ordered by day, then by
-  // departure instant (UTC; an unknown airport zone falls back to the local clock), untimed last, except that an untimed leg
+  // Text-only flights (e.g. the return leg of a PDF with one boarding-pass barcode) are kept; flights are ordered by departure
+  // instant (UTC; an unknown airport zone falls back to the local clock), an untimed one counting as the end of its day, undated last, except that an untimed leg
   // feeding a timed flight of the same day goes right before it (unless it already continues a timed flight). Directions are recomputed over the whole itinerary. Max 8 like validateParsed.
   // Unrelated flights with the same instant keep their input order (stable sort), intended.
   const instant = (s: TicketSegment) => (s.departAt ? zonedLocalToDate(s.departAt, airports(s.fromIata)?.timezone ?? 'UTC').getTime() : null);
-  const all = [...merged, ...unused].sort((a, b) => {
-    const [ia, ib] = [instant(a), instant(b)];
-    return (a.flightDate ?? '9999').localeCompare(b.flightDate ?? '9999') || (ia === null ? (ib === null ? 0 : 1) : ib === null ? -1 : ia - ib);
-  });
+  // One numeric key keeps the sort transitive: departure instant; untimed = end of its day; undated = last.
+  const key = (s: TicketSegment) =>
+    instant(s) ??
+    (s.flightDate ? zonedLocalToDate(`${s.flightDate}T23:59:59`, airports(s.fromIata)?.timezone ?? 'UTC').getTime() : Infinity);
+  const all = [...merged, ...unused].sort((a, b) => (key(a) === key(b) ? 0 : key(a) < key(b) ? -1 : 1));
   for (const u of all.filter((s) => instant(s) === null)) {
     const rest = all.filter((s) => s !== u);
     const feeds = rest.findIndex((t) => instant(t) !== null && t.flightDate === u.flightDate && t.fromIata === u.toIata);

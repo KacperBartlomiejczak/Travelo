@@ -143,6 +143,15 @@ describe('mergeParsed', () => {
     expect(r.segments.map((s) => s.flightNumber)).toEqual(['N', 'L']);
   });
 
+  it('orders across time zones by the UTC instant even when the local dates are reversed', () => {
+    const zones = (iata: string) =>
+      ({ NRT: { timezone: 'Asia/Tokyo' }, HNL: { timezone: 'Pacific/Honolulu' }, SFO: { timezone: 'America/Los_Angeles' } })[iata as 'NRT'];
+    const nrt = seg({ fromIata: 'NRT', toIata: 'HNL', flightNumber: 'N', flightDate: '2026-12-06', departAt: '2026-12-06T00:30', arriveAt: '2026-12-05T12:00' });
+    const hnl = seg({ fromIata: 'HNL', toIata: 'SFO', flightNumber: 'H', flightDate: '2026-12-05', departAt: '2026-12-05T15:00', arriveAt: '2026-12-05T23:00' });
+    const r = mergeParsed(bcbp({ fromIata: 'HNL', toIata: 'SFO', flightNumber: 'H', flightDate: '2026-12-05' }), { segments: [hnl, nrt] }, zones);
+    expect(r.segments.map((s) => s.flightNumber)).toEqual(['N', 'H']);
+  });
+
   it('puts an untimed connection right before the timed flight it feeds', () => {
     const feed = seg({ fromIata: 'BCN', toIata: 'MAD', flightNumber: 'X', departAt: '2026-12-05T12:00', arriveAt: '2026-12-05T13:10' });
     const conn = seg({ flightNumber: 'C', departAt: null, arriveAt: null });
