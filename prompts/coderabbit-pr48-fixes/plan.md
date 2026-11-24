@@ -106,28 +106,28 @@ Brak zmian. `ParsedTicket` / `TicketSegment` (`src/schemas/ticket.ts`) zostają;
 Każdy krok: najpierw test (red), potem kod, potem verifier. Żadne dwa kroki w jednej fali nie dotykają tego samego pliku.
 
 ### Fala 1 (od razu, wszystko równolegle)
-- [ ] **1a [backend] U1**: `src/lib/ticket-parse/text.ts` + `__tests__/text.test.ts`
-- [ ] **1b [backend] U2**: `src/lib/ticket-parse/merge.ts` + `__tests__/merge.test.ts` (sygnatura `mergeParsed` bez zmian)
-- [ ] **1c [backend] U3**: `supabase/functions/extract-ticket/handler.ts` + `__tests__/handler.test.ts`. Handler sam
+- [x] **1a [backend] U1**: `src/lib/ticket-parse/text.ts` + `__tests__/text.test.ts`
+- [x] **1b [backend] U2**: `src/lib/ticket-parse/merge.ts` + `__tests__/merge.test.ts` (sygnatura `mergeParsed` bez zmian)
+- [x] **1c [backend] U3**: `supabase/functions/extract-ticket/handler.ts` + `__tests__/handler.test.ts`. Handler sam
   składa jeden `BoardingPass` z odcinków wszystkich poprawnych kodów (bez duplikatów, kolejność dokumentu) i
   podaje go do `mergeParsed`. Połączonego obiektu **nie** walidować `BoardingPassSchema` (`legs.max(4)`); limit 8
   pilnuje `validateParsed`.
-- [ ] **1d [backend] U4 + U5**: `supabase/functions/extract-ticket/stage1.ts` + `__tests__/stage1.test.ts`
+- [x] **1d [backend] U4 + U5**: `supabase/functions/extract-ticket/stage1.ts` + `__tests__/stage1.test.ts`
   (+ ew. `test-support/stage1-driver.mjs`)
-- [ ] **1e [frontend] U7**: `src/app/trips/new/index.tsx` + `src/__tests__/app/trips/new/flights.test.tsx`
-- [ ] **1f [frontend] U8**: `src/features/trip-create/TicketImportSheet.tsx` + `__tests__/TicketImportSheet.test.tsx`
-- [ ] **1g [frontend] U9 + U10**: `src/features/trip-create/ticket-pick.ts` + `__tests__/ticket-pick.test.ts`
-- [ ] **1h [frontend] U11**: `src/features/trip-create/SegmentCard.tsx` + nowy `__tests__/SegmentCard.test.tsx`
-- [ ] **1i [orkiestrator] U14**: `docs/architecture/backend.md` (krok migracji przed deployem)
+- [x] **1e [frontend] U7**: `src/app/trips/new/index.tsx` + `src/__tests__/app/trips/new/flights.test.tsx`
+- [x] **1f [frontend] U8**: `src/features/trip-create/TicketImportSheet.tsx` + `__tests__/TicketImportSheet.test.tsx`
+- [x] **1g [frontend] U9 + U10**: `src/features/trip-create/ticket-pick.ts` + `__tests__/ticket-pick.test.ts`
+- [x] **1h [frontend] U11**: `src/features/trip-create/SegmentCard.tsx` + nowy `__tests__/SegmentCard.test.tsx`
+- [x] **1i [orkiestrator] U14**: `docs/architecture/backend.md` (krok migracji przed deployem)
 
 Po fali 1: pełny `pnpm test` zanim 1b i 1c dostaną `[x]` (zmieniają wynik parsera; gdy padnie inny test handlera,
 poprawka idzie jako osobny krok do właściciela pliku).
 
 ### Fala 2 (po Twoich decyzjach P1 / P2)
-- [ ] **2a [backend] U6 (P1 = a)**: `stage1.ts` + `stage1.test.ts` (+ fixture); po 1d, te same pliki.
+- [x] **2a [backend] U6 (P1 = a)**: `stage1.ts` + `stage1.test.ts` (+ fixture); po 1d, te same pliki.
   Albo **2a' [orkiestrator] (P1 = b)**: `docs/architecture/known-limitations.md`.
-- [ ] **2b [frontend] U12 + U13**: `src/i18n/locales/en.json`, `pl.json` (+ test, jeśli sprawdza tekst zgody)
-- [ ] **2c [orkiestrator] U12 + U13**: `docs/legal/privacy-policy.en.md`, `docs/legal/privacy-policy.pl.md` (równolegle z 2b)
+- [x] **2b [frontend] U12 + U13**: `src/i18n/locales/en.json`, `pl.json` (+ test, jeśli sprawdza tekst zgody)
+- [x] **2c [orkiestrator] U12 + U13**: `docs/legal/privacy-policy.en.md`, `docs/legal/privacy-policy.pl.md` (równolegle z 2b)
 
 ### Fala 3 (koniec)
 - [ ] verifier całej gałęzi + CodeRabbit, `pnpm test` / `typecheck` / `lint` zielone, merge do
@@ -153,3 +153,7 @@ poprawka idzie jako osobny krok do właściciela pliku).
   - PL: „Nie przechowujemy pliku — jest przetwarzany w pamięci serwera, a gdy sam odczyt nie wystarczy, wysyłany do Google Gemini; nie trafia do naszego magazynu plików ani logów. Aplikacja próbuje skasować kopię roboczą na telefonie zaraz po wysłaniu.”
   - EN: “We do not store the file — it is processed in the server's memory and, when our own reading is not enough, sent to Google Gemini; it never goes to our file storage or logs. The app tries to delete the working copy on your phone right after sending.”
 - P1, doprecyzowanie (2026-11-24): pdf.js dekoduje wszystkie obrazy już w `getOperatorList`, więc liczby obrazów nie da się ograniczyć przed dekodowaniem. Kacper wybrał limit rozmiaru pojedynczego obrazu: `maxImageSize` = 400 000 pikseli (~640×640). Większe obrazy są pomijane, wtedy działa tekst albo Gemini. Nieograniczona liczba obrazów trafia do `known-limitations.md`.
+- Ponad 8 segmentów (2026-11-24): Kacper wybrał „wynik niepełny”: gdy parser obcina loty do 8, wynik nie może być `complete`, żeby aplikacja pokazała „sprawdź loty”. Krok 2d.
+
+### Krok dodatkowy
+- [x] **2d [backend]**: obcięcie do 8 segmentów (merge i tekst) → `complete: false`; test najpierw.

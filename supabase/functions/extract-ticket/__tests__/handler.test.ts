@@ -200,6 +200,44 @@ describe('stage 1 (parser)', () => {
   });
 });
 
+describe('a ticket cut to the 8-segment limit', () => {
+  const flights = (n: number) =>
+    Array.from({ length: n }, (_, i) => `WAW → BCN FR12${i} Departure 2026-12-0${i + 1} 06:45 Arrival 2026-12-0${i + 1} 09:50`).join('\n');
+  const answer = (n: number): GeminiTicket => ({
+    isTicket: true,
+    segments: Array.from({ length: n }, (_, i) => ({
+      direction: 'outbound' as const,
+      flightNumber: `FR12${i}`,
+      fromIata: 'WAW',
+      toIata: 'BCN',
+      departLocal: `2026-12-0${i + 1}T06:45`,
+      arriveLocal: `2026-12-0${i + 1}T09:50`,
+    })),
+  });
+
+  it('9 flights give 200 complete false with the 8 kept segments, even when Gemini agrees', async () => {
+    const { ports } = makePorts({ extractPdfText: async () => flights(9), callGemini: async () => JSON.stringify(answer(8)) });
+    const res = await handleExtractTicket(req(), ports);
+    expect(res.status).toBe(200);
+    const body = ExtractTicketResponseSchema.parse(res.body);
+    expect(body.complete).toBe(false);
+    expect(body.segments).toHaveLength(8);
+  });
+
+  it('9 flights stay complete false when Gemini fails or sees more than 8', async () => {
+    const { ports } = makePorts({ extractPdfText: async () => flights(9), callGemini: async () => JSON.stringify(answer(9)) });
+    const res = await handleExtractTicket(req(), ports);
+    expect(res.status).toBe(200);
+    expect(ExtractTicketResponseSchema.parse(res.body)).toMatchObject({ source: 'parser', complete: false });
+  });
+
+  it('exactly 8 full flights are still complete, from the parser', async () => {
+    const { ports } = makePorts({ extractPdfText: async () => flights(8) });
+    const res = await handleExtractTicket(req(), ports);
+    expect(ExtractTicketResponseSchema.parse(res.body)).toMatchObject({ source: 'parser', complete: true });
+  });
+});
+
 describe('stage 2 (Gemini)', () => {
   const bcbpOnly = (extra: Partial<ExtractTicketPorts> = {}) =>
     makePorts({ decodeBarcodes: async () => [BCBP], ...extra });

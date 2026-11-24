@@ -26,6 +26,7 @@ export function validateParsed(parsed: ParsedTicket, airports: AirportLookup, to
   const min = shiftYears(today, -1);
   const max = shiftYears(today, 2);
   return {
+    ...parsed,
     segments: parsed.segments.map((s) => {
       const from = airports(s.fromIata);
       const to = airports(s.toIata);

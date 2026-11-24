@@ -32,7 +32,11 @@ export const TicketSegmentSchema = z.object({
 });
 export type TicketSegment = z.infer<typeof TicketSegmentSchema>;
 
-export const ParsedTicketSchema = z.object({ segments: z.array(TicketSegmentSchema).max(MAX_TICKET_SEGMENTS) });
+// `truncated`: the parser cut flights down to the limit, so the result can never be reported as complete.
+export const ParsedTicketSchema = z.object({
+  segments: z.array(TicketSegmentSchema).max(MAX_TICKET_SEGMENTS),
+  truncated: z.literal(true).optional(),
+});
 export type ParsedTicket = z.infer<typeof ParsedTicketSchema>;
 
 // Gemini structured output: no free-text strings (every string has a pattern or is an enum).

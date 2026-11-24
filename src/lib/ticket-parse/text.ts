@@ -122,11 +122,14 @@ export function parseTicketText(text: string, airports: AirportLookup): ParsedTi
     routes = [...text.matchAll(PAREN_ROUTE)].map((m) => route(m.index ?? 0, m[1], m[2]));
   }
   if (routes.length === 0) routes = labelledRoutes(text, airports);
-  const segments = routes
+  const all = routes
     .map((r, i) => ({ r, block: text.slice(r.index, routes[i + 1]?.index ?? text.length) }))
     .filter(({ r }) => r.from !== r.to && airports(r.from) && airports(r.to))
-    .map(({ r, block }) => parseBlock(block, r.from, r.to))
-    .slice(0, MAX_TICKET_SEGMENTS);
-  const parsed = ParsedTicketSchema.safeParse({ segments: assignDirections(segments) });
+    .map(({ r, block }) => parseBlock(block, r.from, r.to));
+  const segments = all.slice(0, MAX_TICKET_SEGMENTS);
+  const parsed = ParsedTicketSchema.safeParse({
+    segments: assignDirections(segments),
+    ...(all.length > segments.length && { truncated: true }),
+  });
   return parsed.success ? parsed.data : { segments: [] };
 }

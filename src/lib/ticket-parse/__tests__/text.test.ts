@@ -10,6 +10,18 @@ const airports = (iata: string) => (ZONES[iata] ? { timezone: ZONES[iata] } : un
 const parse = (text: string) => parseTicketText(text, airports);
 
 describe('parseTicketText', () => {
+  const flights = (n: number) =>
+    Array.from({ length: n }, (_, i) => `WAW → BCN FR12${i} Departure 2026-12-0${i + 1} 06:45 Arrival 2026-12-0${i + 1} 09:50`).join('\n');
+
+  it('flags a cut at 8 flights as truncated, and exactly 8 as not', () => {
+    const nine = parse(flights(9));
+    expect(nine.segments).toHaveLength(8);
+    expect(nine.truncated).toBe(true);
+    const eight = parse(flights(8));
+    expect(eight.segments).toHaveLength(8);
+    expect(eight.truncated).toBeUndefined();
+  });
+
   it('leaves arriveAt null when the printed arrival date is invalid', () => {
     const r = parse('WAW → BCN Departure 2026-12-05 10:00 Arrival 2026-02-30 13:00');
     expect(r.segments[0].departAt).toBe('2026-12-05T10:00');

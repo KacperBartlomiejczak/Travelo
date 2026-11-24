@@ -220,7 +220,7 @@ export async function handleExtractTicket(
 
   if (verdict.kind === 'ok') {
     await refund('ticket_rejected');
-    return respond(verdict.segments, 'ai', isComplete({ segments: verdict.segments }), remaining);
+    return respond(verdict.segments, 'ai', !parsed.truncated && isComplete({ segments: verdict.segments }), remaining);
   }
   if (verdict.kind === 'mismatch' || found) {
     // The answer disagrees with stage 1, or says "not a ticket" although stage 1 found flights: the response carries

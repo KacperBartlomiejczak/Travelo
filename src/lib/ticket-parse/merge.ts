@@ -25,12 +25,14 @@ export function mergeParsed(bcbp: BoardingPass | null, text: ParsedTicket, airpo
   // Text-only flights (e.g. the return leg of a PDF with one boarding-pass barcode) are kept; flights are ordered by day
   // (stable, so text order breaks ties) and directions are recomputed over the whole itinerary. Max 8 like validateParsed.
   const all = [...merged, ...unused].sort((a, b) => (a.flightDate ?? '9999').localeCompare(b.flightDate ?? '9999'));
-  return { segments: assignDirections(all).slice(0, MAX_SEGMENTS) };
+  const truncated = all.length > MAX_SEGMENTS || text.truncated;
+  return { segments: assignDirections(all).slice(0, MAX_SEGMENTS), ...(truncated && { truncated: true as const }) };
 }
 
 // D13: every segment has airports, flight number and departure and arrival times.
 export function isComplete(parsed: ParsedTicket): boolean {
   return (
+    !parsed.truncated &&
     parsed.segments.length > 0 &&
     parsed.segments.every((s) => s.fromIata && s.toIata && s.flightNumber && s.departAt && s.arriveAt)
   );

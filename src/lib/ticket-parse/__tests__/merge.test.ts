@@ -20,6 +20,8 @@ const bcbp = (o: Partial<BoardingPass['legs'][number]> = {}): BoardingPass => ({
 describe('isComplete', () => {
   it('is true for a fully filled segment', () => expect(isComplete({ segments: [seg()] })).toBe(true));
   it('is false without segments', () => expect(isComplete({ segments: [] })).toBe(false));
+  it('is false for a truncated result even when every segment is full', () =>
+    expect(isComplete({ segments: [seg()], truncated: true })).toBe(false));
   it.each(['flightNumber', 'departAt', 'arriveAt'] as const)('is false when %s is missing', (key) => {
     expect(isComplete({ segments: [seg(), seg({ [key]: null })] })).toBe(false);
   });
@@ -63,8 +65,19 @@ describe('mergeParsed', () => {
     expect(r.segments.map((s) => s.direction)).toEqual(['outbound', 'return']);
   });
 
-  it('never returns more than 8 segments', () => {
+  it('never returns more than 8 segments, and marks the cut result as truncated (not complete)', () => {
     const many = Array.from({ length: 9 }, (_, i) => seg({ fromIata: 'WAW', toIata: 'BCN', flightDate: `2026-12-${String(10 + i).padStart(2, '0')}` }));
-    expect(mergeParsed(bcbp(), { segments: many }, airports).segments).toHaveLength(8);
+    const r = mergeParsed(bcbp(), { segments: many }, airports);
+    expect(r.segments).toHaveLength(8);
+    expect(r.truncated).toBe(true);
+    expect(isComplete(r)).toBe(false);
+  });
+
+  it('keeps a truncated flag from the text and does not flag exactly 8', () => {
+    expect(mergeParsed(null, { segments: [seg()], truncated: true }, airports).truncated).toBe(true);
+    const eight = Array.from({ length: 8 }, (_, i) => seg({ flightDate: `2026-12-${String(10 + i).padStart(2, '0')}` }));
+    const r = mergeParsed(bcbp(), { segments: eight }, airports);
+    expect(r.segments).toHaveLength(8);
+    expect(r.truncated).toBeUndefined();
   });
 });
