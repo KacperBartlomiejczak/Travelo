@@ -228,6 +228,38 @@ describe('stage 2 (Gemini)', () => {
     expect(logs).toEqual(['parser_partial', 'gemini_used']);
   });
 
+  it('keeps the legs of every valid barcode, so a return code is not lost', async () => {
+    // BCN -> WAW FR0124, day 345 = 2026-12-11
+    const back = `M1${pad('DOE/JOHN', 20)}E${pad('ZXQ4TK', 7)}BCNWAW${pad('FR', 3)}${pad('0124', 5)}345Y012A00001100`;
+    const both = gemini();
+    both.segments.push({
+      direction: 'return',
+      flightNumber: 'FR124',
+      fromIata: 'BCN',
+      toIata: 'WAW',
+      departLocal: '2026-12-11T10:00',
+      arriveLocal: '2026-12-11T13:05',
+    });
+    const { ports } = bcbpOnly({ decodeBarcodes: async () => [BCBP, back], callGemini: async () => JSON.stringify(both) });
+    const res = await handleExtractTicket(req(), ports);
+    expect(res.status).toBe(200);
+    expect(ExtractTicketResponseSchema.parse(res.body)).toMatchObject({
+      source: 'ai',
+      complete: true,
+      segments: [
+        { fromIata: 'WAW', toIata: 'BCN', flightNumber: 'FR123' },
+        { fromIata: 'BCN', toIata: 'WAW', flightNumber: 'FR124', flightDate: '2026-12-11' },
+      ],
+    });
+  });
+
+  it('the same barcode twice gives one leg', async () => {
+    const { ports } = bcbpOnly({ decodeBarcodes: async () => [BCBP, BCBP] });
+    const res = await handleExtractTicket(req(), ports);
+    expect(res.status).toBe(200);
+    expect(ExtractTicketResponseSchema.parse(res.body).segments).toHaveLength(1);
+  });
+
   it('answers with the stage 1 data, complete false, when Gemini disagrees with it', async () => {
     const { ports, quota } = bcbpOnly({ callGemini: async () => JSON.stringify(gemini({ flightNumber: 'FR999' })) });
     const res = await handleExtractTicket(req(), ports);

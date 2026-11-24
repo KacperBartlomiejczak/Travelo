@@ -17,6 +17,7 @@ import {
   TicketMimeTypeSchema,
 } from '../../../src/schemas/ticket.ts';
 import type {
+  BoardingPass,
   ExtractTicketError,
   ExtractTicketRequest,
   ExtractTicketResponse,
@@ -113,7 +114,15 @@ export async function handleExtractTicket(
   const barcodes = await attempt(() => ports.decodeBarcodes(bytes, request.mimeType), [] as string[]);
   const text =
     request.mimeType === 'application/pdf' ? await attempt(() => ports.extractPdfText(bytes), null as string | null) : null;
-  const bcbp = barcodes.map((b) => parseBcbp(b, today, (iata) => known.has(iata))).find((p) => p !== null) ?? null;
+  // One pass per barcode (outbound and return may be separate codes): distinct legs, in document order. Not run
+  // through BoardingPassSchema (legs.max(4)); validateParsed enforces the segment limit.
+  const legs = new Map<string, BoardingPass['legs'][number]>();
+  for (const code of barcodes) {
+    for (const leg of parseBcbp(code, today, (iata) => known.has(iata))?.legs ?? []) {
+      legs.set(`${leg.fromIata}|${leg.toIata}|${leg.flightNumber}|${leg.flightDate}`, leg);
+    }
+  }
+  const bcbp: BoardingPass | null = legs.size > 0 ? { legs: [...legs.values()] } : null;
   const parsed = validateParsed(
     mergeParsed(bcbp, text ? parseTicketText(text, lookup) : { segments: [] }, lookup),
     lookup,
