@@ -1,7 +1,7 @@
 // Stage 1 readers of the ticket import (zxing-wasm + unpdf). Kept apart from ports.ts: unpdf is ESM-only, which Jest
 // cannot load, so the adapter test runs this file in a plain Node process (see __tests__/stage1.test.ts).
 import { extractImages, getDocumentProxy } from 'unpdf';
-import { prepareZXingModule, readBarcodes } from 'zxing-wasm/reader';
+import { prepareZXingModule, purgeZXingModule, readBarcodes } from 'zxing-wasm/reader';
 import type { ExtractTicketPorts } from './handler.ts';
 
 // Supabase gives an Edge Function 2 s of CPU per request: read only the first pages and a few images of a PDF
@@ -18,14 +18,14 @@ type PdfImage = { data: ArrayLike<number>; width: number; height: number };
 // shortcut: 1-bit and CMYK images give a wrong channel count, so no barcode is read from them and the text path or
 // Gemini takes over; upgrade if real tickets hit it.
 // unpdf returns 1 (gray), 3 (RGB) or 4 (RGBA) channels per pixel, inferred here from the data length; the reader wants RGBA.
-function toRgba({ data, width, height }: PdfImage): Uint8ClampedArray {
+export function toRgba({ data, width, height }: PdfImage): Uint8ClampedArray {
   const channels = Math.round(data.length / (width * height));
   const rgba = new Uint8ClampedArray(width * height * 4);
   for (let i = 0; i < width * height; i++) {
     const at = i * channels;
-    rgba[i * 4] = data[at]!;
-    rgba[i * 4 + 1] = data[channels >= 3 ? at + 1 : at]!;
-    rgba[i * 4 + 2] = data[channels >= 3 ? at + 2 : at]!;
+    // Image masks come as black RGB with a transparent background: composite onto white, or a mask turns into a black block.
+    const alpha = channels === 4 ? data[at + 3]! / 255 : 1;
+    for (let c = 0; c < 3; c++) rgba[i * 4 + c] = data[channels >= 3 ? at + c : at]! * alpha + 255 * (1 - alpha);
     rgba[i * 4 + 3] = 255;
   }
   return rgba;
@@ -38,14 +38,18 @@ function toRgba({ data, width, height }: PdfImage): Uint8ClampedArray {
 export function createStage1Ports({
   wasmBinary,
   prepare = prepareZXingModule,
+  purge = purgeZXingModule,
 }: {
   wasmBinary: ArrayBuffer;
   /** Only for tests. */
   prepare?: typeof prepareZXingModule;
+  /** Only for tests. */
+  purge?: typeof purgeZXingModule;
 }): Stage1Ports {
   let ready: Promise<unknown> | undefined;
   const reader = () =>
     (ready ??= prepare({ overrides: { wasmBinary }, fireImmediately: true }).catch((error: unknown) => {
+      purge(); // zxing-wasm caches the rejected promise per wasmBinary: drop it, or every retry gets the same failure
       ready = undefined; // a failed load is not cached: the next request tries again
       throw error;
     }));

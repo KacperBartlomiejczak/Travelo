@@ -14,16 +14,20 @@ globalThis.fetch = () => {
   throw new Error('network is not allowed');
 };
 
-const { createStage1Ports, MAX_PDF_PAGES, MAX_PDF_IMAGES } = await import('../stage1.ts');
+const { createStage1Ports, toRgba, MAX_PDF_PAGES, MAX_PDF_IMAGES } = await import('../stage1.ts');
 const ports = createStage1Ports({ wasmBinary });
 // A failed wasm load must not stay cached: the first prepare call rejects, the next one succeeds, then it is cached.
 const { prepareZXingModule } = await import('zxing-wasm/reader');
 let prepareCalls = 0;
+let purgeCalls = 0;
 const retrying = createStage1Ports({
   wasmBinary,
   prepare: (options) => {
     if (++prepareCalls === 1) return Promise.reject(new Error('load failed'));
     return prepareZXingModule(options);
+  },
+  purge: () => {
+    purgeCalls++;
   },
 });
 const firstFailed = await retrying.decodeBarcodes(fixture('pdf417.jpg'), 'image/jpeg').then(() => false, () => true);
@@ -31,7 +35,12 @@ const retried = await retrying.decodeBarcodes(fixture('pdf417.jpg'), 'image/jpeg
 await retrying.decodeBarcodes(fixture('pdf417.jpg'), 'image/jpeg');
 
 const out = {
-  retry: { firstFailed, retried, prepareCalls },
+  retry: { firstFailed, retried, prepareCalls, purgeCalls },
+  // 2x1 RGBA: a transparent pixel (mask background) and a half-transparent black one; 2x1 RGB and gray stay as they are.
+  rgba: Array.from(toRgba({ data: [0, 0, 0, 0, 0, 0, 0, 128], width: 2, height: 1 })),
+  rgbaOpaque: Array.from(toRgba({ data: [10, 20, 30, 255, 40, 50, 60, 255], width: 2, height: 1 })),
+  rgb: Array.from(toRgba({ data: [1, 2, 3, 4, 5, 6], width: 2, height: 1 })),
+  gray: Array.from(toRgba({ data: [7, 8], width: 2, height: 1 })),
   textPage4: await ports.extractPdfText(fixture('text-on-page-4.pdf')),
   // First call also loads the wasm: it must not touch the network.
   jpegPdf417: await ports.decodeBarcodes(fixture('pdf417.jpg'), 'image/jpeg'),

@@ -36,7 +36,14 @@ describe('extract-ticket stage 1 ports', () => {
   });
 
   it('retries loading the wasm after a failed load, and caches a successful one', () => {
-    expect(out.retry).toEqual({ firstFailed: true, retried: [BCBP], prepareCalls: 2 });
+    expect(out.retry).toEqual({ firstFailed: true, retried: [BCBP], prepareCalls: 2, purgeCalls: 1 });
+  });
+
+  it('composites RGBA images onto white and leaves opaque, RGB and gray images unchanged', () => {
+    expect(out.rgba).toEqual([255, 255, 255, 255, 127, 127, 127, 255]);
+    expect(out.rgbaOpaque).toEqual([10, 20, 30, 255, 40, 50, 60, 255]);
+    expect(out.rgb).toEqual([1, 2, 3, 255, 4, 5, 6, 255]);
+    expect(out.gray).toEqual([7, 7, 7, 255, 8, 8, 8, 255]);
   });
 
   it('loads the reader wasm from the given bytes, with no network request', () => {
