@@ -1,5 +1,5 @@
 # Zadanie: poprawki z review CodeRabbit do PR #48 (ticket import)
-Status: w trakcie (zaakceptowany 2026-11-24)
+Status: zrobione (2026-11-24)
 
 Gałąź: `fix/pr48-coderabbit`, z `origin/feature/ticket-import-ai` (commit `47b89b7`), bo kod PR #48 nie jest
 jeszcze w `main` (decyzja Kacpra, 2026-11-24). Po zakończeniu: merge do `feature/ticket-import-ai`, PR #48 się
@@ -130,7 +130,7 @@ poprawka idzie jako osobny krok do właściciela pliku).
 - [x] **2c [orkiestrator] U12 + U13**: `docs/legal/privacy-policy.en.md`, `docs/legal/privacy-policy.pl.md` (równolegle z 2b)
 
 ### Fala 3 (koniec)
-- [ ] verifier całej gałęzi + CodeRabbit, `pnpm test` / `typecheck` / `lint` zielone, merge do
+- [x] verifier całej gałęzi + CodeRabbit, `pnpm test` / `typecheck` / `lint` zielone, merge do
   `feature/ticket-import-ai`, odpowiedzi w 14 wątkach PR #48
 
 ## Weryfikacja
@@ -158,3 +158,8 @@ poprawka idzie jako osobny krok do właściciela pliku).
 ### Krok dodatkowy
 - [x] **2d [backend]**: obcięcie do 8 segmentów (merge i tekst) → `complete: false`; test najpierw.
 - Kolejność w obrębie dnia (2026-11-24): loty z godziną wylotu po kolei, lot bez godziny na końcu dnia (Kacper).
+
+## Wynik (2026-11-24)
+- Końcowy verifier (Sonnet 5.5 + CodeRabbit): PASS; 4689 testów, typecheck, lint zielone.
+- Fast-forward `feature/ticket-import-ai` do `e530b7c` (PR #48), odpowiedzi w 14 wątkach.
+- Otwarte (nie blokują, do decyzji Kacpra): lot z tekstu bez daty łapany przed lotem z datą; sortowanie po czasie lokalnym (strefy); przesiadka bez godziny na koniec dnia (ciągłość trasy jako tie-break).
