@@ -76,9 +76,11 @@ function Body({ onClose, onScan, onImported, busy, setBusy }: Omit<Props, 'visib
   const sending = useRef(false);
   // The consent can be withdrawn while the picker is still working; send() re-checks it right before the upload.
   const acceptedRef = useRef(false);
-  useEffect(() => {
-    acceptedRef.current = accepted;
-  }, [accepted]);
+  // Ref is written synchronously with the state, so send() never reads a value an effect has not flushed yet.
+  function setConsent(value: boolean) {
+    acceptedRef.current = value;
+    setAccepted(value);
+  }
   // Body is mounted per open, so unmount = the sheet closed; a pending send() must then do nothing.
   const mounted = useRef(true);
   useEffect(() => {
@@ -110,7 +112,7 @@ function Body({ onClose, onScan, onImported, busy, setBusy }: Omit<Props, 'visib
   // Back to the consent: the checkbox is cleared, so a new send needs a new consent (D2).
   function startOver() {
     setFailure(null);
-    setAccepted(false);
+    setConsent(false);
   }
 
   // The sheet is a native modal: it closes first, or the document would open behind it.
@@ -195,7 +197,7 @@ function Body({ onClose, onScan, onImported, busy, setBusy }: Omit<Props, 'visib
         value={kind}
         onChange={setKind}
       />
-      <Checkbox checked={accepted} onChange={setAccepted} label={t('newTrip.flights.import.accept')} />
+      <Checkbox checked={accepted} onChange={setConsent} label={t('newTrip.flights.import.accept')} />
       <View style={{ alignItems: 'flex-start' }}>
         <TextButton variant="ghost" label={t('newTrip.flights.import.privacyLink')} onPress={openPrivacy} />
       </View>
