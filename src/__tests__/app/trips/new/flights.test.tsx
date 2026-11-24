@@ -396,6 +396,21 @@ describe('Flights step: ticket import', () => {
     expect(within(screen.getByTestId('Lot tam-Odcinek 1')).getByDisplayValue('LO123')).toBeTruthy();
   });
 
+  it('asks before replacing flights typed while the import was still running', async () => {
+    await openFlights();
+    let resolve!: (value: typeof complete) => void;
+    jest.mocked(pickTicketPdf).mockResolvedValue({ mimeType: 'application/pdf', dataBase64: 'JVBERi0=' });
+    jest.mocked(extractTicket).mockReturnValue(new Promise((r) => (resolve = r)));
+    await fireEvent.press(screen.getByRole('button', { name: 'Wczytaj bilet' }));
+    await fireEvent.press(screen.getByRole('button', { name: 'Wczytaj z pliku' }));
+    await fireEvent.press(screen.getByRole('checkbox', { name: /Rozumiem i akceptuję/ }));
+    await fireEvent.press(screen.getByRole('button', { name: 'Wyślij' }));
+    await chooseAirport(card('Odcinek 1', 'Lot tam'), 'Dokąd', 'DXB', /Dubai · DXB/);
+    await act(async () => resolve(complete));
+    expect(await screen.findByText('Zastąpić wpisane loty?')).toBeTruthy();
+    expect(screen.queryByText(/Wpisaliśmy/)).toBeNull();
+  });
+
   it('a scanned boarding pass is added to the chosen direction without times (Z2, Z3)', async () => {
     jest.mocked(useCameraPermissions).mockReturnValue([{ granted: true, canAskAgain: true } as never, jest.fn(), jest.fn()]);
     await openFlights();

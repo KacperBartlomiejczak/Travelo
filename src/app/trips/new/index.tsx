@@ -1,5 +1,5 @@
 import { Plus, Ticket } from 'lucide-react-native';
-import { Fragment, useRef, useState } from 'react';
+import { Fragment, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { AccessibilityInfo, Text, View, type ScrollViewInstance } from 'react-native';
 
@@ -29,6 +29,11 @@ export default function FlightsStep() {
   const { t } = useTranslation();
   const theme = useTheme();
   const { draft, setDraft, setCompanionCount } = useTripDraft();
+  // The import resolves later: check the draft as it is then, not as it was when the import started.
+  const draftRef = useRef(draft);
+  useEffect(() => {
+    draftRef.current = draft;
+  });
   const goNext = useGoToNextStep('flights');
   // Errors appear after the first "Next" and then follow every change.
   const [submitted, setSubmitted] = useState(false);
@@ -62,7 +67,7 @@ export default function FlightsStep() {
 
   function ticketImported(response: ExtractTicketResponse) {
     setImportOpen(false);
-    if (isFlightsDraftEmpty(draft)) applyTicket(response);
+    if (isFlightsDraftEmpty(draftRef.current)) applyTicket(response);
     else setReplacing(response);
   }
 
