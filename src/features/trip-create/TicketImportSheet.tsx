@@ -27,6 +27,8 @@ type Props = {
   onScan: () => void;
   /** A ticket was read; nothing is saved, the caller fills the draft (D3). */
   onImported: (response: ExtractTicketResponse) => void;
+  /** The sheet finished closing (after its exit animation). */
+  onDismissed?: () => void;
 };
 
 type FileKind = 'pdf' | 'photo';
@@ -50,12 +52,12 @@ const ERROR_KEY = {
 
 // Ticket import sheet (ticket-import D1-D3): choice -> consent every time -> pick, send, read. The body is mounted only while the
 // sheet is open, so the consent is never remembered.
-export function TicketImportSheet({ visible, onClose, onScan, onImported }: Props) {
+export function TicketImportSheet({ visible, onClose, onScan, onImported, onDismissed }: Props) {
   const { t } = useTranslation();
   // Lifted from the body: an upload in flight cannot be dismissed.
   const [busy, setBusy] = useState(false);
   return (
-    <BottomSheet visible={visible} title={t('newTrip.flights.import.title')} onClose={onClose} dismissible={!busy}>
+    <BottomSheet visible={visible} title={t('newTrip.flights.import.title')} onClose={onClose} onDismissed={onDismissed} dismissible={!busy}>
       {visible ? <Body onClose={onClose} onScan={onScan} onImported={onImported} busy={busy} setBusy={setBusy} /> : null}
     </BottomSheet>
   );
@@ -72,6 +74,11 @@ function Body({ onClose, onScan, onImported, busy, setBusy }: Omit<Props, 'visib
   const [accepted, setAccepted] = useState(false);
   const [failure, setFailure] = useState<Failure | null>(null);
   const sending = useRef(false);
+  // The consent can be withdrawn while the picker is still working; send() re-checks it right before the upload.
+  const acceptedRef = useRef(false);
+  useEffect(() => {
+    acceptedRef.current = accepted;
+  }, [accepted]);
   // Body is mounted per open, so unmount = the sheet closed; a pending send() must then do nothing.
   const mounted = useRef(true);
   useEffect(() => {
@@ -87,7 +94,7 @@ function Body({ onClose, onScan, onImported, busy, setBusy }: Omit<Props, 'visib
     let started = false;
     try {
       const file = await (kind === 'pdf' ? pickTicketPdf() : pickTicketPhoto());
-      if (!file || !mounted.current) return;
+      if (!file || !mounted.current || !acceptedRef.current) return;
       started = true;
       setBusy(true); // loading only once a file is chosen, not while the system picker is open
       const result = await extract.mutateAsync(file);

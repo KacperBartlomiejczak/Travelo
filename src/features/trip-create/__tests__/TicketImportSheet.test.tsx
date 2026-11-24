@@ -204,6 +204,36 @@ describe('TicketImportSheet', () => {
     expect(screen.getByRole('button', { name: 'Wczytaj z pliku' })).toBeEnabled();
   });
 
+  it('consent withdrawn while the picker is still resolving uploads nothing and stays on the consent', async () => {
+    let pick: (f: typeof request) => void = () => {};
+    jest.mocked(pickTicketPdf).mockReturnValue(new Promise((r) => (pick = r)));
+    jest.mocked(extractTicket).mockResolvedValue(response);
+    await renderSheet();
+    await toConsent();
+    await accept();
+    await send();
+    await accept(); // unchecks
+    await act(async () => pick(request));
+    expect(extractTicket).not.toHaveBeenCalled();
+    expect(onImported).not.toHaveBeenCalled();
+    expect(screen.queryByTestId('ticket-loading')).toBeNull();
+    expect(screen.queryByTestId('ticket-error')).toBeNull();
+    expect(screen.getByRole('checkbox', { name: /Rozumiem i akceptuję/ })).not.toBeChecked();
+  });
+
+  it('consent kept while the picker is still resolving uploads as usual', async () => {
+    let pick: (f: typeof request) => void = () => {};
+    jest.mocked(pickTicketPdf).mockReturnValue(new Promise((r) => (pick = r)));
+    jest.mocked(extractTicket).mockResolvedValue(response);
+    await renderSheet();
+    await toConsent();
+    await accept();
+    await send();
+    await act(async () => pick(request));
+    await waitFor(() => expect(onImported).toHaveBeenCalledWith(response));
+    expect(extractTicket).toHaveBeenCalledTimes(1);
+  });
+
   it('still sends under StrictMode (double effect run)', async () => {
     jest.mocked(extractTicket).mockResolvedValue(response);
     await render(
@@ -243,7 +273,7 @@ describe('TicketImportSheet', () => {
     const box = await screen.findByTestId('ticket-not-a-ticket');
     expect(box.props.style).toMatchObject({ alignItems: 'center' });
     expect(screen.getByText('To nie wygląda na bilet lotniczy')).toBeTruthy();
-    expect(screen.getByText(/Ta próba nie wlicza się do dziennego limitu/)).toBeTruthy();
+    expect(screen.getByText(/Ta próba nie zużywa dziennego limitu analiz AI/)).toBeTruthy();
     expect(onImported).not.toHaveBeenCalled();
     await fireEvent.press(screen.getByRole('button', { name: 'Wybierz inny plik' }));
     expect(screen.getByRole('button', { name: 'Wyślij' })).toBeTruthy();

@@ -56,6 +56,7 @@ export default function FlightsStep() {
   // Ticket import (ticket-import D1-D3): nothing is saved, the form is only filled for the user to check.
   const [importOpen, setImportOpen] = useState(false);
   const [scanOpen, setScanOpen] = useState(false);
+  const scanPending = useRef(false); // the scanner is a second Modal: it opens once the import sheet has dismissed
   const [replacing, setReplacing] = useState<ExtractTicketResponse | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const timezoneOf = (iata: string) => findAirport(iata)?.timezone;
@@ -197,7 +198,12 @@ export default function FlightsStep() {
       visible={importOpen}
       onClose={() => setImportOpen(false)}
       onScan={() => {
+        scanPending.current = true;
         setImportOpen(false);
+      }}
+      onDismissed={() => {
+        if (!scanPending.current) return;
+        scanPending.current = false;
         setScanOpen(true);
       }}
       onImported={ticketImported}

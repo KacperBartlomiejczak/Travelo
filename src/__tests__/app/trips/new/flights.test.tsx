@@ -2,7 +2,7 @@ import { useFonts } from 'expo-font';
 import { act, waitFor } from '@testing-library/react-native';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import { fireEvent, renderRouter, screen, within } from 'expo-router/testing-library';
-import { AccessibilityInfo, ScrollView } from 'react-native';
+import { AccessibilityInfo, Platform, ScrollView } from 'react-native';
 
 import DrawerLayout from '@/app/(drawer)/_layout';
 import TabsLayout from '@/app/(drawer)/(tabs)/_layout';
@@ -411,11 +411,49 @@ describe('Flights step: ticket import', () => {
     expect(screen.queryByText(/Wpisaliśmy/)).toBeNull();
   });
 
-  it('a scanned boarding pass is added to the chosen direction without times (Z2, Z3)', async () => {
+  // The scanner is a second Modal: iOS cannot present it while the import sheet is still dismissing, so it opens only
+  // after the sheet's Modal reports onDismiss (Android: right after the sheet closes).
+  async function pressScan() {
     jest.mocked(useCameraPermissions).mockReturnValue([{ granted: true, canAskAgain: true } as never, jest.fn(), jest.fn()]);
     await openFlights();
     await fireEvent.press(screen.getByRole('button', { name: 'Wczytaj bilet' }));
+    const modalOnDismiss = screen.getByTestId('bottom-sheet-modal').props.onDismiss as (() => void) | undefined;
     await fireEvent.press(screen.getByRole('button', { name: 'Zeskanuj kartę pokładową' }));
+    return modalOnDismiss;
+  }
+
+  it('on iOS, the scanner mounts only after the import sheet has dismissed', async () => {
+    jest.mocked(CameraView).mockClear();
+    const modalOnDismiss = await pressScan();
+    expect(jest.mocked(CameraView)).not.toHaveBeenCalled();
+    await act(async () => modalOnDismiss?.());
+    expect(await screen.findByTestId('camera')).toBeTruthy();
+  });
+
+  it('on iOS, a sheet closed without pressing scan never opens the scanner when it dismisses', async () => {
+    jest.mocked(CameraView).mockClear();
+    await openFlights();
+    await fireEvent.press(screen.getByRole('button', { name: 'Wczytaj bilet' }));
+    const modalOnDismiss = screen.getByTestId('bottom-sheet-modal').props.onDismiss as () => void;
+    await fireEvent(screen.getByTestId('bottom-sheet-modal'), 'requestClose');
+    await act(async () => modalOnDismiss());
+    expect(screen.queryByTestId('camera')).toBeNull();
+    expect(jest.mocked(CameraView)).not.toHaveBeenCalled();
+  });
+
+  it('on Android, the scanner mounts right after the import sheet closes', async () => {
+    const android = jest.replaceProperty(Platform, 'OS', 'android');
+    try {
+      await pressScan();
+      expect(await screen.findByTestId('camera')).toBeTruthy();
+    } finally {
+      android.restore();
+    }
+  });
+
+  it('a scanned boarding pass is added to the chosen direction without times (Z2, Z3)', async () => {
+    const modalOnDismiss = await pressScan();
+    await act(async () => modalOnDismiss?.());
     const pad = (v: string, n: number) => v.padEnd(n, ' ').slice(0, n);
     const bcbp = `M1${pad('DOE/JOHN', 20)}E${pad('ZXQ4TK', 7)}WAWBKKFR ${pad('0123', 5)}340Y012A000011` + '00';
     await act(async () =>

@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Animated, KeyboardAvoidingView, Modal, PanResponder, Pressable, StyleSheet, Text, View, type PanResponderGestureState, type PanResponderInstance } from 'react-native';
+import { Animated, KeyboardAvoidingView, Modal, PanResponder, Platform, Pressable, StyleSheet, Text, View, type PanResponderGestureState, type PanResponderInstance } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useReduceMotion } from '@/hooks/useReduceMotion';
@@ -12,6 +12,7 @@ type Props = {
   title: string;
   onClose: () => void;
   dismissible?: boolean;
+  onDismissed?: () => void; // the Modal is gone, so the caller may present another one (iOS cannot present during a dismissal)
   children: ReactNode;
 };
 
@@ -25,7 +26,7 @@ const pulled = (gesture: PanResponderGestureState) => (gesture.dy > 0 && gesture
 // closed by a swipe down, a backdrop tap or the system back button. The sheet follows a finger dragged down from its
 // header (trip-edit-menu D18) and springs back when released before SWIPE_TO_CLOSE. With `dismissible={false}` (a delete
 // is in flight) none of the three closes it: the backdrop and back button do nothing and a swipe always springs back.
-export function BottomSheet({ visible, title, onClose, dismissible = true, children }: Props) {
+export function BottomSheet({ visible, title, onClose, dismissible = true, onDismissed, children }: Props) {
   const { t } = useTranslation();
   const theme = useTheme();
   const insets = useSafeAreaInsets();
@@ -35,16 +36,22 @@ export function BottomSheet({ visible, title, onClose, dismissible = true, child
   // The gesture lives as long as the sheet: callers pass new inline lambdas, and a PanResponder rebuilt on every render
   // would lose its state in the middle of a drag. So it is created once, after the first render (the handlers read the
   // latest values from a ref when they run, which React only allows outside of render).
-  const latest = useRef({ onClose, dismissible, reduceMotion, duration: tokens.motion.duration.standard });
+  const latest = useRef({ onClose, dismissible, reduceMotion, duration: tokens.motion.duration.standard, onDismissed });
   useEffect(() => {
-    latest.current = { onClose, dismissible, reduceMotion, duration: tokens.motion.duration.standard };
-  }, [onClose, dismissible, reduceMotion]);
+    latest.current = { onClose, dismissible, reduceMotion, duration: tokens.motion.duration.standard, onDismissed };
+  }, [onClose, dismissible, reduceMotion, onDismissed]);
   const dismiss = () => {
     if (dismissible) onClose();
   };
   useEffect(() => {
     if (visible) offset.setValue(0); // a sheet that was swiped closed opens at its resting place
   }, [visible, offset]);
+  // iOS reports the dismissal through Modal's onDismiss; Android's is unreliable, so there it fires when `visible` turns false.
+  const wasVisible = useRef(visible);
+  useEffect(() => {
+    if (wasVisible.current && !visible && Platform.OS !== 'ios') latest.current.onDismissed?.();
+    wasVisible.current = visible;
+  }, [visible]);
   const [swipe, setSwipe] = useState<PanResponderInstance | null>(null);
   useEffect(() => {
     // JS driver: the offset follows the finger on every move, and the native driver does not update the rendered style under Jest.
@@ -65,7 +72,7 @@ export function BottomSheet({ visible, title, onClose, dismissible = true, child
   }, [offset]);
 
   return (
-    <Modal testID="bottom-sheet-modal" visible={visible} transparent animationType={reduceMotion ? 'none' : 'slide'} onRequestClose={dismiss} statusBarTranslucent>
+    <Modal testID="bottom-sheet-modal" visible={visible} transparent animationType={reduceMotion ? 'none' : 'slide'} onRequestClose={dismiss} onDismiss={() => latest.current.onDismissed?.()} statusBarTranslucent>
       {/* wizard-keyboard D5: `padding` on both platforms. Android's window resize does not reach an edge-to-edge dialog, and
           the translucent modal starts at the top of the window like the keyboard's coordinates, so no offset is needed.
           theme-split D14: the scrim is absolutely positioned, so it fills the whole window (keyboard padding included) and lies

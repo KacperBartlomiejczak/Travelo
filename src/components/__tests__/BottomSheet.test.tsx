@@ -175,6 +175,39 @@ describe('BottomSheet (design-context §10.12)', () => {
   });
 });
 
+describe('BottomSheet onDismissed (modal presented only after this one is gone)', () => {
+  const metrics = { frame: { x: 0, y: 0, width: 390, height: 844 }, insets: { top: 47, left: 0, right: 0, bottom: 34 } };
+  const sheet = (visible: boolean, onDismissed: () => void) => (
+    <SafeAreaProvider initialMetrics={metrics}>
+      <BottomSheet visible={visible} title="Tytuł" onClose={jest.fn()} onDismissed={onDismissed}>
+        <Text>content</Text>
+      </BottomSheet>
+    </SafeAreaProvider>
+  );
+
+  it('on iOS, fires when the Modal reports it has dismissed, not when visible turns false', async () => {
+    expect(Platform.OS).toBe('ios');
+    const onDismissed = jest.fn();
+    const view = await render(sheet(true, onDismissed));
+    const modalOnDismiss = screen.getByTestId('bottom-sheet-modal').props.onDismiss;
+    await view.rerender(sheet(false, onDismissed));
+    expect(onDismissed).not.toHaveBeenCalled();
+    modalOnDismiss();
+    expect(onDismissed).toHaveBeenCalledTimes(1);
+  });
+
+  it('on Android, fires when visible turns false after it was open, and not on a first hidden render', async () => {
+    jest.replaceProperty(Platform, 'OS', 'android');
+    const onDismissed = jest.fn();
+    const view = await render(sheet(false, onDismissed));
+    expect(onDismissed).not.toHaveBeenCalled();
+    await view.rerender(sheet(true, onDismissed));
+    expect(onDismissed).not.toHaveBeenCalled();
+    await view.rerender(sheet(false, onDismissed));
+    expect(onDismissed).toHaveBeenCalledTimes(1);
+  });
+});
+
 // wizard-keyboard D5: the sheet sits right above the keyboard, on both platforms. Keyboard events have no native side
 // in Jest: the test captures the listeners and fires them itself.
 describe('BottomSheet and the keyboard (wizard-keyboard D5)', () => {
