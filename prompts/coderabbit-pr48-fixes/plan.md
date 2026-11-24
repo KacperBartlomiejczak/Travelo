@@ -145,3 +145,11 @@ poprawka idzie jako osobny krok do właściciela pliku).
   zgodność z Gemini (liczba segmentów).
 - U6a: pdf.js API (operator list) bez renderera w Deno — możliwe, że wymiary obrazów są dostępne dopiero po
   dekodowaniu; wtedy wracam z pytaniem zamiast zgadywać.
+
+## Decyzje (2026-11-24)
+- Plan zaakceptowany ("Akceptuje").
+- P1 = a: własny limit wymiarów/liczby obrazów przed dekodowaniem (krok 2a, po 1d).
+- P2 = wersja warunkowa:
+  - PL: „Nie przechowujemy pliku — jest przetwarzany w pamięci serwera, a gdy sam odczyt nie wystarczy, wysyłany do Google Gemini; nie trafia do naszego magazynu plików ani logów. Aplikacja próbuje skasować kopię roboczą na telefonie zaraz po wysłaniu.”
+  - EN: “We do not store the file — it is processed in the server's memory and, when our own reading is not enough, sent to Google Gemini; it never goes to our file storage or logs. The app tries to delete the working copy on your phone right after sending.”
+- P1, doprecyzowanie (2026-11-24): pdf.js dekoduje wszystkie obrazy już w `getOperatorList`, więc liczby obrazów nie da się ograniczyć przed dekodowaniem. Kacper wybrał limit rozmiaru pojedynczego obrazu: `maxImageSize` = 400 000 pikseli (~640×640). Większe obrazy są pomijane, wtedy działa tekst albo Gemini. Nieograniczona liczba obrazów trafia do `known-limitations.md`.

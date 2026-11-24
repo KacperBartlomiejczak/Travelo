@@ -50,7 +50,31 @@ describe('extract-ticket stage 1 ports', () => {
     expect(out.fetchCalls).toBe(0);
   });
 
+  it('does not decode a PDF image above the pixel cap, and still reads one under it', () => {
+    expect(out.oversize.oversizedPixels).toBeGreaterThan(400_000);
+    expect(out.oversize.oversizedOnly).toEqual([]);
+    expect(out.oversize.oversizedAndSmall).toEqual([BCBP]);
+    expect(out.oversize.smallOnly).toEqual([BCBP]);
+  });
+
+  it('reads at most MAX_PDF_IMAGES images: a barcode on the 6th is read, one on the 7th is not', () => {
+    expect(out.imageCount).toEqual({ sixthImage: [BCBP], seventhImage: [] });
+  });
+
+  it('reads a barcode painted as a 1-bit image mask', () => {
+    expect(out.imageMask).toEqual([BCBP]);
+  });
+
+  it('reads a barcode from a 1-bit gray image and from a CMYK image', () => {
+    expect(out.gray1bit).toEqual([BCBP]);
+    expect(out.cmyk).toEqual([BCBP]);
+  });
+
+  it('does not log anything for a skipped image', () => {
+    expect(out.oversize.warnings).toEqual([]);
+  });
+
   it('limits the pages and images it reads to stay within the 2 s CPU budget', () => {
-    expect(out.limits).toEqual({ MAX_PDF_PAGES: 3, MAX_PDF_IMAGES: 6 });
+    expect(out.limits).toEqual({ MAX_PDF_PAGES: 3, MAX_PDF_IMAGES: 6, MAX_PDF_IMAGE_PIXELS: 400_000 });
   });
 });
