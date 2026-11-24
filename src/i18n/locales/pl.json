@@ -718,7 +718,7 @@
           "heading": "2.8 Import biletu lotniczego",
           "paragraphs": [
             "• Gdy wczytujesz bilet (PDF albo zdjęcie biletu lub karty pokładowej), plik trafia na nasz serwer, gdzie jest najpierw odczytywany automatycznie, bez AI. Tylko gdy to nie wystarczy, plik trafia do Google Gemini API wyłącznie w celu odczytania danych lotu.",
-            "• Nie przechowujemy pliku — jest przetwarzany tylko w pamięci serwera i nie trafia do magazynu plików ani logów. Kopia robocza na telefonie jest kasowana po wysłaniu.",
+            "• Nie przechowujemy pliku — jest przetwarzany w pamięci serwera, a gdy sam odczyt nie wystarczy, wysyłany do Google Gemini; nie trafia do naszego magazynu plików ani logów. Aplikacja próbuje skasować kopię roboczą na telefonie zaraz po wysłaniu.",
             "• Aplikacja dostaje z pliku tylko: lotniska, numery lotów, daty i godziny. Nie odczytujemy imienia i nazwiska pasażera ani numeru rezerwacji.",
             "• Skan kodu z karty pokładowej aparatem odbywa się wyłącznie na telefonie — obraz z aparatu nie trafia na serwer.",
             "• Zapisujemy licznik analiz AI w danym dniu (limit 5 dziennie na konto) i licznik odrzuconych plików, żeby chronić usługę przed nadużyciem."
