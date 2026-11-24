@@ -70,7 +70,7 @@
         "send": "Wyślij",
         "loading": "Odczytujemy bilet…",
         "notTicketTitle": "To nie wygląda na bilet lotniczy",
-        "notTicketBody": "Nie znaleźliśmy w pliku danych lotu. Wgraj PDF lub zdjęcie biletu albo karty pokładowej. Ta próba nie wlicza się do dziennego limitu.",
+        "notTicketBody": "Nie znaleźliśmy w pliku danych lotu. Wgraj PDF lub zdjęcie biletu albo karty pokładowej. Ta próba nie zużywa dziennego limitu analiz AI, ale liczy się do dziennego limitu odrzuconych plików.",
         "chooseAnother": "Wybierz inny plik",
         "retry": "Spróbuj ponownie",
         "errorLimit": "Wykorzystano dzienny limit odczytów biletów. Spróbuj jutro albo wpisz loty ręcznie.",

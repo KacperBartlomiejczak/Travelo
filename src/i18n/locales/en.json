@@ -70,7 +70,7 @@
         "send": "Send",
         "loading": "Reading your ticket…",
         "notTicketTitle": "This doesn't look like a flight ticket",
-        "notTicketBody": "We didn't find any flight details in the file. Upload a PDF or a photo of a ticket or boarding pass. This attempt doesn't count towards the daily limit.",
+        "notTicketBody": "We didn't find any flight details in the file. Upload a PDF or a photo of a ticket or boarding pass. This attempt doesn't use one of your daily AI imports, but it counts towards the daily limit of rejected files.",
         "chooseAnother": "Choose another file",
         "retry": "Try again",
         "errorLimit": "You've used today's ticket-reading limit. Try again tomorrow or enter the flights by hand.",
