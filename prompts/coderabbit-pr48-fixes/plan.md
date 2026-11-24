@@ -283,5 +283,13 @@ w wątku (z uzasadnieniem albo wpisem w `known-limitations.md`) i rozwiązujemy 
 - [ ] **J [orkiestrator]**: każdy krok → verifier; potem pełny `pnpm test` / `typecheck` / `lint`, `deno check`, push, odpowiedzi
       i rozwiązanie wszystkich 10 wątków (G10 i ewentualne „zostawiamy” z uzasadnieniem).
 
+Wynik (2026-11-24): kroki A–G i I zrobione, każdy z PASS verifiera; 240 zestawów / 4717 testów, typecheck, lint, deno check zielone;
+końcowy verifier gałęzi (Sonnet 5.5) PASS. Lokalny CodeRabbit (`fbf6378..HEAD`) zgłosił 3 uwagi. Decyzja Kacpra (2026-11-24):
+najpierw poprawić K1 i K2, K3 wpisać do `known-limitations.md`, potem push.
+- [x] **K1 [frontend]** · [x] **K2 [backend]** (oba PASS verifiera; K2: 0 różnic względem HEAD na 4034 wejściach, 20 000 tras: 18 zamiast 40 000 odczytów lotnisk; pełny `pnpm test` 4718 zielony) · [x] **K3 [orkiestrator]**
+- K1 [nit] `TicketImportSheet.tsx:79` — `acceptedRef` aktualizowany w `useEffect`; prościej i pewniej ustawiać go w `onChange` checkboxa i w `startOver`.
+- K2 [niska] `text.ts:136` — usuwanie duplikatów tras jest kwadratowe; spreparowany tekst z tysiącami tras kosztuje dużo CPU. Poprawka: przestać zbierać po 9 zachowanych trasach (limit 8 + 1 do flagi `truncated`).
+- K3 [rzadki przypadek] `text.ts:135` — ta sama trasa w innym formacie i z inną datą jest traktowana jak ten sam lot. Do `known-limitations.md`.
+
 Ryzyka: G1/G3 zmieniają kolejność/liczbę lotów — istniejące testy merge/text muszą zostać zielone bez zmian; `merge.ts` i
 `text.ts` działają też w Deno (`deno check`). G7: `Modal.onDismiss` jest tylko na iOS — test musi pokryć obie platformy.
