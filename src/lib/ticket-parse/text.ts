@@ -69,20 +69,22 @@ export function assignDirections<T extends { fromIata: string; toIata: string }>
   return segments.map((s, i) => ({ ...s, direction: hasReturn && i >= turn ? 'return' : 'outbound' }));
 }
 
+type Route = { index: number; end: number; from: string; to: string; format?: number };
+
 // "(XXX)" tied to the nearest preceding Departure/Arrival word (no other bracket in between); a departure followed by an arrival makes a route.
 function labelledRoutes(text: string, airports: AirportLookup) {
-  const tied: { index: number; kind: 'dep' | 'arr'; iata: string }[] = [];
+  const tied: { index: number; end: number; kind: 'dep' | 'arr'; iata: string }[] = [];
   for (const m of text.matchAll(PAREN_CODE)) {
     const at = m.index ?? 0;
     if (!airports(m[1])) continue;
     const before = text.slice(Math.max(0, at - 40), at);
     const label = [...before.matchAll(ANY_LABEL)].pop();
     if (!label || before.slice((label.index ?? 0) + label[0].length).includes('(')) continue;
-    tied.push({ index: at - before.length + (label.index ?? 0), kind: DEP_LABEL.test(label[0]) ? 'dep' : 'arr', iata: m[1] });
+    tied.push({ index: at - before.length + (label.index ?? 0), end: at + m[0].length, kind: DEP_LABEL.test(label[0]) ? 'dep' : 'arr', iata: m[1] });
   }
-  const routes: { index: number; from: string; to: string }[] = [];
+  const routes: Route[] = [];
   for (let i = 0; i + 1 < tied.length; i++) {
-    if (tied[i].kind === 'dep' && tied[i + 1].kind === 'arr') routes.push({ index: tied[i].index, from: tied[i].iata, to: tied[i + 1].iata });
+    if (tied[i].kind === 'dep' && tied[i + 1].kind === 'arr') routes.push({ index: tied[i].index, end: tied[i + 1].end, from: tied[i].iata, to: tied[i + 1].iata });
   }
   return routes;
 }
@@ -90,7 +92,10 @@ function labelledRoutes(text: string, airports: AirportLookup) {
 function parseBlock(block: string, from: string, to: string) {
   const dep = windowAfter(block, DEP_LABEL);
   const arr = windowAfter(block, ARR_LABEL);
-  const blockDates = [...new Set(dates(block))];
+  // The arrival window (label included) is left out: its date must not stand in for an unknown departure date.
+  const arrLabel = ARR_LABEL.exec(block);
+  const depSide = arrLabel && arr !== null ? block.slice(0, arrLabel.index) + block.slice(arrLabel.index + arrLabel[0].length + arr.length) : block;
+  const blockDates = [...new Set(dates(depSide))];
   const blockDate = blockDates.length === 1 ? blockDates[0] : null;
   const depDate = dep ? (dates(dep)[0] ?? null) : null;
   const flightDate = depDate ?? blockDate;
@@ -116,12 +121,20 @@ function parseBlock(block: string, from: string, to: string) {
 }
 
 export function parseTicketText(text: string, airports: AirportLookup): ParsedTicket {
-  const route = (index: number, from: string, to: string) => ({ index, from, to });
-  let routes = [...text.matchAll(ARROW_ROUTE)].map((m) => route(m.index ?? 0, m[1], m[2]));
-  if (routes.length === 0) {
-    routes = [...text.matchAll(PAREN_ROUTE)].map((m) => route(m.index ?? 0, m[1], m[2]));
-  }
-  if (routes.length === 0) routes = labelledRoutes(text, airports);
+  const span = (format: number) => (m: RegExpMatchArray): Route => ({ index: m.index ?? 0, end: (m.index ?? 0) + m[0].length, from: m[1], to: m[2], format });
+  // Every format counts; a match overlapping an earlier kept one, or repeating the previous route in another format, is dropped.
+  const routes = [
+    ...[...text.matchAll(ARROW_ROUTE)].map(span(0)),
+    ...[...text.matchAll(PAREN_ROUTE)].map(span(1)),
+    ...labelledRoutes(text, airports).map((r) => ({ ...r, format: 2 })),
+  ]
+    .sort((a, b) => a.index - b.index)
+    .reduce<Route[]>((kept, r) => {
+      const last = kept[kept.length - 1];
+      // The same leg written in two formats; repeats within one format are real separate flights.
+      const same = last?.from === r.from && last.to === r.to && last.format !== r.format;
+      return same || kept.some((k) => r.index < k.end && k.index < r.end) ? kept : [...kept, r];
+    }, []);
   const all = routes
     .map((r, i) => ({ r, block: text.slice(r.index, routes[i + 1]?.index ?? text.length) }))
     .filter(({ r }) => r.from !== r.to && airports(r.from) && airports(r.to))

@@ -109,6 +109,43 @@ describe('parseTicketText', () => {
     expect(r.segments[0].departAt).toBeNull();
   });
 
+  it('does not take the arrival date as the departure date', () => {
+    const r = parse('WAW -> BCN FR123 Departure 23:00 Arrival 2026-12-06 01:00');
+    expect(r.segments[0].flightDate).toBeNull();
+    expect(r.segments[0].departAt).toBeNull();
+    expect(r.segments[0].arriveAt).toBe('2026-12-06T01:00');
+    // The comma is what makes this variant fail on the old code: without it, "00 Arrival 2026" happens to yield a bogus date token that nulls blockDate by accident.
+    const comma = parse('WAW -> BCN FR123 Departure 23:00, Arrival 2026-12-06 01:00').segments[0];
+    expect(comma.flightDate).toBeNull();
+    expect(comma.departAt).toBeNull();
+    expect(comma.arriveAt).toBe('2026-12-06T01:00');
+  });
+
+  it('reads routes written in different formats on one ticket', () => {
+    const r = parse(`WAW -> BCN FR123 Departure 2026-12-05 06:45 Arrival 2026-12-05 09:50
+      Departure Barcelona (BCN) 2026-12-10 18:00 Arrival Warsaw (WAW) 2026-12-10 21:00`);
+    expect(r.segments.map((s) => [s.fromIata, s.toIata, s.direction])).toEqual([
+      ['WAW', 'BCN', 'outbound'],
+      ['BCN', 'WAW', 'return'],
+    ]);
+  });
+
+  it('keeps one segment when the same leg is written as a bracket route and as labelled codes', () => {
+    const r = parse(`Warszawa (WAW) - Barcelona (BCN)
+      LO 3921
+      Departure Warsaw (WAW) Arrival Barcelona (BCN)
+      Departure 2026-12-05 06:45 Arrival 2026-12-05 09:50`);
+    expect(r.segments).toHaveLength(1);
+    expect(r.segments[0]).toMatchObject({
+      fromIata: 'WAW',
+      toIata: 'BCN',
+      flightNumber: 'LO3921',
+      flightDate: null,
+      departAt: null,
+      arriveAt: null,
+    });
+  });
+
   it('only counts airports known to the lookup and different from each other', () => {
     expect(parse('WAW → XXX FR123').segments).toEqual([]);
     expect(parse('WAW → WAW FR123').segments).toEqual([]);
