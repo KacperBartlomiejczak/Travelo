@@ -51,10 +51,20 @@ describe('mergeParsed', () => {
     expect(r.segments[0]).toMatchObject({ flightDate: '2026-12-06', departAt: null, arriveAt: null });
   });
 
-  it('ignores text segments on other routes', () => {
-    const other = seg({ fromIata: 'BCN', toIata: 'WAW' });
-    const r = mergeParsed(bcbp(), { segments: [other] }, airports);
-    expect(r.segments).toHaveLength(1);
-    expect(r.segments[0].departAt).toBeNull();
+  it('keeps text-only segments after the boarding pass legs, in flight order, with coherent directions', () => {
+    const back = seg({ fromIata: 'BCN', toIata: 'WAW', flightNumber: 'FR124', flightDate: '2026-12-10', departAt: '2026-12-10T10:00', arriveAt: '2026-12-10T13:00' });
+    const r = mergeParsed(bcbp({ flightNumber: 'FR999' }), { segments: [back, seg()] }, airports);
+    expect(r.segments).toEqual([seg({ flightNumber: 'FR999' }), { ...back, direction: 'return' }]);
+  });
+
+  it('orders a text-only earlier flight before the boarding pass leg', () => {
+    const r = mergeParsed(bcbp({ fromIata: 'BCN', toIata: 'WAW', flightDate: '2026-12-10' }), { segments: [seg()] }, airports);
+    expect(r.segments.map((s) => s.flightDate)).toEqual(['2026-12-05', '2026-12-10']);
+    expect(r.segments.map((s) => s.direction)).toEqual(['outbound', 'return']);
+  });
+
+  it('never returns more than 8 segments', () => {
+    const many = Array.from({ length: 9 }, (_, i) => seg({ fromIata: 'WAW', toIata: 'BCN', flightDate: `2026-12-${String(10 + i).padStart(2, '0')}` }));
+    expect(mergeParsed(bcbp(), { segments: many }, airports).segments).toHaveLength(8);
   });
 });
