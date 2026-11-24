@@ -162,4 +162,19 @@ poprawka idzie jako osobny krok do właściciela pliku).
 ## Wynik (2026-11-24)
 - Końcowy verifier (Sonnet 5.5 + CodeRabbit): PASS; 4689 testów, typecheck, lint zielone.
 - Fast-forward `feature/ticket-import-ai` do `e530b7c` (PR #48), odpowiedzi w 14 wątkach.
-- Otwarte (nie blokują, do decyzji Kacpra): lot z tekstu bez daty łapany przed lotem z datą; sortowanie po czasie lokalnym (strefy); przesiadka bez godziny na koniec dnia (ciągłość trasy jako tie-break).
+- Trzy rzadkie przypadki z końcowego CodeRabbita naprawione w dodatku (E1–E3).
+
+## Dodatek: 3 rzadkie przypadki z końcowego CodeRabbita (2026-11-24)
+Status: zrobione (2026-11-24; verifier PASS, 4694 testy). Ta sama gałąź `fix/pr48-coderabbit` → push do `feature/ticket-import-ai` (PR #48).
+Pliki: tylko `src/lib/ticket-parse/merge.ts` + `__tests__/merge.test.ts` (backend, jeden krok, testy najpierw).
+
+- **E1 — lot z tekstu bez daty łapany przed lotem z datą.** Dziś `findIndex` bierze pierwszy pasujący (ta sama trasa, ta sama data **albo** brak daty). Poprawka: najpierw szukać lotu z tą samą trasą i datą, dopiero potem lotu bez daty.
+  Test: tekst [WAW→BCN bez daty, WAW→BCN 12-05 10:00] + BCBP WAW→BCN 12-05 → odcinek z BCBP dostaje 10:00.
+- **E2 — sortowanie po czasie lokalnym.** Dziś w obrębie dnia porównujemy `departAt` jako tekst (czas lokalny lotniska). Poprawka: porównywać chwilę wylotu w UTC (`zonedLocalToDate(departAt, strefa lotniska wylotu)` z `src/lib/time.ts`, strefa z `airports`). Grupowanie po dniu i „bez godziny na koniec dnia” bez zmian.
+  Test: ten sam dzień, NRT 17:00 (+09) i LAX 12:00 (−08) → NRT pierwszy (08:00 UTC przed 20:00 UTC).
+- **E3 — przesiadka bez godziny.** Doprecyzowanie Twojej decyzji „bez godziny na koniec dnia”: wyjątek, gdy lot bez godziny kończy się tam, gdzie zaczyna się lot z godziną tego samego dnia (np. WAW→BCN bez godziny, BCN→MAD 12:00) — wtedy idzie tuż przed nim (ciągłość trasy). W pozostałych przypadkach dalej na koniec dnia.
+  Test: [BCN→MAD 12:00, WAW→BCN bez godziny] → WAW→BCN, BCN→MAD, oba `outbound`.
+
+Ryzyko: `merge.ts` jest też w Edge Function (Deno) — import `../time.ts` musi działać w Deno (`deno check`).
+Weryfikacja: verifier kroku, pełny `pnpm test`/`typecheck`/`lint`, `deno check`, push, bez nowego przeglądu całej gałęzi (zmiana w jednym pliku).
+- E3, doprecyzowanie przy wykonaniu: wyjątek nie działa, gdy lot z godziną tego samego dnia kończy się tam, gdzie lot bez godziny się zaczyna (lot bez godziny kontynuuje wcześniejszy lot) — wtedy zostaje na końcu dnia. To ta sama zasada ciągłości trasy.

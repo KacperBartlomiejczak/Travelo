@@ -102,4 +102,44 @@ describe('mergeParsed', () => {
     const r = mergeParsed(bcbp({ fromIata: 'BCN', toIata: 'MAD', flightNumber: 'FR2' }), { segments: [mad, seg()] }, airports);
     expect(r.segments.map((s) => [s.fromIata, s.direction])).toEqual([['WAW', 'outbound'], ['BCN', 'outbound']]);
   });
+
+  it('prefers a text flight with the same day over an undated one on the same route', () => {
+    const undated = seg({ flightDate: null, departAt: null, arriveAt: null, flightNumber: 'U' });
+    const dated = seg({ flightNumber: 'D', departAt: '2026-12-05T10:00', arriveAt: '2026-12-05T13:00' });
+    const r = mergeParsed(bcbp(), { segments: [undated, dated] }, airports);
+    expect(r.segments).toHaveLength(2);
+    expect(r.segments[0]).toMatchObject({ flightNumber: 'FR123', departAt: '2026-12-05T10:00' });
+  });
+
+  it('orders same-day flights by the departure instant, not the local clock', () => {
+    const zones = (iata: string) =>
+      ({ NRT: { timezone: 'Asia/Tokyo' }, LAX: { timezone: 'America/Los_Angeles' }, SFO: { timezone: 'America/Los_Angeles' } })[iata as 'NRT'];
+    const nrt = seg({ fromIata: 'NRT', toIata: 'LAX', flightNumber: 'N', departAt: '2026-12-05T17:00', arriveAt: '2026-12-05T20:00' });
+    const lax = seg({ fromIata: 'LAX', toIata: 'SFO', flightNumber: 'L', departAt: '2026-12-05T12:00', arriveAt: '2026-12-05T13:30' });
+    const r = mergeParsed(bcbp({ fromIata: 'LAX', toIata: 'SFO', flightNumber: 'L' }), { segments: [lax, nrt] }, zones);
+    expect(r.segments.map((s) => s.flightNumber)).toEqual(['N', 'L']);
+  });
+
+  it('puts an untimed connection right before the timed flight it feeds', () => {
+    const feed = seg({ fromIata: 'BCN', toIata: 'MAD', flightNumber: 'X', departAt: '2026-12-05T12:00', arriveAt: '2026-12-05T13:10' });
+    const conn = seg({ flightNumber: 'C', departAt: null, arriveAt: null });
+    const r = mergeParsed(bcbp({ fromIata: 'BCN', toIata: 'MAD', flightNumber: 'X' }), { segments: [feed, conn] }, airports);
+    expect(r.segments.map((s) => [s.flightNumber, s.direction])).toEqual([['C', 'outbound'], ['X', 'outbound']]);
+  });
+
+  it('keeps an untimed leg last when it continues an earlier timed flight', () => {
+    const a = seg({ flightNumber: 'A' });
+    const b = seg({ fromIata: 'BCN', toIata: 'MAD', flightNumber: 'B', departAt: null, arriveAt: null });
+    const c = seg({ fromIata: 'MAD', toIata: 'WAW', flightNumber: 'C', departAt: '2026-12-05T20:00', arriveAt: '2026-12-05T22:50' });
+    const r = mergeParsed(bcbp({ flightNumber: 'A' }), { segments: [c, b, a] }, airports);
+    expect(r.segments.map((s) => [s.flightNumber, s.direction])).toEqual([['A', 'outbound'], ['C', 'outbound'], ['B', 'outbound']]);
+  });
+
+  it('treats an airport with an unknown time zone as UTC when ordering', () => {
+    const unknown = seg({ fromIata: 'XXX', toIata: 'WAW', flightNumber: 'U', departAt: '2026-12-05T10:00', arriveAt: '2026-12-05T12:00' });
+    const known = seg({ fromIata: 'BCN', toIata: 'WAW', flightNumber: 'K', departAt: '2026-12-05T10:30', arriveAt: '2026-12-05T13:00' });
+    const r = mergeParsed(bcbp({ flightDate: '2026-12-01' }), { segments: [unknown, known] }, airports);
+    // BCN 10:30 is 09:30 UTC, before XXX 10:00 (as UTC); a plain local-string compare would put XXX first.
+    expect(r.segments.map((s) => s.flightNumber).slice(1)).toEqual(['K', 'U']);
+  });
 });
