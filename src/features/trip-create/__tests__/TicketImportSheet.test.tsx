@@ -1,4 +1,5 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { StrictMode } from 'react';
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
@@ -176,6 +177,49 @@ describe('TicketImportSheet', () => {
     await send();
     await send();
     expect(pickTicketPdf).toHaveBeenCalledTimes(1);
+  });
+
+  it('a sheet closed while the picker is still resolving uploads nothing and changes nothing', async () => {
+    let pick: (f: typeof request) => void = () => {};
+    jest.mocked(pickTicketPdf).mockReturnValue(new Promise((r) => (pick = r)));
+    jest.mocked(extractTicket).mockResolvedValue(response);
+    const client = new QueryClient();
+    const ui = (visible: boolean) => (
+      <SafeAreaProvider initialMetrics={metrics}>
+        <QueryClientProvider client={client}>
+          <TicketImportSheet visible={visible} onClose={onClose} onScan={onScan} onImported={onImported} />
+        </QueryClientProvider>
+      </SafeAreaProvider>
+    );
+    const view = await render(ui(true));
+    await toConsent();
+    await accept();
+    await send();
+    await view.rerender(ui(false));
+    await act(async () => pick(request));
+    expect(extractTicket).not.toHaveBeenCalled();
+    expect(onImported).not.toHaveBeenCalled();
+    await view.rerender(ui(true));
+    expect(screen.queryByTestId('ticket-loading')).toBeNull();
+    expect(screen.getByRole('button', { name: 'Wczytaj z pliku' })).toBeEnabled();
+  });
+
+  it('still sends under StrictMode (double effect run)', async () => {
+    jest.mocked(extractTicket).mockResolvedValue(response);
+    await render(
+      <StrictMode>
+        <SafeAreaProvider initialMetrics={metrics}>
+          <QueryClientProvider client={new QueryClient()}>
+            <TicketImportSheet visible onClose={onClose} onScan={onScan} onImported={onImported} />
+          </QueryClientProvider>
+        </SafeAreaProvider>
+      </StrictMode>,
+    );
+    await toConsent();
+    await accept();
+    await send();
+    await waitFor(() => expect(onImported).toHaveBeenCalledWith(response));
+    expect(extractTicket).toHaveBeenCalledTimes(1);
   });
 
   it('a cancelled pick never shows loading', async () => {

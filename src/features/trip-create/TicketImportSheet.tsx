@@ -1,6 +1,6 @@
 import { useRouter } from 'expo-router';
 import { Camera, FileUp, TicketX } from 'lucide-react-native';
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ActivityIndicator, Text, View } from 'react-native';
 
@@ -72,20 +72,31 @@ function Body({ onClose, onScan, onImported, busy, setBusy }: Omit<Props, 'visib
   const [accepted, setAccepted] = useState(false);
   const [failure, setFailure] = useState<Failure | null>(null);
   const sending = useRef(false);
+  // Body is mounted per open, so unmount = the sheet closed; a pending send() must then do nothing.
+  const mounted = useRef(true);
+  useEffect(() => {
+    mounted.current = true; // StrictMode runs mount -> cleanup -> mount
+    return () => {
+      mounted.current = false;
+    };
+  }, []);
 
   async function send() {
     if (sending.current) return; // a second tap while the picker is open must not start a second pick
     sending.current = true;
+    let started = false;
     try {
       const file = await (kind === 'pdf' ? pickTicketPdf() : pickTicketPhoto());
-      if (!file) return;
+      if (!file || !mounted.current) return;
+      started = true;
       setBusy(true); // loading only once a file is chosen, not while the system picker is open
-      onImported(await extract.mutateAsync(file));
+      const result = await extract.mutateAsync(file);
+      if (mounted.current) onImported(result);
     } catch (error) {
-      setFailure(failureOf(error));
+      if (mounted.current) setFailure(failureOf(error));
     } finally {
       sending.current = false;
-      setBusy(false);
+      if (started) setBusy(false); // an upload cannot be dismissed, so this one is always the current session's
     }
   }
 
