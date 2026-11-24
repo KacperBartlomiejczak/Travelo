@@ -9,7 +9,7 @@ export function mergeParsed(bcbp: BoardingPass | null, text: ParsedTicket, airpo
   const unused = [...text.segments];
   const legs = bcbp.legs.filter((l) => airports(l.fromIata) && airports(l.toIata));
   const merged = assignDirections(legs).map((leg): TicketSegment => {
-    const at = unused.findIndex((t) => t.fromIata === leg.fromIata && t.toIata === leg.toIata);
+    const at = unused.findIndex((t) => t.fromIata === leg.fromIata && t.toIata === leg.toIata && (t.flightDate === leg.flightDate || !t.flightDate));
     const match = at >= 0 ? unused.splice(at, 1)[0] : undefined;
     const sameDay = match?.flightDate === leg.flightDate;
     return {
@@ -23,8 +23,12 @@ export function mergeParsed(bcbp: BoardingPass | null, text: ParsedTicket, airpo
     };
   });
   // Text-only flights (e.g. the return leg of a PDF with one boarding-pass barcode) are kept; flights are ordered by day
-  // (stable, so text order breaks ties) and directions are recomputed over the whole itinerary. Max 8 like validateParsed.
-  const all = [...merged, ...unused].sort((a, b) => (a.flightDate ?? '9999').localeCompare(b.flightDate ?? '9999'));
+  // (then by departure time untimed last; stable otherwise) and directions are recomputed over the whole itinerary. Max 8 like validateParsed.
+  const all = [...merged, ...unused].sort(
+    (a, b) =>
+      (a.flightDate ?? '9999').localeCompare(b.flightDate ?? '9999') ||
+      (a.departAt ?? '￿').localeCompare(b.departAt ?? '￿'),
+  );
   const truncated = all.length > MAX_SEGMENTS || text.truncated;
   return { segments: assignDirections(all).slice(0, MAX_SEGMENTS), ...(truncated && { truncated: true as const }) };
 }

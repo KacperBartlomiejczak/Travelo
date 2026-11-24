@@ -1,7 +1,7 @@
 import type { BoardingPass, ParsedTicket, TicketSegment } from '../../../schemas/ticket';
 import { isComplete, mergeParsed } from '../merge';
 
-const airports = (iata: string) => (['WAW', 'BCN'].includes(iata) ? { timezone: 'Europe/Madrid' } : undefined);
+const airports = (iata: string) => (['WAW', 'BCN', 'MAD'].includes(iata) ? { timezone: 'Europe/Madrid' } : undefined);
 
 const seg = (o: Partial<TicketSegment> = {}): TicketSegment => ({
   direction: 'outbound',
@@ -48,9 +48,9 @@ describe('mergeParsed', () => {
     expect(r.segments[0].flightNumber).toBe('FR999');
   });
 
-  it('lets the boarding pass win on the day and drops text times from another day', () => {
+  it('lets the boarding pass win on the day and takes no text times from another day', () => {
     const r = mergeParsed(bcbp({ flightDate: '2026-12-06' }), { segments: [seg()] }, airports);
-    expect(r.segments[0]).toMatchObject({ flightDate: '2026-12-06', departAt: null, arriveAt: null });
+    expect(r.segments[1]).toMatchObject({ flightDate: '2026-12-06', departAt: null, arriveAt: null });
   });
 
   it('keeps text-only segments after the boarding pass legs, in flight order, with coherent directions', () => {
@@ -67,7 +67,7 @@ describe('mergeParsed', () => {
 
   it('never returns more than 8 segments, and marks the cut result as truncated (not complete)', () => {
     const many = Array.from({ length: 9 }, (_, i) => seg({ fromIata: 'WAW', toIata: 'BCN', flightDate: `2026-12-${String(10 + i).padStart(2, '0')}` }));
-    const r = mergeParsed(bcbp(), { segments: many }, airports);
+    const r = mergeParsed(bcbp({ flightDate: '2026-12-01' }), { segments: many }, airports);
     expect(r.segments).toHaveLength(8);
     expect(r.truncated).toBe(true);
     expect(isComplete(r)).toBe(false);
@@ -75,9 +75,31 @@ describe('mergeParsed', () => {
 
   it('keeps a truncated flag from the text and does not flag exactly 8', () => {
     expect(mergeParsed(null, { segments: [seg()], truncated: true }, airports).truncated).toBe(true);
-    const eight = Array.from({ length: 8 }, (_, i) => seg({ flightDate: `2026-12-${String(10 + i).padStart(2, '0')}` }));
-    const r = mergeParsed(bcbp(), { segments: eight }, airports);
+    const day = (i: number) => `2026-12-${String(10 + i).padStart(2, '0')}`;
+    const seven = Array.from({ length: 7 }, (_, i) => seg({ flightDate: day(i), departAt: `${day(i)}T06:45`, arriveAt: `${day(i)}T09:50` }));
+    const r = mergeParsed(bcbp(), { segments: seven }, airports);
     expect(r.segments).toHaveLength(8);
     expect(r.truncated).toBeUndefined();
+  });
+
+  it('orders same-day flights by departure time with untimed ones last', () => {
+    const d = '2026-12-05';
+    const x = seg({ fromIata: 'BCN', toIata: 'MAD', flightNumber: 'X', departAt: `${d}T12:00`, arriveAt: `${d}T13:10` });
+    const z = seg({ fromIata: 'MAD', toIata: 'WAW', flightNumber: 'Z', departAt: null, arriveAt: null });
+    const y = seg({ flightNumber: 'Y', departAt: `${d}T08:00`, arriveAt: `${d}T10:00` });
+    const r = mergeParsed(bcbp({ fromIata: 'BCN', toIata: 'MAD', flightNumber: 'X' }), { segments: [x, z, y] }, airports);
+    expect(r.segments.map((s) => [s.flightNumber, s.direction])).toEqual([['Y', 'outbound'], ['X', 'outbound'], ['Z', 'return']]);
+  });
+
+  it('keeps a text flight on the same route but another day as its own segment', () => {
+    const r = mergeParsed(bcbp({ flightDate: '2026-12-10' }), { segments: [seg()] }, airports);
+    expect(r.segments.map((s) => s.flightDate)).toEqual(['2026-12-05', '2026-12-10']);
+    expect(r.segments[0].departAt).toBe('2026-12-05T06:45');
+  });
+
+  it('orders same-day legs by departure time, so the earlier text flight stays outbound', () => {
+    const mad = seg({ fromIata: 'BCN', toIata: 'MAD', flightNumber: 'FR2', departAt: '2026-12-05T12:00', arriveAt: '2026-12-05T13:10' });
+    const r = mergeParsed(bcbp({ fromIata: 'BCN', toIata: 'MAD', flightNumber: 'FR2' }), { segments: [mad, seg()] }, airports);
+    expect(r.segments.map((s) => [s.fromIata, s.direction])).toEqual([['WAW', 'outbound'], ['BCN', 'outbound']]);
   });
 });

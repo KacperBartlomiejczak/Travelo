@@ -157,3 +157,4 @@ poprawka idzie jako osobny krok do właściciela pliku).
 
 ### Krok dodatkowy
 - [x] **2d [backend]**: obcięcie do 8 segmentów (merge i tekst) → `complete: false`; test najpierw.
+- Kolejność w obrębie dnia (2026-11-24): loty z godziną wylotu po kolei, lot bez godziny na końcu dnia (Kacper).
