@@ -115,6 +115,7 @@ Before building any UI, read [`context/design-context.md`](context/design-contex
 |---|---|---|---|
 | **explorer** | Read-only scout: where X lives, which pattern to follow | nothing | [`.claude/agents/Explorer.md`](.claude/agents/Explorer.md) |
 | **planner** | Drafts a plan in the plan template, steps tagged `[backend]` / `[frontend]` | nothing | [`.claude/agents/Planner.md`](.claude/agents/Planner.md) |
+| **task-planner** | Always used: splits one task into parallel waves of independent sub-tasks (orchestrator's model) | nothing | [`.claude/agents/TaskPlanner.md`](.claude/agents/TaskPlanner.md) |
 | **backend** | Executes one approved backend step, test-first (schemas, data layer, Supabase) | `src/schemas/`, `src/data/`, `src/lib/`, `src/providers/`, `src/test/`, `supabase/` | [`.claude/agents/Backend.md`](.claude/agents/Backend.md) |
 | **frontend** | Executes one approved frontend step, test-first, following the design context | `src/` outside the data layer and schemas | [`.claude/agents/Frontend.md`](.claude/agents/Frontend.md) |
 | **verifier** | Fresh-context PASS / FAIL review of a finished step (Haiku); at the end of a plan, of the whole branch with a CodeRabbit review (Sonnet 5.5, effort medium); never fixes | nothing | [`.claude/agents/Verifier.md`](.claude/agents/Verifier.md) |
@@ -122,6 +123,8 @@ Before building any UI, read [`context/design-context.md`](context/design-contex
 | **cve-auditor** | Read-only CVE check (full audit, one package, or one CVE): EXISTS / NOT AFFECTED / UNKNOWN per vulnerability, with evidence; never fixes | nothing | [`.claude/agents/CveAuditor.md`](.claude/agents/CveAuditor.md) |
 
 Rules that always apply:
+- **Every session starts as an orchestrator session.** A request with more than one independent task → one sub-session per task (`start_session`), on the same model as this session; each sub-session orchestrates its own task. Details: [`docs/agents/subagents.md`](docs/agents/subagents.md).
+- **The task-planner is always used** to split a task's steps into parallel waves before the plan goes to Kacper.
 - The orchestrator (main session) is the **only one allowed to edit** `prompts/` and `docs/`. Subagents return a report; they never guess (unclear brief → `Status: question`).
 - Order: schemas → backend → frontend for steps that depend on each other; independent steps may run in parallel (see the delegation rules). Every finished step goes through the **verifier**; only after PASS is the step marked `[x]`.
 - Every brief is self-contained: step, allowed files, relevant Zod schemas, tests to write first, acceptance criteria. A step needing both backend and frontend is split. No two subagents edit the same file in parallel.

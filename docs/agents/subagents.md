@@ -8,6 +8,11 @@ Definitions live in `.claude/agents/<Agent>.md` (mirrored in `.codex/agents/<Age
 - **Is a manager only (Kacper, 2026-10-25).** It edits **documents only**: `CLAUDE.md`, `docs/**/*.md`, `context/*.md`, `prompts/**/plan.md` and `.claude/agents/*.md`. It never writes or edits code, tests, schemas, migrations, config or i18n files, not even a one-line fix: every such change goes to **backend** or **frontend** as a step brief. It may run read-only commands and the checks (`pnpm test`, `pnpm typecheck`, `pnpm lint`) and git commands.
 - **Commits every step on the task's one branch after the verifier's PASS** (and the tester's, when it ran). See Step flow, point 4.
 
+## Every session is an orchestrator session (Kacper, 2026-11-24)
+- Every session starts as the **orchestrator**: it reads `CLAUDE.md`, follows this contract, and does not implement anything itself.
+- **More than one independent task in a request** (each ending in its own branch / PR) → the orchestrator starts **one sub-session per task** (`start_session`), on **the same model as itself**. Each sub-session is an orchestrator for its own task: its own plan, approval, branch and steps. The current session keeps one task (or only reports back).
+- One task → it stays in this session; its parallelism comes from subagent waves (task-planner), not sub-sessions.
+
 ## Subagents
 Definitions live in `.claude/agents/`.
 
@@ -15,6 +20,7 @@ Definitions live in `.claude/agents/`.
 |---|---|---|---|---|
 | **explorer** (read-only) | Haiku 5.5 (`claude-haiku-5-5`) | Answers one concrete question about the codebase: where X lives, which schemas / components / hooks / tests / migrations already exist, which pattern to follow. Returns `file:line` locations and short conclusions | nothing | Edit files, propose implementations |
 | **planner** (read-only) | opus | Drafts a plan in the plan template format, every step tagged `[backend]` or `[frontend]` | nothing — returns the plan to the orchestrator | Start implementing, edit any `plan.md` |
+| **task-planner** (read-only) | `inherit` (the orchestrator's model) | **Always used** (Kacper, 2026-11-24): splits one task into the smallest independent sub-tasks and groups them into parallel waves (no shared files within a wave, dependencies only across waves); flags separate tasks that need their own sub-session | nothing — returns the waves to the orchestrator | Implement, edit any file, decide Kacper's calls |
 | **backend** | sonnet | Executes **one approved backend step**: tests first (red), then code (green) | `src/schemas/` (target: `packages/schemas/`), the data layer (`src/data/`, `src/lib/`, `src/providers/`, `src/test/`; Kacper 2026-10-20), `supabase/migrations/`, `supabase/functions/` | Touch `apps/mobile/`, return with any failing test |
 | **frontend** | sonnet | Executes **one approved frontend step** following `context/design-context.md`: tests first, then code | `src/` outside `src/schemas/` and the data layer (target: `apps/mobile/`) | Change Zod schemas or `supabase/` (stop and report instead), return with any failing test |
 | **verifier** (fresh context) | Haiku 5.5 (`claude-haiku-5-5`) per step; Sonnet 5.5, effort medium at the end of a plan (set in the call) | **Step mode:** checks a finished step against the plan, Rules, design context and Verification loop; runs the checks itself. **End-of-plan mode:** the same for the whole branch, plus a CodeRabbit review (`coderabbit review --agent --base <base>`, skill `code-review` from CodeRabbit) whose findings it confirms or rejects in the code | nothing | Fix things itself, sign in to CodeRabbit — it reports PASS / FAIL (or blocked when CodeRabbit could not run) |
@@ -37,7 +43,7 @@ The model column mirrors the `model:` field in `.claude/agents/*.md`; change bot
 
 ## Step flow
 0. **explorer** maps the relevant code (files, schemas, patterns, tests) when it is not already known.
-1. Planner (or orchestrator) drafts the plan → Kacper approves.
+1. Planner (or orchestrator) drafts the plan → **task-planner** splits its steps into parallel waves (always, Kacper 2026-11-24; the plan's Steps are written as those waves) → Kacper approves.
 2. Orchestrator sends each step to **backend** or **frontend** by its tag. Order: schemas → backend → frontend when a step needs another's result; independent steps may run in parallel (see "Rules for delegation").
 3. **verifier** checks every finished step. FAIL → back to the same implementer with the verifier's issues.
    **Before every device test (Kacper, 2026-11-16)** the orchestrator runs **cve-auditor** in full-audit mode. CLEAN → the tester starts. An EXISTS or UNKNOWN verdict is reported to Kacper first, and he decides whether the tester runs before the fix.
@@ -64,6 +70,7 @@ The model column mirrors the `model:` field in `.claude/agents/*.md`; change bot
 |---|---|---|---|
 | `explorer` | `claude-haiku-5-5` (Haiku 5.5) | Read, Grep, Glob | Read-only scout: finds code, schemas and patterns |
 | `planner` | opus | Read, Grep, Glob | Read-only: drafts a plan in the plan template format |
+| `task-planner` | `inherit` (orchestrator's model; Codex: no `model` set, so it inherits) | Read, Grep, Glob | Read-only: splits a task into parallel waves of independent sub-tasks |
 | `backend` | sonnet | Read, Edit, Write, Grep, Glob, Bash | Executes one backend step test-first (schemas, migrations, RLS, Edge Functions) |
 | `frontend` | sonnet | Read, Edit, Write, Grep, Glob, Bash | Executes one frontend step test-first, following the design context |
 | `verifier` | `claude-haiku-5-5` (Haiku 5.5); end-of-plan mode: `model: sonnet`, `effort: medium` passed in the Agent call (Codex: no per-call override, runs on its default) | Read, Grep, Glob, Bash (`coderabbit` runs outside the sandbox: `sandbox.excludedCommands` in `.claude/settings.json`, because the CLI's sign-in is not visible inside it) | Independent PASS/FAIL review of a finished step, and of the whole branch with CodeRabbit at the end of a plan; never fixes |
