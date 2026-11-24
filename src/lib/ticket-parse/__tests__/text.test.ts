@@ -22,6 +22,19 @@ describe('parseTicketText', () => {
     expect(eight.truncated).toBeUndefined();
   });
 
+  it('stops collecting routes after the cut, so a flood of route lines costs bounded work', () => {
+    let lookups = 0;
+    const counting = (iata: string) => {
+      lookups++;
+      return airports(iata);
+    };
+    const flood = Array.from({ length: 20000 }, (_, i) => `WAW -> BCN FR${1000 + (i % 9000)} Departure 2026-12-01 06:45`).join('\n');
+    const r = parseTicketText(flood, counting);
+    expect(r.segments).toHaveLength(8);
+    expect(r.truncated).toBe(true);
+    expect(lookups).toBeLessThan(100);
+  });
+
   it('leaves arriveAt null when the printed arrival date is invalid', () => {
     const r = parse('WAW → BCN Departure 2026-12-05 10:00 Arrival 2026-02-30 13:00');
     expect(r.segments[0].departAt).toBe('2026-12-05T10:00');

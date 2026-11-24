@@ -123,21 +123,27 @@ function parseBlock(block: string, from: string, to: string) {
 export function parseTicketText(text: string, airports: AirportLookup): ParsedTicket {
   const span = (format: number) => (m: RegExpMatchArray): Route => ({ index: m.index ?? 0, end: (m.index ?? 0) + m[0].length, from: m[1], to: m[2], format });
   // Every format counts; a match overlapping an earlier kept one, or repeating the previous route in another format, is dropped.
-  const routes = [
+  const candidates = [
     ...[...text.matchAll(ARROW_ROUTE)].map(span(0)),
     ...[...text.matchAll(PAREN_ROUTE)].map(span(1)),
     ...labelledRoutes(text, airports).map((r) => ({ ...r, format: 2 })),
-  ]
-    .sort((a, b) => a.index - b.index)
-    .reduce<Route[]>((kept, r) => {
-      const last = kept[kept.length - 1];
-      // The same leg written in two formats; repeats within one format are real separate flights.
-      const same = last?.from === r.from && last.to === r.to && last.format !== r.format;
-      return same || kept.some((k) => r.index < k.end && k.index < r.end) ? kept : [...kept, r];
-    }, []);
+  ].sort((a, b) => a.index - b.index);
+  const routes: Route[] = [];
+  const usable = new Set<Route>();
+  for (const r of candidates) {
+    const last = routes[routes.length - 1];
+    // Kept routes are in index order and never overlap, so only the last one can overlap r.
+    if (last && r.index < last.end) continue;
+    // The same leg written in two formats; repeats within one format are real separate flights.
+    if (last?.from === r.from && last.to === r.to && last.format !== r.format) continue;
+    routes.push(r);
+    if (r.from !== r.to && airports(r.from) && airports(r.to)) usable.add(r);
+    // One flight past the cut is enough to flag `truncated`; a flood of route lines must not cost more.
+    if (usable.size > MAX_TICKET_SEGMENTS) break;
+  }
   const all = routes
     .map((r, i) => ({ r, block: text.slice(r.index, routes[i + 1]?.index ?? text.length) }))
-    .filter(({ r }) => r.from !== r.to && airports(r.from) && airports(r.to))
+    .filter(({ r }) => usable.has(r))
     .map(({ r, block }) => parseBlock(block, r.from, r.to));
   const segments = all.slice(0, MAX_TICKET_SEGMENTS);
   const parsed = ParsedTicketSchema.safeParse({
