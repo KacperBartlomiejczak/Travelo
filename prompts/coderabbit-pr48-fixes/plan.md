@@ -200,7 +200,7 @@ CodeRabbit nie przejrzał jeszcze `d2b5cfe` (check „skipping”). 13/14 pierwo
 - F1, doprecyzowanie (Kacper, 2026-11-24): różne numery lotów nadal się łączą, gdy dopasowanie trasa+dzień jest jednoznaczne (dokładnie jeden lot z kodu i jeden z tekstu na tej trasie i w tym dniu; BCBP wygrywa na numerze). Przy dwóch lub więcej lotach na tej samej trasie i w tym samym dniu łączymy tylko po numerze.
 
 ## Dodatek 3: trzecie review CodeRabbita (commit fbf6378, 2026-11-24)
-Status: w realizacji (zaakceptowany przez Kacpra 2026-11-24: P4 = a, P5 = a, P6 = proponowany tekst). Ta sama gałąź `fix/pr48-coderabbit` (= `origin/feature/ticket-import-ai`, `fbf6378`) → push do PR #48.
+Status: zrobione (2026-11-24; zaakceptowany przez Kacpra: P4 = a, P5 = a, P6 = proponowany tekst). Push `fbf6378..1832136` do PR #48, odpowiedzi i rozwiązanie wszystkich 10 wątków. Ta sama gałąź `fix/pr48-coderabbit` (= `origin/feature/ticket-import-ai`, `fbf6378`) → push do PR #48.
 
 ### Skąd „te same błędy”
 10 otwartych wątków. Tylko **jeden** to powtórka (G1): poprawka E2 sortowała po UTC tylko w obrębie **tej samej lokalnej daty**,
@@ -280,7 +280,7 @@ w wątku (z uzasadnieniem albo wpisem w `known-limitations.md`) i rozwiązujemy 
 - [-] **H [backend] G6**: pominięty (P5 = a)
 - [x] **I [orkiestrator]**: wpisy w `docs/architecture/known-limitations.md` (P4 = c / P5 = a), flows `ticket-import.md` jeśli
       zmienia się zachowanie (G4)
-- [ ] **J [orkiestrator]**: każdy krok → verifier; potem pełny `pnpm test` / `typecheck` / `lint`, `deno check`, push, odpowiedzi
+- [x] **J [orkiestrator]**: każdy krok → verifier; potem pełny `pnpm test` / `typecheck` / `lint`, `deno check`, push, odpowiedzi
       i rozwiązanie wszystkich 10 wątków (G10 i ewentualne „zostawiamy” z uzasadnieniem).
 
 Wynik (2026-11-24): kroki A–G i I zrobione, każdy z PASS verifiera; 240 zestawów / 4717 testów, typecheck, lint, deno check zielone;
