@@ -46,14 +46,14 @@ Brak. Ekran nie przyjmuje parametrów ani danych z zewnątrz. Wynik paywalla to 
 - [x] 1. [frontend] `ProWelcomeScreen` + trasa `/pro-welcome` + klucze i18n PL/EN. Skill: test-driven-development, frontend-ui-engineering. Najpierw testy: `ProWelcomeScreen.test.tsx` (lista wyżej). Weryfikacja: verifier (Haiku).
 - [x] 2. [frontend] `SettingsScreen`: `PURCHASED` → `router.push('/pro-welcome')`, reszta bez zmian. Skill: test-driven-development. Najpierw testy: rozszerzenie `SettingsScreen.test.tsx`. Weryfikacja: verifier (Haiku). Może iść równolegle z krokiem 1.
 - [x] 3. Docs (orkiestrator) + verifier całej gałęzi z CodeRabbit (Sonnet 5.5) + `pnpm test`, `pnpm typecheck`, `pnpm lint` na zielono. Skill: code-review.
-- [ ] 4. cve-auditor (pełny audyt), potem tester na telefonie (scenariusze wyżej). Przy EXISTS lub UNKNOWN pytam Kacpra.
+- [x] 4. cve-auditor (częściowo, patrz dziennik) (pełny audyt), potem tester na telefonie (scenariusze wyżej). Przy EXISTS lub UNKNOWN pytam Kacpra.
 - [ ] 5. PR do `main`.
 
 ## Dziennik postępu
 - Krok 1: testy napisane (red ✓, brak modułu) · `ProWelcomeScreen` (grafika 128dp, korona 64dp, tytuł `displayLG`, tekst wyśrodkowany), trasa `/pro-welcome`, klucze `proWelcome.*` · green ✓ (9 testów) · verifier PASS · skill: test-driven-development, frontend-ui-engineering · odstępstwa: brak; test „Super!” sprawdza ścieżkę zamiast szpiega `router.back`.
 - Krok 2: testy napisane (red ✓, push 0 razy) · `SettingsScreen`: `PURCHASED` → `router.push('/pro-welcome')` · green ✓ (pełny zestaw 4466) · verifier PASS (poprawka: flush przed asercją „brak push”, test mutacyjny ✓) · skill: test-driven-development
 - Krok 3: docs zaktualizowane (`frontend.md`, `app-context.md`, szkic pro-paywall-upgrade) · verifier gałęzi + CodeRabbit: FAIL → kolumna bez `flexGrow: 1` (przycisk nie był na dole, A1) · poprawka z testem (red ✓ → green ✓) · pełny zestaw 4467 ✓, typecheck ✓, lint ✓ · skill: code-review
-- Krok 4: cve-auditor CLEAN (23 advisories tylko w narzędziach dev: node-forge, minimatch, glob przez Expo CLI / jest) · tester: czeka na telefon
+- Krok 4: cve-auditor CLEAN (23 advisories tylko w narzędziach dev: node-forge, minimatch, glob przez Expo CLI / jest) · tester (emulator Android 17): ścieżka zakupu zablokowana — baner „Przejdź na PRO” wyłączony, bo RevenueCat nie potwierdza tożsamości (`useIsProIdentityConfirmed`), błąd sprzed tej gałęzi (R1). Decyzja Kacpra: test ekranu przez deep link `traveling://pro-welcome` i PR. A (EN, układ, animacja) ✓, B („Great!” → Ustawienia) ✓, C (systemowe wstecz) ✓; D (PL), E (ciemny motyw), F (ograniczony ruch) nie przetestowane — emulator rozłączył się w trakcie. Pierwsze otwarcie deep linku dało „Unmatched Route” do zimnego restartu aplikacji (prawdopodobnie stary stan JS po hot reload, nie udowodnione).
 
 ## Ryzyka i otwarte pytania
 - **R1.** RevenueCat Test Store nie był jeszcze sprawdzony na urządzeniu (`prompts/revenuecat/`), więc krok 4 może wyłapać problemy samego zakupu, nie tego ekranu.
