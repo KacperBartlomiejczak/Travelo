@@ -81,6 +81,11 @@ describe('ProWelcomeScreen (premium-welcome-screen step 1)', () => {
     expect(screen.getByTestId('pro-welcome-art', hidden).props['aria-hidden']).toBe(true);
   });
 
+  it('fills the scroll area, so the art is centred and the button sits at the bottom', async () => {
+    await setup();
+    expect(StyleSheet.flatten(screen.getByTestId('pro-welcome-column').props.style)).toMatchObject({ flexGrow: 1 });
+  });
+
   it('scrolls when the text is huge', async () => {
     await setup();
     expect(screen.getByTestId('pro-welcome-content').type).toBe('RCTScrollView');

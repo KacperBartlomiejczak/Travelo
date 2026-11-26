@@ -65,7 +65,9 @@ export function ProWelcomeScreen() {
     <View testID="pro-welcome-screen" style={[styles.screen, { backgroundColor: theme.background.canvas }]}>
       <ScrollView testID="pro-welcome-content" alwaysBounceVertical={false} contentContainerStyle={styles.content}>
         <View
+          testID="pro-welcome-column"
           style={{
+            flexGrow: 1,
             width: '100%',
             maxWidth: tokens.layout.maxContentWidth,
             alignSelf: 'center',
