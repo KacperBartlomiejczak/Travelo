@@ -874,5 +874,10 @@
     },
     "error": "Nie udało się wczytać dokumentu.",
     "back": "Wstecz"
+  },
+  "proWelcome": {
+    "title": "Witaj w Travelo PRO",
+    "body": "Dziękujemy, że wspierasz Travelo. Twoja subskrypcja jest już aktywna.",
+    "done": "Super!"
   }
 }
