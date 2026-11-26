@@ -43,13 +43,15 @@ Brak. Ekran nie przyjmuje parametrów ani danych z zewnątrz. Wynik paywalla to 
 - code-review: krok 3, przegląd CodeRabbit całej gałęzi
 
 ## Kroki
-- [ ] 1. [frontend] `ProWelcomeScreen` + trasa `/pro-welcome` + klucze i18n PL/EN. Skill: test-driven-development, frontend-ui-engineering. Najpierw testy: `ProWelcomeScreen.test.tsx` (lista wyżej). Weryfikacja: verifier (Haiku).
-- [ ] 2. [frontend] `SettingsScreen`: `PURCHASED` → `router.push('/pro-welcome')`, reszta bez zmian. Skill: test-driven-development. Najpierw testy: rozszerzenie `SettingsScreen.test.tsx`. Weryfikacja: verifier (Haiku). Może iść równolegle z krokiem 1.
+- [x] 1. [frontend] `ProWelcomeScreen` + trasa `/pro-welcome` + klucze i18n PL/EN. Skill: test-driven-development, frontend-ui-engineering. Najpierw testy: `ProWelcomeScreen.test.tsx` (lista wyżej). Weryfikacja: verifier (Haiku).
+- [x] 2. [frontend] `SettingsScreen`: `PURCHASED` → `router.push('/pro-welcome')`, reszta bez zmian. Skill: test-driven-development. Najpierw testy: rozszerzenie `SettingsScreen.test.tsx`. Weryfikacja: verifier (Haiku). Może iść równolegle z krokiem 1.
 - [ ] 3. Docs (orkiestrator) + verifier całej gałęzi z CodeRabbit (Sonnet 5.5) + `pnpm test`, `pnpm typecheck`, `pnpm lint` na zielono. Skill: code-review.
 - [ ] 4. cve-auditor (pełny audyt), potem tester na telefonie (scenariusze wyżej). Przy EXISTS lub UNKNOWN pytam Kacpra.
 - [ ] 5. PR do `main`.
 
 ## Dziennik postępu
+- Krok 1: testy napisane (red ✓, brak modułu) · `ProWelcomeScreen` (grafika 128dp, korona 64dp, tytuł `displayLG`, tekst wyśrodkowany), trasa `/pro-welcome`, klucze `proWelcome.*` · green ✓ (9 testów) · verifier PASS · skill: test-driven-development, frontend-ui-engineering · odstępstwa: brak; test „Super!” sprawdza ścieżkę zamiast szpiega `router.back`.
+- Krok 2: testy napisane (red ✓, push 0 razy) · `SettingsScreen`: `PURCHASED` → `router.push('/pro-welcome')` · green ✓ (pełny zestaw 4466) · verifier PASS (poprawka: flush przed asercją „brak push”, test mutacyjny ✓) · skill: test-driven-development
 
 ## Ryzyka i otwarte pytania
 - **R1.** RevenueCat Test Store nie był jeszcze sprawdzony na urządzeniu (`prompts/revenuecat/`), więc krok 4 może wyłapać problemy samego zakupu, nie tego ekranu.
