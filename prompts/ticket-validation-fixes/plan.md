@@ -99,7 +99,7 @@ validateTicket(gemini: GeminiTicket, parsed: ParsedTicket, airports: AirportLook
 ## Kroki
 Fala 1: wszystko równolegle, bo żadne dwa kroki nie dotykają tego samego pliku. Każdy krok: test najpierw, potem kod, potem
 verifier.
-- [ ] **1a [backend] H1** — skill: test-driven-development — najpierw testy: `validate.test.ts`, `handler.test.ts` (wyżej) —
+- [x] **1a [backend] H1** — skill: test-driven-development — najpierw testy: `validate.test.ts`, `handler.test.ts` (wyżej) —
   pliki: `validate.ts`, `handler.ts` + testy — weryfikacja: verifier, `deno check` funkcji
 - [x] **1b [backend] H3** — skill: test-driven-development — najpierw testy: `merge.test.ts` (wyżej) — pliki: `merge.ts` + test
   — weryfikacja: verifier, `deno check` (merge działa też w Deno)
@@ -125,6 +125,7 @@ Fala 3 (koniec):
 ## Dziennik postępu
 - Krok 1c (H2): test D3 red ✓ (dialog widoczny przed zamknięciem arkusza) → green ✓; `replacePending` ref w `ticketImported`, `onDismissed` ustawia `replacing`; flights.test 28/28, typecheck, lint ✓; verifier PASS · skill: test-driven-development · odstępstwa: brak
 - Krok 1b (H3): test „dwa loty bez numeru” red ✓ → green ✓; drugi test (najpierw numer) jest testem regresji, nie red. Odstępstwo: pierwsza wersja dopisywała niejednoznaczne loty z tekstu jako osobne (4 loty zamiast 2) — poprawione: są odrzucane, test sprawdza dokładnie 2 loty. Loty z tekstu z innym numerem niż kod zostają dopisane jak dotąd. ticket-parse 104/104, typecheck, lint, deno check ✓; verifier PASS · skill: test-driven-development
+- Krok 1a (H1): testy „dodatkowe loty po/przed lotem z parsera” i test handlera red ✓ (mismatch / wynik częściowy) → green ✓; pozostałe testy H1 strzegą reguły (przechodziły też wcześniej). `validateTicket(…, skippedPages)` z jednym przejściem i wskaźnikiem; handler przekazuje flagę. ticket-parse + extract-ticket 167/167, typecheck, lint, deno check ✓; verifier PASS · skill: test-driven-development · odstępstwa: brak
 
 ## Ryzyka i otwarte pytania
 - H1 osłabia regułę „Gemini musi się zgadzać z etapem 1” tylko dla lotów spoza przeczytanych stron. Prompt injection na stronie 4
