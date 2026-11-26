@@ -292,7 +292,11 @@ export function SettingsScreen() {
       >
         <IdentityBlock loading={myProfile.isPending && myProfile.fetchStatus !== 'idle'} profile={myProfile.data?.profile} email={email} />
         <View style={{ gap: spacing[4] }}>
-          {!isPro && <ProBanner disabled={offline || !confirmed} onPress={() => confirmed && void present(async () => (await RevenueCatUI.presentPaywall()) === PAYWALL_RESULT.ERROR, 'settings.pro.error')} />}
+          {!isPro && <ProBanner disabled={offline || !confirmed} onPress={() => confirmed && void present(async () => {
+            const result = await RevenueCatUI.presentPaywall();
+            if (result === PAYWALL_RESULT.PURCHASED) router.push('/pro-welcome');
+            return result === PAYWALL_RESULT.ERROR;
+          }, 'settings.pro.error')} />}
           {!isPro && offline && (
             <Text style={[typography.styles.bodySM, { color: theme.text.secondary }]} accessibilityLiveRegion="polite">
               {t('settings.pro.offline')}

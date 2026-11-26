@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor, within } from '@testing-library/react-native';
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react-native';
 import { router } from 'expo-router';
 import { processColor, StyleSheet } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
@@ -221,6 +221,22 @@ describe('Settings PRO banner (settings-redesign step 6)', () => {
     await fireEvent.press(await screen.findByRole('button', { name: LABEL.pl }));
     await waitFor(() => expect(purchasesUiMock.presentPaywall).toHaveBeenCalled());
     expect(screen.queryByText(ERROR.pl)).toBeNull();
+  });
+
+  it('opens the welcome screen after a PURCHASED paywall result', async () => {
+    purchasesUiMock.presentPaywall.mockResolvedValue(PAYWALL_RESULT.PURCHASED);
+    await renderSettings();
+    await fireEvent.press(await screen.findByRole('button', { name: LABEL.pl }));
+    await waitFor(() => expect(router.push).toHaveBeenCalledWith('/pro-welcome'));
+  });
+
+  it.each([PAYWALL_RESULT.RESTORED, PAYWALL_RESULT.CANCELLED, PAYWALL_RESULT.NOT_PRESENTED, PAYWALL_RESULT.ERROR])('does not open the welcome screen for %s', async (result) => {
+    purchasesUiMock.presentPaywall.mockResolvedValue(result);
+    await renderSettings();
+    await fireEvent.press(await screen.findByRole('button', { name: LABEL.pl }));
+    await waitFor(() => expect(purchasesUiMock.presentPaywall).toHaveBeenCalled());
+    await act(async () => {});
+    expect(router.push).not.toHaveBeenCalled();
   });
 
   it.each(['pl', 'en'] as const)('shows the error snackbar for an ERROR result in %s', async (lang) => {
