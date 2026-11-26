@@ -57,6 +57,7 @@ export default function FlightsStep() {
   const [importOpen, setImportOpen] = useState(false);
   const [scanOpen, setScanOpen] = useState(false);
   const scanPending = useRef(false); // the scanner is a second Modal: it opens once the import sheet has dismissed
+  const replacePending = useRef<ExtractTicketResponse | null>(null);
   const [replacing, setReplacing] = useState<ExtractTicketResponse | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const timezoneOf = (iata: string) => findAirport(iata)?.timezone;
@@ -69,7 +70,7 @@ export default function FlightsStep() {
   function ticketImported(response: ExtractTicketResponse) {
     setImportOpen(false);
     if (isFlightsDraftEmpty(draftRef.current)) applyTicket(response);
-    else setReplacing(response);
+    else replacePending.current = response; // the dialog is a second Modal: shown once the sheet has dismissed
   }
 
   function passScanned(pass: BoardingPass, direction: Direction) {
@@ -202,6 +203,10 @@ export default function FlightsStep() {
         setImportOpen(false);
       }}
       onDismissed={() => {
+        if (replacePending.current) {
+          setReplacing(replacePending.current);
+          replacePending.current = null;
+        }
         if (!scanPending.current) return;
         scanPending.current = false;
         setScanOpen(true);

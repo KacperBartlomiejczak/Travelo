@@ -103,7 +103,7 @@ verifier.
   pliki: `validate.ts`, `handler.ts` + testy — weryfikacja: verifier, `deno check` funkcji
 - [ ] **1b [backend] H3** — skill: test-driven-development — najpierw testy: `merge.test.ts` (wyżej) — pliki: `merge.ts` + test
   — weryfikacja: verifier, `deno check` (merge działa też w Deno)
-- [ ] **1c [frontend] H2** — skill: test-driven-development — najpierw testy: `flights.test.tsx` (wyżej) — pliki:
+- [x] **1c [frontend] H2** — skill: test-driven-development — najpierw testy: `flights.test.tsx` (wyżej) — pliki:
   `src/app/trips/new/index.tsx` + test — weryfikacja: verifier
 - [x] **1d [orkiestrator] H4** — `prompts/coderabbit-pr48-fixes/plan.md:281` „P4 = c” → „P4 = a” — weryfikacja: grep
 
@@ -123,7 +123,7 @@ Fala 3 (koniec):
   urządzeniu, tak jak G7, i trafia do `known-limitations.md` („Not checked yet”).
 
 ## Dziennik postępu
-- (pusto)
+- Krok 1c (H2): test D3 red ✓ (dialog widoczny przed zamknięciem arkusza) → green ✓; `replacePending` ref w `ticketImported`, `onDismissed` ustawia `replacing`; flights.test 28/28, typecheck, lint ✓; verifier PASS · skill: test-driven-development · odstępstwa: brak
 
 ## Ryzyka i otwarte pytania
 - H1 osłabia regułę „Gemini musi się zgadzać z etapem 1” tylko dla lotów spoza przeczytanych stron. Prompt injection na stronie 4
