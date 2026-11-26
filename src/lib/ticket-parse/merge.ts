@@ -9,18 +9,37 @@ export function mergeParsed(bcbp: BoardingPass | null, text: ParsedTicket, airpo
   if (!bcbp) return text;
   const unused = [...text.segments];
   const legs = bcbp.legs.filter((l) => airports(l.fromIata) && airports(l.toIata));
-  const merged = assignDirections(legs).map((leg): TicketSegment => {
-    const route = (t: Pick<TicketSegment, 'fromIata' | 'toIata'>) => t.fromIata === leg.fromIata && t.toIata === leg.toIata;
-    // Same route and day with the same number first, then a number missing on either side; an undated text flight only when no
-    // dated one fits. Different numbers match only when unambiguous (below).
+  const directed = assignDirections(legs);
+  const matches = new Map<(typeof directed)[number], TicketSegment>();
+  const routeOf = (leg: (typeof directed)[number]) => (t: Pick<TicketSegment, 'fromIata' | 'toIata'>) =>
+    t.fromIata === leg.fromIata && t.toIata === leg.toIata;
+  const take = (leg: (typeof directed)[number], at: number) => {
+    if (at >= 0) matches.set(leg, unused.splice(at, 1)[0]);
+  };
+  // Exact numbers are resolved for all legs first so leg order cannot steal a number-matched text flight.
+  for (const leg of directed) {
+    take(leg, unused.findIndex((t) => routeOf(leg)(t) && t.flightDate === leg.flightDate && t.flightNumber === leg.flightNumber));
+  }
+  for (const leg of directed) {
+    if (matches.has(leg)) continue;
+    const route = routeOf(leg);
     const sameNo = (t: TicketSegment) => !leg.flightNumber || !t.flightNumber || t.flightNumber === leg.flightNumber;
-    let at = unused.findIndex((t) => route(t) && t.flightDate === leg.flightDate && t.flightNumber === leg.flightNumber);
-    if (at < 0) at = unused.findIndex((t) => route(t) && t.flightDate === leg.flightDate && sameNo(t));
-    // A lone leg and a lone text flight on this route and day are the same flight even when the numbers differ.
     const day = (t: Pick<TicketSegment, 'fromIata' | 'toIata' | 'flightDate'>) => route(t) && t.flightDate === leg.flightDate;
-    if (at < 0 && legs.filter(day).length === 1 && unused.filter(day).length === 1) at = unused.findIndex(day);
-    if (at < 0) at = unused.findIndex((t) => route(t) && !t.flightDate && sameNo(t));
-    const match = at >= 0 ? unused.splice(at, 1)[0] : undefined;
+    // A missing number is trusted only when it is the one leg and the one text flight left on this route and day.
+    const open = directed.filter((l) => !matches.has(l) && day(l)).length === 1 && unused.filter(day).length === 1;
+    // A lone leg and a lone text flight on this route and day are the same flight even when the numbers differ.
+    if (open && (sameNo(unused[unused.findIndex(day)]) || legs.filter(day).length === 1)) take(leg, unused.findIndex(day));
+    // An undated text flight only when no dated one fits.
+    else take(leg, unused.findIndex((t) => route(t) && !t.flightDate && sameNo(t)));
+  }
+  // An ambiguous candidate (same route and day, number missing on a side) of a still-unmatched leg is the same flight, not a new one.
+  for (const leg of directed.filter((l) => !matches.has(l))) {
+    const dup = (t: TicketSegment) =>
+      routeOf(leg)(t) && t.flightDate === leg.flightDate && (!leg.flightNumber || !t.flightNumber);
+    for (let i = unused.length - 1; i >= 0; i--) if (dup(unused[i])) unused.splice(i, 1);
+  }
+  const merged = directed.map((leg): TicketSegment => {
+    const match = matches.get(leg);
     const sameDay = match?.flightDate === leg.flightDate;
     return {
       direction: leg.direction,
