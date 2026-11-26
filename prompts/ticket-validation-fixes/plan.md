@@ -108,7 +108,7 @@ verifier.
 - [x] **1d [orkiestrator] H4** — `prompts/coderabbit-pr48-fixes/plan.md:281` „P4 = c” → „P4 = a” — weryfikacja: grep
 
 Fala 2 (po PASS 1a–1c):
-- [ ] **2 [orkiestrator] dokumentacja** — `flows/features/ticket-import.md`, `known-limitations.md` (jak w „Pliki”) — weryfikacja:
+- [x] **2 [orkiestrator] dokumentacja** — `flows/features/ticket-import.md`, `known-limitations.md` (jak w „Pliki”) — weryfikacja:
   verifier razem z kodem
 
 Fala 3 (koniec):
@@ -126,6 +126,7 @@ Fala 3 (koniec):
 - Krok 1c (H2): test D3 red ✓ (dialog widoczny przed zamknięciem arkusza) → green ✓; `replacePending` ref w `ticketImported`, `onDismissed` ustawia `replacing`; flights.test 28/28, typecheck, lint ✓; verifier PASS · skill: test-driven-development · odstępstwa: brak
 - Krok 1b (H3): test „dwa loty bez numeru” red ✓ → green ✓; drugi test (najpierw numer) jest testem regresji, nie red. Odstępstwo: pierwsza wersja dopisywała niejednoznaczne loty z tekstu jako osobne (4 loty zamiast 2) — poprawione: są odrzucane, test sprawdza dokładnie 2 loty. Loty z tekstu z innym numerem niż kod zostają dopisane jak dotąd. ticket-parse 104/104, typecheck, lint, deno check ✓; verifier PASS · skill: test-driven-development
 - Krok 1a (H1): testy „dodatkowe loty po/przed lotem z parsera” i test handlera red ✓ (mismatch / wynik częściowy) → green ✓; pozostałe testy H1 strzegą reguły (przechodziły też wcześniej). `validateTicket(…, skippedPages)` z jednym przejściem i wskaźnikiem; handler przekazuje flagę. ticket-parse + extract-ticket 167/167, typecheck, lint, deno check ✓; verifier PASS · skill: test-driven-development · odstępstwa: brak
+- Krok 2: `flows/features/ticket-import.md` (dodatkowe loty z Gemini przy pominiętych stronach), `known-limitations.md` (H1 ryzyko injection, H3 puste godziny, H2 niesprawdzone na iOS) · weryfikacja w końcowym verifierze
 
 ## Ryzyka i otwarte pytania
 - H1 osłabia regułę „Gemini musi się zgadzać z etapem 1” tylko dla lotów spoza przeczytanych stron. Prompt injection na stronie 4
