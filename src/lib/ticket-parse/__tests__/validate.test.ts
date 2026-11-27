@@ -122,6 +122,42 @@ describe('validateTicket', () => {
       expect(r.kind === 'ok' && r.segments[0].direction).toBe('outbound');
     });
   });
+
+  describe('with skipped PDF pages', () => {
+    const p1: ParsedTicket = {
+      segments: [
+        { direction: 'outbound', fromIata: 'WAW', toIata: 'BCN', flightNumber: 'FR123', flightDate: '2026-12-05', departAt: null, arriveAt: null },
+      ],
+    };
+    const skipped = (g: GeminiTicket, p: ParsedTicket = p1) => validateTicket(g, p, airports, TODAY, true);
+    const extra = (o: Partial<GSeg> = {}) =>
+      gseg({ direction: 'return', flightNumber: 'FR456', fromIata: 'BCN', toIata: 'WAW', departLocal: '2026-12-12T10:00', arriveLocal: '2026-12-12T13:00', ...o });
+
+    it('accepts extra Gemini flights after the matched one; stage 1 direction wins on the match', () => {
+      const r = skipped(gem(gseg({ direction: 'return' }), extra()));
+      expect(r.kind).toBe('ok');
+      expect(r.kind === 'ok' && r.segments.map((s) => s.direction)).toEqual(['outbound', 'return']);
+      expect(r.kind === 'ok' && r.segments).toHaveLength(2);
+    });
+    it('accepts an extra Gemini flight before the matched one', () => {
+      const early = extra({ departLocal: '2026-12-01T10:00', arriveLocal: '2026-12-01T13:00' });
+      const r = skipped(gem(early, gseg()));
+      expect(r.kind === 'ok' && r.segments.map((s) => s.flightNumber)).toEqual(['FR456', 'FR123']);
+    });
+    it('still reports a mismatch on the same input without skipped pages', () => {
+      expect(run(gem(gseg(), extra()), p1)).toEqual({ kind: 'mismatch' });
+    });
+    it('reports a mismatch when the stage 1 flight disagrees on a known field', () => {
+      expect(skipped(gem(gseg({ flightNumber: 'FR999' }), extra()))).toEqual({ kind: 'mismatch' });
+    });
+    it('reports a mismatch when the stage 1 flight is absent from the answer', () => {
+      expect(skipped(gem(extra(), extra({ flightNumber: 'FR789' })))).toEqual({ kind: 'mismatch' });
+    });
+    it('reports a mismatch when Gemini returns fewer flights than stage 1', () => {
+      const two: ParsedTicket = { segments: [p1.segments[0], { ...p1.segments[0], flightNumber: 'FR456', fromIata: 'BCN', toIata: 'WAW' }] };
+      expect(skipped(gem(gseg()), two)).toEqual({ kind: 'mismatch' });
+    });
+  });
 });
 
 describe('validateParsed', () => {

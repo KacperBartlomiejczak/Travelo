@@ -45,6 +45,7 @@ export function validateTicket(
   parsed: ParsedTicket,
   airports: AirportLookup,
   today: string,
+  skippedPages = false,
 ): ValidateResult {
   if (!gemini.isTicket || gemini.segments.length === 0 || gemini.segments.length > MAX_TICKET_SEGMENTS) return { kind: 'not_a_ticket' };
   const min = shiftYears(today, -1);
@@ -72,21 +73,26 @@ export function validateTicket(
   }
 
   if (parsed.segments.length > 0) {
-    if (parsed.segments.length !== segments.length) return { kind: 'mismatch' };
-    const agrees = parsed.segments.every((p, i) => {
-      const s = segments[i];
-      return (
-        p.fromIata === s.fromIata &&
-        p.toIata === s.toIata &&
-        (p.flightNumber === null || p.flightNumber === s.flightNumber) &&
-        (p.flightDate === null || p.flightDate === s.flightDate) &&
-        (p.departAt === null || p.departAt === s.departAt) &&
-        (p.arriveAt === null || p.arriveAt === s.arriveAt)
-      );
-    });
-    if (!agrees) return { kind: 'mismatch' };
-    // Stage 1 direction is authoritative (Z9); Gemini only decides it when stage 1 found nothing.
-    segments.forEach((s, i) => (s.direction = parsed.segments[i].direction));
+    if (skippedPages ? parsed.segments.length > segments.length : parsed.segments.length !== segments.length) {
+      return { kind: 'mismatch' };
+    }
+    const agree = (p: ParsedTicket['segments'][number], s: TicketSegment) =>
+      p.fromIata === s.fromIata &&
+      p.toIata === s.toIata &&
+      (p.flightNumber === null || p.flightNumber === s.flightNumber) &&
+      (p.flightDate === null || p.flightDate === s.flightDate) &&
+      (p.departAt === null || p.departAt === s.departAt) &&
+      (p.arriveAt === null || p.arriveAt === s.arriveAt);
+    // Skipped pages: Gemini may add flights, so stage 1 flights must match an ordered subsequence (greedy). Otherwise 1:1.
+    let next = 0;
+    for (const p of parsed.segments) {
+      let i = next;
+      if (skippedPages) while (i < segments.length && !agree(p, segments[i])) i++;
+      if (i >= segments.length || !agree(p, segments[i])) return { kind: 'mismatch' };
+      // Stage 1 direction is authoritative (Z9); Gemini only decides it when stage 1 found nothing.
+      segments[i].direction = p.direction;
+      next = i + 1;
+    }
   }
   return segments.every((s) => TicketSegmentSchema.safeParse(s).success)
     ? { kind: 'ok', segments }

@@ -216,7 +216,7 @@ export async function handleExtractTicket(
     ports.log('gemini_used');
     const answer = GeminiTicketSchema.safeParse(JSON.parse(raw));
     if (!answer.success) return await failedGemini();
-    verdict = validateTicket(answer.data, parsed, lookup, today);
+    verdict = validateTicket(answer.data, parsed, lookup, today, skippedPages);
   } catch {
     return failedGemini();
   }

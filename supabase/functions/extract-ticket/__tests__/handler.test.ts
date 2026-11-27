@@ -169,6 +169,26 @@ describe('stage 1 (parser)', () => {
     expect(ExtractTicketResponseSchema.parse(res.body).source).toBe('ai');
   });
 
+  it('a long PDF: a flight Gemini finds on an unread page is accepted next to the stage 1 flight', async () => {
+    const answer: GeminiTicket = {
+      isTicket: true,
+      segments: [
+        ...gemini().segments,
+        { direction: 'return', flightNumber: 'FR456', fromIata: 'BCN', toIata: 'WAW', departLocal: '2026-12-12T10:00', arriveLocal: '2026-12-12T13:00' },
+      ],
+    };
+    const { ports } = makePorts({
+      extractPdfText: async () => ({ text: FULL_TEXT, skippedPages: true }),
+      callGemini: async () => JSON.stringify(answer),
+    });
+    const res = await handleExtractTicket(req(), ports);
+    expect(res.status).toBe(200);
+    const body = ExtractTicketResponseSchema.parse(res.body);
+    expect(body.source).toBe('ai');
+    expect(body.segments).toHaveLength(2);
+    expect(body.complete).toBe(true);
+  });
+
   it('500 when the remaining count cannot be read', async () => {
     const { ports } = makePorts({
       extractPdfText: async () => ({ text: FULL_TEXT, skippedPages: false }),
