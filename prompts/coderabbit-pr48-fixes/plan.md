@@ -278,7 +278,7 @@ w wątku (z uzasadnieniem albo wpisem w `known-limitations.md`) i rozwiązujemy 
 - [x] **F [frontend] G8**: `src/features/trip-create/TicketImportSheet.tsx` + `__tests__/TicketImportSheet.test.tsx`
 - [x] **G [frontend] G9 (po P6)**: `src/i18n/locales/pl.json`, `en.json`
 - [-] **H [backend] G6**: pominięty (P5 = a)
-- [x] **I [orkiestrator]**: wpisy w `docs/architecture/known-limitations.md` (P4 = c / P5 = a), flows `ticket-import.md` jeśli
+- [x] **I [orkiestrator]**: wpisy w `docs/architecture/known-limitations.md` (P4 = a / P5 = a), flows `ticket-import.md` jeśli
       zmienia się zachowanie (G4)
 - [x] **J [orkiestrator]**: każdy krok → verifier; potem pełny `pnpm test` / `typecheck` / `lint`, `deno check`, push, odpowiedzi
       i rozwiązanie wszystkich 10 wątków (G10 i ewentualne „zostawiamy” z uzasadnieniem).
@@ -293,3 +293,40 @@ najpierw poprawić K1 i K2, K3 wpisać do `known-limitations.md`, potem push.
 
 Ryzyka: G1/G3 zmieniają kolejność/liczbę lotów — istniejące testy merge/text muszą zostać zielone bez zmian; `merge.ts` i
 `text.ts` działają też w Deno (`deno check`). G7: `Modal.onDismiss` jest tylko na iOS — test musi pokryć obie platformy.
+
+## Dodatek 4: czwarte review CodeRabbita (commit 8192ca0, 2026-11-27)
+Status: zaakceptowany przez Kacpra (2026-11-27: P7 = a). Ta sama gałąź → push `HEAD:feature/ticket-import-ai`. CI (CodeRabbit) zielone,
+PR `MERGEABLE`. Otwarte są 2 wątki.
+
+### Uwagi (sprawdzone w kodzie)
+- **H1 [Minor] `prompts/coderabbit-pr48-fixes/plan.md:281`**: krok I podawał „P4 = c”, a decyzja to P4 = a (linia 203, krok D).
+  Poprawione w tym dodatku (orkiestrator). Odpowiedź w wątku.
+- **H2 [Major] `src/lib/ticket-parse/validate.ts:75` (wywołanie w `supabase/functions/extract-ticket/handler.ts:219`): lot ze
+  strony 4 i tak ginie.** P4 = a wysyła PDF z nieprzeczytanymi stronami do Gemini, ale `validateTicket` wymaga, żeby Gemini zwrócił
+  **dokładnie tyle** lotów co etap 1. Etap 1 widzi 1 lot (strony 1–3), Gemini poprawnie zwraca 2 (strona 4) → `mismatch` → odpowiedź
+  502 z częściowymi danymi z etapu 1 (`complete: false`), a analiza AI zostaje zużyta. P4 = a w praktyce nic nie daje. Uwaga zasadna.
+  Poprawka → **P7**.
+
+### Pytania (do decyzji Kacpra)
+- **P7 (H2): jak porównać loty z etapu 1 z dłuższą odpowiedzią Gemini, gdy były nieprzeczytane strony.**
+  a) **(rekomendacja)** Tylko gdy `skippedPages`: Gemini może zwrócić **co najmniej** tyle lotów co etap 1. Każdy lot z etapu 1 musi
+     mieć odpowiednik w odpowiedzi Gemini **w tej samej kolejności** (podciąg, bo lot ze strony 4 może być wcześniej w czasie), a znane
+     pola muszą się zgadzać jak dziś. Dopasowane loty dostają kierunek z etapu 1 (Z9), dodatkowe zostają z kierunkiem od Gemini. Bez
+     `skippedPages`: bez zmian (liczba musi być równa). `validateTicket` dostaje flagę z handlera.
+  b) Jak a), ale odpowiedniki tylko jako **pierwsze** N lotów Gemini (prefiks). Prościej, ale odrzuca poprawny bilet, gdy lot ze strony 4
+     jest wcześniejszy w czasie.
+  c) Zostawić, wpis w `known-limitations.md`.
+
+### Kroki (po akceptacji; testy najpierw)
+- [x] **A [backend] H2 (po P7)**: `src/lib/ticket-parse/validate.ts` + `__tests__/validate.test.ts`, `handler.ts` (przekazanie
+      `skippedPages`) + jego test. Testy: etap 1 = 1 lot, `skippedPages`, Gemini = 2 loty zgodne → `ok`, 2 loty, `complete` wg
+      `isComplete`; to samo bez `skippedPages` → `mismatch` (jak dziś); `skippedPages`, ale lot z etapu 1 niezgodny w znanym polu →
+      `mismatch`; lot z etapu 1 nieobecny w odpowiedzi → `mismatch`; Gemini z mniejszą liczbą lotów → `mismatch`.
+- [x] **B [orkiestrator]**: verifier kroku A; pełny `pnpm test` / `typecheck` / `lint`, `deno check`; flows `ticket-import.md`, jeśli
+      opisuje porównanie; push; odpowiedzi w obu wątkach i ich rozwiązanie.
+
+Ryzyka: `validate.ts` działa też w Deno (`deno check`). Istniejące testy `validate` muszą zostać zielone bez zmian.
+
+Wynik (2026-11-27): krok A zrobiony, testy widziane na czerwono (`mismatch` z porównania liczby lotów), verifier PASS. 240 zestawów /
+4725 testów, typecheck, lint, `deno check` zielone. Dopasowanie zachłanne (najwcześniejszy zgodny lot Gemini po poprzednim), co
+wystarcza do sprawdzenia podciągu. Flows `ticket-import.md` zaktualizowane. Push i odpowiedzi w obu wątkach.
