@@ -2,6 +2,9 @@ import {
   addLayover,
   budgetCurrency,
   budgetCurrencyOptions,
+  draftFromTicket,
+  isFlightsDraftEmpty,
+  withBoardingPass,
   toCreateTripInput,
   tripName,
   emptyDraft,
@@ -14,6 +17,7 @@ import {
   withOutbound,
 } from '@/features/trip-create/draft';
 import { DEFAULT_COVER } from '@/schemas';
+import type { BoardingPass, TicketSegment } from '@/schemas/ticket';
 
 describe('emptyDraft', () => {
   it('starts with one empty outbound and one empty return segment, alone, no budget', () => {
@@ -286,5 +290,84 @@ describe('toCreateTripInput with separate budgets', () => {
   it('in shared mode sends the organizer amount for every friend, whatever the friend fields hold', () => {
     const shared = { ...individual, budget: { ...individual.budget, mode: 'shared' as const } };
     expect(toCreateTripInput(shared, 'pl').budget.friendDailyMinor).toEqual([10000, 10000]);
+  });
+});
+
+describe('ticket import drafts', () => {
+  const tz = (iata: string) => ({ WAW: 'Europe/Warsaw', LIS: 'Europe/Lisbon' })[iata];
+  const seg = (over: Partial<TicketSegment> = {}): TicketSegment => ({
+    direction: 'outbound',
+    fromIata: 'WAW',
+    toIata: 'LIS',
+    flightNumber: 'LO123',
+    flightDate: '2026-12-01',
+    departAt: '2026-12-01T08:00',
+    arriveAt: '2026-12-01T11:00',
+    ...over,
+  });
+
+  it('draftFromTicket replaces both directions, maps timezones and gives fresh keys', () => {
+    const base = emptyDraft();
+    const draft = draftFromTicket(base, [seg(), seg({ direction: 'return', fromIata: 'LIS', toIata: 'WAW' })], tz);
+    expect(draft.outbound).toHaveLength(1);
+    expect(draft.outbound[0]).toMatchObject({
+      fromIata: 'WAW', toIata: 'LIS', departTz: 'Europe/Warsaw', arriveTz: 'Europe/Lisbon',
+      departAt: '2026-12-01T08:00', arriveAt: '2026-12-01T11:00', flightNumber: 'LO123',
+    });
+    expect(draft.return[0]).toMatchObject({ fromIata: 'LIS', toIata: 'WAW' });
+    expect(draft.outbound[0].key).not.toBe(base.outbound[0].key);
+  });
+
+  it('draftFromTicket turns null times into empty strings, keeps the day hint, drops a null flight number', () => {
+    const draft = draftFromTicket(emptyDraft(), [seg({ departAt: null, arriveAt: null, flightNumber: null })], tz);
+    expect(draft.outbound[0]).toMatchObject({ departAt: '', arriveAt: '', suggestedDate: '2026-12-01' });
+    expect(draft.outbound[0].flightNumber).toBeUndefined();
+  });
+
+  it('draftFromTicket gives no day hint when flightDate is null and times are missing', () => {
+    const draft = draftFromTicket(emptyDraft(), [seg({ departAt: null, arriveAt: null, flightDate: null })], tz);
+    expect(draft.outbound[0].suggestedDate).toBeUndefined();
+  });
+
+  it('draftFromTicket keeps one empty card for a direction without segments and orders by input', () => {
+    const draft = draftFromTicket(emptyDraft(), [seg(), seg({ fromIata: 'LIS', toIata: 'WAW' })], tz);
+    expect(draft.outbound.map((s) => s.fromIata)).toEqual(['WAW', 'LIS']);
+    expect(draft.return).toHaveLength(1);
+    expect(draft.return[0].fromIata).toBe('');
+  });
+
+  it('isFlightsDraftEmpty is true for a fresh draft and false after any input', () => {
+    expect(isFlightsDraftEmpty(emptyDraft())).toBe(true);
+    const typed = emptyDraft();
+    typed.return[0].flightNumber = 'LO1';
+    expect(isFlightsDraftEmpty(typed)).toBe(false);
+    expect(isFlightsDraftEmpty(draftFromTicket(emptyDraft(), [seg()], tz))).toBe(false);
+  });
+
+  const pass: BoardingPass = {
+    legs: [
+      { fromIata: 'WAW', toIata: 'LIS', flightNumber: 'LO123', flightDate: '2026-12-01' },
+      { fromIata: 'LIS', toIata: 'FAO', flightNumber: 'TP456', flightDate: '2026-12-01' },
+    ],
+  };
+
+  it('withBoardingPass replaces a lone empty segment, with empty times, a day hint and the flight number', () => {
+    const draft = withBoardingPass(emptyDraft(), pass, 'outbound', tz);
+    expect(draft.outbound).toHaveLength(2);
+    expect(draft.outbound[0]).toMatchObject({
+      fromIata: 'WAW', departTz: 'Europe/Warsaw', departAt: '', arriveAt: '', flightNumber: 'LO123', suggestedDate: '2026-12-01',
+    });
+    expect(draft.return).toHaveLength(1);
+    expect(draft.return[0].fromIata).toBe('');
+  });
+
+  it('withBoardingPass appends to a filled direction and targets the given direction', () => {
+    const base = draftFromTicket(emptyDraft(), [seg()], tz);
+    const draft = withBoardingPass(base, pass, 'return', tz);
+    expect(draft.outbound).toHaveLength(1);
+    expect(draft.return).toHaveLength(2);
+    const appended = withBoardingPass(base, pass, 'outbound', tz);
+    expect(appended.outbound).toHaveLength(3);
+    expect(appended.outbound[0].key).toBe(base.outbound[0].key);
   });
 });

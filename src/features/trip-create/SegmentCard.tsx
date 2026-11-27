@@ -31,6 +31,8 @@ export function SegmentCard({ title, segment, onChange, errors, suggestedDepartu
   const { t } = useTranslation();
   const theme = useTheme();
   const set = (patch: Partial<SegmentDraft>) => onChange({ ...segment, ...patch });
+  // A ticket that gave a date but no times opens the pickers on that day (same noon default as DateTimeField).
+  const ticketDay = segment.suggestedDate ? `${segment.suggestedDate}T12:00` : undefined;
 
   return (
     <Card testID={testID} onLayout={onLayout}>
@@ -53,14 +55,14 @@ export function SegmentCard({ title, segment, onChange, errors, suggestedDepartu
       <DateTimeField
         label={t('newTrip.flights.departAt')}
         value={segment.departAt}
-        suggested={suggestedDeparture}
+        suggested={ticketDay ?? suggestedDeparture}
         error={errors.departAt}
         onChange={(departAt) => set({ departAt })}
       />
       <DateTimeField
         label={t('newTrip.flights.arriveAt')}
         value={segment.arriveAt}
-        suggested={segment.departAt || undefined}
+        suggested={segment.departAt || ticketDay}
         error={errors.arriveAt}
         onChange={(arriveAt) => set({ arriveAt })}
       />

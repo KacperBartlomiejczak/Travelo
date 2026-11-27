@@ -44,7 +44,7 @@
     "flights": {
       "direction": "Kierunek lotu",
       "heading": "Kiedy i dokąd lecisz?",
-      "ticket": "Wyślij bilet · wkrótce",
+      "ticket": "Wczytaj bilet",
       "outbound": "Lot tam",
       "return": "Powrót",
       "segment": "Odcinek {{number}}",
@@ -55,7 +55,47 @@
       "flightNumber": "Nr lotu",
       "addLayover": "Dodaj przesiadkę",
       "remove": "Usuń",
-      "companions": "Ile osób leci z Tobą?"
+      "companions": "Ile osób leci z Tobą?",
+      "import": {
+        "title": "Wczytaj bilet",
+        "fromFile": "Wczytaj z pliku",
+        "scan": "Zeskanuj kartę pokładową",
+        "offlineHint": "Wczytanie pliku wymaga internetu. Skan karty pokładowej działa bez niego.",
+        "fileType": "Rodzaj pliku",
+        "pdf": "PDF",
+        "photo": "Zdjęcie",
+        "consent": "Plik zostanie odczytany na naszym serwerze, a jeśli to będzie potrzebne — przeanalizowany przez AI (Google Gemini). Nie zapisujemy go. Odpowiadasz za to, co przesyłasz — wgrywaj tylko swój bilet albo bilet osoby, która się na to zgodziła. Po odczytaniu sprawdź dane przed zapisaniem podróży.",
+        "accept": "Rozumiem i akceptuję Politykę prywatności",
+        "privacyLink": "Polityka prywatności",
+        "send": "Wyślij",
+        "loading": "Odczytujemy bilet…",
+        "notTicketTitle": "To nie wygląda na bilet lotniczy",
+        "notTicketBody": "Nie znaleźliśmy w pliku danych lotu. Wgraj PDF lub zdjęcie biletu albo karty pokładowej. Ta próba nie zużywa dziennego limitu analiz AI, ale liczy się do dziennego limitu odrzuconych plików.",
+        "chooseAnother": "Wybierz inny plik",
+        "retry": "Spróbuj ponownie",
+        "errorLimit": "Wykorzystano dzienny limit odczytów biletów. Spróbuj jutro albo wpisz loty ręcznie.",
+        "errorUnsupported": "Ten plik nie jest obsługiwany. Wybierz PDF lub zdjęcie biletu.",
+        "errorTooLarge": "Ten plik jest za duży. Wybierz mniejszy plik.",
+        "errorUnreachable": "Nie możemy połączyć się z serwerem. Sprawdź internet i spróbuj ponownie.",
+        "errorFailed": "Nie udało się odczytać biletu. Spróbuj ponownie albo wpisz loty ręcznie.",
+        "importedComplete": "Wpisaliśmy loty z biletu. Sprawdź je przed dalszym krokiem.",
+        "importedPartial": "Wpisaliśmy lotniska i numery lotów. Uzupełnij godziny.",
+        "replaceTitle": "Zastąpić wpisane loty?",
+        "replaceMessage": "Loty z biletu zastąpią loty wpisane w obu kierunkach.",
+        "replace": "Zastąp",
+        "keep": "Zostaw moje",
+        "scannerTitle": "Zeskanuj kartę pokładową",
+        "scannerHint": "Skieruj aparat na kod kreskowy lub QR na karcie pokładowej.",
+        "cameraLoading": "Ładowanie aparatu",
+        "cameraDenied": "Aplikacja nie ma dostępu do aparatu. Zezwól na niego w ustawieniach telefonu, aby skanować karty pokładowe.",
+        "cameraAllow": "Zezwól na aparat",
+        "openSettings": "Otwórz ustawienia",
+        "unrecognized": "Nie rozpoznajemy tego kodu. Skieruj aparat na kod karty pokładowej.",
+        "scanDirection": "Do którego lotu dodać?",
+        "add": "Dodaj do lotów",
+        "scanAgain": "Skanuj ponownie",
+        "scanned": "Dodaliśmy lot z karty pokładowej. Uzupełnij godziny."
+      }
     },
     "fixErrors": "Popraw zaznaczone pola",
     "friends": {
@@ -601,7 +641,7 @@
   "legal": {
     "privacy": {
       "title": "Polityka prywatności aplikacji Travelo",
-      "updated": "Wersja z 6 listopada 2026 r.",
+      "updated": "Wersja z 20 listopada 2026 r.",
       "sections": [
         {
           "heading": "",
@@ -675,23 +715,34 @@
           ]
         },
         {
+          "heading": "2.8 Import biletu lotniczego",
+          "paragraphs": [
+            "• Gdy wczytujesz bilet (PDF albo zdjęcie biletu lub karty pokładowej), plik trafia na nasz serwer, gdzie jest najpierw odczytywany automatycznie, bez AI. Tylko gdy to nie wystarczy, plik trafia do Google Gemini API wyłącznie w celu odczytania danych lotu.",
+            "• Nie przechowujemy pliku — jest przetwarzany w pamięci serwera, a gdy sam odczyt nie wystarczy, wysyłany do Google Gemini; nie trafia do naszego magazynu plików ani logów. Aplikacja próbuje skasować kopię roboczą na telefonie zaraz po wysłaniu.",
+            "• Aplikacja dostaje z pliku tylko: lotniska, numery lotów, daty i godziny. Nie odczytujemy imienia i nazwiska pasażera ani numeru rezerwacji.",
+            "• Skan kodu z karty pokładowej aparatem odbywa się wyłącznie na telefonie — obraz z aparatu nie trafia na serwer.",
+            "• Zapisujemy licznik analiz AI w danym dniu (limit 5 dziennie na konto) i licznik odrzuconych plików, żeby chronić usługę przed nadużyciem."
+          ]
+        },
+        {
           "heading": "3. Cele i podstawy prawne",
           "paragraphs": [
             "Założenie i prowadzenie konta, logowanie, profil — art. 6 ust. 1 lit. b — wykonanie umowy (regulaminu)",
             "Planowanie podróży, zdjęcia, wydatki, synchronizacja między telefonem a serwerem — art. 6 ust. 1 lit. b — wykonanie umowy",
             "Przetwarzanie danych znajomych bez konta, które wpisujesz — art. 6 ust. 1 lit. f — prawnie uzasadniony interes: umożliwienie Ci zaplanowania wspólnej podróży",
             "Odkrywanie miejsc (miasto + zainteresowania) — art. 6 ust. 1 lit. b — wykonanie umowy",
+            "Import biletu lotniczego (odczyt danych lotu z pliku) — art. 6 ust. 1 lit. b — wykonanie umowy",
             "Bezpieczeństwo, logi, limit zapytań AI, zapobieganie nadużyciom — art. 6 ust. 1 lit. f — prawnie uzasadniony interes: bezpieczeństwo usługi",
             "Odpowiedzi na wiadomości, reklamacje, obrona przed roszczeniami — art. 6 ust. 1 lit. f oraz art. 6 ust. 1 lit. c (obowiązki z prawa konsumenckiego)",
             "Podanie danych jest dobrowolne, ale bez adresu e-mail (lub konta Google/Discord) i nicku nie da się założyć konta.",
-            "Nie podejmujemy wobec Ciebie decyzji opartych wyłącznie na zautomatyzowanym przetwarzaniu, które wywołują skutki prawne lub podobnie istotnie na Ciebie wpływają. Rekomendacje miejsc od AI to tylko propozycje."
+            "Nie podejmujemy wobec Ciebie decyzji opartych wyłącznie na zautomatyzowanym przetwarzaniu, które wywołują skutki prawne lub podobnie istotnie na Ciebie wpływają. Rekomendacje miejsc od AI to tylko propozycje, a dane odczytane z biletu sprawdzasz i zatwierdzasz sam przed zapisaniem podróży."
           ]
         },
         {
           "heading": "4. Komu przekazujemy dane",
           "paragraphs": [
             "• Supabase Inc. — hosting bazy danych, logowania, plików i funkcji serwerowych (podmiot przetwarzający na podstawie umowy powierzenia). Dane są przechowywane w regionie Irlandia (AWS eu-west-1).",
-            "• Google — (a) jeśli logujesz się przez Google: Google jako osobny administrator uwierzytelnia Cię i przekazuje nam e-mail; (b) Google Places API i Gemini API dostają tylko miasto i zainteresowania z zapytania „Odkryj miejsca”. Zapytanie wysyła nasz serwer, nie Twój telefon. Używamy płatnej wersji Gemini API, w której Google nie wykorzystuje zapytań do trenowania modeli.",
+            "• Google — (a) jeśli logujesz się przez Google: Google jako osobny administrator uwierzytelnia Cię i przekazuje nam e-mail; (b) Google Places API i Gemini API dostają tylko miasto i zainteresowania z zapytania „Odkryj miejsca”, a Gemini API — także plik biletu, gdy automatyczny odczyt nie wystarczy (patrz 2.8). Zapytanie wysyła nasz serwer, nie Twój telefon. Używamy płatnej wersji Gemini API, w której Google nie wykorzystuje zapytań do trenowania modeli.",
             "• Discord Inc. — jeśli logujesz się przez Discord, jako osobny administrator.",
             "• Znajomi z kontem, których dodasz do podróży lub którzy dodali Ciebie — widzą dane tej podróży (patrz 2.3).",
             "• Organy publiczne — tylko gdy wymaga tego prawo.",
@@ -758,7 +809,7 @@
     },
     "terms": {
       "title": "Regulamin aplikacji Travelo",
-      "updated": "Wersja z 6 listopada 2026 r.",
+      "updated": "Wersja z 20 listopada 2026 r.",
       "sections": [
         {
           "heading": "1. Postanowienia ogólne",
@@ -813,7 +864,8 @@
             "2. Rekomendacje mają wyłącznie charakter informacyjny. Mogą być nieaktualne, niepełne lub nietrafione. Przed wizytą sam sprawdź godziny otwarcia, ceny, dostępność i bezpieczeństwo miejsca, np. na jego stronie albo w Mapach Google.",
             "3. Rekomendacje nie są poradą zawodową (np. medyczną, prawną, finansową ani dotyczącą bezpieczeństwa). Decyzje o tym, dokąd pójść i co robić, podejmujesz samodzielnie.",
             "4. Dane o miejscach pochodzą z Google Maps Platform („Google Maps”) i podlegają Warunkom korzystania z Map Google (https://maps.google.com/help/terms_maps/) oraz Polityce prywatności Google (https://policies.google.com/privacy). Google nie jest stroną tego regulaminu.",
-            "5. Liczba zapytań AI jest ograniczona (obecnie 5 dziennie na konto)."
+            "5. Liczba zapytań AI jest ograniczona (obecnie 5 dziennie na konto).",
+            "6. Import biletu odczytuje dane lotu z pliku automatycznie, a w razie potrzeby z pomocą AI (Google Gemini). Odczyt może być błędny — sprawdź dane przed zapisaniem podróży. Wgrywaj tylko swój bilet albo bilet osoby, która się na to zgodziła. Liczba analiz biletu przez AI jest ograniczona (obecnie 5 dziennie na konto)."
           ]
         },
         {

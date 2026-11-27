@@ -16,10 +16,14 @@ import {
   type SegmentInputSchema,
   type TripDetailsInputSchema,
 } from '@/schemas';
+import type { BoardingPass, TicketSegment } from '@/schemas/ticket';
 
 // What the wizard holds while it is being filled in. Validated with the step schemas on "Next".
-/** `key` identifies a segment card on screen; the schema strips it. */
-export type SegmentDraft = z.input<typeof SegmentInputSchema> & { key: string };
+/**
+ * `key` identifies a segment card on screen; `suggestedDate` (YYYY-MM-DD) is the day a ticket gave when it had no times,
+ * so the time pickers can open on it. The schema strips both.
+ */
+export type SegmentDraft = z.input<typeof SegmentInputSchema> & { key: string; suggestedDate?: string };
 /**
  * `codeText` is the friend code as typed (UI state, never sent); `friendCode` is set only once that code was found on the
  * server (friend-invite D3, D9). A friend without code fields behaves as one without a code.
@@ -119,6 +123,49 @@ export function withOutbound(draft: TripDraft, outbound: SegmentDraft[]): TripDr
   const follows = more.length === 0 && (hasAirports(back, empty) || hasAirports(back, suggestedReturnAirports(draft.outbound)));
   if (!follows) return { ...draft, outbound };
   return { ...draft, outbound, return: [{ ...back, ...suggestedReturnAirports(outbound) }] };
+}
+
+type TimezoneOf = (iata: string) => string | undefined;
+
+function ticketSegment(
+  leg: { fromIata: string; toIata: string; flightNumber: string | null; flightDate: string | null; departAt?: string | null; arriveAt?: string | null },
+  timezoneOf: TimezoneOf,
+): SegmentDraft {
+  return {
+    ...emptySegment(),
+    fromIata: leg.fromIata,
+    toIata: leg.toIata,
+    departTz: timezoneOf(leg.fromIata) ?? '',
+    arriveTz: timezoneOf(leg.toIata) ?? '',
+    departAt: leg.departAt ?? '',
+    arriveAt: leg.arriveAt ?? '',
+    flightNumber: leg.flightNumber ?? undefined,
+    ...(leg.flightDate && !(leg.departAt && leg.arriveAt) ? { suggestedDate: leg.flightDate } : {}),
+  };
+}
+
+/** Both directions come from the ticket (ticket-import D3); a direction it does not cover keeps one empty card. */
+export function draftFromTicket(draft: TripDraft, segments: TicketSegment[], timezoneOf: TimezoneOf): TripDraft {
+  const of = (direction: TicketSegment['direction']) => {
+    const legs = segments.filter((s) => s.direction === direction).map((s) => ticketSegment(s, timezoneOf));
+    return legs.length > 0 ? legs : [emptySegment()];
+  };
+  return { ...draft, outbound: of('outbound'), return: of('return') };
+}
+
+const isSegmentEmpty = (s: SegmentDraft) => !s.fromIata && !s.toIata && !s.departAt && !s.arriveAt && !s.flightNumber;
+
+/** No flight field typed or imported yet, so a ticket can fill the draft without asking (ticket-import D3). */
+export function isFlightsDraftEmpty(draft: TripDraft): boolean {
+  return [...draft.outbound, ...draft.return].every(isSegmentEmpty);
+}
+
+/** Adds the legs of a scanned boarding pass to one direction (Z2); a lone empty card is replaced. Times stay empty (Z3). */
+export function withBoardingPass(draft: TripDraft, pass: BoardingPass, direction: 'outbound' | 'return', timezoneOf: TimezoneOf): TripDraft {
+  const legs = pass.legs.map((leg) => ticketSegment(leg, timezoneOf));
+  const current = draft[direction];
+  const kept = current.length === 1 && isSegmentEmpty(current[0]) ? [] : current;
+  return { ...draft, [direction]: [...kept, ...legs] };
 }
 
 const OTHER_CURRENCIES = ['PLN', 'EUR', 'USD']; // D34

@@ -53,6 +53,26 @@ select test_helpers.ok(
   (select day from public.ai_usage where user_id = '00000000-0000-4000-a000-00000000000b') = (now() at time zone 'utc')::date,
   'the day is the UTC date');
 
+-- Ticket kinds: counted separately from places / trip_plan and from each other.
+select test_helpers.ok(
+  (select array_agg(public.consume_ai_quota('00000000-0000-4000-a000-00000000000b', 2, 'ticket') order by n)
+   from generate_series(1, 3) as n) = array[1, 0, null]::int[],
+  'ticket kind counts down to the limit and then returns null');
+select test_helpers.ok(
+  public.consume_ai_quota('00000000-0000-4000-a000-00000000000b', 10, 'ticket_rejected') = 9,
+  'ticket_rejected has its own counter');
+select test_helpers.ok(
+  public.consume_ai_quota('00000000-0000-4000-a000-00000000000b', 5, 'trip_plan') = 4
+    and public.consume_ai_quota('00000000-0000-4000-a000-00000000000b', 5) = 3,
+  'ticket kinds do not affect trip_plan or places counters');
+select public.refund_ai_quota('00000000-0000-4000-a000-00000000000b', 'ticket');
+select test_helpers.ok(
+  public.consume_ai_quota('00000000-0000-4000-a000-00000000000b', 2, 'ticket') = 0,
+  'refund_ai_quota gives a ticket unit back');
+select test_helpers.throws(
+  $q$select public.consume_ai_quota('00000000-0000-4000-a000-00000000000b', 5, 'bogus')$q$,
+  '23514', 'an unknown kind violates the check constraint');
+
 -- A non-positive limit refuses every call and writes no row.
 select test_helpers.ok(
   public.consume_ai_quota('00000000-0000-4000-a000-00000000000c', 0) is null

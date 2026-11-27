@@ -15,6 +15,8 @@ import { tokens } from '@/theme/tokens';
 let mockScheme: 'light' | 'dark' | null = 'light';
 let mockWindowWidth = 375;
 
+// The ticket import hook builds the Supabase client, which needs env variables tests do not have.
+jest.mock('@/data/supabase', () => ({ supabase: {} }));
 // useColorScheme reads Appearance through an internal import, so it is mocked at its module path.
 jest.mock('react-native/Libraries/Utilities/useColorScheme', () => ({
   __esModule: true,
