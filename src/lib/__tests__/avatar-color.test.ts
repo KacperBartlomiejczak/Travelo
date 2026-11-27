@@ -31,6 +31,7 @@ describe('avatarInitial', () => {
     ['', '?'],
     ['   ', '?'],
     ['😀 smile', '😀'],
+    ['ßara', 'S'],
   ])('%j -> %j', (name, expected) => {
     expect(avatarInitial(name)).toBe(expected);
   });

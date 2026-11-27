@@ -11,5 +11,6 @@ export function avatarColorIndex(key: string, paletteSize: number): number {
 /** First letter of the trimmed name (first code point, so emoji stay whole); '?' when empty. */
 export function avatarInitial(name: string): string {
   const first = Array.from(name.trim())[0];
-  return first ? first.toLocaleUpperCase() : '?';
+  // Uppercasing can expand one char ('ß' -> 'SS'), so keep only the first code point.
+  return first ? Array.from(first.toLocaleUpperCase())[0]! : '?';
 }
