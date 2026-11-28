@@ -17,4 +17,7 @@ config.resolver.blockList = [
   new RegExp(`^${worktrees}[\\\\/].*`),
 ];
 
+// Several worktrees run Metro and Jest at once; cap workers so Node does not exhaust RAM (Kacper, 2026-11-28).
+config.maxWorkers = 2;
+
 module.exports = config;

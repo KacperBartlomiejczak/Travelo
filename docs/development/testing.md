@@ -14,6 +14,7 @@ A step is **not done** until all relevant checks pass, and **the work cannot be 
 2. **Typecheck** — `pnpm typecheck` (zero errors).
 3. **Lint** — `pnpm lint`.
 4. **Tests** — `pnpm test`, the **full suite**, not only the new tests:
+   - Jest runs with at most 2 workers (`jest.maxWorkers` in `package.json`) and Metro with 2 (`metro.config.js`): several worktrees run at once and more workers exhausted RAM (Kacper, 2026-11-28). Do not override it with a higher `--maxWorkers`.
    - every Zod schema has valid and invalid fixtures,
    - business logic (budgets, layovers, currency conversion) has unit tests,
    - UI behavior has component tests.
