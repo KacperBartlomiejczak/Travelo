@@ -9,6 +9,7 @@ Prośba Kacpra (2026-11-24):
 Stan dziś (`prompts/revenuecat/`): PRO kupuje się z banera w Ustawieniach przez paywall RevenueCat; PRO nic jeszcze nie odblokowuje. Serwer nie wie, kto ma PRO (R3), więc wyższe limity dla PRO wymagają najpierw webhooka RevenueCat → Supabase (tabela z uprawnieniem + RLS) i odczytu tego w `generate-trip-plan` i `recommend-places`.
 
 ## Otwarte pytania (do Kacpra)
+> 2026-11-26: P1 (a) i P4 rozwiązane w `prompts/premium-welcome-screen/` — ekran „Witaj w Travelo PRO” po zakupie, wejście jak `/welcome` (core `Animated`, bez Lottie). Zostają P2 i P3.
 - **P1.** Animacja „ktoś zasubskrybował” — dla kogo?
   (a) dla osoby, która właśnie kupiła PRO (podziękowanie / konfetti w aplikacji) — rekomendacja;
   (b) dla nas (powiadomienie dla Ciebie jako twórcy o nowym subskrybencie);

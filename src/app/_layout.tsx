@@ -177,6 +177,8 @@ function GateContent({ view, retry }: ReturnType<typeof useGateView>) {
         />
         {/* The profile photo full screen over the profile screen (profile-settings D13). */}
         <Stack.Screen name="avatar" options={{ headerShown: false, presentation: 'fullScreenModal' }} />
+        {/* The thank-you after a PRO subscription starts (premium-welcome-screen D2). */}
+        <Stack.Screen name="pro-welcome" options={{ headerShown: false, presentation: 'fullScreenModal' }} />
         {/* The trip's photos full screen over the home screen (trip-photos D6, P4). */}
         <Stack.Screen name="trips/[tripId]/photos" options={{ headerShown: false, presentation: 'fullScreenModal' }} />
       </Stack.Protected>

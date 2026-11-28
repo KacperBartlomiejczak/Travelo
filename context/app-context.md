@@ -51,7 +51,7 @@ Platforms: iOS and Android (Expo / React Native). Languages: Polish (`pl`) and E
 17. **Expenses** (`prompts/expenses/`, done 2026-11-02). The "Wydatki" screen has a trip bar (opens the side panel), budget left for the group or "Ja" with today's amount and carryover from earlier days, a bar per person split by category, a timeline by day, and adding by the button in the empty state, then a floating button. One person per expense, the trip's base currency only, offline. The organizer edits anyone's expenses; a linked friend adds and edits only their own.
 18. **Discover places** (`prompts/places-legal-navbar/`, stream C, 2026-11-07) — from the home screen's empty state, "Odkryj miejsca" opens `/discover`, and with a trip the Plan tab's „Odkryj” switch shows it inside the tab (`prompts/plan-discover-switch/`): pick a city (airport search; in the Plan tab it starts on the trip's destination airport and loads by itself, `prompts/trip-recommendations/`), interests come from the profile, get up to 10 real places from Google Places with a short AI reason why they fit its Google rating, and up to 3 swipeable photos with the author's credit (`prompts/places-photo-carousel/`), open each in Google Maps. 5 searches per user per day; needs internet.
 
-19. **PRO subscription** (`prompts/revenuecat/`, 2026-11-11) — RevenueCat: monthly or yearly PRO (`travelo_pro`) bought from the Settings banner through the RevenueCat paywall, managed in Customer Center; the PRO badge shows the real status, also offline. PRO unlocks nothing yet. Test Store only; not checked on a device yet.
+19. **PRO subscription** (`prompts/revenuecat/`, 2026-11-11) — RevenueCat: monthly or yearly PRO (`travelo_pro`) bought from the Settings banner through the RevenueCat paywall, managed in Customer Center; the PRO badge shows the real status, also offline. After a purchase a "Witaj w Travelo PRO" thank-you screen opens (`prompts/premium-welcome-screen/`). PRO unlocks nothing yet. Test Store only; not checked on a device yet.
 
 ### In progress (plans in `prompts/`)
 - **AI trip plan** (`prompts/ai-trip-plan/`, 2026-11-13…) — in the Plan tab the organizer fills in one question form (only this city or nearby within 50–300 km, own cities from the airport list, preference chips), then a plain day-by-day plan from real Google places is generated for everyone's interests, saved per trip (one plan, replaced after a confirmation) and readable by linked friends. Built and tested in the app; the two Edge Functions and the migration are not deployed yet; device check pending. The result is shown as a one-day timeline with a day picker and friends' avatars (`prompts/plan-timeline/`).
@@ -85,6 +85,7 @@ Root Stack (a gate decides which group exists)
 ├── /settings              Settings (signed in, above the drawer, no pill)
 ├── /edit-profile          Nick and interests
 ├── /avatar                Full-screen avatar preview, always dark
+├── /pro-welcome           "Witaj w Travelo PRO" after a PRO purchase
 ├── /auth/callback         OAuth redirect landing (redirects by state)
 ├── (drawer)               Signed in with a profile. Side panel with all trips (swipe from the left edge only on "Podróż")
 │   └── (tabs)             Floating pill with four screens

@@ -934,5 +934,10 @@
     },
     "error": "Couldn't load this document.",
     "back": "Back"
+  },
+  "proWelcome": {
+    "title": "Welcome to Travelo PRO",
+    "body": "Thanks for supporting Travelo. Your subscription is now active.",
+    "done": "Great!"
   }
 }
