@@ -54,7 +54,12 @@ export function PlanScreen() {
       {mode === 'plan' ? (
         <View testID="plan-content" style={{ flex: 1, paddingTop: spacing[4], paddingBottom: clearance + spacing[4], paddingHorizontal: gutter }}>
           <View style={[column, { flex: 1 }]}>
-            {trips.data && <TripPlanSide key={trips.data.overview.trip.id} trip={trips.data.overview.trip} />}
+            {trips.data && <TripPlanSide
+                key={trips.data.overview.trip.id}
+                trip={trips.data.overview.trip}
+                members={trips.data.overview.members}
+                organizerUsername={trips.data.overview.organizerUsername}
+              />}
           </View>
         </View>
       ) : (

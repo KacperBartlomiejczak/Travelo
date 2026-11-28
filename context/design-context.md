@@ -1025,17 +1025,18 @@ Use category color only for the leading marker/icon, never the full chip backgro
 
 `xs 24`, `sm 32`, `md 40`, `lg 48`, `xl 64` from `components.avatar`.
 
-Fallback:
-- surface: `background.sunken`.
-- initials: `labelMD` / `labelLG` depending on size.
-- single initial for a one-word display name; first + last initial for multi-word names; maximum 2 glyphs.
+Fallback (plan-timeline D3, P4):
+- surface: one colour from `avatarFallback` (6 muted Sunline colours, separate light / dark sets, letter contrast ≥ 4.5:1), picked from a stable key of the person (`owner` or member uuid), so the same person has the same colour on every screen.
+- one glyph: the first letter of the display name, upper case; empty name → „?”.
+- letter style: `labelSM` for `xs` / `sm` (`labelMD` does not fit in 24 dp), `labelMD` / `labelLG` for larger sizes.
+- only the signed-in person's own photo is shown; everyone else uses the fallback until linked friends' photos are supported.
 
 ### Avatar Group
 
 - Default visible count: `components.avatar.groupMaxVisible = 4`.
 - Overlap: `components.avatar.groupOverlap = 10` dp.
 - Border: `components.avatar.borderWidth = 2`, matching current surface color.
-- Additional members use `+N` circle, not a tiny fifth image.
+- Additional members use `+N` circle on `background.sunken`, not a tiny fifth image.
 
 ### States
 
@@ -1545,7 +1546,7 @@ DAY 2 · ROME
 
 ### Geometry
 
-- Time column `56`.
+- Time column `56` for clock times ("09:30"); `80` (`slotColumnWidth`) when it shows part-of-day labels ("Popołudnie", "Afternoon") so the word fits on one line.
 - Rail column `24`.
 - Rail 2 dp.
 - Node 12 dp.

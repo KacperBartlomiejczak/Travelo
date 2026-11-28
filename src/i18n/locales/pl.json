@@ -208,7 +208,13 @@
     },
     "result": {
       "ai": "Wygenerowane przez AI",
-      "day": "Dzień {{n}} · {{date}} · {{city}}",
+      "dayHeader": "Dzień {{n}} · {{weekday}} {{date}}",
+      "travellers_one": "{{count}} podróżny",
+      "travellers_few": "{{count}} podróżnych",
+      "travellers_many": "{{count}} podróżnych",
+      "travellers_other": "{{count}} podróżnego",
+      "aiHint": "Sprawdź godziny otwarcia i ceny przed wyjściem.",
+      "emptyDay": "Brak miejsc na ten dzień.",
       "unavailable": "Miejsce niedostępne",
       "openMaps": "Otwórz w Mapach Google",
       "openMapsLabel": "Otwórz w Mapach Google, {{place}}",
@@ -636,7 +642,9 @@
     "back": "Wróć"
   },
   "a11y": {
-    "addExpense": "Dodaj wydatek"
+    "addExpense": "Dodaj wydatek",
+    "avatar": "{{name}}",
+    "avatarGroup": "Uczestnicy: {{names}}"
   },
   "legal": {
     "privacy": {

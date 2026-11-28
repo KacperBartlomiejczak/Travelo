@@ -67,7 +67,7 @@ function Layout() {
 }
 
 const mockTrip = (ownerId: string, id = TRIP_ID, destination = 'LIS') =>
-  jest.mocked(useCurrentTrip).mockReturnValue({ isPending: false, isError: false, data: { overview: { trip: { id, ownerId, destination } } } } as never);
+  jest.mocked(useCurrentTrip).mockReturnValue({ isPending: false, isError: false, data: { overview: { trip: { id, ownerId, destination, travellerCount: 1 }, members: [] } } } as never);
 
 async function open(ownerId: string = LOCAL_PROFILE_ID, destination = 'LIS') {
   mockTrip(ownerId, TRIP_ID, destination);
@@ -137,6 +137,21 @@ describe('Plan side of the Plan tab (ai-trip-plan step 9)', () => {
     resolve({ plan, places: [place], remainingToday: 2 });
     expect(await screen.findByText('Alfama')).toBeTruthy();
     expect(fetchAppPlaceDetails).not.toHaveBeenCalled();
+  });
+
+  it('passes the organizer nick, members and traveller count to the timeline', async () => {
+    const memberId = '00000000-0000-4000-8000-0000000000b2';
+    const withPeople: TripPlan = { ...plan, days: [{ ...plan.days[0], items: [{ ...plan.days[0].items[0], forPeople: ['owner', memberId] }] }] };
+    jest.mocked(fetchAppTripPlan).mockResolvedValue(withPeople);
+    jest.mocked(useCurrentTrip).mockReturnValue({
+      isPending: false,
+      isError: false,
+      data: { overview: { trip: { id: TRIP_ID, ownerId: LOCAL_PROFILE_ID, destination: 'LIS', travellerCount: 2 }, members: [{ id: memberId, userId: null, displayName: 'Ola' }] } },
+    } as never);
+    setAppProfileRepository(await repositoryWithProfile());
+    await renderRouter({ _layout: Layout, plan: PlanScreen }, { initialUrl: '/plan' });
+    expect(await screen.findByLabelText('Uczestnicy: kacper, Ola')).toBeTruthy();
+    expect(screen.getByText('2 podróżnych')).toBeTruthy();
   });
 
   it('a generation in flight survives leaving the Plan side: remount shows generating, no generate button, then the plan', async () => {
