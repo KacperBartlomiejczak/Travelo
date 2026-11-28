@@ -84,6 +84,7 @@
   "private": true,
   "jest": {
     "preset": "jest-expo",
+    "maxWorkers": 2,
     "resolver": "react-native-reanimated/jest/resolver",
     "testTimeout": 15000,
     "moduleNameMapper": {
