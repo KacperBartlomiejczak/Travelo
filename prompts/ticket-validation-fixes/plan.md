@@ -4,6 +4,8 @@ Status: w trakcie (zaakceptowany przez Kacpra, 2026-11-26)
 Gałąź: `fix/ticket-validation`, z `origin/feature/ticket-import-ai` (`8192ca0`), bo kod importu biletów jest tylko w PR #48,
 który nie jest jeszcze w `main` (decyzja Kacpra, 2026-11-26). Po zakończeniu: merge do `feature/ticket-import-ai` (aktualizuje
 PR #48), bez osobnego PR do `main`.
+**Zmiana (2026-11-28, zlecenie sesji głównej):** PR #48 został zmergowany do `main` (2026-11-27) bez tych commitów, więc krok 3 to
+rebase na `origin/main` i nowy PR do `main` (zob. dziennik).
 
 ## Zrozumienie i założenia
 Na PR #48 (commit `8192ca0`) zostały 4 nierozwiązane uwagi CodeRabbita: dwa wątki inline z review 2026-11-24 21:04, jedna uwaga
@@ -112,9 +114,10 @@ Fala 2 (po PASS 1a–1c):
   verifier razem z kodem
 
 Fala 3 (koniec):
-- [ ] **3 [orkiestrator]** pełne `pnpm test` / `pnpm typecheck` / `pnpm lint`, `deno check`; verifier całej gałęzi (Sonnet 5.5) +
-  lokalny CodeRabbit; merge (fast-forward) `fix/ticket-validation` → `feature/ticket-import-ai`, push (PR #48); odpowiedzi i
-  rozwiązanie 4 wątków / uwag
+- [ ] **3 [orkiestrator]** (zmieniony 2026-11-28) `git fetch`, rebase na `origin/main` z rozwiązaniem konfliktów; pełne
+  `pnpm test` / `pnpm typecheck` / `pnpm lint`, `deno check`; verifier całej gałęzi (Sonnet 5.5) + lokalny CodeRabbit; push
+  `HEAD:fix/ticket-validation` i nowy PR do `main`; wątki CodeRabbita na PR #48 — sprawdzić, czy otwarte, i zapytać Kacpra, czy
+  tam odpowiedzieć z linkiem do nowego PR
 
 ## Weryfikacja
 - po każdym kroku: verifier (PASS → `[x]`)
@@ -127,6 +130,14 @@ Fala 3 (koniec):
 - Krok 1b (H3): test „dwa loty bez numeru” red ✓ → green ✓; drugi test (najpierw numer) jest testem regresji, nie red. Odstępstwo: pierwsza wersja dopisywała niejednoznaczne loty z tekstu jako osobne (4 loty zamiast 2) — poprawione: są odrzucane, test sprawdza dokładnie 2 loty. Loty z tekstu z innym numerem niż kod zostają dopisane jak dotąd. ticket-parse 104/104, typecheck, lint, deno check ✓; verifier PASS · skill: test-driven-development
 - Krok 1a (H1): testy „dodatkowe loty po/przed lotem z parsera” i test handlera red ✓ (mismatch / wynik częściowy) → green ✓; pozostałe testy H1 strzegą reguły (przechodziły też wcześniej). `validateTicket(…, skippedPages)` z jednym przejściem i wskaźnikiem; handler przekazuje flagę. ticket-parse + extract-ticket 167/167, typecheck, lint, deno check ✓; verifier PASS · skill: test-driven-development · odstępstwa: brak
 - Krok 2: `flows/features/ticket-import.md` (dodatkowe loty z Gemini przy pominiętych stronach), `known-limitations.md` (H1 ryzyko injection, H3 puste godziny, H2 niesprawdzone na iOS) · weryfikacja w końcowym verifierze
+
+- Krok 3 (2026-11-28): plan kroku zmieniony — PR #48 zmergowany do `main` (`c609a4e`, 2026-11-27) bez tej gałęzi, więc zamiast
+  merge do `feature/ticket-import-ai` rebase na `origin/main` i nowy PR. Na `main` była już niezależna poprawka H1 i H4
+  (`d86c584`, `66d1f58`, Dodatek 4 / P7 w `prompts/coderabbit-pr48-fixes/plan.md`) o tym samym zachowaniu (lot z etapu 1 jako
+  podciąg w kolejności, kierunek z etapu 1, bez pominiętych stron 1:1). Konflikty w `validate.ts`, `validate.test.ts`,
+  `handler.test.ts` i `ticket-import.md` rozwiązane na korzyść `main` (różnica tylko w formie: `skippedPages = false` jako
+  domyślny argument); commit H1 zostaje tylko ze zmianą planu. Wpis H1 w `known-limitations.md` wskazuje teraz P7. Ta gałąź
+  wnosi więc do `main`: H2, H3 i wpisy w `known-limitations.md`.
 
 ## Ryzyka i otwarte pytania
 - H1 osłabia regułę „Gemini musi się zgadzać z etapem 1” tylko dla lotów spoza przeczytanych stron. Prompt injection na stronie 4
