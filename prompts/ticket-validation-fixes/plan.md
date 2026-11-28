@@ -1,5 +1,5 @@
 # Zadanie: poprawki walidacji biletów — otwarte uwagi CodeRabbita na PR #48
-Status: w trakcie (zaakceptowany przez Kacpra, 2026-11-26)
+Status: zrobione (zaakceptowany przez Kacpra 2026-11-26; krok 3 zmieniony 2026-11-28)
 
 Gałąź: `fix/ticket-validation`, z `origin/feature/ticket-import-ai` (`8192ca0`), bo kod importu biletów jest tylko w PR #48,
 który nie jest jeszcze w `main` (decyzja Kacpra, 2026-11-26). Po zakończeniu: merge do `feature/ticket-import-ai` (aktualizuje
@@ -114,7 +114,7 @@ Fala 2 (po PASS 1a–1c):
   verifier razem z kodem
 
 Fala 3 (koniec):
-- [ ] **3 [orkiestrator]** (zmieniony 2026-11-28) `git fetch`, rebase na `origin/main` z rozwiązaniem konfliktów; pełne
+- [x] **3 [orkiestrator]** (zmieniony 2026-11-28) `git fetch`, rebase na `origin/main` z rozwiązaniem konfliktów; pełne
   `pnpm test` / `pnpm typecheck` / `pnpm lint`, `deno check`; verifier całej gałęzi (Sonnet 5.5) + lokalny CodeRabbit; push
   `HEAD:fix/ticket-validation` i nowy PR do `main`; wątki CodeRabbita na PR #48 — sprawdzić, czy otwarte, i zapytać Kacpra, czy
   tam odpowiedzieć z linkiem do nowego PR
@@ -138,6 +138,12 @@ Fala 3 (koniec):
   `handler.test.ts` i `ticket-import.md` rozwiązane na korzyść `main` (różnica tylko w formie: `skippedPages = false` jako
   domyślny argument); commit H1 zostaje tylko ze zmianą planu. Wpis H1 w `known-limitations.md` wskazuje teraz P7. Ta gałąź
   wnosi więc do `main`: H2, H3 i wpisy w `known-limitations.md`.
+  Wynik: 244 zestawy / 4785 testów (5 zestawów UI przekroczyło limit czasu przy obciążonej maszynie i przeszło przy ponownym
+  uruchomieniu osobno), typecheck, lint, `deno check` zielone. Verifier całej gałęzi (Sonnet 5.5) PASS; lokalny CodeRabbit: 2
+  uwagi (pytania), obie niezasadne — `onImported` nie może przyjść po `onDismissed` (arkusz niezamykalny podczas wysyłki),
+  `flightNumber` w BCBP nie jest nullable. Wątki na PR #48: H1 i H4 już odpowiedziane i rozwiązane, H2 i H3 były uwagami „outside
+  diff” (bez wątku). Otwarty jest 1 nowy wątek (`prompts/coderabbit-pr48-fixes/plan.md:314`: kierunek z etapu 1 przy dwóch
+  zgodnych lotach Gemini) — poza zakresem tego planu, do decyzji Kacpra.
 
 ## Ryzyka i otwarte pytania
 - H1 osłabia regułę „Gemini musi się zgadzać z etapem 1” tylko dla lotów spoza przeczytanych stron. Prompt injection na stronie 4
