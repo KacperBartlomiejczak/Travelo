@@ -47,7 +47,7 @@ Brak. Ekran nie przyjmuje parametrów ani danych z zewnątrz. Wynik paywalla to 
 - [x] 2. [frontend] `SettingsScreen`: `PURCHASED` → `router.push('/pro-welcome')`, reszta bez zmian. Skill: test-driven-development. Najpierw testy: rozszerzenie `SettingsScreen.test.tsx`. Weryfikacja: verifier (Haiku). Może iść równolegle z krokiem 1.
 - [x] 3. Docs (orkiestrator) + verifier całej gałęzi z CodeRabbit (Sonnet 5.5) + `pnpm test`, `pnpm typecheck`, `pnpm lint` na zielono. Skill: code-review.
 - [x] 4. cve-auditor (częściowo, patrz dziennik) (pełny audyt), potem tester na telefonie (scenariusze wyżej). Przy EXISTS lub UNKNOWN pytam Kacpra.
-- [ ] 5. PR do `main`.
+- [x] 5. PR do `main` (PR #52), gałąź zaktualizowana z `origin/main`, scenariusze D–F na urządzeniu.
 
 ## Dziennik postępu
 - Krok 1: testy napisane (red ✓, brak modułu) · `ProWelcomeScreen` (grafika 128dp, korona 64dp, tytuł `displayLG`, tekst wyśrodkowany), trasa `/pro-welcome`, klucze `proWelcome.*` · green ✓ (9 testów) · verifier PASS · skill: test-driven-development, frontend-ui-engineering · odstępstwa: brak; test „Super!” sprawdza ścieżkę zamiast szpiega `router.back`.
@@ -55,6 +55,9 @@ Brak. Ekran nie przyjmuje parametrów ani danych z zewnątrz. Wynik paywalla to 
 - Krok 3: docs zaktualizowane (`frontend.md`, `app-context.md`, szkic pro-paywall-upgrade) · verifier gałęzi + CodeRabbit: FAIL → kolumna bez `flexGrow: 1` (przycisk nie był na dole, A1) · poprawka z testem (red ✓ → green ✓) · pełny zestaw 4467 ✓, typecheck ✓, lint ✓ · skill: code-review
 - Krok 4: cve-auditor CLEAN (23 advisories tylko w narzędziach dev: node-forge, minimatch, glob przez Expo CLI / jest) · tester (emulator Android 17): ścieżka zakupu zablokowana — baner „Przejdź na PRO” wyłączony, bo RevenueCat nie potwierdza tożsamości (`useIsProIdentityConfirmed`), błąd sprzed tej gałęzi (R1). Decyzja Kacpra: test ekranu przez deep link `traveling://pro-welcome` i PR. A (EN, układ, animacja) ✓, B („Great!” → Ustawienia) ✓, C (systemowe wstecz) ✓; D (PL), E (ciemny motyw), F (ograniczony ruch) nie przetestowane — emulator rozłączył się w trakcie. Pierwsze otwarcie deep linku dało „Unmatched Route” do zimnego restartu aplikacji (prawdopodobnie stary stan JS po hot reload, nie udowodnione).
 
+- Krok 5 (2026-11-28, podsesja): merge `origin/main` (66 commitów) bez konfliktów · typecheck ✓, lint ✓ · pełny zestaw przy domyślnej liczbie workerów: za każdym razem padały inne pliki na timeoutach pod obciążeniem maszyny (te same 5 plików osobno: 74/74 ✓), więc powtórka z `--maxWorkers=2` (polecenie Kacpra) · CI: na PR #52 nie ma workflow testów, CodeRabbit pominął PR (repo < 10 gwiazdek), brak uwag · cve-auditor CLEAN (te same 23 advisories tylko w narzędziach dev) · tester na emulatorze Pixel 10a (Android 17, dev client, Metro z tej gałęzi, deep link): D (PL) ✓, E (ciemny motyw) ✓, bo motyw tym razem się zastosował, F (ograniczony ruch, skale animacji 0) ✓, ale pierwszej klatki nie dało się złapać, więc brak animacji widać po stanie końcowym.
+
 ## Ryzyka i otwarte pytania
+- **R3 (pytanie do Kacpra, poza planem).** Przy zimnym starcie z samego deep linku (pod spodem nie ma Ustawień) „Super!” nic nie robi, bo `router.back()` nie ma historii, a systemowe wstecz zamyka aplikację. W prawdziwym zakupie pod spodem zawsze są Ustawienia, więc to nie blokuje. Do decyzji: czy dodać fallback (np. `router.canGoBack() ? back() : replace('/')`).
 - **R1.** RevenueCat Test Store nie był jeszcze sprawdzony na urządzeniu (`prompts/revenuecat/`), więc krok 4 może wyłapać problemy samego zakupu, nie tego ekranu.
 - **R2.** Gdyby później zakup był możliwy też z okna „Kup PRO” (P3 szkicu pro-paywall-upgrade), to miejsce też powinno robić push na `/pro-welcome`. Robimy to w tamtym zadaniu.
