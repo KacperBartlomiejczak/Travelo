@@ -97,7 +97,7 @@ export function DiscoverScreen({
     results = null;
   } else if (error) {
     results = (
-      <View testID="discover-error" style={{ gap: spacing[2], alignItems: 'flex-start' }}>
+      <View testID="discover-error" accessibilityLabel={t('discover.error')} style={{ gap: spacing[2], alignItems: 'flex-start' }}>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing[1] }}>
           <CircleAlert size={tokens.iconography.size.xs} strokeWidth={tokens.iconography.strokeWidth} color={theme.semantic.error.foreground} aria-hidden />
           <Text style={[typography.styles.bodyMD, { color: theme.text.primary, flexShrink: 1 }]}>{t('discover.error')}</Text>

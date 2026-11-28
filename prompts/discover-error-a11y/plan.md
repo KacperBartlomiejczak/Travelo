@@ -1,5 +1,5 @@
 # Zadanie: etykieta dostępności bloku błędu w Odkryj
-Status: czeka na akceptację
+Status: w trakcie (zaakceptowany przez Kacpra 2026-11-28)
 
 ## Zrozumienie i założenia
 - Zgłoszenie testera (emulator, 2026-11-28, gałąź `fix/plan-nearby-cities`): w Odkryj blok błędu (`testID="discover-error"`) pokazuje „Couldn't load places.”, a jego etykieta dostępności to nadal „Finding places” (etykieta bloku ładowania).
@@ -19,16 +19,17 @@ Bez zmian.
 
 ## Pliki
 - `src/features/discover/DiscoverScreen.tsx`, `src/features/discover/__tests__/DiscoverScreen.test.tsx`.
-- Docs: bez zmian w architekturze (sprawdzę `docs/architecture/flows/features/` dla Odkryj, czy opisuje etykiety stanów; jeśli tak — dopiszę).
+- Docs: bez zmian (`docs/architecture/flows/features/discover-places.md` nie opisuje etykiet dostępności stanów).
 
 ## Skille
 - test-driven-development — krok 1 — test czerwony przed poprawką
 
 ## Kroki
-- [ ] 1. [frontend] Etykieta bloku błędu w Odkryj — skill: test-driven-development — najpierw testy: z sekcji „Testy” (red ✓ z powodu braku etykiety) — weryfikacja: cały zestaw testów, `pnpm typecheck`, `pnpm lint` zielone; verifier PASS.
+- [x] 1. [frontend] Etykieta bloku błędu w Odkryj — skill: test-driven-development — najpierw testy: z sekcji „Testy” (red ✓ z powodu braku etykiety) — weryfikacja: cały zestaw testów, `pnpm typecheck`, `pnpm lint` zielone; verifier PASS.
 - [ ] 2. [orchestrator] cve-auditor (pełny audyt), potem tester na emulatorze (przed tym pytam Kacpra, czy `emulator-5554` jest wolny): Odkryj → wyszukiwanie → wyłączenie sieci w trakcie → blok błędu ma etykietę „Couldn't load places.”, „Retry” osobno dostępny; po „Retry” z siecią wyniki. Potem verifier całej gałęzi (z CodeRabbit), push, PR.
 
 ## Dziennik postępu
+- Krok 1 (2026-11-28): test „labels the error block for screen readers while keeping the retry reachable” (red ✓: `Expected: "Nie udało się wczytać miejsc."`, `Received: undefined`) · `accessibilityLabel={t('discover.error')}` na `discover-error`, bez `accessible` · green ✓ (244 zestawy, 4784 testy, typecheck, lint) · verifier PASS · użyty skill: test-driven-development · odstępstwa: brak.
 
 ## Ryzyka i otwarte pytania
 - TalkBack może przeczytać etykietę kontenera i potem tekst w środku (dwa razy ten sam tekst). Sprawdzi tester; jeśli tak, wracam do Kacpra.

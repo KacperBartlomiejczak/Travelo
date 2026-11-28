@@ -162,6 +162,15 @@ describe('DiscoverScreen', () => {
     await waitFor(() => expect(screen.getByText('Muzeum Narodowe')).toBeTruthy());
   });
 
+  it('labels the error block for screen readers while keeping the retry reachable', async () => {
+    await open(() => Promise.reject(new PlacesError('failed', 'x')));
+    await pickCity();
+    await fireEvent.press(searchButton());
+    await waitFor(() => expect(screen.getByTestId('discover-error')).toBeTruthy());
+    expect(screen.getByTestId('discover-error').props.accessibilityLabel).toBe('Nie udało się wczytać miejsc.');
+    expect(screen.getByRole('button', { name: 'Spróbuj ponownie' })).toBeTruthy();
+  });
+
   it('shows the limit message without a retry', async () => {
     await open(() => Promise.reject(new PlacesError('limit_reached', 'x')));
     await pickCity();
