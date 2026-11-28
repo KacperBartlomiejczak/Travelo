@@ -1,4 +1,4 @@
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useCallback, useState } from 'react';
 
 import { fetchAppPlaceRecommendations } from '@/data/app-places';
@@ -13,9 +13,10 @@ const keyOf = (request: RecommendPlacesRequest) =>
  * Place recommendations (places step C4). Each call costs one of the user's 5 daily requests and Google money, so this is a
  * `useQuery` driven by the submitted request (`enabled` only after `search`), `staleTime`/`gcTime` Infinity (the same search in this
  * session is a cache hit, never a new call), no automatic retries or refetches (the user retries). Only in memory: Google allows
- * storing just the placeId, and the app persists no query cache.
+ * storing just the placeId, and the app persists no query cache. `showCached` shows an earlier result for a request without ever calling.
  */
 export function usePlaceRecommendations(fetcher: (request: RecommendPlacesRequest) => Promise<RecommendPlacesResponse> = fetchAppPlaceRecommendations) {
+  const queryClient = useQueryClient();
   const [submitted, setSubmitted] = useState<RecommendPlacesRequest | null>(null);
   const query = useQuery({
     queryKey: submitted ? keyOf(submitted) : ['places', 'idle'],
@@ -29,8 +30,12 @@ export function usePlaceRecommendations(fetcher: (request: RecommendPlacesReques
     refetchOnReconnect: false,
   });
   const search = useCallback((request: RecommendPlacesRequest) => setSubmitted(request), []);
+  const showCached = useCallback(
+    (request: RecommendPlacesRequest) => setSubmitted(queryClient.getQueryData(keyOf(request)) ? request : null),
+    [queryClient],
+  );
   const { refetch } = query;
   const retry = useCallback(() => void refetch(), [refetch]);
   const error: PlacesErrorKind | null = query.error ? (query.error instanceof PlacesError ? query.error.kind : 'failed') : null;
-  return { data: query.data, loading: query.isFetching, error, remainingToday: query.data?.remainingToday, search, retry };
+  return { data: query.data, loading: query.isFetching, error, remainingToday: query.data?.remainingToday, search, showCached, retry };
 }

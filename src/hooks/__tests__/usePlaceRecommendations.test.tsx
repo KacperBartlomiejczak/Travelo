@@ -99,6 +99,46 @@ describe('usePlaceRecommendations (places step C4)', () => {
     await waitFor(() => expect(result.current.error).toBe('failed'));
   });
 
+  it('showCached with nothing cached makes no call and shows nothing', async () => {
+    const { result } = await render();
+    await act(async () => result.current.showCached(REQUEST));
+    expect(fetcher).not.toHaveBeenCalled();
+    expect(result.current.data).toBeUndefined();
+  });
+
+  it('showCached on a new mount returns the earlier result without a new call', async () => {
+    const first = await render();
+    await act(async () => first.result.current.search(REQUEST));
+    await waitFor(() => expect(first.result.current.data).toBeDefined());
+    await first.unmount();
+    const second = await render();
+    await act(async () => second.result.current.showCached(REQUEST));
+    await waitFor(() => expect(second.result.current.data).toEqual(RESPONSE));
+    expect(fetcher).toHaveBeenCalledTimes(1);
+  });
+
+  it('showCached after a failed search does not call again and shows nothing', async () => {
+    fetcher.mockRejectedValue(new PlacesError('failed', 'x'));
+    const first = await render();
+    await act(async () => first.result.current.search(REQUEST));
+    await waitFor(() => expect(first.result.current.error).toBe('failed'));
+    await first.unmount();
+    const second = await render();
+    await act(async () => second.result.current.showCached(REQUEST));
+    expect(fetcher).toHaveBeenCalledTimes(1);
+    expect(second.result.current.data).toBeUndefined();
+  });
+
+  it('showCached for a never-searched request clears the previous result', async () => {
+    const { result } = await render();
+    await act(async () => result.current.search(REQUEST));
+    await waitFor(() => expect(result.current.data).toBeDefined());
+    await act(async () => result.current.showCached({ ...REQUEST, city: 'Porto' }));
+    expect(result.current.data).toBeUndefined();
+    expect(result.current.remainingToday).toBeUndefined();
+    expect(fetcher).toHaveBeenCalledTimes(1);
+  });
+
   it('is not persisted: nothing in the app persists the query cache (Google allows storing only placeId)', async () => {
     const sources: string[] = [];
     const walk = (dir: string) => {

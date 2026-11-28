@@ -200,10 +200,12 @@ describe('DiscoverScreen footer', () => {
 describe('DiscoverScreen with a trip destination', () => {
   const lisbon = { city: 'Lisbon', latitude: 38.7813, longitude: -9.1359, interests: ['museums'], locale: 'pl' };
   const cityField = () => screen.getByLabelText('Miasto').props.value;
-  it('prefills the destination city and searches by itself once', async () => {
+  it('prefills the destination city and does not search until the button is pressed', async () => {
     const fetcher = jest.fn<ReturnType<Fetcher>, Parameters<Fetcher>>(() => Promise.resolve(answer()));
     await open(fetcher, 'LIS');
     expect(cityField()).toBe('Lisbon · LIS');
+    expect(fetcher).not.toHaveBeenCalled();
+    await fireEvent.press(searchButton());
     await waitFor(() => expect(screen.getByText('Muzeum Narodowe')).toBeTruthy());
     expect(fetcher).toHaveBeenCalledTimes(1);
     expect(fetcher).toHaveBeenCalledWith(lisbon);
@@ -227,6 +229,8 @@ describe('DiscoverScreen with a trip destination', () => {
       </AppProviders>
     );
     await renderRouter({ _layout: SharedLayout, discover: Screen }, { initialUrl: '/discover' });
+    await waitFor(() => expect(screen.queryByTestId('discover-loading')).toBeNull());
+    await fireEvent.press(searchButton());
     await waitFor(() => expect(screen.getByText('Muzeum Narodowe')).toBeTruthy());
     await act(async () => setShow(false));
     await act(async () => setShow(true));
@@ -234,24 +238,54 @@ describe('DiscoverScreen with a trip destination', () => {
     expect(fetcher).toHaveBeenCalledTimes(1);
   });
 
-  it('does not search offline on open, and searches once when the connection returns', async () => {
+  it('does not call the fetcher again after a failed search and a remount', async () => {
+    const fetcher = jest.fn<ReturnType<Fetcher>, Parameters<Fetcher>>(() => Promise.reject(new PlacesError('failed', 'x')));
+    setAppProfileRepository(await repositoryWithProfile());
+    const client = new QueryClient();
+    let setShow: (show: boolean) => void = () => {};
+    const Screen = () => {
+      const [show, set] = React.useState(true);
+      React.useEffect(() => {
+        setShow = set;
+      }, [set]);
+      return show ? <DiscoverScreen fetcher={fetcher} destination="LIS" /> : null;
+    };
+    const SharedLayout = () => (
+      <AppProviders queryClient={client}>
+        <Stack screenOptions={{ headerShown: false }} />
+      </AppProviders>
+    );
+    await renderRouter({ _layout: SharedLayout, discover: Screen }, { initialUrl: '/discover' });
+    await waitFor(() => expect(screen.queryByTestId('discover-loading')).toBeNull());
+    await fireEvent.press(searchButton());
+    await waitFor(() => expect(screen.getByText('Nie udało się wczytać miejsc.')).toBeTruthy());
+    await act(async () => setShow(false));
+    await act(async () => setShow(true));
+    await waitFor(() => expect(searchButton()).toBeEnabled());
+    expect(screen.queryByText('Nie udało się wczytać miejsc.')).toBeNull();
+    expect(fetcher).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not search offline on open, nor when the connection returns', async () => {
     setNetwork({ isConnected: false, isInternetReachable: false });
     const fetcher = jest.fn<ReturnType<Fetcher>, Parameters<Fetcher>>(() => Promise.resolve(answer()));
     await open(fetcher, 'LIS');
     expect(fetcher).not.toHaveBeenCalled();
     await act(async () => setNetwork({ isConnected: true, isInternetReachable: true }));
-    await waitFor(() => expect(fetcher).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(searchButton()).toBeEnabled());
+    expect(cityField()).toBe('Lisbon · LIS');
+    expect(fetcher).not.toHaveBeenCalled();
   });
 
   it('does not search for a manually picked city until the button is pressed', async () => {
     const fetcher = jest.fn<ReturnType<Fetcher>, Parameters<Fetcher>>(() => Promise.resolve(answer()));
     await open(fetcher, 'LIS');
-    await waitFor(() => expect(fetcher).toHaveBeenCalledTimes(1));
+    expect(fetcher).not.toHaveBeenCalled();
     await pickCity();
     expect(cityField()).toBe('Kraków · KRK');
-    expect(fetcher).toHaveBeenCalledTimes(1);
+    expect(fetcher).not.toHaveBeenCalled();
     await fireEvent.press(searchButton());
-    await waitFor(() => expect(fetcher).toHaveBeenCalledTimes(2));
+    await waitFor(() => expect(fetcher).toHaveBeenCalledTimes(1));
     expect(fetcher).toHaveBeenLastCalledWith(expect.objectContaining({ city: 'Kraków' }));
   });
 
@@ -261,6 +295,7 @@ describe('DiscoverScreen with a trip destination', () => {
       .mockResolvedValueOnce(answer())
       .mockResolvedValue(answer([place({ placeId: 'p2', name: 'Wawel' })]));
     await open(fetcher, 'LIS');
+    await fireEvent.press(searchButton());
     await waitFor(() => expect(screen.getByText('Muzeum Narodowe')).toBeTruthy());
     await pickCity();
     expect(screen.queryByText('Muzeum Narodowe')).toBeNull();
@@ -274,6 +309,7 @@ describe('DiscoverScreen with a trip destination', () => {
 
   it('hides the results while typing a new city', async () => {
     await open(() => Promise.resolve(answer()), 'LIS');
+    await fireEvent.press(searchButton());
     await waitFor(() => expect(screen.getByText('Muzeum Narodowe')).toBeTruthy());
     await fireEvent.changeText(screen.getByLabelText('Miasto'), 'Kra');
     expect(screen.queryByText('Muzeum Narodowe')).toBeNull();
@@ -282,6 +318,7 @@ describe('DiscoverScreen with a trip destination', () => {
 
   it('hides the error block of the searched city when another city is picked', async () => {
     await open(() => Promise.reject(new PlacesError('failed', 'x')), 'LIS');
+    await fireEvent.press(searchButton());
     await waitFor(() => expect(screen.getByText('Nie udało się wczytać miejsc.')).toBeTruthy());
     await pickCity();
     expect(screen.queryByText('Nie udało się wczytać miejsc.')).toBeNull();
@@ -290,6 +327,7 @@ describe('DiscoverScreen with a trip destination', () => {
 
   it('keeps the daily limit message when another city is picked', async () => {
     await open(() => Promise.reject(new PlacesError('limit_reached', 'x')), 'LIS');
+    await fireEvent.press(searchButton());
     await waitFor(() => expect(screen.getByText(/Wykorzystano dzisiejszy limit/)).toBeTruthy());
     await pickCity();
     expect(screen.getByText(/Wykorzystano dzisiejszy limit/)).toBeTruthy();
@@ -303,7 +341,7 @@ describe('DiscoverScreen with a trip destination', () => {
     expect(fetcher).not.toHaveBeenCalled();
   });
 
-  it('drops the manual pick and loads the new destination when the destination changes', async () => {
+  it('drops the manual pick and the previous results, and does not search, when the destination changes', async () => {
     const fetcher = jest.fn<ReturnType<Fetcher>, Parameters<Fetcher>>(() => Promise.resolve(answer()));
     setAppProfileRepository(await repositoryWithProfile());
     let setDestination: (iata: string) => void = () => {};
@@ -315,17 +353,22 @@ describe('DiscoverScreen with a trip destination', () => {
       return <DiscoverScreen fetcher={fetcher} destination={destination} />;
     };
     await renderRouter({ _layout: Layout, discover: Screen }, { initialUrl: '/discover' });
-    await waitFor(() => expect(fetcher).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(screen.queryByTestId('discover-loading')).toBeNull());
+    await fireEvent.press(searchButton());
+    await waitFor(() => expect(screen.getByText('Muzeum Narodowe')).toBeTruthy());
+    expect(screen.getByText('Zostało dziś wyszukiwań: 4')).toBeTruthy();
     await pickCity();
     await act(async () => setDestination('WAW'));
     expect(cityField()).toBe('Warsaw · WAW');
-    await waitFor(() => expect(fetcher).toHaveBeenCalledTimes(2));
-    expect(fetcher).toHaveBeenLastCalledWith(expect.objectContaining({ city: 'Warsaw' }));
+    expect(fetcher).toHaveBeenCalledTimes(1);
+    expect(screen.queryByText('Muzeum Narodowe')).toBeNull();
+    expect(screen.queryByText('Zostało dziś wyszukiwań: 4')).toBeNull();
   });
 
-  it('shows the limit message after one automatic call and does not loop', async () => {
+  it('shows the limit message after pressing the button and does not loop', async () => {
     const fetcher = jest.fn<ReturnType<Fetcher>, Parameters<Fetcher>>(() => Promise.reject(new PlacesError('limit_reached', 'x')));
     await open(fetcher, 'LIS');
+    await fireEvent.press(searchButton());
     await waitFor(() => expect(screen.getByText(/Wykorzystano dzisiejszy limit/)).toBeTruthy());
     expect(fetcher).toHaveBeenCalledTimes(1);
   });
