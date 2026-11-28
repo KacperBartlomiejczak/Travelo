@@ -361,9 +361,11 @@ describe('Flights step: ticket import', () => {
     });
     jest.mocked(extractTicket).mockResolvedValue(response);
     await fireEvent.press(screen.getByRole('button', { name: 'Wczytaj bilet' }));
+    const modalOnDismiss = screen.getByTestId('bottom-sheet-modal').props.onDismiss as () => void;
     await fireEvent.press(screen.getByRole('button', { name: 'Wczytaj z pliku' }));
     await fireEvent.press(screen.getByRole('checkbox', { name: /Rozumiem i akceptuję/ }));
     await fireEvent.press(screen.getByRole('button', { name: 'Wyślij' }));
+    return modalOnDismiss;
   }
 
   it('fills an empty form from the ticket and says to check it', async () => {
@@ -383,14 +385,18 @@ describe('Flights step: ticket import', () => {
   it('asks before replacing flights that were typed (D3); cancel keeps them, confirm replaces them', async () => {
     await openFlights();
     await chooseAirport(card('Odcinek 1', 'Lot tam'), 'Dokąd', 'DXB', /Dubai · DXB/);
-    await importFile(complete);
+    const dismissed = await importFile(complete);
+    // The dialog is a second Modal: iOS cannot present it while the import sheet is still dismissing.
+    await waitFor(() => expect(screen.queryByText('Zastąpić wpisane loty?')).toBeNull());
+    await act(async () => dismissed());
     expect(await screen.findByText('Zastąpić wpisane loty?')).toBeTruthy();
     expect(screen.queryByText(/Wpisaliśmy/)).toBeNull();
     await fireEvent.press(screen.getByRole('button', { name: 'Zostaw moje' }));
     await waitFor(() => expect(screen.queryByText('Zastąpić wpisane loty?')).toBeNull()); // the dialog fades out
     expect(within(screen.getByTestId('Lot tam-Odcinek 1')).queryByDisplayValue('LO123')).toBeNull();
 
-    await importFile(complete);
+    const dismissedAgain = await importFile(complete);
+    await act(async () => dismissedAgain());
     await fireEvent.press(await screen.findByRole('button', { name: 'Zastąp' }));
     expect(await screen.findByText('Wpisaliśmy loty z biletu. Sprawdź je przed dalszym krokiem.')).toBeTruthy();
     expect(within(screen.getByTestId('Lot tam-Odcinek 1')).getByDisplayValue('LO123')).toBeTruthy();
@@ -402,11 +408,13 @@ describe('Flights step: ticket import', () => {
     jest.mocked(pickTicketPdf).mockResolvedValue({ mimeType: 'application/pdf', dataBase64: 'JVBERi0=' });
     jest.mocked(extractTicket).mockReturnValue(new Promise((r) => (resolve = r)));
     await fireEvent.press(screen.getByRole('button', { name: 'Wczytaj bilet' }));
+    const dismissed = screen.getByTestId('bottom-sheet-modal').props.onDismiss as () => void;
     await fireEvent.press(screen.getByRole('button', { name: 'Wczytaj z pliku' }));
     await fireEvent.press(screen.getByRole('checkbox', { name: /Rozumiem i akceptuję/ }));
     await fireEvent.press(screen.getByRole('button', { name: 'Wyślij' }));
     await chooseAirport(card('Odcinek 1', 'Lot tam'), 'Dokąd', 'DXB', /Dubai · DXB/);
     await act(async () => resolve(complete));
+    await act(async () => dismissed());
     expect(await screen.findByText('Zastąpić wpisane loty?')).toBeTruthy();
     expect(screen.queryByText(/Wpisaliśmy/)).toBeNull();
   });

@@ -65,6 +65,35 @@ describe('mergeParsed', () => {
     ]);
   });
 
+  const twoLegs: BoardingPass = {
+    legs: [
+      { fromIata: 'WAW', toIata: 'BCN', flightNumber: 'LO123', flightDate: '2026-12-05' },
+      { fromIata: 'WAW', toIata: 'BCN', flightNumber: 'LO125', flightDate: '2026-12-05' },
+    ],
+  };
+
+  it('leaves times empty when two legs and two unnumbered text flights cannot be told apart', () => {
+    const evening = seg({ flightNumber: null, departAt: '2026-12-05T18:00', arriveAt: '2026-12-05T21:00' });
+    const morning = seg({ flightNumber: null, departAt: '2026-12-05T08:00', arriveAt: '2026-12-05T11:00' });
+    const r = mergeParsed(twoLegs, { segments: [evening, morning] }, airports);
+    // The ambiguous text flights are dropped, not appended as duplicates of the legs.
+    expect(r.segments.map((s) => [s.flightNumber, s.departAt, s.arriveAt])).toEqual([
+      ['LO123', null, null],
+      ['LO125', null, null],
+    ]);
+    expect(isComplete(r)).toBe(false);
+  });
+
+  it('resolves exact numbers first so the one unnumbered text flight goes to the remaining leg', () => {
+    const lo125 = seg({ flightNumber: 'LO125', departAt: '2026-12-05T14:00', arriveAt: '2026-12-05T17:00' });
+    const unnumbered = seg({ flightNumber: null, departAt: '2026-12-05T08:00', arriveAt: '2026-12-05T11:00' });
+    const r = mergeParsed(twoLegs, { segments: [lo125, unnumbered] }, airports);
+    expect(r.segments.map((s) => [s.flightNumber, s.departAt])).toEqual([
+      ['LO123', '2026-12-05T08:00'],
+      ['LO125', '2026-12-05T14:00'],
+    ]);
+  });
+
   it('copies no text times when the numbers differ and the route and day are ambiguous', () => {
     const text = { segments: [seg({ flightNumber: 'LO125' }), seg({ flightNumber: 'LO127', departAt: '2026-12-05T20:00', arriveAt: '2026-12-05T23:00' })] };
     const r = mergeParsed(bcbp({ flightNumber: 'LO123' }), text, airports);
