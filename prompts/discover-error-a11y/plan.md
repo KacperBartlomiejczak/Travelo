@@ -30,6 +30,7 @@ Bez zmian.
 
 ## Dziennik postępu
 - Krok 1 (2026-11-28): test „labels the error block for screen readers while keeping the retry reachable” (red ✓: `Expected: "Nie udało się wczytać miejsc."`, `Received: undefined`) · `accessibilityLabel={t('discover.error')}` na `discover-error`, bez `accessible` · green ✓ (244 zestawy, 4784 testy, typecheck, lint) · verifier PASS · użyty skill: test-driven-development · odstępstwa: brak.
+- Krok 2, część 1 (2026-11-28): cve-auditor — 23 ostrzeżenia (node-forge, minimatch, glob), wszystkie tylko w narzędziach Expo CLI / Jest, NOT AFFECTED dla aplikacji i Edge Functions. Tester (Medium Phone API 37, Metro z worktree na 8086): T1 PASS (sieć wyłączona w trakcie wyszukiwania → `discover-error` ma etykietę „Couldn't load places.”, „Try again” to osobny element); T2 TalkBack nie przetestowany (usługa nie podpięła się na emulatorze; w drzewie kontener ma etykietę, a w środku jest TextView z tym samym tekstem → możliwe podwójne czytanie); T3 nie potwierdzony (po włączeniu sieci „Try again” trafił w dzienny limit wyszukiwań). Sprzątanie testera: sieć, `debug_http_host` = `localhost:8081`, adb reverse, TalkBack, jego Metro — przywrócone.
 
 ## Ryzyka i otwarte pytania
 - TalkBack może przeczytać etykietę kontenera i potem tekst w środku (dwa razy ten sam tekst). Sprawdzi tester; jeśli tak, wracam do Kacpra.
