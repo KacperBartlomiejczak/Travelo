@@ -61,13 +61,14 @@ Najpierw testy, które padają z oczekiwanego powodu (red):
 ## Kroki
 Fale (task-planner): **fala 1** = krok 1 i krok 3 równolegle (rozłączne pliki); **fala 2** = krok 2 (twarda zależność od kroku 1, bo testy ekranu nie mockują hooka).
 - [x] 1. [frontend] `showCached` w `usePlaceRecommendations`, z aktualizacją JSDoc hooka — skill: superpowers:test-driven-development — najpierw testy: 4 testy hooka z sekcji Testy — weryfikacja: verifier, testy hooka, typecheck, lint
-- [ ] 2. [frontend] `DiscoverScreen`: efekt woła `showCached` zamiast `search`, z poprawką nieaktualnego komentarza nad efektem (zależy od kroku 1) — skill: superpowers:test-driven-development — najpierw testy: zmienione i nowe testy `DiscoverScreen` z sekcji Testy — weryfikacja: verifier, cały zestaw, typecheck, lint
+- [x] 2. [frontend] `DiscoverScreen`: efekt woła `showCached` zamiast `search`, z poprawką nieaktualnego komentarza nad efektem (zależy od kroku 1) — skill: superpowers:test-driven-development — najpierw testy: zmienione i nowe testy `DiscoverScreen` z sekcji Testy — weryfikacja: verifier, cały zestaw, typecheck, lint
 - [ ] 3. [docs] orkiestrator: nowa decyzja w `decisions.md` (2026-11-28, D1–D2 zastępują auto-ładowanie z 2026-11-09), poprawka opisu w `discover-places.md`, usunięcie nieaktualnego wpisu z `known-limitations.md:120` — skill: brak — weryfikacja: verifier całej gałęzi z CodeRabbit
 - Potem: cve-auditor (pełny audyt), tester na emulatorze: wejście w Plan → Odkryj nie zmienia licznika; po „Znajdź miejsca” licznik spada o 1; przełączenie Plan ↔ Odkryj pokazuje te same wyniki bez spadku licznika; restart aplikacji → Odkryj jest puste, licznik bez zmian.
 
 ## Dziennik postępu
 - Diagnoza: zrobiona 2026-11-28 (logi: 2 × 200, 10:44:56 i 10:45:54 UTC) · użyty skill: superpowers:systematic-debugging
 - Krok 1: testy napisane (red ✓: `showCached is not a function` w 4 testach) · `showCached` w `usePlaceRecommendations` (cache ma dane → `submitted = request`, inaczej `null`) · green ✓ (pełny zestaw 244 suity, typecheck, lint) · verifier PASS · użyty skill: superpowers:test-driven-development · bez odstępstw
+- Krok 2: testy napisane (red ✓: 5 testów, np. fetcher wywołany przy samym otwarciu i po powrocie sieci) · efekt woła `showCached(autoRequest)` zamiast `search` · green ✓ (244 suity / 4788 testów, typecheck, lint) · verifier PASS · użyty skill: superpowers:test-driven-development · odstępstwa: poprawione 2 dodatkowe nieaktualne komentarze w `DiscoverScreen` (JSDoc `destination`, komentarz nad `setSearched`); 4 inne testy (ukrywanie wyników przy zmianie miasta, pisanie, błąd, limit) dostały naciśnięcie przycisku zamiast auto-wyszukiwania, bez osłabienia asercji. Zmiana języka przy otwartym Odkryj (Plan, cel podróży): wyniki znikają, bez wywołania (sprawdzone czytaniem kodu)
 
 ## Ryzyka i otwarte pytania
 - Rebase na `feature/pro-limits-and-cities`: w `DiscoverScreen` zmienia się tylko linia efektu. Konflikt jest możliwy, jeśli ta gałąź dotyka tego samego efektu; wtedy rozwiązanie jest ręczne i małe.

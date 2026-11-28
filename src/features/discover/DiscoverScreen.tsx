@@ -35,7 +35,7 @@ export function DiscoverScreen({
 }: {
   fetcher?: (request: RecommendPlacesRequest) => Promise<RecommendPlacesResponse>;
   bottomInset?: number;
-  /** Trip destination (IATA): prefilled as the city and searched once on its own. */
+  /** Trip destination (IATA): prefilled as the city; searching still needs the button. */
   destination?: string;
 }) {
   const { t, i18n } = useTranslation();
@@ -50,7 +50,7 @@ export function DiscoverScreen({
     setManual(undefined);
   }
   const airport = manual === undefined ? (destination ? (findAirport(destination) ?? null) : null) : manual;
-  const { data, loading, error, remainingToday, search, retry } = usePlaceRecommendations(fetcher);
+  const { data, loading, error, remainingToday, search, showCached, retry } = usePlaceRecommendations(fetcher);
   const [searched, setSearched] = useState<RecommendPlacesRequest | null>(null);
 
   const interests = profile.data?.profile.interests;
@@ -67,11 +67,11 @@ export function DiscoverScreen({
     [airport, interests, locale],
   );
   const autoRequest = manual === undefined && airport && interests && request.success && !offline ? request.data : null;
-  // Same request = cache hit in the hook, so remounting or reconnecting never calls the fetcher again.
+  // Opening only shows an earlier cached result for this request (or nothing); searching needs the button.
   useEffect(() => {
-    if (autoRequest) search(autoRequest);
-  }, [autoRequest, search]);
-  // The automatic search above is for autoRequest, so remember it during render (same pattern as seenDestination).
+    if (autoRequest) showCached(autoRequest);
+  }, [autoRequest, showCached]);
+  // The cached view above is for autoRequest, so remember it during render (same pattern as seenDestination).
   if (autoRequest && searched !== autoRequest) setSearched(autoRequest);
   const canSearch = request.success && !offline && !loading;
   // Results belong to the city they were searched for; a different (or half-typed) city hides them.
