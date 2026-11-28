@@ -12,11 +12,12 @@ import { TextButton } from '@/components/TextButton';
 import { TripPlanCallError } from '@/data/trip-plan';
 import { useGenerateTripPlan } from '@/hooks/useGenerateTripPlan';
 import { planPlaceIds, usePlaceDetails } from '@/hooks/usePlaceDetails';
-import { useIsTripOwner } from '@/hooks/useProfile';
+import { useIsTripOwner, useMyProfile } from '@/hooks/useProfile';
 import { useTripPlan } from '@/hooks/useTripPlan';
 import { findAirport } from '@/lib/airport-search';
+import { planPeopleView } from '@/lib/plan-people-view';
 import { useIsOffline } from '@/providers/BudgetSync';
-import { PLANS_PER_DAY, type GenerateTripPlanRequest, type TripSummary } from '@/schemas';
+import { PLANS_PER_DAY, type GenerateTripPlanRequest, type TripMember, type TripSummary } from '@/schemas';
 import { tokens } from '@/theme/tokens';
 import { useTheme } from '@/theme/useTheme';
 
@@ -27,12 +28,20 @@ import { PlanWizard } from './PlanWizard';
 const { spacing, typography, iconography } = tokens;
 
 // The "Plan" side of the Plan tab (ai-trip-plan step 9): load the saved plan, or let the owner generate one.
-export function TripPlanSide({ trip }: { trip: Pick<TripSummary, 'id' | 'ownerId' | 'destination'> }) {
+type Props = {
+  trip: Pick<TripSummary, 'id' | 'ownerId' | 'destination' | 'travellerCount'>;
+  members: Pick<TripMember, 'id' | 'userId' | 'displayName'>[];
+  /** The organizer's nick when the viewer is a linked member (friend-invite D4). */
+  organizerUsername?: string;
+};
+
+export function TripPlanSide({ trip, members, organizerUsername }: Props) {
   const { t, i18n } = useTranslation();
   const theme = useTheme();
   const focused = useIsFocused();
   const offline = useIsOffline();
   const owner = useIsTripOwner(trip.ownerId);
+  const me = useMyProfile().data?.profile;
   const locale = i18n.language.startsWith('pl') ? 'pl' : 'en';
   const plan = useTripPlan(trip.id);
   const details = usePlaceDetails(plan.data ? planPlaceIds(plan.data) : [], locale);
@@ -114,6 +123,16 @@ export function TripPlanSide({ trip }: { trip: Pick<TripSummary, 'id' | 'ownerId
             plan={plan.data}
             places={details.data}
             cityName={(iata) => findAirport(iata)?.city ?? iata}
+            travellerCount={trip.travellerCount}
+            resolvePeople={(forPeople) =>
+              planPeopleView(forPeople, {
+                ownerId: trip.ownerId,
+                organizerName: (owner ? me?.username : organizerUsername) ?? t('home.organizerUnknown'),
+                members,
+                myUserId: me?.id ?? null,
+                myPhotoUri: me?.avatarUrl,
+              })
+            }
             canRegenerate={canGenerate}
             onRegenerate={() => setConfirmReplace(true)}
           />

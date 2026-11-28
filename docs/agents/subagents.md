@@ -18,7 +18,7 @@ Definitions live in `.claude/agents/`.
 
 | Agent | Model | Does | Edits | Must not |
 |---|---|---|---|---|
-| **explorer** (read-only) | Haiku 5.5 (`claude-haiku-5-5`) | Answers one concrete question about the codebase: where X lives, which schemas / components / hooks / tests / migrations already exist, which pattern to follow. Returns `file:line` locations and short conclusions | nothing | Edit files, propose implementations |
+| **explorer** (read-only) | Haiku 5.5 (`claude-haiku-5-5`), effort medium | Answers one concrete question about the codebase: where X lives, which schemas / components / hooks / tests / migrations already exist, which pattern to follow. Returns `file:line` locations and short conclusions | nothing | Edit files, propose implementations |
 | **planner** (read-only) | opus | Drafts a plan in the plan template format, every step tagged `[backend]` or `[frontend]` | nothing — returns the plan to the orchestrator | Start implementing, edit any `plan.md` |
 | **task-planner** (read-only) | `inherit` (the orchestrator's model) | **Always used** (Kacper, 2026-11-24): splits one task into the smallest independent sub-tasks and groups them into parallel waves (no shared files within a wave, dependencies only across waves); flags separate tasks that need their own sub-session | nothing — returns the waves to the orchestrator | Implement, edit any file, decide Kacper's calls |
 | **backend** | sonnet | Executes **one approved backend step**: tests first (red), then code (green) | `src/schemas/` (target: `packages/schemas/`), the data layer (`src/data/`, `src/lib/`, `src/providers/`, `src/test/`; Kacper 2026-10-20), `supabase/migrations/`, `supabase/functions/` | Touch `apps/mobile/`, return with any failing test |
@@ -68,7 +68,7 @@ The model column mirrors the `model:` field in `.claude/agents/*.md`; change bot
 
 | Agent | Model | Tools | Role |
 |---|---|---|---|
-| `explorer` | `claude-haiku-5-5` (Haiku 5.5) | Read, Grep, Glob | Read-only scout: finds code, schemas and patterns |
+| `explorer` | `claude-haiku-5-5` (Haiku 5.5), effort medium | Read, Grep, Glob | Read-only scout: finds code, schemas and patterns |
 | `planner` | opus | Read, Grep, Glob | Read-only: drafts a plan in the plan template format |
 | `task-planner` | `inherit` (orchestrator's model; Codex: no `model` set, so it inherits) | Read, Grep, Glob | Read-only: splits a task into parallel waves of independent sub-tasks |
 | `backend` | sonnet | Read, Edit, Write, Grep, Glob, Bash | Executes one backend step test-first (schemas, migrations, RLS, Edge Functions) |

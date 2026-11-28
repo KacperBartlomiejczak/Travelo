@@ -77,6 +77,19 @@ describe.each(['light', 'dark'] as const)('§2.9 text contrast, %s', (mode) => {
   });
 });
 
+describe.each(['light', 'dark'] as const)('avatarFallback palette, %s', (mode) => {
+  const palette = colors[mode].avatarFallback;
+
+  it('has 6 distinct colours', () => {
+    expect(palette).toHaveLength(6);
+    expect(new Set(palette.map((entry) => entry.background)).size).toBe(6);
+  });
+
+  it.each(palette.map((entry, index) => [index, entry] as const))('letter %d is at least 4.5:1 on its background', (_index, entry) => {
+    expect(contrast(entry.foreground, entry.background)).toBeGreaterThanOrEqual(AA);
+  });
+});
+
 describe('typography', () => {
   const layout = readFileSync(join(__dirname, '../../app/_layout.tsx'), 'utf8');
 
